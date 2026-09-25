@@ -77,7 +77,7 @@ export default function Home() {
               This website is informational and is not intended for emergency or crisis care.
             </p>
           </div>
-          <div className="heroPanel" aria-label="Practice focus areas">
+          <div className="heroPanel heroPanelPhoto" aria-label="Practice focus areas" style={{ backgroundImage: 'linear-gradient(180deg, rgba(18,47,41,.08), rgba(18,47,41,.38)), url("/images/homepage-therapy.png")' }}>
             <div className="heroPanelInner">
               <span className="quietLabel">Focused care for</span>
               <ul>

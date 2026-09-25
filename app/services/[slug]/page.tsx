@@ -29,7 +29,8 @@ const specialties = {
         "Progress is not measured only by whether someone used a substance. It can also include increased honesty, better coping, improved relationships, more reliable decision-making, and a life that feels worth protecting."
       ]]
     ],
-    closing: "You do not have to wait for a crisis to take substance use seriously. A thoughtful assessment and an honest conversation can be a strong first step."
+    closing: "You do not have to wait for a crisis to take substance use seriously. A thoughtful assessment and an honest conversation can be a strong first step.",
+    image: "/images/substance-use-recovery.png"
   },
   "trauma-therapy": {
     title: "Trauma Therapy",
@@ -57,7 +58,8 @@ const specialties = {
         "For many people, healing also includes replacing shame and self-blame with a more accurate understanding of what their mind and body did to survive."
       ]]
     ],
-    closing: "Trauma treatment should be careful, respectful, and purposeful. The work is not to force disclosure—it is to help restore safety, flexibility, and ownership of your life."
+    closing: "Trauma treatment should be careful, respectful, and purposeful. The work is not to force disclosure—it is to help restore safety, flexibility, and ownership of your life.",
+    image: "/images/trauma-therapy.png"
   },
   "marriage-family-therapy": {
     title: "Marriage & Family Therapy",
@@ -85,7 +87,8 @@ const specialties = {
         "The larger goal is to help people build a relationship or family culture that is more honest, flexible, respectful, and resilient."
       ]]
     ],
-    closing: "You do not have to wait until a relationship is on the edge of ending. Therapy can be useful whenever the current way of relating is no longer producing the kind of relationship or family life you want."
+    closing: "You do not have to wait until a relationship is on the edge of ending. Therapy can be useful whenever the current way of relating is no longer producing the kind of relationship or family life you want.",
+    image: "/images/marriage-family-therapy.png"
   },
   "mood-disorders": {
     title: "Mood Disorders",
@@ -112,7 +115,8 @@ const specialties = {
         "The goal is not to demand positivity. It is to increase flexibility, functioning, connection, and the ability to respond effectively when mood begins to shift."
       ]]
     ],
-    closing: "Mood problems can narrow a person's world gradually. Treatment is about helping that world open back up—with careful assessment, practical tools, and a plan that fits the individual."
+    closing: "Mood problems can narrow a person's world gradually. Treatment is about helping that world open back up—with careful assessment, practical tools, and a plan that fits the individual.",
+    image: "/images/mood-disorders.png"
   },
   "autism": {
     title: "Autism",
@@ -140,7 +144,8 @@ const specialties = {
         "The standard should be a more sustainable and authentic life—not simply greater conformity."
       ]]
     ],
-    closing: "Autism-informed care should make room for the whole person: strengths, needs, preferences, relationships, identity, and the environments in which everyday life actually happens."
+    closing: "Autism-informed care should make room for the whole person: strengths, needs, preferences, relationships, identity, and the environments in which everyday life actually happens.",
+    image: "/images/autism.png"
   },
   "adhd": {
     title: "ADHD",
@@ -168,7 +173,8 @@ const specialties = {
         "Progress often looks like increased reliability, less overwhelm, better recovery after disruptions, and greater confidence in one's ability to manage everyday demands."
       ]]
     ],
-    closing: "ADHD treatment should move beyond generic advice. The work is to understand the individual pattern and build practical systems that are realistic enough to survive ordinary life."
+    closing: "ADHD treatment should move beyond generic advice. The work is to understand the individual pattern and build practical systems that are realistic enough to survive ordinary life.",
+    image: "/images/adhd.png"
   }
 } as const;
 
@@ -205,6 +211,12 @@ export default async function SpecialtyPage({ params }: { params: Promise<{ slug
             <Link className="primaryButton" href="/#contact">Start a conversation</Link>
             <Link className="secondaryButton" href="/#services">Explore other specialties</Link>
           </div>
+          <div
+            className="specialtyImage"
+            role="img"
+            aria-label={`${specialty.title} counseling setting`}
+            style={{ backgroundImage: `linear-gradient(180deg, rgba(18,47,41,.02), rgba(18,47,41,.18)), url("${specialty.image}")` }}
+          />
         </section>
 
         <section className="specialtyContent">

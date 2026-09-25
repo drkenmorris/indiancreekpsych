@@ -14,12 +14,11 @@ export default async function AccountPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, preferred_name")
+    .select("full_name, preferred_name, account_type")
     .eq("id", claims.sub)
     .maybeSingle();
 
-  return (
-    <div className="icp-shell">
+  const { data: newsletter } = await supabase\n    .from("newsletter_subscriptions")\n    .select("subscribed, frequency")\n    .eq("user_id", claims.sub)\n    .maybeSingle();\n\n  return (\n    <div className="icp-shell">
       <header className="icp-top-menu">
         <div className="icp-top-menu-left"><Link className="icp-brand" href="/"><span className="icp-brand-mark">IC</span><span className="icp-brand-copy"><strong>Indian Creek</strong><small>Psychological Services</small></span></Link></div>
         <div className="icp-top-menu-right"><span className="icp-top-tagline">Secure Client Account</span></div>
@@ -28,8 +27,7 @@ export default async function AccountPage() {
         <AccountClient
           email={typeof claims.email === "string" ? claims.email : ""}
           fullName={profile?.full_name ?? ""}
-          preferredName={profile?.preferred_name ?? ""}
-        />
+          preferredName={profile?.preferred_name ?? ""}\n          accountType={profile?.account_type ?? "guest"}\n          newsletterSubscribed={newsletter?.subscribed ?? false}\n          newsletterFrequency={(newsletter?.frequency as "weekly" | "biweekly" | undefined) ?? "biweekly"}\n        />
       </main>
       <nav className="icp-bottom-menu" aria-label="Account navigation"><Link href="/">Home</Link><Link href="/account">Account</Link></nav>
     </div>

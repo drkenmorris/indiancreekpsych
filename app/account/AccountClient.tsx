@@ -8,8 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 type Props = {
   email: string;
   fullName: string;
-  preferredName: string;
-};
+  preferredName: string;\n  accountType: "guest" | "patient" | "admin";\n  newsletterSubscribed: boolean;\n  newsletterFrequency: "weekly" | "biweekly";\n};
 
 const portalModules = [
   {
@@ -34,12 +33,11 @@ const portalModules = [
   },
 ];
 
-export default function AccountClient({ email, fullName: initialFullName, preferredName: initialPreferredName }: Props) {
+export default function AccountClient({ email, fullName: initialFullName, preferredName: initialPreferredName, accountType, newsletterSubscribed: initialNewsletterSubscribed, newsletterFrequency: initialNewsletterFrequency }: Props) {
   const router = useRouter();
   const [fullName, setFullName] = useState(initialFullName);
   const [preferredName, setPreferredName] = useState(initialPreferredName);
-  const [message, setMessage] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");\n  const [newsletterSubscribed, setNewsletterSubscribed] = useState(initialNewsletterSubscribed);\n  const [newsletterFrequency, setNewsletterFrequency] = useState<"weekly" | "biweekly">(initialNewsletterFrequency);\n  const [busy, setBusy] = useState(false);
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -64,6 +62,37 @@ export default function AccountClient({ email, fullName: initialFullName, prefer
     setBusy(false);
   }
 
+  async function saveNewsletter() {
+    setBusy(true);
+    setMessage("");
+    const supabase = createClient();
+    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();
+    const userId = claimsData?.claims?.sub;
+
+    if (claimsError || !userId) {
+      setMessage("Your session could not be verified. Please sign in again.");
+      setBusy(false);
+      return;
+    }
+
+    const payload = {
+      user_id: userId,
+      email,
+      subscribed: newsletterSubscribed,
+      frequency: newsletterFrequency,
+      consented_at: new Date().toISOString(),
+      unsubscribed_at: newsletterSubscribed ? null : new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error } = await supabase
+      .from("newsletter_subscriptions")
+      .upsert(payload, { onConflict: "user_id" });
+
+    setMessage(error ? error.message : "Newsletter preferences updated.");
+    setBusy(false);
+  }
+
   async function signOut() {
     setBusy(true);
     const supabase = createClient();
@@ -78,13 +107,26 @@ export default function AccountClient({ email, fullName: initialFullName, prefer
         <div className="accountPanel">
           <p className="eyebrow">Secure client account</p>
           <h1>{preferredName ? `Welcome, ${preferredName}` : "Welcome to your account"}</h1>
-          <p className="accountEmail">{email}</p>
+          <p className="accountEmail">{email}</p>\n          <span className="accountTypeBadge">{accountType === "patient" ? "Patient" : accountType === "admin" ? "Administrator" : "Guest"}</span>
           <form className="authForm" onSubmit={save}>
             <label>Full name<input value={fullName} onChange={(e) => setFullName(e.target.value)} /></label>
             <label>Preferred name<input value={preferredName} onChange={(e) => setPreferredName(e.target.value)} /></label>
             <button disabled={busy} type="submit">{busy ? "Saving…" : "Save profile"}</button>
           </form>
           {message && <p className="authMessage">{message}</p>}
+          <section className="newsletterPrefs">
+            <p className="eyebrow">Newsletter</p>
+            <label className="newsletterConsent"><span><input type="checkbox" checked={newsletterSubscribed} onChange={(e) => setNewsletterSubscribed(e.target.checked)} /> Subscribe to Indian Creek newsletters and practice updates.</span></label>
+            {newsletterSubscribed && (
+              <label>Frequency
+                <select value={newsletterFrequency} onChange={(e) => setNewsletterFrequency(e.target.value as "weekly" | "biweekly")}>
+                  <option value="biweekly">Every two weeks</option>
+                  <option value="weekly">Weekly</option>
+                </select>
+              </label>
+            )}
+            <button className="secondaryAction" type="button" onClick={saveNewsletter} disabled={busy}>Save newsletter preferences</button>
+          </section>
           <button className="secondaryAction" type="button" onClick={signOut} disabled={busy}>Sign out</button>
         </div>
 

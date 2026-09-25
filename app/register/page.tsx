@@ -24,7 +24,11 @@ export default function RegisterPage() {
       email,
       password,
       options: {
-        data: {\n          full_name: fullName,\n          newsletter_consent: newsletterConsent,\n          newsletter_frequency: newsletterFrequency,\n        },
+        data: {
+          full_name: fullName,
+          newsletter_consent: newsletterConsent,
+          newsletter_frequency: newsletterFrequency,
+        },
         emailRedirectTo: `${origin}/auth/callback?next=/account`,
       },
     });
@@ -62,7 +66,17 @@ export default function RegisterPage() {
           <form onSubmit={handleSubmit} className="authForm">
             <label>Full name<input type="text" autoComplete="name" value={fullName} onChange={(e) => setFullName(e.target.value)} required /></label>
             <label>Email<input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></label>
-            <label>Password<input type="password" autoComplete="new-password" minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} required /></label>\n            <label className="newsletterConsent"><span><input type="checkbox" checked={newsletterConsent} onChange={(e) => setNewsletterConsent(e.target.checked)} /> Send me Indian Creek newsletters and practice updates.</span></label>\n            {newsletterConsent && (\n              <label>Newsletter frequency\n                <select value={newsletterFrequency} onChange={(e) => setNewsletterFrequency(e.target.value as "weekly" | "biweekly")}>\n                  <option value="biweekly">Every two weeks</option>\n                  <option value="weekly">Weekly</option>\n                </select>\n              </label>\n            )}\n            <button type="submit" disabled={busy}>{busy ? "Creating account…" : "Create account"}</button>
+            <label>Password<input type="password" autoComplete="new-password" minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} required /></label>
+            <label className="newsletterConsent"><span><input type="checkbox" checked={newsletterConsent} onChange={(e) => setNewsletterConsent(e.target.checked)} /> Send me Indian Creek newsletters and practice updates.</span></label>
+            {newsletterConsent && (
+              <label>Newsletter frequency
+                <select value={newsletterFrequency} onChange={(e) => setNewsletterFrequency(e.target.value as "weekly" | "biweekly")}>
+                  <option value="biweekly">Every two weeks</option>
+                  <option value="weekly">Weekly</option>
+                </select>
+              </label>
+            )}
+            <button type="submit" disabled={busy}>{busy ? "Creating account…" : "Create account"}</button>
           </form>
           {message && <p className="authMessage" role="status">{message}</p>}
           <p className="authSwitch">Already registered? <Link href="/login">Sign in</Link></p>

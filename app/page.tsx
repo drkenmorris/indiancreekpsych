@@ -70,7 +70,7 @@ export default function Home() {
             </p>
             <div className="heroActions">
               <a className="primaryButton" href="#contact">Request information</a>
-              <a className="secondaryButton" href="#services">Explore services</a>
+              <a className="secondaryButton" href="#services">Explore services</a>\n              <a className="secondaryButton" href="/meet-the-therapist">Meet the therapist</a>
             </div>
             <p className="microcopy">
               This website is informational and is not intended for emergency or crisis care.
@@ -181,7 +181,7 @@ export default function Home() {
       <nav className="icp-bottom-menu" aria-label="Primary site navigation">
         <a href="#top">Home</a>
         <a href="#services">Services</a>
-        <a href="#approach">Approach</a>
+        <a href="#approach">Approach</a>\n        <a href="/meet-the-therapist">Meet the Therapist</a>
         <a href="#resources">Resources</a>
         <a href="#contact">Contact</a>
         <a href="/login">Login</a>

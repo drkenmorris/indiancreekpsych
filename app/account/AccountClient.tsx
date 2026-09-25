@@ -8,7 +8,11 @@ import { createClient } from "@/lib/supabase/client";
 type Props = {
   email: string;
   fullName: string;
-  preferredName: string;\n  accountType: "guest" | "patient" | "admin";\n  newsletterSubscribed: boolean;\n  newsletterFrequency: "weekly" | "biweekly";\n};
+  preferredName: string;
+  accountType: "guest" | "patient" | "admin";
+  newsletterSubscribed: boolean;
+  newsletterFrequency: "weekly" | "biweekly";
+};
 
 const portalModules = [
   {
@@ -37,7 +41,10 @@ export default function AccountClient({ email, fullName: initialFullName, prefer
   const router = useRouter();
   const [fullName, setFullName] = useState(initialFullName);
   const [preferredName, setPreferredName] = useState(initialPreferredName);
-  const [message, setMessage] = useState("");\n  const [newsletterSubscribed, setNewsletterSubscribed] = useState(initialNewsletterSubscribed);\n  const [newsletterFrequency, setNewsletterFrequency] = useState<"weekly" | "biweekly">(initialNewsletterFrequency);\n  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const [newsletterSubscribed, setNewsletterSubscribed] = useState(initialNewsletterSubscribed);
+  const [newsletterFrequency, setNewsletterFrequency] = useState<"weekly" | "biweekly">(initialNewsletterFrequency);
+  const [busy, setBusy] = useState(false);
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -107,7 +114,8 @@ export default function AccountClient({ email, fullName: initialFullName, prefer
         <div className="accountPanel">
           <p className="eyebrow">Secure client account</p>
           <h1>{preferredName ? `Welcome, ${preferredName}` : "Welcome to your account"}</h1>
-          <p className="accountEmail">{email}</p>\n          <span className="accountTypeBadge">{accountType === "patient" ? "Patient" : accountType === "admin" ? "Administrator" : "Guest"}</span>
+          <p className="accountEmail">{email}</p>
+          <span className="accountTypeBadge">{accountType === "patient" ? "Patient" : accountType === "admin" ? "Administrator" : "Guest"}</span>
           <form className="authForm" onSubmit={save}>
             <label>Full name<input value={fullName} onChange={(e) => setFullName(e.target.value)} /></label>
             <label>Preferred name<input value={preferredName} onChange={(e) => setPreferredName(e.target.value)} /></label>

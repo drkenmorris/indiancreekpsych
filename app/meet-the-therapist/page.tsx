@@ -41,9 +41,14 @@ export default function MeetTheTherapistPage() {
           </div>
 
           <aside className="therapistPhotoFrame" aria-label="Therapist photograph placeholder">
-            <div className="therapistPhotoPlaceholder">
-              <span>Dr. Ken Morris photograph</span>
-              <small>A professional photograph can be placed here without changing the page layout.</small>
+            <div
+              className="therapistPhotoPlaceholder"
+              style={{ backgroundImage: 'linear-gradient(180deg, rgba(15,42,36,.02), rgba(15,42,36,.24)), url("/images/therapist-placeholder.png")' }}
+            >
+              <div className="therapistPhotoLabel">
+                <span>Photo placement reserved for Dr. Ken Morris</span>
+                <small>The current visual is a design placeholder and is not represented as Dr. Morris.</small>
+              </div>
             </div>
           </aside>
         </section>

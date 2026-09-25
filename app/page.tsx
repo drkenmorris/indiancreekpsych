@@ -2,26 +2,32 @@ const specialties = [
   {
     title: "Substance Use & Recovery",
     text: "Support for people working through alcohol or substance use concerns, relapse patterns, recovery planning, and the emotional work that supports lasting change.",
+    href: "/services/substance-use-recovery",
   },
   {
     title: "Trauma Therapy",
     text: "A thoughtful, paced approach to trauma, difficult life experiences, and the ways the nervous system can remain affected long after an event has passed.",
+    href: "/services/trauma-therapy",
   },
   {
     title: "Marriage & Family Therapy",
     text: "Counseling for couples and families who want healthier communication, stronger connection, clearer boundaries, and practical ways to navigate conflict.",
+    href: "/services/marriage-family-therapy",
   },
   {
     title: "Mood Disorders",
     text: "Support for depression, anxiety, emotional dysregulation, and related concerns that can affect relationships, work, sleep, motivation, and quality of life.",
+    href: "/services/mood-disorders",
   },
   {
     title: "Autism",
     text: "Respectful counseling for autistic individuals and families, with attention to communication, identity, relationships, stress, sensory needs, and day-to-day functioning.",
+    href: "/services/autism",
   },
   {
     title: "ADHD",
     text: "Practical and compassionate support for attention, organization, impulsivity, emotional regulation, relationships, and the challenges ADHD can create across adulthood and family life.",
+    href: "/services/adhd",
   },
 ];
 
@@ -101,11 +107,12 @@ export default function Home() {
           </div>
           <div className="cardGrid">
             {specialties.map((item) => (
-              <article className="serviceCard" key={item.title}>
+              <a className="serviceCard serviceCardLink" href={item.href} key={item.title}>
                 <div className="cardAccent" />
                 <h3>{item.title}</h3>
                 <p>{item.text}</p>
-              </article>
+                <span className="serviceCardCta">Learn more →</span>
+              </a>
             ))}
           </div>
         </section>

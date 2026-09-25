@@ -8,6 +8,8 @@ export default function RegisterPage() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [newsletterConsent, setNewsletterConsent] = useState(true);
+  const [newsletterFrequency, setNewsletterFrequency] = useState<"weekly" | "biweekly">("biweekly");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -22,7 +24,7 @@ export default function RegisterPage() {
       email,
       password,
       options: {
-        data: { full_name: fullName },
+        data: {\n          full_name: fullName,\n          newsletter_consent: newsletterConsent,\n          newsletter_frequency: newsletterFrequency,\n        },
         emailRedirectTo: `${origin}/auth/callback?next=/account`,
       },
     });
@@ -56,12 +58,11 @@ export default function RegisterPage() {
         <section className="authCard">
           <p className="eyebrow">Secure client access</p>
           <h1>Create an account</h1>
-          <p>This creates a general website account. It does not create a clinical chart or establish a therapist-client relationship.</p>
+          <p>This creates a guest website account. Patient access is granted separately by Indian Creek after a clinical relationship is established.</p>
           <form onSubmit={handleSubmit} className="authForm">
             <label>Full name<input type="text" autoComplete="name" value={fullName} onChange={(e) => setFullName(e.target.value)} required /></label>
             <label>Email<input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></label>
-            <label>Password<input type="password" autoComplete="new-password" minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} required /></label>
-            <button type="submit" disabled={busy}>{busy ? "Creating account…" : "Create account"}</button>
+            <label>Password<input type="password" autoComplete="new-password" minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} required /></label>\n            <label className="newsletterConsent"><span><input type="checkbox" checked={newsletterConsent} onChange={(e) => setNewsletterConsent(e.target.checked)} /> Send me Indian Creek newsletters and practice updates.</span></label>\n            {newsletterConsent && (\n              <label>Newsletter frequency\n                <select value={newsletterFrequency} onChange={(e) => setNewsletterFrequency(e.target.value as "weekly" | "biweekly")}>\n                  <option value="biweekly">Every two weeks</option>\n                  <option value="weekly">Weekly</option>\n                </select>\n              </label>\n            )}\n            <button type="submit" disabled={busy}>{busy ? "Creating account…" : "Create account"}</button>
           </form>
           {message && <p className="authMessage" role="status">{message}</p>}
           <p className="authSwitch">Already registered? <Link href="/login">Sign in</Link></p>

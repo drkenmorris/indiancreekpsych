@@ -17,8 +17,9 @@ type Props = {
 const portalModules = [
   {
     title: "Appointments",
-    description: "Online scheduling and appointment requests will live here once the scheduling workflow is configured.",
-    status: "Planned",
+    description: "View open times, book appointments, and manage your scheduled visits.",
+    status: "Active",
+    href: "/appointments",
   },
   {
     title: "Assessments",
@@ -162,6 +163,7 @@ export default function AccountClient({ email, fullName: initialFullName, prefer
               <span className="portalModuleStatus">{module.status}</span>
               <h3>{module.title}</h3>
               <p>{module.description}</p>
+              {"href" in module && module.href && <Link className="portalHomeLink" href={module.href}>Open appointments</Link>}
             </article>
           ))}
         </div>

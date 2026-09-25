@@ -177,7 +177,7 @@ export default function Home() {
         <a href="#approach">Approach</a>
         <a href="#resources">Resources</a>
         <a href="#contact">Contact</a>
-        <a href="#top" aria-label="Client login coming soon">Login</a>
+        <a href="/login">Login</a>\n        <a href="/register">Register</a>
       </nav>
     </div>
   );

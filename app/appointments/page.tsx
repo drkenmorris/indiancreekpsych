@@ -21,7 +21,7 @@ export default async function AppointmentsPage() {
     supabase.from("appointment_settings").select("*").eq("id", true).maybeSingle(),
     accountType === "admin" ? supabase.from("appointment_availability_rules").select("*").order("weekday").order("start_time") : Promise.resolve({ data: [] }),
     accountType === "admin" ? supabase.from("appointment_blocks").select("*").order("starts_at") : Promise.resolve({ data: [] }),
-    supabase.from("appointments").select("id, patient_id, starts_at, ends_at, status, created_at").order("starts_at"),
+    supabase.from("appointments").select("id, patient_id, patient_name, starts_at, ends_at, status, created_at").order("starts_at"),
   ]);
 
   return (

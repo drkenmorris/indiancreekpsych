@@ -32,6 +32,7 @@ GRANT SELECT,INSERT,UPDATE ON public.appointments TO authenticated;
 `);
 await db.exec(migration);
 await db.exec(readFileSync(new URL('../supabase/migrations/20260926190144_grant_calendar_private_schema_usage.sql',import.meta.url),'utf8'));
+await db.exec(readFileSync(new URL('../supabase/migrations/20260926202718_editable_monthly_calendar.sql',import.meta.url),'utf8'));
 const query=(sql,params=[])=>db.query(sql,params);
 const day=(await query("select (current_date+14)::text as d")).rows[0].d;
 async function asUser(id){await query("select set_config('request.user',$1,false)",[id]);await db.exec('SET ROLE authenticated');}
@@ -69,5 +70,49 @@ await test('changing the reserved hour moves openings; existing appointments rem
 await test('notice and advance limits still apply to adjacent openings',async()=>{
  await reset();await book(patient,'10:00');await db.exec('RESET ROLE;UPDATE appointment_settings SET minimum_notice_hours=720');await asUser(patient);assert.deepEqual(await slots(),[]);
  await db.exec('RESET ROLE;UPDATE appointment_settings SET minimum_notice_hours=0,maximum_advance_days=1');await asUser(patient);assert.deepEqual(await slots(),[]);
+});
+
+async function firstBooking(){return (await query("select * from appointments where status='booked' order by starts_at limit 1")).rows[0];}
+const editCalendar=(a,date,time,scope='one',action='save',name=null)=>query('select public.edit_calendar_appointments($1,$2,$3,$4,$5,$6,$7) as count',[a.id,a.starts_at,date,time,name,scope,action]);
+await test('calendar reschedule replaces one appointment and rejects a stale repeat',async()=>{
+ await reset();await book(patient,'10:00');const a=await firstBooking();
+ assert.equal((await editCalendar(a,day,'12:00')).rows[0].count,1);
+ assert.deepEqual(await slots(),['11:00:00','13:00:00']);
+ assert.equal((await query("select count(*)::int as c from appointments where status='cancelled'")).rows[0].c,1);
+ await assert.rejects(editCalendar(a,day,'14:00'),/changed/);
+});
+await test('calendar conflicting edits roll back cancellation and retain original booking',async()=>{
+ await reset();await book(patient,'10:00');const a=await firstBooking();await book(other,'12:00');
+ await assert.rejects(editCalendar(a,day,'12:00'),/no longer available/);
+ assert.equal((await query('select status from appointments where id=$1',[a.id])).rows[0].status,'booked');
+ await assert.rejects(editCalendar(a,day,'19:00'),/outside/);
+ assert.equal((await query("select count(*)::int as c from appointments where status='booked'")).rows[0].c,2);
+});
+await test('calendar series edit moves selected and later occurrences atomically',async()=>{
+ await reset();const end=(await query('select ($1::date+14)::text as d',[day])).rows[0].d;
+ await book(patient,'10:00',day,1,end);const a=await firstBooking();
+ assert.equal((await editCalendar(a,day,'11:00','future')).rows[0].count,3);
+ const active=(await query("select (starts_at at time zone 'America/Chicago')::time::text as t,series_id from appointments where status='booked'")).rows;
+ assert.ok(active.every(a=>a.t==='11:00:00'));assert.equal(new Set(active.map(a=>a.series_id)).size,1);
+});
+await test('calendar future series conflicts roll back every occurrence',async()=>{
+ await reset();const end=(await query('select ($1::date+14)::text as d',[day])).rows[0].d;
+ await book(patient,'10:00',day,1,end);const a=await firstBooking();await book(other,'11:00',end);
+ await assert.rejects(editCalendar(a,day,'11:00','future'),/no longer available/);
+ assert.equal((await query("select count(*)::int as c from appointments where status='cancelled'")).rows[0].c,0);
+});
+await test('calendar enforces administrator access and permits explicit series cancellation',async()=>{
+ await reset();const end=(await query('select ($1::date+7)::text as d',[day])).rows[0].d;await book(patient,'10:00',day,1,end);const a=await firstBooking();
+ await asUser(patient);await assert.rejects(editCalendar(a,day,'11:00'),/Administrator/);
+ await asUser(guest);await assert.rejects(editCalendar(a,day,'11:00'),/Administrator/);
+ await asUser(admin);assert.equal((await editCalendar(a,day,'10:00','future','cancel')).rows[0].count,2);
+ assert.equal((await query("select count(*)::int as c from appointments where status='booked'")).rows[0].c,0);
+ await db.exec('RESET ROLE;SET ROLE anon');await assert.rejects(editCalendar(a,day,'11:00'),/permission denied/);await db.exec('RESET ROLE');
+});
+await test('calendar named-patient edits and DST series preserve local time',async()=>{
+ await reset();await query("select public.book_patient_appointments(null,'2030-03-03','10:00',1,'2030-03-17','Synthetic Calendar Patient')");const a=await firstBooking();
+ await editCalendar(a,'2030-03-03','11:00','future','save','Updated synthetic name');
+ const active=(await query("select patient_name,(starts_at at time zone 'America/Chicago')::time::text as t from appointments where status='booked'")).rows;
+ assert.equal(active.length,3);assert.ok(active.every(a=>a.t==='11:00:00'&&a.patient_name==='Updated synthetic name'));
 });
 await db.close();

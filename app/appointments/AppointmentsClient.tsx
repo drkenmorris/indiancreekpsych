@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -83,6 +84,7 @@ export default function AppointmentsClient({userId,accountType,preferredName,ini
       <p className="eyebrow">Online scheduling</p>
       <h1>{accountType==="admin"?"Appointment administration":preferredName?`Appointments for ${preferredName}`:"Appointments"}</h1>
       <p>{accountType==="guest"?"Online booking is available to Patient accounts. The practice must convert your account to Patient status before you can schedule.":accountType==="admin"?"Control weekly hours, booking rules, blocked time, and scheduled appointments.":"Choose from the available appointment times below."}</p>
+      {accountType==="admin"&&<Link className="calendarQuickLink" href="/appointments/calendar">Open monthly calendar →</Link>}
       {message&&<p className="authMessage" role="status">{message}</p>}
     </section>
 

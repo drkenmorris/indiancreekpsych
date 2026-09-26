@@ -47,6 +47,7 @@ export default async function AppointmentsPage() {
         <Link href="/">Home</Link>
         <Link href="/account">Account</Link>
         <Link href="/appointments">Appointments</Link>
+        {accountType === "admin" && <Link href="/appointments/calendar">Monthly calendar</Link>}
       </nav>
     </div>
   );

@@ -6,19 +6,25 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:scheduling": "node --test tests/scheduling.test.mjs && vitest run",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@supabase/ssr": "0.12.7",
+    "@supabase/supabase-js": "2.117.1",
     "next": "16.3.6",
     "react": "19.2.6",
-    "react-dom": "19.2.6",
-    "@supabase/ssr": "0.12.7",
-    "@supabase/supabase-js": "2.117.1"
+    "react-dom": "19.2.6"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.8",
+    "@testing-library/react": "16.3.3",
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "typescript": "^5.9.2"
+    "jsdom": "29.1.1",
+    "typescript": "^5.9.2",
+    "vitest": "5.0.2"
   }
 }

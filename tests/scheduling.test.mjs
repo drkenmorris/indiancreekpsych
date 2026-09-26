@@ -26,11 +26,12 @@ ALTER TABLE public.appointments ENABLE ROW LEVEL SECURITY;
 CREATE POLICY appointments_patient_insert ON public.appointments FOR INSERT TO authenticated WITH CHECK(patient_id=auth.uid() AND EXISTS(SELECT 1 FROM profiles WHERE id=auth.uid() AND account_type IN ('patient','admin')));
 CREATE POLICY appointments_select_own_or_admin ON public.appointments FOR SELECT TO authenticated USING(patient_id=auth.uid() OR private.current_user_is_admin());
 CREATE POLICY appointments_update_own_or_admin ON public.appointments FOR UPDATE TO authenticated USING(patient_id=auth.uid() OR private.current_user_is_admin()) WITH CHECK(patient_id=auth.uid() OR private.current_user_is_admin());
-GRANT USAGE ON SCHEMA public,private,auth TO authenticated;
+GRANT USAGE ON SCHEMA public,auth TO authenticated;
 GRANT SELECT ON public.profiles,public.appointment_settings,public.appointment_availability_rules,public.appointment_blocks TO authenticated;
 GRANT SELECT,INSERT,UPDATE ON public.appointments TO authenticated;
 `);
 await db.exec(migration);
+await db.exec(readFileSync(new URL('../supabase/migrations/20260926190144_grant_calendar_private_schema_usage.sql',import.meta.url),'utf8'));
 const query=(sql,params=[])=>db.query(sql,params);
 const day=(await query("select (current_date+14)::text as d")).rows[0].d;
 async function asUser(id){await query("select set_config('request.user',$1,false)",[id]);await db.exec('SET ROLE authenticated');}

@@ -17,6 +17,10 @@ export default async function AppointmentsPage() {
 
   const accountType = (profile?.account_type ?? "guest") as "guest" | "patient" | "admin";
 
+  if(accountType==='patient'){
+    const {data:ready,error:securityError}=await supabase.rpc('patient_security_ready');
+    if(securityError||!ready)redirect('/account/security?next=/appointments');
+  }
   const [{ data: settings }, { data: rules }, { data: blocks }] = await Promise.all([
     supabase.from("appointment_settings").select("*").eq("id", true).maybeSingle(),
     accountType === "admin" ? supabase.from("appointment_availability_rules").select("*").order("weekday").order("start_time") : Promise.resolve({ data: [] }),

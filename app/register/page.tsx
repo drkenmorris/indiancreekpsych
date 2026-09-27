@@ -5,6 +5,7 @@ import { FormEvent, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 export default function RegisterPage() {
+  const [registrationType,setRegistrationType]=useState<"guest"|"patient">("guest");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -26,6 +27,7 @@ export default function RegisterPage() {
       options: {
         data: {
           full_name: fullName,
+          registration_type: registrationType,
           newsletter_consent: newsletterConsent,
           newsletter_frequency: newsletterFrequency,
         },
@@ -62,8 +64,9 @@ export default function RegisterPage() {
         <section className="authCard">
           <p className="eyebrow">Secure client access</p>
           <h1>Create an account</h1>
-          <p>This creates a guest website account. Patient access is granted separately by Indian Creek after a clinical relationship is established.</p>
+          <p>Choose Guest for information or Patient to complete intake and access patient services. Patient access activates only after you verify your email and complete security setup.</p>
           <form onSubmit={handleSubmit} className="authForm">
+            <label>Account type<select value={registrationType} onChange={e=>setRegistrationType(e.target.value as "guest"|"patient")}><option value="guest">Guest — seeking information</option><option value="patient">Patient — patient services and intake</option></select></label>
             <label>Full name<input type="text" autoComplete="name" value={fullName} onChange={(e) => setFullName(e.target.value)} required /></label>
             <label>Email<input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></label>
             <label>Password<input type="password" autoComplete="new-password" minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} required /></label>

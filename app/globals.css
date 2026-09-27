@@ -18,3 +18,20 @@
 .calendarMenu{display:flex;flex-wrap:wrap;gap:8px;padding:16px;background:#eef4f2;border:1px solid #d1dfd9;border-radius:16px}.calendarMenu button{border:1px solid #b8ccc4;background:white;color:#24463d;padding:12px 16px;border-radius:10px;cursor:pointer;font:inherit}.calendarMenu button[aria-pressed=true]{background:#234c40;color:white;border-color:#234c40}.calendarMenu button:focus-visible{outline:3px solid #be8233;outline-offset:3px}.availableEvent{background:#e5f5eb!important;color:#215a39!important;border-left:3px solid #3a9360!important}.calendarEvent:disabled{opacity:1;cursor:default}.patientAgenda{display:grid;gap:16px}.patientAgenda section{padding:16px;border:1px solid #d1dfd9;border-radius:12px}.patientAgenda .calendarEvents{display:flex;flex-wrap:wrap;gap:8px}.appointmentPanel select{max-width:100%}@media(max-width:650px){.calendarMenu{display:grid;grid-template-columns:1fr 1fr;padding:10px}.calendarMenu button{font-size:14px;padding:10px}.calendarToolbar{flex-wrap:wrap}}
 
 .intakePage{max-width:1050px;margin:0 auto;padding:32px 20px}.intakeFields{display:grid;grid-template-columns:1fr 1fr;gap:20px}.intakeWide{grid-column:1/-1}.intakeFields textarea{width:100%;padding:12px;border:1px solid #b7c6c1;border-radius:8px;font:inherit;resize:vertical}.intakePage fieldset{min-width:0}.intakePage summary{cursor:pointer;font-weight:700;padding:12px}.intakePage dd{margin:4px 0 16px}.intakePage button{margin:4px}.securityQr{max-width:240px;background:white;padding:12px}@media(max-width:650px){.intakeFields{grid-template-columns:1fr}}
+
+/* Intake is a standalone page, outside the site's fixed-height scrolling shell. */
+.intakePage{display:block;width:100%;max-width:none;height:100vh;height:100dvh;min-height:0;overflow:auto;padding:32px clamp(16px,4vw,48px) 64px;scrollbar-gutter:stable}
+.intakePage>*{max-width:1000px;margin-left:auto;margin-right:auto}
+.intakePage>a{display:block}
+.intakePage h1{font-family:Georgia,'Times New Roman',serif;font-size:clamp(30px,4vw,44px);line-height:1.2;color:#173b35;margin-top:20px;margin-bottom:16px;overflow-wrap:anywhere}
+.intakePage>.authForm{width:100%;gap:24px}
+.intakePage fieldset{margin:0;padding:clamp(20px,3vw,32px);min-inline-size:0}
+.intakePage fieldset h2{font-size:clamp(23px,3vw,30px);line-height:1.25;margin:0 0 24px;overflow-wrap:anywhere}
+.intakeFields{grid-template-columns:repeat(2,minmax(0,1fr));gap:24px}
+.intakeFields>div,.intakeFields label{min-width:0}
+.intakeFields input,.intakeFields select,.intakeFields textarea{display:block;width:100%;max-width:100%;min-width:0;min-height:46px;padding:12px 13px;border:1px solid #bfcfc9;border-radius:10px;background:#fbfcfb;color:#1f332f;font:inherit}
+.intakeFields select:focus,.intakeFields textarea:focus{outline:2px solid #78a69a;outline-offset:1px}
+.intakeFields .checkRow{display:flex;align-items:center;gap:8px;margin-top:10px;font-weight:400}
+.intakeFields .checkRow input{width:18px;min-height:18px;height:18px;flex:0 0 18px;padding:0;margin:0}
+.intakePage .authForm>button{margin:0;min-height:46px}
+@media(max-width:650px){.intakeFields{grid-template-columns:minmax(0,1fr)}.intakePage{padding-top:20px}.intakePage fieldset{border-radius:16px}}

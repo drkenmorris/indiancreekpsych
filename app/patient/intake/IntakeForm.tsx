@@ -23,7 +23,7 @@ export default function IntakeForm({userId,initial,defaults}:{userId:string;init
  function submit(e:FormEvent){e.preventDefault();const invalid=validateIntake(answers,true);if(invalid){setError(invalid);return;}setError('');setConfirm(true);}
  return <form onSubmit={submit} className="authForm" autoComplete="off">
  {submitted&&<p role="status">Submitted on {new Date(record.submitted_at!).toLocaleDateString()}. Contact the practice if any information needs correction.</p>}
- {intakeSections.map(section=><fieldset disabled={busy||submitted} key={section.title} className="appointmentPanel"><legend><h2>{section.title}</h2></legend>
+ {intakeSections.map((section,index)=><fieldset disabled={busy||submitted} key={section.title} className="appointmentPanel" aria-labelledby={`intake-section-${index}`}><h2 id={`intake-section-${index}`}>{section.title}</h2>
  {section.title==='Insurance information'&&<p>Enter the information shown on your card or benefits statement. Amounts are patient-reported estimates, not a guarantee of coverage. Choose “I don’t know” when unsure. Leave insurance fields blank if you are self-pay.</p>}
  <div className="intakeFields">{section.fields.map(field=>{
   const [key,label,type]=field;const required=field.length>3&&field[3];const options=(field.length>4?field[4]:[])??[];const cost=costFields.includes(key);

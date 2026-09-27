@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "test:scheduling": "node --test tests/scheduling.test.mjs && vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:intake": "node --test tests/intake-security.test.mjs && vitest run tests/intake.test.tsx"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",

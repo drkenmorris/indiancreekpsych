@@ -123,6 +123,9 @@ export default function AccountClient({ email, fullName: initialFullName, prefer
             <button disabled={busy} type="submit">{busy ? "Saving…" : "Save profile"}</button>
           </form>
           {message && <p className="authMessage">{message}</p>}
+          {accountType==='patient'&&<Link className="portalHomeLink" href="/patient/intake">Your intake questionnaire</Link>}
+          {accountType==='admin'&&<Link className="portalHomeLink" href="/admin/intakes">Review patient questionnaires</Link>}
+          <Link className="portalHomeLink" href="/account/security">Account security and backup verification</Link>
           <section className="newsletterPrefs">
             <p className="eyebrow">Newsletter</p>
             <label className="newsletterConsent"><span><input type="checkbox" checked={newsletterSubscribed} onChange={(e) => setNewsletterSubscribed(e.target.checked)} /> Subscribe to Indian Creek newsletters and practice updates.</span></label>
@@ -143,9 +146,7 @@ export default function AccountClient({ email, fullName: initialFullName, prefer
           <p className="eyebrow">Security boundary</p>
           <h2>General account foundation</h2>
           <p>
-            This account currently stores basic website identity information only. Clinical records,
-            diagnoses, treatment notes, assessment responses, and other protected health information
-            are intentionally excluded until those workflows receive their own security design.
+            Patient intake is stored separately from your general profile and requires additional security verification. Treatment notes and other clinical record features are not available in this portal.
           </p>
           <Link className="portalHomeLink" href="/">Return to public site</Link>
         </aside>

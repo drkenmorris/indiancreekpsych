@@ -12,11 +12,25 @@ export default async function AccountPage() {
     redirect("/login");
   }
 
+  const {data:{user},error:userError}=await supabase.auth.getUser();
+  if(userError||!user)redirect('/login');
+  if(user.email_confirmed_at){
+    const {error:activationError}=await supabase.rpc('complete_registration');
+    if(activationError)throw new Error('Account setup is temporarily unavailable.');
+  }
   const { data: profile } = await supabase
     .from("profiles")
     .select("full_name, preferred_name, account_type")
     .eq("id", claims.sub)
     .maybeSingle();
+
+  if(profile?.account_type==='patient'){
+    const {data:ready,error:securityError}=await supabase.rpc('patient_security_ready');
+    if(securityError||!ready)redirect('/account/security');
+    const {data:intake,error:intakeError}=await supabase.from('patient_intakes').select('status').eq('patient_id',user.id).maybeSingle();
+    if(intakeError)throw new Error('Patient intake status is temporarily unavailable.');
+    if(intake?.status!=='submitted')redirect('/patient/intake');
+  }
 
   const { data: newsletter } = await supabase
     .from("newsletter_subscriptions")

@@ -4,7 +4,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 're
 import {createClient} from '@/lib/supabase/client';
 import {CalendarAppointment,localParts,monthDays,monthQueryRange,shiftMonth} from '@/lib/scheduling/calendar';
 type Patient={id:string;full_name:string|null;preferred_name:string|null};
-export default function CalendarClient({timezone,duration}:{timezone:string;duration:number}) {
+export default function CalendarClient({timezone,duration,onBook}:{timezone:string;duration:number;onBook?:()=>void}) {
  const supabase=useMemo(()=>createClient(),[]);
  const today=localParts(new Date().toISOString(),timezone).date;
  const [month,setMonth]=useState(today.slice(0,7));
@@ -35,7 +35,7 @@ export default function CalendarClient({timezone,duration}:{timezone:string;dura
  const name=(a:CalendarAppointment)=>a.patient_name||patients.find(p=>p.id===a.patient_id)?.full_name||patients.find(p=>p.id===a.patient_id)?.preferred_name||'Patient account';
  const days=monthDays(month);
  const groups=new Map<string,CalendarAppointment[]>();
- appointments.forEach(a=>{const day=localParts(a.starts_at,timezone).date;groups.set(day,[...(groups.get(day)??[]),a]);});
+ appointments.forEach(a=>{const day=localParts(a.starts_at,timezone).date;if(!day.startsWith(month))return;groups.set(day,[...(groups.get(day)??[]),a]);});
  function open(a:CalendarAppointment){const local=localParts(a.starts_at,timezone);setSelected(a);setEdit({...local,name:name(a),scope:'one'});setEditError('');setConfirmCancel(false);setNotice('');}
  async function change(action:'save'|'cancel') {
    if(!selected||busy)return;setBusy(true);setEditError('');
@@ -53,13 +53,13 @@ export default function CalendarClient({timezone,duration}:{timezone:string;dura
  function save(e:FormEvent){e.preventDefault();void change('save');}
  const past=selected?Date.parse(selected.starts_at)<=Date.now():false;
  return <div className="calendarWorkspace">
-   <header className="calendarHeading"><div><p className="eyebrow">Your practice schedule</p><h1>Appointment calendar</h1><p>{timezone} · Click an appointment to view or edit it.</p></div><Link className="secondaryButton" href="/appointments">Book appointments & manage hours</Link></header>
+   <header className="calendarHeading"><div><p className="eyebrow">Your practice schedule</p><h2>Booked appointments</h2><p>{timezone} · Click an appointment to view or edit it.</p></div>{onBook?<button type="button" onClick={onBook}>Place patient appointments</button>:<Link className="secondaryButton" href="/appointments">Book appointments & manage hours</Link>}</header>
    <div className="calendarToolbar"><div><button type="button" onClick={()=>{setMonth(shiftMonth(month,-1));setSelected(null);}} disabled={busy} aria-label="Previous month">←</button><button type="button" onClick={()=>{setMonth(today.slice(0,7));setSelected(null);}} disabled={busy}>Today</button><button type="button" onClick={()=>{setMonth(shiftMonth(month,1));setSelected(null);}} disabled={busy} aria-label="Next month">→</button></div><h2 aria-live="polite">{new Date(month+'-15T12:00:00Z').toLocaleDateString('en-US',{month:'long',year:'numeric',timeZone:'UTC'})}</h2><button type="button" onClick={()=>void load()} disabled={busy||loading}>Refresh</button></div>
    {notice&&<p role="status" className="authMessage">{notice}</p>}{error&&<p role="alert" className="calendarError">{error} Previously loaded appointments may be out of date.</p>}{loading&&<p role="status">Loading appointments…</p>}
    <div className={selected?'calendarLayout withEditor':'calendarLayout'}>
      <div className="calendarScroll"><table className="monthCalendar" aria-label="Monthly appointment calendar" aria-busy={loading}><thead><tr>{['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d=><th scope="col" key={d}>{d}</th>)}</tr></thead><tbody>
        {Array.from({length:6},(_,week)=><tr key={week}>{days.slice(week*7,week*7+7).map(day=><td key={day} className={`${day.slice(0,7)!==month?'outsideMonth ':''}${day===today?'calendarToday':''}`}><time dateTime={day}>{Number(day.slice(8))}</time><div className="calendarEvents">{(groups.get(day)??[]).map(a=><button type="button" className="calendarEvent" key={a.id} disabled={busy||loading||!!error} onClick={()=>open(a)} aria-label={`${name(a)}, ${day}, ${localParts(a.starts_at,timezone).time}`}><span>{new Date(a.starts_at).toLocaleTimeString('en-US',{timeZone:timezone,hour:'numeric',minute:'2-digit'})}{a.series_id?' ↻':''}</span><strong>{name(a)}</strong></button>)}</div></td>)}</tr>)}
-     </tbody></table>{!loading&&!error&&appointments.length===0&&<p className="appointmentEmpty">No booked appointments in this calendar range. <Link href="/appointments">Place a patient appointment</Link> to see it here.</p>}</div>
+     </tbody></table>{!loading&&!error&&groups.size===0&&<p className="appointmentEmpty">No booked appointments in this calendar range. <Link href="/appointments">Place a patient appointment</Link> to see it here.</p>}</div>
      {selected&&<aside className="calendarEditor" aria-labelledby="edit-appointment-title"><div className="calendarEditorHeading"><h2 id="edit-appointment-title" ref={heading} tabIndex={-1}>Appointment details</h2><button type="button" aria-label="Close appointment details" disabled={busy} onClick={()=>setSelected(null)}>×</button></div>
        <p>{name(selected)}</p><p>{new Date(selected.starts_at).toLocaleString('en-US',{timeZone:timezone,dateStyle:'full',timeStyle:'short'})}<br/>{timezone}</p>
        {past?<p>Past appointments are shown for reference and cannot be edited here.</p>:<form className="authForm" onSubmit={save}>

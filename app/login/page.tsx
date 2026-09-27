@@ -1,5 +1,6 @@
 "use client";
 
+import {safeNext} from "@/lib/patient/redirect";
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -26,7 +27,7 @@ export default function LoginPage() {
       return;
     }
 
-    const next = new URLSearchParams(window.location.search).get("next") || "/account";
+    const next = safeNext(new URLSearchParams(window.location.search).get("next"));
     router.replace(next);
     router.refresh();
   }

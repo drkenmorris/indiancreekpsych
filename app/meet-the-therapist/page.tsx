@@ -31,7 +31,7 @@ export default function MeetTheTherapistPage() {
               pieces fit together for the individual person, couple, or family.
             </p>
             <div className="heroActions">
-              <Link className="primaryButton" href="/#contact">Start a conversation</Link>
+              <Link className="primaryButton" href="/appointments">Schedule an Appointment</Link>
               <Link className="secondaryButton" href="/#services">Explore specialties</Link>
             </div>
           </div>
@@ -137,7 +137,7 @@ export default function MeetTheTherapistPage() {
         <Link href="/#services">Services</Link>
         <Link href="/meet-the-therapist">Meet the Therapist</Link>
         <Link href="/#approach">Approach</Link>
-        <Link href="/#contact">Contact</Link>
+        <Link href="/#contact">Contact</Link><Link href="/appointments">Schedule</Link>
         <Link href="/login">Login</Link>
         <Link href="/register">Register</Link>
       </nav>

@@ -295,8 +295,7 @@ export default async function SpecialtyPage({ params }: { params: Promise<{ slug
       <header className="icp-top-menu">
         <div className="icp-top-menu-left">
           <Link className="icp-brand" href="/">
-            <span className="icp-brand-mark">IC</span>
-            <span className="icp-brand-copy"><strong>Indian Creek</strong><small>Psychological Services</small></span>
+            <img className="icp-brand-logo" src="/images/indian-creek-logo.webp" alt="Indian Creek Psychological Services" />
           </Link>
         </div>
         <div className="icp-top-menu-right">
@@ -305,7 +304,7 @@ export default async function SpecialtyPage({ params }: { params: Promise<{ slug
       </header>
 
       <main className="icp-shell-center specialtyPage">
-        <section className="specialtyHero">
+        <section className="specialtyHero specialtyHeroScenic">
           <p className="eyebrow">{specialty.eyebrow}</p>
           <h1>{specialty.title}</h1>
           <p>{specialty.intro}</p>

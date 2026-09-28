@@ -147,6 +147,108 @@ const specialties = {
     closing: "Autism-informed care should make room for the whole person: strengths, needs, preferences, relationships, identity, and the environments in which everyday life actually happens.",
     image: "/images/autism.png"
   },
+  "emdr": {
+    title: "EMDR Therapy",
+    eyebrow: "Trauma-focused treatment",
+    intro: "Eye Movement Desensitization and Reprocessing (EMDR) is a structured psychotherapy used most prominently in the treatment of trauma and post-traumatic stress disorder (PTSD). It helps clients work with distressing memories in a way that can reduce the intensity of the emotions, beliefs, and body reactions connected to those experiences. EMDR is not simply eye movements; it is a phased treatment that includes careful assessment, preparation, processing, and follow-up.",
+    sections: [
+      ["What EMDR is designed to address", [
+        "EMDR is best established as a trauma-focused treatment for PTSD and other distressing experiences that continue to feel emotionally present even after the danger has passed.",
+        "People may seek EMDR when memories, images, body sensations, nightmares, avoidance, guilt, shame, hypervigilance, or strong emotional reactions continue to interfere with daily life.",
+        "EMDR may also be integrated into broader treatment when trauma is interacting with anxiety, depression, grief, substance use, relationship difficulties, or other concerns. Whether EMDR is appropriate depends on the individual's clinical picture."
+      ]],
+      ["How the process works", [
+        "EMDR therapy follows a structured sequence that includes history-taking and treatment planning, preparation and stabilization, identifying a target memory, processing, strengthening more adaptive beliefs, checking body responses, closing the session safely, and reevaluating progress.",
+        "During processing, the client briefly focuses on aspects of a distressing memory while engaging in bilateral stimulation, commonly guided side-to-side eye movements or other alternating stimulation.",
+        "The client remains awake, aware, and able to stop or slow the process. The goal is not to erase memory, but to help the memory become less emotionally overwhelming and less likely to drive present-day reactions."
+      ]],
+      ["Preparation matters", [
+        "Good EMDR treatment does not begin by immediately asking someone to relive the most difficult event of their life. Preparation may include grounding, emotional regulation, identifying resources, strengthening a sense of safety, and making sure the person has enough stability for trauma processing.",
+        "Some clients are ready to begin processing relatively quickly; others benefit from more preparation because of dissociation, current instability, complex trauma, substance use, medical concerns, or limited support.",
+        "Pacing should be collaborative. The therapist and client continually assess whether to continue, slow down, shift targets, or return to stabilization."
+      ]],
+      ["What the evidence says", [
+        "EMDR is recognized in major clinical guidelines as an evidence-based trauma-focused psychotherapy for PTSD.",
+        "Research is strongest for PTSD. EMDR is also being studied and used clinically for other concerns, but the strength of evidence varies by condition, so treatment decisions should be based on careful assessment rather than broad claims that EMDR treats everything.",
+        "As with any psychotherapy, outcomes vary. A good fit depends on diagnosis, treatment goals, readiness, therapeutic relationship, and the clinician's training and competence."
+      ]],
+      ["What a session may feel like", [
+        "EMDR sessions can feel different from traditional talk therapy because part of the work happens through short periods of focused attention followed by brief check-ins about what the client notices.",
+        "Some people experience shifts in images, emotions, thoughts, or body sensations during a session. Others notice changes more gradually across sessions.",
+        "It is normal for difficult material to arise, which is why sessions should include enough time to reorient, close appropriately, and discuss what to expect between appointments."
+      ]]
+    ],
+    closing: "EMDR can be a powerful option for trauma-related symptoms when it is used thoughtfully, paced carefully, and integrated into a treatment plan that fits the whole person.",
+    image: "/images/trauma-therapy.png"
+  },
+  "hypnotherapy": {
+    title: "Clinical Hypnotherapy",
+    eyebrow: "Focused-attention therapy",
+    intro: "Clinical hypnosis, sometimes called hypnotherapy, is a therapeutic method that uses focused attention, increased absorption, guided imagery, and suggestion to support specific treatment goals. It is very different from stage hypnosis: you remain aware, you do not surrender control, and you cannot be forced to act against your values. In clinical practice, hypnosis is typically used as an adjunct to psychotherapy rather than as a stand-alone cure.",
+    sections: [
+      ["What clinical hypnosis is", [
+        "Hypnosis involves a state of focused attention with reduced awareness of competing distractions and an increased capacity to respond to therapeutic suggestion.",
+        "A clinician may use relaxation, imagery, breathing, attentional exercises, or verbal suggestions to help the client concentrate more deeply on a therapeutic goal.",
+        "People vary in how they experience hypnosis. Some describe deep relaxation; others feel highly focused rather than sleepy. Most remain aware of what is happening and can speak, move, or end the exercise whenever they choose."
+      ]],
+      ["What it may be used for", [
+        "Clinical hypnosis has evidence for helping some people manage pain, procedure-related anxiety, stress, and selected behavioral or psychosomatic concerns.",
+        "It may also be used as an adjunct to other psychological treatments in selected cases involving anxiety, sleep problems, behavior change, and related concerns, although effectiveness varies by problem and individual.",
+        "Hypnosis should not be presented as a universal treatment. It is one clinical tool that may be useful when it matches the person's goals, diagnosis, preferences, and broader treatment plan."
+      ]],
+      ["What happens in a session", [
+        "A session usually begins with discussion of the goal and with correcting common myths about hypnosis. The clinician then guides the client into a more focused state using an induction tailored to the individual.",
+        "Once attention is narrowed, therapeutic suggestions may focus on coping, comfort, confidence, emotional regulation, rehearsal of new responses, symptom management, or another agreed-upon target.",
+        "The clinician then guides the client back to ordinary alertness and reviews the experience. Some clients may also learn self-hypnosis skills for use between sessions."
+      ]],
+      ["What hypnosis is not", [
+        "Hypnosis is not mind control, unconsciousness, sleep, truth serum, or a way for a therapist to take over a person's decisions.",
+        "People generally retain awareness and agency during hypnosis. They can reject suggestions, speak up, and stop the process.",
+        "Hypnosis should be used cautiously when memory is the focus. Suggestion can influence confidence in memories, so responsible clinical use avoids treating hypnotically recalled material as automatically accurate."
+      ]],
+      ["Safety, fit, and informed consent", [
+        "Clinical hypnosis is generally considered safe when used by an appropriately trained health professional within the scope of practice, but it is not the right intervention for every person or every problem.",
+        "A clinician should first understand the person's symptoms, diagnosis, treatment goals, medical and psychiatric history, and factors that could complicate the use of hypnosis.",
+        "The client should understand what the clinician intends to do, why hypnosis is being considered, what alternatives are available, and that participation is voluntary."
+      ]]
+    ],
+    closing: "Used responsibly, clinical hypnosis can be a focused and flexible therapeutic tool. Its value comes from how well it is integrated with sound clinical judgment and a treatment plan built around the individual.",
+    image: "/images/mood-disorders.png"
+  },
+  "neurofeedback": {
+    title: "Neurofeedback Therapy",
+    eyebrow: "Computerized EEG biofeedback",
+    intro: "Neurofeedback is a form of biofeedback that uses real-time information about brain activity to help the brain practice different patterns of regulation. At Indian Creek Psychological Services, neurofeedback is provided through a computerized Brain-Trainer interface. Sensors collect brain-activity data, the software processes that information, and the client receives immediate visual or auditory feedback tied to the training protocol.",
+    sections: [
+      ["How neurofeedback works", [
+        "In EEG neurofeedback, sensors placed on the scalp detect electrical activity. The sensors read activity; they do not put electricity into the brain.",
+        "That information is sent through an amplifier to a computer, where software translates selected features of the signal into feedback such as changes in a video, sound, display, or game.",
+        "The feedback changes in real time as the measured brain activity changes. Repeated training is intended to help the brain practice more flexible and efficient regulation through a learning process."
+      ]],
+      ["The Brain-Trainer computerized interface", [
+        "The Brain-Trainer system uses computer-based neurofeedback software that receives data from an amplifier and presents visual and auditory feedback during training.",
+        "Depending on the training plan and equipment being used, the system can support EEG-based training and other biofeedback approaches. Protocols are selected to match the training goals and the information gathered during assessment.",
+        "Brain-Trainer describes its approach as pattern-based whole-brain training. Its software is a training platform rather than a diagnostic instrument, so clinical decisions still require professional assessment and judgment."
+      ]],
+      ["What a session may look like", [
+        "A neurofeedback session generally begins with placement of sensors and a check of signal quality. The client then watches or listens to feedback on the computer while the system tracks the selected physiological signal.",
+        "The client does not need to consciously force the brain into a particular state. Instead, the feedback provides repeated information about when the targeted pattern is occurring.",
+        "Training plans typically involve multiple sessions because neurofeedback is based on learning and repetition rather than a single-session intervention."
+      ]],
+      ["What people seek neurofeedback for", [
+        "Neurofeedback has been studied for attention, arousal regulation, sleep, mood, anxiety, trauma-related symptoms, performance, and other concerns.",
+        "The quality of evidence is not equally strong across conditions. For example, a 2024 systematic review of randomized trials did not find meaningful benefits for neurofeedback as a stand-alone ADHD treatment on probably blinded outcomes, although some protocol-specific effects were reported.",
+        "For that reason, neurofeedback at Indian Creek should be understood as one possible component of a broader treatment plan rather than a guaranteed cure or a replacement for established medical or psychological care."
+      ]],
+      ["Assessment, monitoring, and clinical fit", [
+        "Before recommending neurofeedback, it is important to understand the person's goals, symptoms, medical and psychological history, current treatment, and practical ability to participate consistently.",
+        "Progress should be monitored using changes that matter in everyday life—such as attention, sleep, emotional regulation, functioning, or symptom burden—not simply changes on a computer display.",
+        "If another treatment has stronger evidence for the primary problem, that should be part of the clinical discussion. Neurofeedback can be combined with psychotherapy or other care when that combination is appropriate."
+      ]]
+    ],
+    closing: "Neurofeedback is best approached as structured brain-based training supported by careful assessment, realistic goals, and ongoing clinical monitoring. The technology provides feedback; the treatment plan determines how and why it is used.",
+    image: "/images/adhd.png"
+  },
   "adhd": {
     title: "ADHD",
     eyebrow: "Attention and executive functioning",

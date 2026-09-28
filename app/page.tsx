@@ -61,11 +61,7 @@ export default function Home() {
       <header className="icp-top-menu">
         <div className="icp-top-menu-left">
           <a className="icp-brand" href="#top" aria-label="Indian Creek Psychological Services home">
-            <span className="icp-brand-mark">IC</span>
-            <span className="icp-brand-copy">
-              <strong>Indian Creek</strong>
-              <small>Psychological Services</small>
-            </span>
+            <img className="icp-brand-logo" src="/images/indian-creek-logo.webp" alt="Indian Creek Psychological Services" />
           </a>
         </div>
         <div className="icp-top-menu-right">
@@ -74,17 +70,17 @@ export default function Home() {
       </header>
 
       <main className="icp-shell-center">
-        <section className="hero" id="top">
+        <section className="hero heroScenic" id="top">
           <div className="heroCopy">
-            <p className="eyebrow">Counseling • Recovery • Relationships • Mental Health</p>
-            <h1>Care that meets you where you are and helps you move forward.</h1>
+            <p className="eyebrow">Compassionate • Experienced • Focused on You</p>
+            <h1>A Calmer Tomorrow Starts Here.</h1>
             <p className="heroText">
               Indian Creek Psychological Services provides professional counseling for individuals,
               couples, and families, with focused expertise in substance use and recovery, trauma,
               relationship concerns, mood disorders, autism, and ADHD.
             </p>
             <div className="heroActions">
-              <a className="primaryButton" href="#contact">Request information</a>
+              <a className="primaryButton" href="#contact">Schedule a Consultation</a>
               <a className="secondaryButton" href="#services">Explore services</a>
               <a className="secondaryButton" href="/meet-the-therapist">Meet the therapist</a>
             </div>
@@ -92,7 +88,7 @@ export default function Home() {
               This website is informational and is not intended for emergency or crisis care.
             </p>
           </div>
-          <div className="heroPanel heroPanelPhoto" aria-label="Practice focus areas" style={{ backgroundImage: 'linear-gradient(180deg, rgba(18,47,41,.08), rgba(18,47,41,.38)), url("/images/homepage-therapy.png")' }}>
+          <div className="heroPanel heroPanelPhoto heroScenicPanel" aria-label="Indian Creek landscape" style={{ backgroundImage: 'linear-gradient(180deg, rgba(9,32,56,.04), rgba(9,32,56,.22)), url("/images/homepage-therapy.png")' }}>
             <div className="heroPanelInner">
               <span className="quietLabel">Focused care for</span>
               <ul>

@@ -41,7 +41,7 @@ export default async function AccountPage() {
   return (
     <div className="icp-shell">
       <header className="icp-top-menu">
-        <div className="icp-top-menu-left"><Link className="icp-brand" href="/"><span className="icp-brand-mark">IC</span><span className="icp-brand-copy"><strong>Indian Creek</strong><small>Psychological Services</small></span></Link></div>
+        <div className="icp-top-menu-left"><Link className="icp-brand" href="/"><img className="icp-brand-logo" src="/images/indian-creek-logo.webp" alt="Indian Creek Psychological Services" /></Link></div>
         <div className="icp-top-menu-right"><span className="icp-top-tagline">Secure Client Account</span></div>
       </header>
       <main className="icp-shell-center authPage">
@@ -54,7 +54,7 @@ export default async function AccountPage() {
           newsletterFrequency={(newsletter?.frequency as "weekly" | "biweekly" | undefined) ?? "biweekly"}
         />
       </main>
-      <nav className="icp-bottom-menu" aria-label="Account navigation"><Link href="/">Home</Link><Link href="/account">Account</Link></nav>
+      <nav className="icp-bottom-menu" aria-label="Account navigation"><Link href="/">Home</Link><Link href="/account">Account</Link><Link href="/appointments">Appointments</Link></nav>
     </div>
   );
 }

@@ -6,11 +6,7 @@ export default function MeetTheTherapistPage() {
       <header className="icp-top-menu">
         <div className="icp-top-menu-left">
           <Link className="icp-brand" href="/" aria-label="Indian Creek Psychological Services home">
-            <span className="icp-brand-mark">IC</span>
-            <span className="icp-brand-copy">
-              <strong>Indian Creek</strong>
-              <small>Psychological Services</small>
-            </span>
+            <img className="icp-brand-logo" src="/images/indian-creek-logo.webp" alt="Indian Creek Psychological Services" />
           </Link>
         </div>
         <div className="icp-top-menu-right">

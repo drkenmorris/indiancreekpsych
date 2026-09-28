@@ -9,7 +9,7 @@ type Props = {
   email: string;
   fullName: string;
   preferredName: string;
-  accountType: "guest" | "patient" | "admin";
+  accountType: "guest" | "patient" | "staff" | "admin";
   newsletterSubscribed: boolean;
   newsletterFrequency: "weekly" | "biweekly";
 };
@@ -116,7 +116,7 @@ export default function AccountClient({ email, fullName: initialFullName, prefer
           <p className="eyebrow">Secure client account</p>
           <h1>{preferredName ? `Welcome, ${preferredName}` : "Welcome to your account"}</h1>
           <p className="accountEmail">{email}</p>
-          <span className="accountTypeBadge">{accountType === "patient" ? "Patient" : accountType === "admin" ? "Administrator" : "Guest"}</span>
+          <span className="accountTypeBadge">{accountType === "patient" ? "Patient" : accountType === "admin" ? "Administrator" : accountType === "staff" ? "Office Staff" : "Guest"}</span>
           <form className="authForm" onSubmit={save}>
             <label>Full name<input value={fullName} onChange={(e) => setFullName(e.target.value)} /></label>
             <label>Preferred name<input value={preferredName} onChange={(e) => setPreferredName(e.target.value)} /></label>
@@ -124,7 +124,7 @@ export default function AccountClient({ email, fullName: initialFullName, prefer
           </form>
           {message && <p className="authMessage">{message}</p>}
           {accountType==='patient'&&<Link className="portalHomeLink" href="/patient/intake">Your intake questionnaire</Link>}
-          {accountType==='admin'&&<Link className="portalHomeLink" href="/admin/intakes">Review patient questionnaires</Link>}
+          {(accountType==='admin'||accountType==='staff')&&<><Link className="portalHomeLink" href="/admin/intakes">Review submitted questionnaires</Link><Link className="portalHomeLink" href="/admin/intake-kiosk">Start office intake</Link></>}
           <Link className="portalHomeLink" href="/account/security">Account security and backup verification</Link>
           <section className="newsletterPrefs">
             <p className="eyebrow">Newsletter</p>

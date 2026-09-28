@@ -37,8 +37,7 @@ export default function LoginPage() {
       <header className="icp-top-menu">
         <div className="icp-top-menu-left">
           <Link className="icp-brand" href="/">
-            <span className="icp-brand-mark">IC</span>
-            <span className="icp-brand-copy"><strong>Indian Creek</strong><small>Psychological Services</small></span>
+            <img className="icp-brand-logo" src="/images/indian-creek-logo.webp" alt="Indian Creek Psychological Services" />
           </Link>
         </div>
       </header>
@@ -53,7 +52,7 @@ export default function LoginPage() {
             <button type="submit" disabled={busy}>{busy ? "Signing in…" : "Sign in"}</button>
           </form>
           {message && <p className="authMessage" role="alert">{message}</p>}
-          <p className="authSwitch">Need an account? <Link href="/register">Register</Link></p>
+          <p className="authSwitch">Need an account? <Link href="/register">Register</Link> · <Link href="/appointments">Appointments</Link></p>
         </section>
       </main>
       <nav className="icp-bottom-menu" aria-label="Site navigation"><Link href="/">Home</Link><Link href="/register">Register</Link></nav>

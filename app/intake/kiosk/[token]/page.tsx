@@ -1,1 +1,1 @@
-export default function Page(){return <main>Form session</main>;}
+import {notFound} from 'next/navigation'; export default function Page(){notFound();}

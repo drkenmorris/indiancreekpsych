@@ -80,7 +80,7 @@ export default function Home() {
               relationship concerns, mood disorders, autism, and ADHD.
             </p>
             <div className="heroActions">
-              <a className="primaryButton" href="#contact">Schedule a Consultation</a>
+              <a className="primaryButton" href="/appointments">Schedule an Appointment</a>
               <a className="secondaryButton" href="#services">Explore services</a>
               <a className="secondaryButton" href="/meet-the-therapist">Meet the therapist</a>
             </div>
@@ -88,19 +88,7 @@ export default function Home() {
               This website is informational and is not intended for emergency or crisis care.
             </p>
           </div>
-          <div className="heroPanel heroPanelPhoto heroScenicPanel" aria-label="Indian Creek landscape" style={{ backgroundImage: 'linear-gradient(180deg, rgba(9,32,56,.04), rgba(9,32,56,.22)), url("/images/homepage-therapy.png")' }}>
-            <div className="heroPanelInner">
-              <span className="quietLabel">Focused care for</span>
-              <ul>
-                <li>Recovery and substance use concerns</li>
-                <li>Trauma and difficult life experiences</li>
-                <li>Couples and family relationships</li>
-                <li>Depression, anxiety, and mood concerns</li>
-                <li>Autism and ADHD</li>
-              </ul>
-            </div>
-          </div>
-        </section>
+          </section>
 
         <section className="trustStrip" aria-label="Practice values">
           <div><strong>Respectful</strong><span>Care centered on the whole person</span></div>
@@ -148,17 +136,25 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="futureSection" id="resources">
-          <div>
-            <p className="eyebrow">Coming to the site</p>
-            <h2>A growing digital home for care and resources.</h2>
+        <section className="appointmentAccess" id="appointments">
+          <div className="appointmentAccessIntro">
+            <p className="eyebrow">Patient appointment access</p>
+            <h2>Request and manage appointments through your secure patient account.</h2>
             <p>
-              The first version of IndianCreekPsych.com is designed to expand into a secure client
-              experience as additional services are brought online.
+              New patients can create a Patient account, verify their email, complete the required
+              security setup and intake questionnaire, and then use the secure appointment calendar.
+              Returning patients can sign in and go directly to Appointments.
             </p>
+            <div className="heroActions">
+              <a className="primaryButton" href="/appointments">Open Appointments</a>
+              <a className="secondaryButton" href="/register">Create Patient Account</a>
+              <a className="secondaryButton" href="/login?next=/appointments">Patient Sign In</a>
+            </div>
           </div>
-          <div className="futureGrid">
-            {futureTools.map((tool) => <span key={tool}>{tool}</span>)}
+          <div className="appointmentSteps" aria-label="How to access appointments">
+            <div><span>1</span><strong>Create or sign in</strong><p>Select Patient when registering, or sign in to your existing account.</p></div>
+            <div><span>2</span><strong>Complete secure setup</strong><p>Verify your email and complete any required account-security and intake steps.</p></div>
+            <div><span>3</span><strong>Choose an appointment</strong><p>Open the secure appointment area to see available times and manage scheduled visits.</p></div>
           </div>
         </section>
 
@@ -167,14 +163,15 @@ export default function Home() {
             <p className="eyebrow light">Take the next step</p>
             <h2>Looking for counseling or trying to determine whether this practice is a fit?</h2>
             <p>
-              Contact information and online appointment requests can be added here as soon as you are
-              ready. Until then, this page can serve as your professional public presence.
+              You can use the secure patient portal to request or manage appointments. If you are
+              deciding whether the practice is a fit, explore the specialty pages or create a patient
+              account to begin the intake and scheduling process.
             </p>
           </div>
           <div className="contactCard">
             <strong>Indian Creek Psychological Services</strong>
             <p>General counseling and specialized behavioral health services.</p>
-            <p className="placeholder">Phone, email, office location, and scheduling link can be added next.</p>
+            <p><a className="contactAppointmentLink" href="/appointments">Open secure appointment scheduling →</a></p>
           </div>
         </section>
 
@@ -195,8 +192,9 @@ export default function Home() {
         <a href="#services">Services</a>
         <a href="#approach">Approach</a>
         <a href="/meet-the-therapist">Meet the Therapist</a>
-        <a href="#resources">Resources</a>
+        <a href="#appointments">Appointments</a>
         <a href="#contact">Contact</a>
+        <a href="/appointments">Schedule</a>
         <a href="/login">Login</a>
         <a href="/register">Register</a>
       </nav>

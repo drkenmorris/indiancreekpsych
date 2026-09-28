@@ -1,1 +1,1 @@
-export default function Page(){return <main>Intake kiosk setup</main>;}
+import {redirect} from 'next/navigation'; export default function Page(){redirect('/account');}

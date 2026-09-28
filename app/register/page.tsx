@@ -55,8 +55,7 @@ export default function RegisterPage() {
       <header className="icp-top-menu">
         <div className="icp-top-menu-left">
           <Link className="icp-brand" href="/">
-            <span className="icp-brand-mark">IC</span>
-            <span className="icp-brand-copy"><strong>Indian Creek</strong><small>Psychological Services</small></span>
+            <img className="icp-brand-logo" src="/images/indian-creek-logo.webp" alt="Indian Creek Psychological Services" />
           </Link>
         </div>
       </header>
@@ -82,7 +81,7 @@ export default function RegisterPage() {
             <button type="submit" disabled={busy}>{busy ? "Creating account…" : "Create account"}</button>
           </form>
           {message && <p className="authMessage" role="status">{message}</p>}
-          <p className="authSwitch">Already registered? <Link href="/login">Sign in</Link></p>
+          <p className="authSwitch">Already registered? <Link href="/login?next=/appointments">Sign in</Link> · <Link href="/appointments">Appointments</Link></p>
         </section>
       </main>
       <nav className="icp-bottom-menu" aria-label="Site navigation"><Link href="/">Home</Link><Link href="/login">Login</Link></nav>

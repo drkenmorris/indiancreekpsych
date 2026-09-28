@@ -95,7 +95,7 @@ export default function AppointmentsClient({userId,accountType,preferredName,ini
         key={view+previewPatient} timezone={settings.timezone} enabled={settings.scheduling_enabled}
         showAvailability={view!=="booked"} showBookings={view!=="availability"}
         patientId={accountType==="patient"?userId:previewPatient} readOnly={accountType!=="patient"}
-        layout={view==="patient-summary"?"agenda":"month"} revision={revision}
+        layout="month" revision={revision}
         onChoose={accountType==="admin"&&view==="availability"?(slot)=>{const local=localParts(slot.starts_at,settings.timezone);setBooking({...booking,first_date:local.date,start_time:local.time});setView("book");}:undefined}
       />}
     </>}

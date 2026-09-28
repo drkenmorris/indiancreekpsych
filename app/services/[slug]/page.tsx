@@ -309,7 +309,7 @@ export default async function SpecialtyPage({ params }: { params: Promise<{ slug
           <h1>{specialty.title}</h1>
           <p>{specialty.intro}</p>
           <div className="heroActions">
-            <Link className="primaryButton" href="/#contact">Start a conversation</Link>
+            <Link className="primaryButton" href="/appointments">Schedule an Appointment</Link>
             <Link className="secondaryButton" href="/#services">Explore other specialties</Link>
           </div>
           <div
@@ -350,7 +350,7 @@ export default async function SpecialtyPage({ params }: { params: Promise<{ slug
       <nav className="icp-bottom-menu" aria-label="Specialty navigation">
         <Link href="/">Home</Link>
         <Link href="/#services">Services</Link>
-        <Link href="/#contact">Contact</Link>
+        <Link href="/#contact">Contact</Link><Link href="/appointments">Schedule</Link>
         <Link href="/login">Login</Link>
         <Link href="/register">Register</Link>
       </nav>

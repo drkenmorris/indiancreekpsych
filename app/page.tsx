@@ -25,6 +25,21 @@ const specialties = [
     href: "/services/autism",
   },
   {
+    title: "EMDR Therapy",
+    text: "Structured trauma-focused treatment designed to help reduce the emotional intensity and present-day impact of distressing memories and PTSD symptoms.",
+    href: "/services/emdr",
+  },
+  {
+    title: "Clinical Hypnotherapy",
+    text: "Focused-attention therapy using imagery and therapeutic suggestion to support selected goals such as pain management, anxiety reduction, stress, and behavior change.",
+    href: "/services/hypnotherapy",
+  },
+  {
+    title: "Neurofeedback Therapy",
+    text: "Computerized EEG biofeedback using the Brain-Trainer system to provide real-time feedback while the brain practices patterns of attention, arousal, and self-regulation.",
+    href: "/services/neurofeedback",
+  },
+  {
     title: "ADHD",
     text: "Practical and compassionate support for attention, organization, impulsivity, emotional regulation, relationships, and the challenges ADHD can create across adulthood and family life.",
     href: "/services/adhd",

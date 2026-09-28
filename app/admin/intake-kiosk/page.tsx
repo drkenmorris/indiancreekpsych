@@ -1,0 +1,1 @@
+export default function Page(){return <main>Intake kiosk setup</main>;}

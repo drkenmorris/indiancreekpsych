@@ -35,3 +35,53 @@
 .intakeFields .checkRow input{width:18px;min-height:18px;height:18px;flex:0 0 18px;padding:0;margin:0}
 .intakePage .authForm>button{margin:0;min-height:46px}
 @media(max-width:650px){.intakeFields{grid-template-columns:minmax(0,1fr)}.intakePage{padding-top:20px}.intakePage fieldset{border-radius:16px}}
+
+/* 2026 visual brand refresh — approved Indian Creek mockup direction */
+:root{--icp-navy:#0d3658;--icp-navy-deep:#082943;--icp-gold:#b9852e;--icp-sky:#6faecb;--icp-cream:#fbfaf6;--icp-ink:#183042}
+.icp-top-menu{background:#fff;border-bottom:1px solid #d9e3e8;color:var(--icp-navy);min-height:72px;padding:6px clamp(16px,4vw,54px);box-shadow:0 2px 16px rgba(13,54,88,.07)}
+.icp-brand{min-width:210px;height:100%}
+.icp-brand-logo{display:block;width:auto;height:58px;max-width:min(290px,42vw);object-fit:contain;object-position:left center}
+.icp-top-tagline{color:#577087;font-weight:700;letter-spacing:.06em}
+.icp-bottom-menu{background:linear-gradient(90deg,#082943,#0c3e61);border-top:1px solid rgba(255,255,255,.16);padding:0 clamp(16px,4vw,54px);justify-content:center}
+.icp-bottom-menu a{border:0;background:transparent;color:#fff;border-radius:0;padding:8px 14px;font-weight:700}
+.icp-bottom-menu a:hover{background:rgba(255,255,255,.08)}
+.icp-shell{grid-template-rows:minmax(70px,8vh) 1fr minmax(44px,5vh)}
+.icp-shell-center{background:#f8fbfc}
+.heroScenic{min-height:660px;background:
+linear-gradient(90deg,rgba(255,255,255,.97) 0%,rgba(255,255,255,.89) 43%,rgba(255,255,255,.15) 72%),
+url("/images/homepage-therapy.png") center/cover no-repeat;padding-top:70px;padding-bottom:70px}
+.heroScenic .heroCopy{background:rgba(255,255,255,.82);backdrop-filter:blur(3px);padding:34px;border-radius:24px;box-shadow:0 22px 60px rgba(8,41,67,.12)}
+.heroScenic .hero h1,.heroScenic h1{color:var(--icp-navy);font-size:clamp(48px,6vw,80px)}
+.heroScenic .heroText{color:#3f5668}
+.heroScenicPanel{border:3px solid rgba(255,255,255,.65);box-shadow:0 28px 65px rgba(8,41,67,.2)}
+.primaryButton{background:linear-gradient(180deg,#c99a45,#a97620);box-shadow:0 7px 18px rgba(169,118,32,.22)}
+.secondaryButton{border:1px solid #9eb9c9;color:var(--icp-navy);background:rgba(255,255,255,.9)}
+.trustStrip{background:#fffaf1}
+.trustStrip strong,.serviceCard h3,.section h2,.futureSection h2,.contactSection h2{color:var(--icp-navy)}
+.cardGrid{grid-template-columns:repeat(3,minmax(0,1fr))}
+.serviceCard{border-color:#d8e3e8;border-radius:16px;box-shadow:0 8px 28px rgba(13,54,88,.08)}
+.cardAccent{background:linear-gradient(90deg,var(--icp-gold),var(--icp-sky))}
+.contactSection{background:linear-gradient(135deg,#082943,#0d476b)}
+.contentFooter{background:#061f33}
+.specialtyHeroScenic{position:relative;overflow:hidden;background:
+linear-gradient(90deg,rgba(250,252,253,.98),rgba(250,252,253,.88) 56%,rgba(250,252,253,.3)),
+url("/images/homepage-therapy.png") center/cover no-repeat}
+.specialtyHero h1{color:var(--icp-navy)}
+.specialtyImage{border-radius:20px;border:4px solid white;box-shadow:0 22px 50px rgba(8,41,67,.17)}
+.specialtySection{box-shadow:0 8px 26px rgba(13,54,88,.06);border-color:#d9e4e9}
+.specialtySection h2,.specialtyNote strong{color:var(--icp-navy)}
+.therapistHero{background:
+linear-gradient(90deg,rgba(250,252,253,.96),rgba(250,252,253,.84)),
+url("/images/homepage-therapy.png") center/cover no-repeat}
+.therapistHero h1,.therapistIntro h2,.therapistPrinciples h2,.therapistWelcome h2{color:var(--icp-navy)}
+.therapistWelcome h2{color:#fff}
+.therapistPhotoFrame{background:linear-gradient(145deg,#0b385a,#bf8a32)}
+@media(max-width:900px){
+ .heroScenic{background:linear-gradient(rgba(255,255,255,.88),rgba(255,255,255,.93)),url("/images/homepage-therapy.png") center/cover no-repeat}
+ .icp-brand-logo{height:48px}
+}
+@media(max-width:620px){
+ .icp-top-menu{min-height:62px}
+ .icp-shell{grid-template-rows:minmax(62px,8vh) 1fr minmax(44px,5vh)}
+ .icp-brand-logo{height:42px;max-width:68vw}
+}

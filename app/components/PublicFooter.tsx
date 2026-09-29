@@ -1,11 +1,10 @@
-import Image from "next/image";
 import Link from "next/link";
 
 export default function PublicFooter() {
   return (
     <footer className="publicFooter">
       <div className="footerBrand">
-        <Image src="/images/indian-creek-logo.webp" alt="Indian Creek Psychological Services" width={300} height={115} />
+        
       </div>
       <nav aria-label="Footer navigation">
         <Link href="/">Home</Link>

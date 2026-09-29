@@ -55,7 +55,7 @@ export default function RegisterPage() {
       <header className="icp-top-menu">
         <div className="icp-top-menu-left">
           <Link className="icp-brand" href="/">
-            <img className="icp-brand-logo" src="/images/indian-creek-logo.webp" alt="Indian Creek Psychological Services" />
+            
           </Link>
         </div>
       </header>

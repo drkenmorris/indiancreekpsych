@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 import PublicHeader from "../components/PublicHeader";
 import PublicFooter from "../components/PublicFooter";
@@ -18,7 +17,7 @@ const services = [
 export default function ServicesPage(){
  return <div className="publicSite"><PublicHeader/><main>
   <section className="mockHero servicesMockHero">
-   <Image className="heroLogoOverlay" src="/images/indian-creek-logo.webp" alt="Indian Creek Psychological Services" width={620} height={240} priority />
+   
    <div className="heroScrim compact"><p className="eyebrow">Evidence-informed care</p><h1>Our Services</h1><p>Professional psychological services designed to support mental health, personal growth, relationships, recovery, and overall well-being.</p></div>
   </section>
   <section className="serviceCatalog">

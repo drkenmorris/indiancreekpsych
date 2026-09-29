@@ -31,7 +31,7 @@ export default async function AppointmentsPage() {
     <div className="icp-shell">
       <header className="icp-top-menu">
         <div className="icp-top-menu-left">
-          <Link className="icp-brand" href="/"><img className="icp-brand-logo" src="/images/indian-creek-logo.webp" alt="Indian Creek Psychological Services" /></Link>
+          <Link className="icp-brand" href="/"></Link>
         </div>
         <div className="icp-top-menu-right"><span className="icp-top-tagline">Secure Appointment Scheduling</span></div>
       </header>

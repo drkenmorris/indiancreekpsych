@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 import PublicHeader from "./components/PublicHeader";
 import PublicFooter from "./components/PublicFooter";
@@ -18,7 +17,7 @@ export default function Home() {
       <PublicHeader />
       <main>
         <section className="mockHero homeMockHero">
-          <Image className="heroLogoOverlay" src="/images/indian-creek-logo.webp" alt="Indian Creek Psychological Services" width={620} height={240} priority />
+          
           <div className="heroScrim">
             <p className="eyebrow">Compassionate • Experienced • Focused on You</p>
             <h1>A Calmer Tomorrow Starts Here.</h1>

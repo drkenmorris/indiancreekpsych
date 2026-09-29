@@ -184,3 +184,64 @@ url("/images/homepage-therapy.png") center/cover no-repeat}
 
 /* Use the approved rendered Services mockup artwork */
 .servicesMockHero{background-image:linear-gradient(90deg,rgba(246,251,253,.96),rgba(246,251,253,.76) 48%,rgba(246,251,253,.16)),url("/images/services-mockup-hero.webp")}
+
+/* Structural correction: public navigation belongs at the bottom and long public pages scroll. */
+.publicSite{
+  height:100vh;
+  min-height:100vh;
+  overflow-y:auto;
+  overflow-x:hidden;
+  scrollbar-gutter:stable;
+}
+.publicSite>main{
+  min-height:calc(100vh - 58px);
+}
+.publicHeader{
+  display:none!important;
+}
+.publicFooter{
+  min-height:58px;
+  padding:10px clamp(16px,4vw,54px);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:20px;
+  background:#072b47;
+  border-top:1px solid rgba(255,255,255,.18);
+}
+.publicFooter nav{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+  justify-content:flex-start;
+}
+.publicFooter nav a{
+  display:inline-block;
+  padding:7px 10px;
+  border-radius:7px;
+  color:#fff;
+  text-decoration:none;
+  font-size:12px;
+  font-weight:700;
+}
+.publicFooter nav a:hover{
+  background:rgba(255,255,255,.09);
+}
+.footerContact{
+  flex:0 0 auto;
+  text-align:right;
+}
+@media(max-width:900px){
+  .publicFooter{
+    display:grid;
+    grid-template-columns:1fr;
+    text-align:center;
+  }
+  .publicFooter nav{
+    justify-content:center;
+  }
+  .footerContact{
+    text-align:center;
+  }
+}

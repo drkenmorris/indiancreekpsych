@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 import PublicHeader from "../components/PublicHeader";
 import PublicFooter from "../components/PublicFooter";
@@ -18,7 +17,7 @@ const specialties = [
 export default function SpecialtiesPage(){
  return <div className="publicSite"><PublicHeader/><main>
   <section className="mockHero specialtiesMockHero">
-   <Image className="heroLogoOverlay" src="/images/indian-creek-logo.webp" alt="Indian Creek Psychological Services" width={620} height={240} priority />
+   
    <div className="heroScrim compact"><p className="eyebrow">Focused expertise</p><h1>Areas of Specialization</h1><p>These pages describe the kinds of concerns, diagnoses, and life challenges in which our practice has focused clinical experience.</p></div>
   </section>
   <section className="specialtyCatalog">

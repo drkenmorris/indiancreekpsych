@@ -245,3 +245,26 @@ url("/images/homepage-therapy.png") center/cover no-repeat}
     text-align:center;
   }
 }
+
+/* Restore original fixed-bottom shell behavior: only middle content scrolls. */
+.publicSite{
+  width:100vw;
+  height:100vh;
+  min-height:100vh;
+  overflow:hidden;
+  display:grid;
+  grid-template-rows:minmax(0,1fr) auto;
+  background:#f6f8f8;
+}
+.publicSite>main{
+  min-height:0;
+  overflow-y:auto;
+  overflow-x:hidden;
+  scrollbar-gutter:stable;
+}
+.publicFooter{
+  position:relative;
+  z-index:50;
+  flex:0 0 auto;
+  width:100%;
+}

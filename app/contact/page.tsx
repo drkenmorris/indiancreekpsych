@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 import PublicHeader from "../components/PublicHeader";
 import PublicFooter from "../components/PublicFooter";
@@ -6,7 +5,7 @@ import PublicFooter from "../components/PublicFooter";
 export default function ContactPage(){
  return <div className="publicSite"><PublicHeader/><main>
   <section className="mockHero contactMockHero">
-   <Image className="heroLogoOverlay" src="/images/indian-creek-logo.webp" alt="Indian Creek Psychological Services" width={620} height={240} priority />
+   
    <div className="heroScrim compact"><p className="eyebrow">Get in touch</p><h1>We&apos;re here to help you take the next step.</h1><p>Whether you have questions about our services, want to schedule an appointment, or simply want to learn more, we&apos;d be glad to help.</p></div>
   </section>
   <section className="contactPageGrid">

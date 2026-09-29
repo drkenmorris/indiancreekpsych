@@ -103,3 +103,81 @@ url("/images/homepage-therapy.png") center/cover no-repeat}
 .contactAppointmentLink:hover{text-decoration:underline}
 .icp-brand-logo{height:62px;max-width:260px}
 @media(max-width:900px){.appointmentAccess{grid-template-columns:1fr}.heroScenic{background:linear-gradient(rgba(255,255,255,.90),rgba(255,255,255,.94)),url("/images/homepage-therapy.png") center/cover no-repeat}}
+
+
+/* Public site redesign from approved Indian Creek mockups */
+.publicSite{min-height:100vh;background:#f6f8f8;color:#183246;font-family:Georgia,'Times New Roman',serif}
+.publicHeader{position:relative;z-index:40;background:#fff;border-bottom:1px solid #d9e2e7;box-shadow:0 3px 14px rgba(8,41,67,.06)}
+.publicNav{min-height:68px;display:flex;align-items:center;justify-content:center;gap:clamp(16px,2.5vw,34px);padding:8px clamp(18px,5vw,72px);font-family:Arial,Helvetica,sans-serif}
+.publicNav a{color:#123b5c;text-decoration:none;font-size:14px;font-weight:700}
+.publicNav a:hover{text-decoration:underline}
+.publicNav .navSchedule{margin-left:auto;background:linear-gradient(180deg,#c99b49,#ad7b2a);color:#fff;border-radius:999px;padding:11px 18px;text-decoration:none;box-shadow:0 4px 14px rgba(173,123,42,.22)}
+.mockHero{position:relative;min-height:470px;background-size:cover;background-position:center;display:flex;align-items:center;padding:clamp(60px,7vw,100px) clamp(24px,8vw,118px);overflow:hidden}
+.homeMockHero{min-height:610px;background-image:linear-gradient(90deg,rgba(255,255,255,.96),rgba(255,255,255,.78) 42%,rgba(255,255,255,.02) 78%),url("/images/homepage-therapy.png")}
+.aboutMockHero{background-image:linear-gradient(90deg,rgba(255,255,255,.96),rgba(255,255,255,.75) 48%,rgba(255,255,255,.05)),url("/images/homepage-therapy.png")}
+.servicesMockHero{min-height:390px;background-image:linear-gradient(90deg,rgba(246,251,253,.98),rgba(246,251,253,.82) 55%,rgba(246,251,253,.25)),url("/images/homepage-therapy.png")}
+.specialtiesMockHero{min-height:390px;background-image:linear-gradient(90deg,rgba(246,251,253,.97),rgba(246,251,253,.80) 54%,rgba(246,251,253,.1)),url("/images/trauma-therapy.png")}
+.contactMockHero{min-height:390px;background-image:linear-gradient(90deg,rgba(246,251,253,.96),rgba(246,251,253,.78) 50%,rgba(246,251,253,.08)),url("/images/homepage-therapy.png")}
+.serviceDetailHero,.specialtyDetailHero{min-height:430px;background-image:linear-gradient(90deg,rgba(246,251,253,.97),rgba(246,251,253,.80) 54%,rgba(246,251,253,.08)),url("/images/homepage-therapy.png")}
+.heroLogoOverlay{position:absolute;z-index:3;right:clamp(28px,7vw,110px);top:clamp(36px,5vw,72px);width:clamp(250px,27vw,430px);height:auto;filter:drop-shadow(0 10px 20px rgba(0,0,0,.16));object-fit:contain}
+.heroScrim{position:relative;z-index:4;width:min(650px,62vw);padding:30px 34px;background:rgba(255,255,255,.76);backdrop-filter:blur(2px);border-radius:18px;border:1px solid rgba(255,255,255,.7);box-shadow:0 20px 54px rgba(8,41,67,.11)}
+.heroScrim.compact{width:min(720px,62vw)}
+.heroScrim h1{font-size:clamp(48px,6.4vw,82px);line-height:.98;color:#0b3658;margin:0 0 18px;font-weight:500}
+.heroScrim.compact h1{font-size:clamp(44px,5.3vw,68px)}
+.heroScrim>p:not(.eyebrow){font-family:Arial,Helvetica,sans-serif;color:#345269;font-size:17px;max-width:640px}
+.eyebrow{font-family:Arial,Helvetica,sans-serif}
+.homePillars{display:grid;grid-template-columns:repeat(3,1fr);gap:0;padding:44px clamp(24px,8vw,118px);background:#fff}
+.homePillars article{text-align:center;padding:20px 34px;border-right:1px solid #dce4e8}
+.homePillars article:last-child{border-right:0}
+.homePillars article>span{display:inline-grid;place-items:center;width:48px;height:48px;border-radius:50%;background:#eef4f7;color:#1b6487;font-family:Arial;font-weight:800}
+.homePillars h2{font-size:21px;color:#0e3d60;margin:12px 0 5px}
+.homePillars p{font-family:Arial,Helvetica,sans-serif;color:#607483;font-size:14px;margin:0}
+.homeIntro,.previewSection,.serviceCatalog,.specialtyCatalog,.aboutSupport,.contactPageGrid,.detailTextGrid,.detailNote{padding:82px clamp(24px,8vw,118px)}
+.homeIntro{max-width:1000px;margin:auto;text-align:center}
+.homeIntro h2,.sectionHeading h2,.appointmentAccess h2,.contactBand h2,.aboutSupport h2,.contactPageGrid h2,.detailNote h2{font-size:clamp(34px,4.5vw,54px);line-height:1.08;color:#0d3b5e;margin:0 0 18px}
+.homeIntro>p:not(.eyebrow),.sectionHeading>p:not(.eyebrow),.aboutSupport p,.contactPageGrid p,.detailNote p{font-family:Arial,Helvetica,sans-serif;color:#576f80;font-size:16px}
+.previewSection{background:#f5f8f9}
+.previewGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin-top:34px}
+.previewCard{background:#fff;border:1px solid #dbe4e8;border-radius:12px;padding:24px;text-decoration:none;box-shadow:0 8px 24px rgba(8,41,67,.06)}
+.previewCard h3{color:#0d3b5e;font-size:22px;margin:0 0 8px}
+.previewCard p{font-family:Arial,Helvetica,sans-serif;color:#647887;font-size:14px}
+.previewCard span{font-family:Arial;color:#1d6080;font-weight:800}
+.centerAction{text-align:center;margin-top:32px}
+.appointmentAccess{padding:82px clamp(24px,8vw,118px);display:grid;grid-template-columns:.95fr 1.05fr;gap:48px;background:linear-gradient(135deg,#eef6f8,#fffaf0)}
+.appointmentAccess>div>p:not(.eyebrow){font-family:Arial;color:#566f80;font-size:16px}
+.appointmentSteps{display:grid;gap:14px}
+.appointmentSteps article{background:#fff;border:1px solid #d8e4e9;border-radius:15px;padding:20px 22px;box-shadow:0 8px 24px rgba(13,54,88,.06)}
+.appointmentSteps span{float:left;display:grid;place-items:center;width:36px;height:36px;margin-right:12px;border-radius:50%;background:#c18b34;color:#fff;font-family:Arial;font-weight:800}
+.appointmentSteps h3{color:#0d3b5e;margin:5px 0 8px}
+.appointmentSteps p{font-family:Arial;color:#617483;margin:0 0 0 48px;font-size:14px}
+.contactBand{padding:70px clamp(24px,8vw,118px);display:grid;grid-template-columns:1fr .7fr;gap:48px;background:linear-gradient(135deg,#092f4c,#0f506f);color:#fff}
+.contactBand h2{color:#fff}
+.contactBand>div:last-child{display:grid;gap:5px;align-content:center;font-family:Arial}
+.contactBand>div:last-child strong{font-size:19px}.contactBand>div:last-child a{color:#fff;margin-top:10px;font-weight:800}
+.publicFooter{background:#072b47;color:#fff;padding:26px clamp(24px,6vw,84px);display:grid;grid-template-columns:auto 1fr auto;gap:34px;align-items:center;font-family:Arial,Helvetica,sans-serif}
+.footerBrand img{width:190px;height:auto;filter:drop-shadow(0 4px 12px rgba(0,0,0,.18))}
+.publicFooter nav{display:flex;gap:16px;justify-content:center;flex-wrap:wrap}.publicFooter a{color:#fff;text-decoration:none;font-size:12px}.footerContact{display:grid;gap:3px;text-align:right;font-size:12px;color:#dce8ef}
+.aboutSupport{display:grid;grid-template-columns:.8fr 1.2fr;gap:46px;background:#fff;align-items:center}
+.aboutPhoto{min-height:390px;border-radius:18px;background:url("/images/therapist-placeholder.png") center/cover no-repeat;box-shadow:0 16px 38px rgba(8,41,67,.12)}
+.serviceCatalog{background:#fff}
+.serviceCatalogGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
+.serviceCatalogCard{display:block;background:#fff;border:1px solid #d8e1e6;border-radius:12px;overflow:hidden;text-decoration:none;box-shadow:0 7px 22px rgba(8,41,67,.07)}
+.serviceCardImage{height:150px;background-size:cover;background-position:center}
+.serviceCatalogCard>div:last-child{padding:20px}
+.serviceCatalogCard h2{font-size:22px;color:#0d3b5e;margin:0 0 8px}
+.serviceCatalogCard p{font-family:Arial;color:#637786;font-size:14px;min-height:64px}
+.serviceCatalogCard span{font-family:Arial;font-weight:800;color:#1b6487}
+.specialtyCatalog{background:#fff}
+.specialtyCatalogGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.specialtyTile{background:#fff;border:1px solid #d9e2e7;border-radius:10px;padding:24px;text-decoration:none;box-shadow:0 7px 20px rgba(8,41,67,.05)}
+.specialtyTile>span{display:grid;place-items:center;width:42px;height:42px;border-radius:50%;background:#edf4f7;color:#1c688b;font-family:Arial;font-weight:800}
+.specialtyTile h2{font-size:21px;color:#0d3b5e;margin:14px 0 8px}.specialtyTile p{font-family:Arial;color:#637786;font-size:14px}.specialtyTile b{font-family:Arial;color:#1b6487;font-size:13px}
+.contactPageGrid{display:grid;grid-template-columns:1fr 1fr;gap:30px;background:#fff}
+.contactDetails,.contactCallout{background:#f8fafb;border:1px solid #dbe4e8;border-radius:16px;padding:32px}
+.contactDetails p{display:grid;gap:4px}.contactDetails a{color:#164e70}.contactCallout{background:#f2f7f9}
+.detailTextGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;background:#fff}
+.detailTextGrid article{border:1px solid #dbe4e8;border-radius:14px;padding:24px;background:#fbfcfc}
+.detailTextGrid article span{font-family:Arial;font-weight:800;color:#b5802f}.detailTextGrid article p{font-family:Arial;color:#536c7d;font-size:16px}
+.detailNote{background:#edf4f7;text-align:center}.detailNote p{max-width:850px;margin:0 auto}
+@media(max-width:900px){.publicNav{justify-content:flex-start;overflow-x:auto}.publicNav .navSchedule{margin-left:0}.heroLogoOverlay{width:260px;right:24px;top:24px}.heroScrim,.heroScrim.compact{width:min(720px,90vw);margin-top:130px}.homePillars,.serviceCatalogGrid,.specialtyCatalogGrid,.detailTextGrid{grid-template-columns:1fr 1fr}.appointmentAccess,.aboutSupport,.contactPageGrid,.contactBand{grid-template-columns:1fr}.previewGrid{grid-template-columns:1fr 1fr}.publicFooter{grid-template-columns:1fr;text-align:center}.publicFooter nav{justify-content:center}.footerContact{text-align:center}.footerBrand{display:flex;justify-content:center}}
+@media(max-width:620px){.mockHero{padding:32px 18px 50px;min-height:560px;align-items:flex-end}.heroLogoOverlay{width:230px;right:18px;top:28px}.heroScrim,.heroScrim.compact{width:100%;padding:24px;margin-top:150px}.heroScrim h1,.heroScrim.compact h1{font-size:43px}.homePillars,.previewGrid,.serviceCatalogGrid,.specialtyCatalogGrid,.detailTextGrid{grid-template-columns:1fr}.homePillars article{border-right:0;border-bottom:1px solid #dce4e8}.publicNav{gap:18px}.publicNav a{font-size:13px}.serviceCardImage{height:180px}}

@@ -7,7 +7,7 @@ export default function MeetTheTherapistPage() {
     <div className="publicSite">
       <PublicHeader />
       <main>
-        <section className="mockHero aboutMockHero">
+        <section className="mockHero aboutMockHero therapistPageHero">
           
           <div className="heroScrim">
             <p className="eyebrow">Meet the therapist</p>
@@ -21,7 +21,7 @@ export default function MeetTheTherapistPage() {
         </section>
 
         <section className="aboutSupport">
-          <div className="aboutPhoto" role="img" aria-label="Warm counseling office" />
+          <div className="aboutPhoto aboutPhotoRed" role="img" aria-label="Warm counseling office" />
           <div>
             <p className="eyebrow">A thoughtful place to begin</p>
             <h2>Therapy should help you understand what is happening—and give you a practical way forward.</h2>

@@ -20,7 +20,7 @@ export function generateStaticParams(){return Object.keys(services).map(slug=>({
 export default async function ServiceDetail({params}:{params:Promise<{slug:string}>}){
  const {slug}=await params; const s=services[slug as keyof typeof services]; if(!s)notFound();
  return <div className="publicSite"><PublicHeader/><main>
-  <section className="mockHero serviceDetailHero"><div className="heroScrim compact"><p className="eyebrow">{s.eyebrow}</p><h1>{s.title}</h1><p>{s.intro}</p><div className="heroActions"><Link className="primaryButton" href="/appointments">Schedule an Appointment</Link><Link className="secondaryButton" href="/services">Back to Our Services</Link></div></div></section>
+  <section className={`mockHero serviceDetailHero serviceHero-${slug}`}><div className="heroScrim compact"><p className="eyebrow">{s.eyebrow}</p><h1>{s.title}</h1><p>{s.intro}</p><div className="heroActions"><Link className="primaryButton" href="/appointments">Schedule an Appointment</Link><Link className="secondaryButton" href="/services">Back to Our Services</Link></div></div></section>
   <section className="detailTextGrid">{s.points.map((p,i)=><article key={p}><span>{String(i+1).padStart(2,"0")}</span><p>{p}</p></article>)}</section>
   <section className="detailNote"><h2>Individualized care matters.</h2><p>Information on this page is educational and does not establish a diagnosis or treatment recommendation. Appropriate care depends on clinical assessment, goals, history, risks, strengths, and circumstances.</p></section>
  </main><PublicFooter/></div>

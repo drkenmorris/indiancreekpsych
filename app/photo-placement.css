@@ -1,0 +1,86 @@
+/* Dedicated therapist photography placement — 2026-10 */
+:root{
+  --dr-ken-gold:url("/images/dr-ken-gold-site.webp");
+  --dr-ken-red:url("/images/dr-ken-red-site.webp");
+}
+
+.homeMockHero{
+  background-image:linear-gradient(90deg,rgba(255,255,255,.97) 0%,rgba(255,255,255,.84) 39%,rgba(255,255,255,.08) 68%),var(--dr-ken-gold);
+  background-position:70% center;
+}
+.aboutPageHero{
+  background-image:linear-gradient(90deg,rgba(255,255,255,.97) 0%,rgba(255,255,255,.83) 44%,rgba(255,255,255,.08) 72%),var(--dr-ken-gold);
+  background-position:72% center;
+}
+.therapistPageHero{
+  background-image:linear-gradient(90deg,rgba(255,255,255,.97) 0%,rgba(255,255,255,.82) 43%,rgba(255,255,255,.06) 70%),var(--dr-ken-red);
+  background-position:72% center;
+}
+.servicesMockHero{
+  background-image:linear-gradient(90deg,rgba(246,251,253,.97) 0%,rgba(246,251,253,.78) 44%,rgba(246,251,253,.08) 72%),var(--dr-ken-gold);
+  background-position:70% center;
+}
+.contactMockHero{
+  background-image:linear-gradient(90deg,rgba(246,251,253,.97) 0%,rgba(246,251,253,.80) 46%,rgba(246,251,253,.08) 73%),var(--dr-ken-red);
+  background-position:72% center;
+}
+
+.aboutPhotoGold{
+  background-image:var(--dr-ken-gold);
+  background-position:68% center;
+  min-height:420px;
+}
+.aboutPhotoRed{
+  background-image:var(--dr-ken-red);
+  background-position:68% center;
+  min-height:420px;
+}
+
+.serviceDetailHero{
+  background-image:linear-gradient(90deg,rgba(246,251,253,.97) 0%,rgba(246,251,253,.80) 47%,rgba(246,251,253,.08) 72%),var(--dr-ken-gold);
+  background-position:70% center;
+}
+.serviceHero-couples-therapy,
+.serviceHero-consultation-services,
+.serviceHero-hypnotherapy{
+  background-image:linear-gradient(90deg,rgba(246,251,253,.97) 0%,rgba(246,251,253,.80) 47%,rgba(246,251,253,.08) 72%),var(--dr-ken-red);
+  background-position:72% center;
+}
+.serviceHero-family-therapy,
+.serviceHero-telehealth-services{
+  background-position:66% center;
+}
+.serviceHero-psychological-assessment{
+  background-image:linear-gradient(90deg,rgba(246,251,253,.97),rgba(246,251,253,.78) 52%,rgba(246,251,253,.10)),url("/images/autism.png");
+  background-position:center;
+}
+.serviceHero-emdr{
+  background-image:linear-gradient(90deg,rgba(246,251,253,.97),rgba(246,251,253,.78) 52%,rgba(246,251,253,.10)),url("/images/trauma-therapy.png");
+  background-position:center;
+}
+.serviceHero-neurofeedback{
+  background-image:linear-gradient(90deg,rgba(246,251,253,.97),rgba(246,251,253,.78) 52%,rgba(246,251,253,.10)),url("/images/adhd.png");
+  background-position:center;
+}
+.specialtyDetailHero{
+  background-image:linear-gradient(90deg,rgba(246,251,253,.97),rgba(246,251,253,.80) 54%,rgba(246,251,253,.10)),url("/images/trauma-therapy.png");
+  background-position:center;
+}
+
+.serviceCardImage{
+  height:190px;
+  background-repeat:no-repeat;
+}
+
+@media(max-width:900px){
+  .homeMockHero,.aboutPageHero,.therapistPageHero,.servicesMockHero,.contactMockHero,.serviceDetailHero{
+    background-position:72% center;
+  }
+  .heroScrim,.heroScrim.compact{background:rgba(255,255,255,.88)}
+}
+@media(max-width:620px){
+  .homeMockHero,.aboutPageHero,.therapistPageHero,.servicesMockHero,.contactMockHero,.serviceDetailHero{
+    background-position:72% center;
+  }
+  .aboutPhotoGold,.aboutPhotoRed{min-height:320px}
+}

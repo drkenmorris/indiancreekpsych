@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./photo-placement.css";
 
 export const metadata: Metadata = {
   title: "Indian Creek Psychological Services | Counseling & Therapy",

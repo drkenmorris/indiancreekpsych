@@ -84,3 +84,81 @@
   }
   .aboutPhotoGold,.aboutPhotoRed{min-height:320px}
 }
+
+
+/* 2026-10-01 clinical imagery correction */
+.homeMockHero{
+  background-image:
+    linear-gradient(90deg,rgba(255,255,255,.97) 0%,rgba(255,255,255,.88) 36%,rgba(255,255,255,.18) 61%,rgba(255,255,255,.02) 82%),
+    url("https://images.unsplash.com/photo-1759434190960-87511b2a5e5c?auto=format&fit=crop&fm=jpg&ixlib=rb-4.1.0&q=82&w=3000");
+  background-position:center;
+  background-size:cover;
+}
+.specialtiesMockHero{
+  background-image:
+    linear-gradient(90deg,rgba(246,251,253,.97),rgba(246,251,253,.80) 48%,rgba(246,251,253,.10) 76%),
+    url("/images/homepage-therapy.png");
+  background-position:center;
+}
+.specialtyHero-anxiety,
+.specialtyHero-depression{
+  background-image:linear-gradient(90deg,rgba(246,251,253,.97),rgba(246,251,253,.80) 50%,rgba(246,251,253,.08) 77%),url("/images/mood-disorders.png");
+  background-position:center 43%;
+}
+.specialtyHero-trauma-ptsd{
+  background-image:linear-gradient(90deg,rgba(246,251,253,.97),rgba(246,251,253,.80) 50%,rgba(246,251,253,.08) 77%),url("/images/trauma-therapy.png");
+  background-position:center 45%;
+}
+.specialtyHero-substance-use-recovery{
+  background-image:linear-gradient(90deg,rgba(246,251,253,.97),rgba(246,251,253,.80) 50%,rgba(246,251,253,.08) 77%),url("/images/substance-use-recovery.png");
+  background-position:center;
+}
+.specialtyHero-adhd{
+  background-image:linear-gradient(90deg,rgba(246,251,253,.97),rgba(246,251,253,.80) 50%,rgba(246,251,253,.08) 77%),url("/images/adhd.png");
+  background-position:center;
+}
+.specialtyHero-autism{
+  background-image:linear-gradient(90deg,rgba(246,251,253,.97),rgba(246,251,253,.80) 50%,rgba(246,251,253,.08) 77%),url("/images/autism.png");
+  background-position:center;
+}
+.specialtyHero-relationship-issues{
+  background-image:linear-gradient(90deg,rgba(246,251,253,.97),rgba(246,251,253,.80) 50%,rgba(246,251,253,.08) 77%),url("/images/marriage-family-therapy.png");
+  background-position:center;
+}
+.specialtyHero-stress-management{
+  background-image:linear-gradient(90deg,rgba(246,251,253,.97),rgba(246,251,253,.80) 50%,rgba(246,251,253,.08) 77%),url("/images/homepage-therapy.png");
+  background-position:center;
+}
+.specialtyHero-life-transitions{
+  background-image:
+    linear-gradient(90deg,rgba(246,251,253,.97),rgba(246,251,253,.84) 46%,rgba(246,251,253,.12) 75%),
+    url("https://images.unsplash.com/photo-1759434190960-87511b2a5e5c?auto=format&fit=crop&fm=jpg&ixlib=rb-4.1.0&q=82&w=3000");
+  background-position:center;
+}
+.specialtyTile{
+  padding:0;
+  overflow:hidden;
+}
+.specialtyTileImage{
+  height:190px;
+  background-size:cover;
+  background-repeat:no-repeat;
+}
+.specialtyTileBody{
+  padding:22px 24px 24px;
+}
+.specialtyTileBody>span{
+  display:grid;
+  place-items:center;
+  width:42px;
+  height:42px;
+  border-radius:50%;
+  background:#edf4f7;
+  color:#1c688b;
+  font-family:Arial;
+  font-weight:800;
+}
+@media(max-width:620px){
+  .homeMockHero{background-position:58% center;}
+  .specialtyTileImage{height:210px;}
+}

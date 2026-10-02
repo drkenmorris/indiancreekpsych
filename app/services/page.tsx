@@ -7,10 +7,10 @@ const services = [
  ["Couples Therapy","Strengthen communication, rebuild connection, and navigate challenges together.","/services/couples-therapy","/images/service-couples-therapy.webp","center"],
  ["Family Therapy","Support for healthier relationships and stronger family dynamics.","/services/family-therapy","/images/service-child-family-therapy.webp","center"],
  ["Psychological Assessment","Comprehensive, compassionate evaluation to better understand your needs.","/services/psychological-assessment","/images/service-child-family-therapy.webp","center"],
- ["Consultation Services","Professional support for individuals, families, and other providers.","/services/consultation-services","/images/service-individual-therapy.webp","center"],
+ ["Consultation Services","Professional support for individuals, families, and other providers.","/services/consultation-services","/images/service-consultation.webp","center"],
  ["Telehealth Services","Accessible, high-quality care from the comfort of your home.","/services/telehealth-services","/images/service-telehealth.webp","center"],
- ["EMDR Therapy","Structured trauma-focused treatment for distressing memories and PTSD symptoms.","/services/emdr","/images/service-individual-therapy.webp","center"],
- ["Clinical Hypnotherapy","Focused-attention therapy using imagery and therapeutic suggestion for selected goals.","/services/hypnotherapy","/images/service-individual-therapy.webp","center"],
+ ["EMDR Therapy","Structured trauma-focused treatment for distressing memories and PTSD symptoms.","/services/emdr","/images/service-trauma-anxiety-mood.webp","center"],
+ ["Clinical Hypnotherapy","Focused-attention therapy using imagery and therapeutic suggestion for selected goals.","/services/hypnotherapy","/images/service-general-counseling-alt.webp","center"],
  ["Neurofeedback Therapy","Computerized EEG biofeedback using the Brain-Trainer system to support self-regulation.","/services/neurofeedback","/images/service-child-family-therapy.webp","center"],
 ];
 

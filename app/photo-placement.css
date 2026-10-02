@@ -257,3 +257,81 @@
   .homeMockHero,.aboutPageHero,.therapistPageHero{background-position:58% center}
   .servicesMockHero,.contactMockHero,.specialtiesMockHero,.serviceDetailHero,.specialtyDetailHero{background-position:center}
 }
+
+
+/* FINAL generated-image bundle mapping — reconstructed at build time */
+:root{
+  --gen-home:url("/images/home-hero-dr-ken-mountain.webp");
+  --gen-individual:url("/images/service-individual-therapy.webp");
+  --gen-consultation:url("/images/service-consultation.webp");
+  --gen-group:url("/images/service-support-group.webp");
+  --gen-telehealth:url("/images/service-telehealth.webp");
+  --gen-couples:url("/images/service-couples-therapy.webp");
+  --gen-family:url("/images/service-child-family-therapy.webp");
+  --gen-trauma:url("/images/service-trauma-anxiety-mood.webp");
+  --gen-general:url("/images/service-general-counseling-alt.webp");
+}
+
+.homeMockHero{
+  background-image:linear-gradient(90deg,rgba(255,255,255,.97) 0%,rgba(255,255,255,.84) 38%,rgba(255,255,255,.08) 68%),var(--gen-home);
+  background-position:center;
+  background-size:cover;
+}
+.aboutPageHero,.therapistPageHero{
+  background-image:linear-gradient(90deg,rgba(255,255,255,.97) 0%,rgba(255,255,255,.84) 43%,rgba(255,255,255,.08) 72%),var(--gen-consultation);
+  background-position:center;
+}
+.aboutPhotoGold,.aboutPhotoRed{
+  background-image:var(--gen-individual);
+  background-position:center;
+}
+.servicesMockHero{
+  background-image:linear-gradient(90deg,rgba(246,251,253,.97),rgba(246,251,253,.80) 48%,rgba(246,251,253,.08) 76%),var(--gen-consultation);
+  background-position:center;
+}
+.contactMockHero{
+  background-image:linear-gradient(90deg,rgba(246,251,253,.97),rgba(246,251,253,.80) 48%,rgba(246,251,253,.08) 76%),var(--gen-consultation);
+  background-position:center;
+}
+.specialtiesMockHero{
+  background-image:linear-gradient(90deg,rgba(246,251,253,.97),rgba(246,251,253,.80) 48%,rgba(246,251,253,.08) 76%),var(--gen-general);
+  background-position:center;
+}
+
+.serviceHero-individual-therapy{
+  background-image:linear-gradient(90deg,rgba(246,251,253,.97),rgba(246,251,253,.80) 48%,rgba(246,251,253,.08) 76%),var(--gen-individual);
+}
+.serviceHero-couples-therapy{
+  background-image:linear-gradient(90deg,rgba(246,251,253,.97),rgba(246,251,253,.80) 48%,rgba(246,251,253,.08) 76%),var(--gen-couples);
+}
+.serviceHero-family-therapy,.serviceHero-psychological-assessment,.serviceHero-neurofeedback{
+  background-image:linear-gradient(90deg,rgba(246,251,253,.97),rgba(246,251,253,.80) 48%,rgba(246,251,253,.08) 76%),var(--gen-family);
+}
+.serviceHero-consultation-services{
+  background-image:linear-gradient(90deg,rgba(246,251,253,.97),rgba(246,251,253,.80) 48%,rgba(246,251,253,.08) 76%),var(--gen-consultation);
+}
+.serviceHero-telehealth-services{
+  background-image:linear-gradient(90deg,rgba(246,251,253,.97),rgba(246,251,253,.80) 48%,rgba(246,251,253,.08) 76%),var(--gen-telehealth);
+}
+.serviceHero-emdr{
+  background-image:linear-gradient(90deg,rgba(246,251,253,.97),rgba(246,251,253,.80) 48%,rgba(246,251,253,.08) 76%),var(--gen-trauma);
+}
+.serviceHero-hypnotherapy{
+  background-image:linear-gradient(90deg,rgba(246,251,253,.97),rgba(246,251,253,.80) 48%,rgba(246,251,253,.08) 76%),var(--gen-general);
+}
+
+.specialtyHero-anxiety,.specialtyHero-depression,.specialtyHero-trauma-ptsd{
+  background-image:linear-gradient(90deg,rgba(246,251,253,.97),rgba(246,251,253,.80) 48%,rgba(246,251,253,.08) 76%),var(--gen-trauma);
+}
+.specialtyHero-substance-use-recovery{
+  background-image:linear-gradient(90deg,rgba(246,251,253,.97),rgba(246,251,253,.80) 48%,rgba(246,251,253,.08) 76%),var(--gen-group);
+}
+.specialtyHero-adhd,.specialtyHero-autism{
+  background-image:linear-gradient(90deg,rgba(246,251,253,.97),rgba(246,251,253,.80) 48%,rgba(246,251,253,.08) 76%),var(--gen-family);
+}
+.specialtyHero-relationship-issues{
+  background-image:linear-gradient(90deg,rgba(246,251,253,.97),rgba(246,251,253,.80) 48%,rgba(246,251,253,.08) 76%),var(--gen-couples);
+}
+.specialtyHero-stress-management,.specialtyHero-life-transitions{
+  background-image:linear-gradient(90deg,rgba(246,251,253,.97),rgba(246,251,253,.80) 48%,rgba(246,251,253,.08) 76%),var(--gen-general);
+}

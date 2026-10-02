@@ -20,7 +20,7 @@ export function generateStaticParams(){return Object.keys(specialties).map(slug=
 export default async function SpecialtyDetail({params}:{params:Promise<{slug:string}>}){
  const {slug}=await params; const s=specialties[slug as keyof typeof specialties]; if(!s)notFound();
  return <div className="publicSite"><PublicHeader/><main>
-  <section className="mockHero specialtyDetailHero"><div className="heroScrim compact"><p className="eyebrow">Area of specialization</p><h1>{s.title}</h1><p>{s.intro}</p><div className="heroActions"><Link className="primaryButton" href="/appointments">Schedule an Appointment</Link><Link className="secondaryButton" href="/specialties">Back to Specialties</Link></div></div></section>
+  <section className={`mockHero specialtyDetailHero specialtyHero-${slug}`}><div className="heroScrim compact"><p className="eyebrow">Area of specialization</p><h1>{s.title}</h1><p>{s.intro}</p><div className="heroActions"><Link className="primaryButton" href="/appointments">Schedule an Appointment</Link><Link className="secondaryButton" href="/specialties">Back to Specialties</Link></div></div></section>
   <section className="detailTextGrid">{s.points.map((p,i)=><article key={p}><span>{String(i+1).padStart(2,"0")}</span><p>{p}</p></article>)}</section>
   <section className="detailNote"><h2>Specialization is not a substitute for assessment.</h2><p>These pages describe common concerns and treatment considerations. Individual recommendations require a clinical evaluation that considers symptoms, history, goals, strengths, risks, and circumstances.</p></section>
  </main><PublicFooter/></div>

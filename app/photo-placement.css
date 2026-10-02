@@ -162,3 +162,25 @@
   .homeMockHero{background-position:58% center;}
   .specialtyTileImage{height:210px;}
 }
+
+
+/* Service hero scenes: avoid enlarged low-resolution portraits */
+.servicesMockHero{
+  background-image:linear-gradient(90deg,rgba(246,251,253,.97),rgba(246,251,253,.80) 48%,rgba(246,251,253,.08) 76%),url("/images/homepage-therapy.png");
+  background-position:center;
+}
+.serviceHero-individual-therapy,
+.serviceHero-consultation-services,
+.serviceHero-telehealth-services{
+  background-image:linear-gradient(90deg,rgba(246,251,253,.97),rgba(246,251,253,.80) 49%,rgba(246,251,253,.08) 77%),url("/images/homepage-therapy.png");
+  background-position:center;
+}
+.serviceHero-couples-therapy,
+.serviceHero-family-therapy{
+  background-image:linear-gradient(90deg,rgba(246,251,253,.97),rgba(246,251,253,.80) 49%,rgba(246,251,253,.08) 77%),url("/images/marriage-family-therapy.png");
+  background-position:center;
+}
+.serviceHero-hypnotherapy{
+  background-image:linear-gradient(90deg,rgba(246,251,253,.97),rgba(246,251,253,.80) 49%,rgba(246,251,253,.08) 77%),url("/images/mood-disorders.png");
+  background-position:center;
+}

@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 
 const root = process.cwd();
 const chunksDir = path.join(root, "image-bundle", "chunks");
@@ -35,7 +36,12 @@ for (let i = 0; i < 58; i++) {
 
 fs.mkdirSync(imagesDir, { recursive: true });
 const archive = path.join(os.tmpdir(), "indiancreek-site-images.tar.gz");
-fs.writeFileSync(archive, Buffer.from(base64, "base64"));
+const archiveBytes = Buffer.from(base64, "base64");
+const archiveHash = createHash("sha256").update(archiveBytes).digest("hex");
+if (archiveHash !== "7de8e8a2f486528f7dbae73853313b1a7412c9e8021b8dd58bbb31a8a36b14bd") {
+  throw new Error(`Image bundle checksum mismatch: ${archiveHash}`);
+}
+fs.writeFileSync(archive, archiveBytes);
 execFileSync("tar", ["-xzf", archive, "-C", imagesDir], { stdio: "inherit" });
 fs.rmSync(archive, { force: true });
 

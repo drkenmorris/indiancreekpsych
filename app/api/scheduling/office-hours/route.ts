@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createOmniCore } from "@/lib/omnicore-server.mjs";
 
-export async function POST(request: Request) {
+async function saveOfficeHours(request: Request) {
   if (request.headers.get("origin") !== new URL(request.url).origin) {
     return NextResponse.json({ error: "Invalid request origin." }, { status: 403 });
   }
@@ -30,3 +31,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Save could not be confirmed. Reload the page before retrying." }, { status: 500 });
   }
 }
+const monitor = createOmniCore({
+  onDelivery: ({ ok, status }) => {
+    if (!ok) {
+      console.warn("OmniCore telemetry delivery failed", status);
+    }
+  },
+});
+
+export const POST = monitor.withRoute(saveOfficeHours, {
+  route: "/api/scheduling/office-hours",
+  dataClass: "operational",
+  schedule: (delivery) => {
+    after(async () => {
+      await delivery;
+    });
+  },
+});

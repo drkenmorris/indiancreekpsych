@@ -1,9 +1,11 @@
-import type { NextRequest, NextFetchEvent } from "next/server";
+import { NextResponse, type NextRequest, type NextFetchEvent } from "next/server";
 import { updateSession } from "@/lib/supabase/proxy";
 
 import { monitoringRoute, siteMonitor } from "@/lib/omnicore-monitoring";
 
 export async function proxy(request: NextRequest, event: NextFetchEvent) {
+  // The isolated diagnostic has its own connector and never touches session logic.
+  if (request.nextUrl.pathname === "/api/omnicore-test") return NextResponse.next();
   const monitor = siteMonitor();
   // This route already has final-response instrumentation; avoid counting it twice.
   if (!monitor || request.nextUrl.pathname === "/api/scheduling/office-hours")

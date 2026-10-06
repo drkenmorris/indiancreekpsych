@@ -1,8 +1,19 @@
-import type { NextRequest } from "next/server";
+import type { NextRequest, NextFetchEvent } from "next/server";
 import { updateSession } from "@/lib/supabase/proxy";
 
-export async function proxy(request: NextRequest) {
-  return updateSession(request);
+import { monitoringRoute, siteMonitor } from "@/lib/omnicore-monitoring";
+
+export async function proxy(request: NextRequest, event: NextFetchEvent) {
+  const monitor = siteMonitor();
+  // This route already has final-response instrumentation; avoid counting it twice.
+  if (!monitor || request.nextUrl.pathname === "/api/scheduling/office-hours")
+    return updateSession(request);
+  return monitor.withRoute(() => updateSession(request), {
+    route: monitoringRoute(request.nextUrl.pathname),
+    scope: "middleware", dataClass: "operational",
+    inspection: { requestBody: true, responseBody: false, maxBytes: 16384, timeoutMs: 100 },
+    schedule: (delivery) => event.waitUntil(delivery),
+  })(request);
 }
 
 export const config = {

@@ -1,0 +1,36 @@
+import { after } from "next/server";
+import { createOmniCore } from "./omnicore-server.mjs";
+
+let monitor: ReturnType<typeof createOmniCore> | undefined;
+export function siteMonitor() {
+  if (!process.env.OMNICORE_SITE_ID || !process.env.OMNICORE_INGEST_KEY) return undefined;
+  return monitor ??= createOmniCore({
+    onDelivery: ({ ok, status }) => {
+      if (!ok) console.warn("OmniCore telemetry delivery failed", status);
+    },
+  });
+}
+
+// Explicit templates prevent patient IDs, tokens and arbitrary paths leaving the site.
+const staticRoutes = new Set(["/", "/about", "/contact", "/login", "/register", "/account",
+  "/account/security", "/appointments", "/appointments/calendar", "/meet-the-therapist",
+  "/services", "/specialties", "/patient/intake", "/admin/intakes", "/admin/intake-kiosk",
+  "/auth/callback", "/auth/confirm"]);
+export function monitoringRoute(path: string) {
+  if (staticRoutes.has(path)) return path;
+  if (path.startsWith("/intake/kiosk/")) return "/intake/kiosk/[token]";
+  if (path.startsWith("/services/")) return "/services/[slug]";
+  if (path.startsWith("/specialties/")) return "/specialties/[slug]";
+  return "/[other]";
+}
+
+// All server-client Supabase exchanges are observed without reading their bodies,
+// authorization headers, URL query strings or database result contents.
+export const monitoredSupabaseFetch: typeof fetch = (input, init) => {
+  const connector = siteMonitor();
+  if (!connector) return fetch(input, init);
+  return connector.observedFetch(input, init, {
+    route: "/server/supabase", scope: "outbound", dataClass: "personal",
+    schedule: (delivery) => after(async () => { await delivery; }),
+  });
+};

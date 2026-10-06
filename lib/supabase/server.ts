@@ -1,3 +1,4 @@
+import { monitoredSupabaseFetch } from "@/lib/omnicore-monitoring";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { supabasePublishableKey, supabaseUrl } from "./config";
@@ -6,6 +7,7 @@ export async function createClient() {
   const cookieStore = await cookies();
 
   return createServerClient(supabaseUrl, supabasePublishableKey, {
+    global: { fetch: monitoredSupabaseFetch },
     cookies: {
       getAll() {
         return cookieStore.getAll();

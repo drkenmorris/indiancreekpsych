@@ -11,7 +11,7 @@ export type MonitorOptions = {
   /** A literal route template, never a URL containing user identifiers. */
   route: string;
   scope?: "application" | "middleware" | "outbound";
-  inspection?: { requestBody?: boolean; responseBody?: boolean; maxBytes?: number; timeoutMs?: number };
+  inspection?: { url?: boolean; requestBody?: boolean; responseBody?: boolean; maxBytes?: number; timeoutMs?: number };
   /** Optional domain-specific evaluator; no automatic mapping is supplied. */
   assessBoundaries?: (
     metadata: Readonly<Record<string, unknown>>,
@@ -43,4 +43,4 @@ export function createOmniCore(config?: {
   ): Promise<Response>;
 };
 
-export function inspectSecurity(message: Request | Response, options?: { body?: boolean; maxBytes?: number; timeoutMs?: number }): Promise<{ detectorVersion: string; state: string; inspectedBytes: number; codes: string[] }>;
+export function inspectSecurity(message: Request | Response, options?: { url?: boolean; body?: boolean; maxBytes?: number; timeoutMs?: number }): Promise<{ detectorVersion: string; state: string; inspectedBytes: number; codes: string[] }>;

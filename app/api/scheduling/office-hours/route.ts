@@ -49,6 +49,7 @@ export async function POST(request: Request) {
       route: "/api/scheduling/office-hours",
       dataClass: "operational",
       scope: "application",
+      enforcement: process.env.OMNICORE_ENFORCEMENT_ENABLED === "true",
       inspection: { url: true, requestBody: true, responseBody: false, maxBytes: 16384, timeoutMs: 100 },
       schedule: (delivery) => {
         after(async () => { await delivery; });

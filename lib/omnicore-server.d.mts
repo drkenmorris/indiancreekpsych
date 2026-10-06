@@ -10,8 +10,16 @@ export type BoundarySignal = {
 export type MonitorOptions = {
   /** A literal route template, never a URL containing user identifiers. */
   route: string;
+  /** Explicit local enable switch. Owner-approved rules are still required. */
+  enforcement?: boolean;
   scope?: "application" | "middleware" | "outbound";
-  inspection?: { url?: boolean; requestBody?: boolean; responseBody?: boolean; maxBytes?: number; timeoutMs?: number };
+  inspection?: {
+    url?: boolean;
+    requestBody?: boolean;
+    responseBody?: boolean;
+    maxBytes?: number;
+    timeoutMs?: number;
+  };
   /** Optional domain-specific evaluator; no automatic mapping is supplied. */
   assessBoundaries?: (
     metadata: Readonly<Record<string, unknown>>,
@@ -35,7 +43,7 @@ export function createOmniCore(config?: {
   withRoute<Args extends unknown[], R extends Response>(
     handler: (request: Request, ...args: Args) => R | Promise<R>,
     options: MonitorOptions,
-  ): (request: Request, ...args: Args) => Promise<R>;
+  ): (request: Request, ...args: Args) => Promise<R | Response>;
   observedFetch(
     input: RequestInfo | URL,
     init: RequestInit | undefined,
@@ -43,4 +51,17 @@ export function createOmniCore(config?: {
   ): Promise<Response>;
 };
 
-export function inspectSecurity(message: Request | Response, options?: { url?: boolean; body?: boolean; maxBytes?: number; timeoutMs?: number }): Promise<{ detectorVersion: string; state: string; inspectedBytes: number; codes: string[] }>;
+export function inspectSecurity(
+  message: Request | Response,
+  options?: {
+    url?: boolean;
+    body?: boolean;
+    maxBytes?: number;
+    timeoutMs?: number;
+  },
+): Promise<{
+  detectorVersion: string;
+  state: string;
+  inspectedBytes: number;
+  codes: string[];
+}>;

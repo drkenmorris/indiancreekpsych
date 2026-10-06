@@ -11,6 +11,7 @@ export async function proxy(request: NextRequest, event: NextFetchEvent) {
   return monitor.withRoute(() => updateSession(request), {
     route: monitoringRoute(request.nextUrl.pathname),
     scope: "middleware", dataClass: "operational",
+    enforcement: process.env.OMNICORE_ENFORCEMENT_ENABLED === "true",
     inspection: { url: true, requestBody: true, responseBody: false, maxBytes: 16384, timeoutMs: 100 },
     schedule: (delivery) => event.waitUntil(delivery),
   })(request);

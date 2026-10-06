@@ -31,20 +31,27 @@ async function saveOfficeHours(request: Request) {
     return NextResponse.json({ error: "Save could not be confirmed. Reload the page before retrying." }, { status: 500 });
   }
 }
-const monitor = createOmniCore({
-  onDelivery: ({ ok, status }) => {
-    if (!ok) {
-      console.warn("OmniCore telemetry delivery failed", status);
-    }
-  },
-});
+// Initialize during a request, not during Next.js build-time route discovery.
+let monitoredPost: ReturnType<ReturnType<typeof createOmniCore>["withRoute"]> | undefined;
 
-export const POST = monitor.withRoute(saveOfficeHours, {
-  route: "/api/scheduling/office-hours",
-  dataClass: "operational",
-  schedule: (delivery) => {
-    after(async () => {
-      await delivery;
+export async function POST(request: Request) {
+  if (!process.env.OMNICORE_SITE_ID || !process.env.OMNICORE_INGEST_KEY) {
+    console.warn("OmniCore monitoring unavailable: server connector settings are missing.");
+    return saveOfficeHours(request);
+  }
+  if (!monitoredPost) {
+    const monitor = createOmniCore({
+      onDelivery: ({ ok, status }) => {
+        if (!ok) console.warn("OmniCore telemetry delivery failed", status);
+      },
     });
-  },
-});
+    monitoredPost = monitor.withRoute(saveOfficeHours, {
+      route: "/api/scheduling/office-hours",
+      dataClass: "operational",
+      schedule: (delivery) => {
+        after(async () => { await delivery; });
+      },
+    });
+  }
+  return monitoredPost(request);
+}

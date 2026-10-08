@@ -1,0 +1,40 @@
+Prepared integration: verified callers on the office-hours API
+
+Selected route: POST /api/scheduling/office-hours.
+Public page behavior is unchanged. Existing origin checks, administrator role
+checks, validation, MFA/login flow and database authorization remain in place.
+
+Enable setting (server only): OMNICORE_VERIFIED_REQUESTS_ENABLED=true
+Requires existing OMNICORE_SITE_ID and OMNICORE_INGEST_KEY.
+If the feature is enabled but connector settings are absent, the protected API
+returns 503 rather than falling back to an unguarded handler.
+
+The verifier uses the existing Supabase client: getClaims checks the token and
+its expiry; getUser checks the current user and matching subject. Anonymous
+accounts are rejected. Network errors or timeouts stop the request. No new bot
+credential is created, and no caller-provided ID is treated as proof.
+
+Missing or invalid identity returns 401 with authenticationPath=/login,
+authenticationRequired=true and retryWithNewRequest=true. The original request
+does not execute or remain queued. After login, a new request runs all checks again.
+
+The handler's Supabase client uses protectedSupabaseFetch, which requires a
+currently verified parent request before sending. Authentication-provider calls
+used to establish the initial identity are separate trusted verification work;
+they cannot require that identity to have already been established.
+
+Release order:
+1. Deploy OmniCore's new optional telemetry fields and viewer support.
+2. Deploy this website connector and route integration with the setting off.
+3. Verify normal login, administrator scheduling, and public pages in Preview.
+4. Enable the setting for the intended environment, redeploy, and test the signed-in
+   administrator path plus signed-out rejection. Production activation is separate.
+
+No production settings have been changed by preparing this branch. Test fixtures
+use fake identities and no patient data. Production signed-in verification remains
+required before release. This does not identify every bot or defeat stolen valid
+credentials; operation authorization remains necessary. Only the selected route
+and its guarded observed calls are covered.
+
+Token verification reference: https://supabase.com/docs/reference/javascript/auth-getclaims
+Current-user verification: https://supabase.com/docs/reference/javascript/auth-getuser

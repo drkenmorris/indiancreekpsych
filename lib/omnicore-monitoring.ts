@@ -34,3 +34,14 @@ export const monitoredSupabaseFetch: typeof fetch = (input, init) => {
     schedule: (delivery) => after(async () => { await delivery; }),
   });
 };
+
+// Use only inside a protected withRoute handler after identity verification.
+export const protectedSupabaseFetch: typeof fetch = (input, init) => {
+  const connector = siteMonitor();
+  if (!connector) return Promise.resolve(Response.json({ error: "Verified request connector unavailable" }, { status: 503 }));
+  return connector.observedFetch(input, init, {
+    route: "/server/supabase", scope: "outbound", dataClass: "personal",
+    requireVerifiedRequest: true,
+    schedule: delivery => after(async () => { await delivery; }),
+  });
+};

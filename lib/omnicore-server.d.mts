@@ -8,6 +8,35 @@ export type BoundarySignal = {
   evidenceRefs: string[];
 };
 export type MonitorOptions = {
+  /** Server-configured native rules. Defaults to observe-only. Not a managed WAF ruleset. */
+  requestFirewall?: {
+    mode?: "observe" | "enforce";
+    allowedMethods?: string[];
+    allowedContentTypes?: string[];
+    /** Content-Length only: not a measured stream limit. */
+    maxDeclaredRequestBytes?: number;
+    /** Requires explicit inspection; incomplete inspection also matches. */
+    denyIndicators?: ("prompt_override" | "script_markup" | "sql_pattern" | "path_traversal" | "shell_pattern")[];
+  };
+  /** Exact HTTPS origins; enforced calls reject all redirects. No DNS pinning. */
+  outboundFirewall?: { mode?: "observe" | "enforce"; allowedOrigins: string[] };
+  /** Node.js only. Verify through a trusted server-side identity provider.
+   * Never accept a supplied caller ID, user-agent or unverified JWT claim.
+   * Identification does not replace resource/operation authorization.
+   */
+  identity?: {
+    /** Optional same-site path, e.g. /login, returned with 401. No queued replay. */
+    authenticationPath?: string;
+    verify: (request: Request, context: { signal: AbortSignal }) =>
+      Promise<{ verified: true; subject: string; expiresAt: number } | null>
+      | { verified: true; subject: string; expiresAt: number } | null;
+    /** Bounded to 10–5000 ms; default 1000. Timeout fails closed. */
+    timeoutMs?: number;
+  };
+  /** For observedFetch: reject before fetch without an active verified parent.
+   * Parent authority expires with its handler, credential expiry, or five minutes.
+   */
+  requireVerifiedRequest?: boolean;
   /** A literal route template, never a URL containing user identifiers. */
   route: string;
   /** Explicit local enable switch. Owner-approved rules are still required. */

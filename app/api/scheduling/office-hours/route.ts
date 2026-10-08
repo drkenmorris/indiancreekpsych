@@ -1,13 +1,14 @@
 import { after, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createOmniCore } from "@/lib/omnicore-server.mjs";
+import { verifyExistingSiteIdentity } from "@/lib/omnicore-identity";
 
 async function saveOfficeHours(request: Request) {
   if (request.headers.get("origin") !== new URL(request.url).origin) {
     return NextResponse.json({ error: "Invalid request origin." }, { status: 403 });
   }
   try {
-    const supabase = await createClient();
+    const supabase = await createClient({ requireVerifiedRequest: process.env.OMNICORE_VERIFIED_REQUESTS_ENABLED === "true" });
     const { data: auth, error: authError } = await supabase.auth.getUser();
     if (authError || !auth.user) return NextResponse.json({ error: "Please sign in again before saving hours." }, { status: 401 });
     const { data: profile, error: profileError } = await supabase.from("profiles").select("account_type").eq("id", auth.user.id).single();
@@ -33,19 +34,26 @@ async function saveOfficeHours(request: Request) {
 }
 // Initialize during a request, not during Next.js build-time route discovery.
 let monitoredPost: ReturnType<ReturnType<typeof createOmniCore>["withRoute"]> | undefined;
+let monitoredIdentityMode: boolean | undefined;
 
 export async function POST(request: Request) {
+  const identityRequired = process.env.OMNICORE_VERIFIED_REQUESTS_ENABLED === "true";
+  // Reject cross-origin writes before invoking even the identification service.
+  if (request.headers.get("origin") !== new URL(request.url).origin)
+    return NextResponse.json({ error: "Invalid request origin." }, { status: 403 });
   if (!process.env.OMNICORE_SITE_ID || !process.env.OMNICORE_INGEST_KEY) {
+    if (identityRequired) return NextResponse.json({ error: "Caller verification unavailable. Retry later." }, { status: 503 });
     console.warn("OmniCore monitoring unavailable: server connector settings are missing.");
     return saveOfficeHours(request);
   }
-  if (!monitoredPost) {
+  if (!monitoredPost || monitoredIdentityMode !== identityRequired) {
     const monitor = createOmniCore({
       onDelivery: ({ ok, status }) => {
         if (!ok) console.warn("OmniCore telemetry delivery failed", status);
       },
     });
     monitoredPost = monitor.withRoute(saveOfficeHours, {
+      ...(identityRequired ? { identity: { verify: verifyExistingSiteIdentity, authenticationPath: "/login", timeoutMs: 3000 } } : {}),
       route: "/api/scheduling/office-hours",
       dataClass: "operational",
       scope: "application",
@@ -55,6 +63,7 @@ export async function POST(request: Request) {
         after(async () => { await delivery; });
       },
     });
+    monitoredIdentityMode = identityRequired;
   }
   return monitoredPost(request);
 }

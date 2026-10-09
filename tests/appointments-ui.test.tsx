@@ -21,3 +21,11 @@ test('save failures appear beside hours form and release its button',async()=>{
 test('patient selector and repeat controls are admin-only',async()=>{
  render(<AppointmentsClient {...props}/>);fireEvent.click(screen.getByRole('button',{name:'Place patient appointments'}));await screen.findByRole('option',{name:/Synthetic Patient/});fireEvent.change(screen.getByLabelText('Repeat'),{target:{value:'2'}});expect(screen.getByLabelText('Repeat through (up to one year)')).toBeTruthy();cleanup();render(<AppointmentsClient {...props} accountType="patient"/>);expect(screen.queryByLabelText('Patient')).toBeNull();
 });
+test('Pause/Enable uses the registered server operation and preserves state on approval failure',async()=>{
+ const rule={id:'00000000-0000-4000-8000-000000000002',weekday:1,start_time:'09:00:00',end_time:'17:00:00',enabled:true};
+ const fetch=vi.fn().mockResolvedValueOnce({ok:false,json:async()=>({code:'owner_approval_required',error:'Protected operation cannot proceed.'})}).mockResolvedValueOnce({ok:true,json:async()=>({rule:{...rule,enabled:false}})});vi.stubGlobal('fetch',fetch);
+ render(<AppointmentsClient {...props} initialRules={[rule]}/>);fireEvent.click(screen.getByRole('button',{name:'Weekly office hours'}));
+ fireEvent.click(screen.getByRole('button',{name:'Pause'}));await screen.findByText(/requires current approval in OmniCore/);expect(screen.getByRole('button',{name:'Pause'})).toBeTruthy();
+ fireEvent.click(screen.getByRole('button',{name:'Pause'}));await screen.findByRole('button',{name:'Enable'});
+ expect(fetch).toHaveBeenCalledWith('/api/scheduling/office-hours/toggle',expect.objectContaining({body:JSON.stringify({id:rule.id,enabled:false})}));
+});

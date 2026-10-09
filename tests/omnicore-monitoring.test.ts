@@ -6,6 +6,7 @@ vi.mock('next/server',async(importOriginal)=>({...(await importOriginal<any>()),
 import { NextRequest, NextResponse, type NextFetchEvent } from 'next/server';
 import { proxy } from '../proxy';
 import { monitoredSupabaseFetch, protectedSupabaseFetch, monitoringRoute } from '../lib/omnicore-monitoring';
+import { supabaseUrl } from '../lib/supabase/config';
 beforeEach(()=>{
  state.events.length=0;state.deliveries.length=0;state.session.mockReset();
  vi.stubEnv('OMNICORE_SITE_ID','00000000-0000-4000-8000-000000000001');vi.stubEnv('OMNICORE_INGEST_KEY','test-only');
@@ -41,6 +42,6 @@ test('outbound database calls preserve response and never emit query, credential
  expect(JSON.stringify(state.events)).not.toMatch(/PRIVATE|SECRET/);
 });
 test('protected database fetch denies absent verified parent without sending to the database',async()=>{
- const r=await protectedSupabaseFetch('https://db.example/rest/v1/patients');await Promise.all(state.deliveries);
+ const r=await protectedSupabaseFetch(`${supabaseUrl}/rest/v1/synthetic_fixture`);await Promise.all(state.deliveries);
  expect(r.status).toBe(403);expect(state.fetch.mock.calls.every(([input])=>String(input).includes('omnicoreai.app'))).toBe(true);
 });

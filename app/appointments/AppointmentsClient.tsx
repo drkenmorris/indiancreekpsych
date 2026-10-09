@@ -62,7 +62,16 @@ export default function AppointmentsClient({userId,accountType,preferredName,ini
       await loadSlots();
     }catch(error){setRuleMessage(error instanceof Error&&error.name!=="TimeoutError"?error.message:"Save could not be confirmed. Refresh the page before trying again.");}finally{setBusy(false);}
   };
-  const toggleRule=async(r:Rule)=>{const {data,error}=await supabase.from("appointment_availability_rules").update({enabled:!r.enabled}).eq("id",r.id).select().single();if(error)setMessage(error.message);else{setRules(v=>v.map(x=>x.id===r.id?data as Rule:x));await loadSlots();}};
+  const toggleRule=async(r:Rule)=>{
+    if(busy)return;setBusy(true);setRuleMessage("");
+    try{
+      const response=await fetch("/api/scheduling/office-hours/toggle",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:r.id,enabled:!r.enabled}),signal:AbortSignal.timeout(15000)});
+      const result=await response.json();
+      if(!response.ok)throw new Error(result.code?.startsWith('operation_')||result.code==='owner_approval_required'?"Office-hours protection requires current approval in OmniCore. Check Protected website operations before retrying.":result.error??"Office hours could not be updated.");
+      if(!result.rule||result.rule.id!==r.id||result.rule.enabled!==!r.enabled)throw new Error("The update could not be confirmed. Refresh before retrying.");
+      setRules(v=>v.map(x=>x.id===r.id?result.rule as Rule:x));await loadSlots();
+    }catch(error){setRuleMessage(error instanceof Error?error.message:"The update could not be confirmed. Refresh before retrying.");}finally{setBusy(false);}
+  };
   const deleteRule=async(id:string)=>{const {error}=await supabase.from("appointment_availability_rules").delete().eq("id",id);if(error)setMessage(error.message);else{setRules(v=>v.filter(x=>x.id!==id));await loadSlots();}};
   const addBlock=async(e:FormEvent)=>{e.preventDefault();const payload={starts_at:new Date(block.starts_at).toISOString(),ends_at:new Date(block.ends_at).toISOString(),label:block.label||null};const {data,error}=await supabase.from("appointment_blocks").insert(payload).select().single();if(error)setMessage(error.message);else{setBlocks(v=>[...v,data as Block].sort((a,b)=>a.starts_at.localeCompare(b.starts_at)));await loadSlots();setMessage("Blocked time added.");}};
   const deleteBlock=async(id:string)=>{const {error}=await supabase.from("appointment_blocks").delete().eq("id",id);if(error)setMessage(error.message);else{setBlocks(v=>v.filter(x=>x.id!==id));await loadSlots();}};

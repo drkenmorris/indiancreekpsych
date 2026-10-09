@@ -1,5 +1,6 @@
 "use client";
 
+import FirewallCheck from "./FirewallCheck";
 import CalendarClient from "./calendar/CalendarClient";
 import MonthSchedule from "./calendar/MonthSchedule";
 import { localParts } from "@/lib/scheduling/calendar";
@@ -129,6 +130,7 @@ export default function AppointmentsClient({userId,accountType,preferredName,ini
       </section>}
 
       {view==="hours"&&<section className="appointmentPanel"><p className="eyebrow">Recurring availability</p><h2>Weekly office hours</h2>
+        {accountType==="admin" && <FirewallCheck disabled={busy} />}
         <form className="inlineSchedulerForm" onSubmit={addRule}><label>Day<select value={rule.weekday} onChange={e=>setRule({...rule,weekday:Number(e.target.value)})}>{weekdays.map((n,i)=><option value={i} key={n}>{n}</option>)}</select></label><label>Start<input required type="time" value={rule.start_time} onChange={e=>setRule({...rule,start_time:e.target.value})}/></label><label>End<input required type="time" value={rule.end_time} onChange={e=>setRule({...rule,end_time:e.target.value})}/></label><label>Reserved starting hour (optional)<input type="time" value={rule.anchor_time} onChange={e=>setRule({...rule,anchor_time:e.target.value})}/></label><button type="submit" disabled={busy}>{busy?"Working…":editingRuleId?"Save hours":"Add hours"}</button></form>
         {editingRuleId&&<button className="secondaryAction" type="button" onClick={()=>{setEditingRuleId(null);setRuleMessage("");}}>Cancel editing</button>}
         {ruleMessage&&<p className="authMessage" role="status">{ruleMessage}</p>}

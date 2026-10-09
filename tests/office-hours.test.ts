@@ -81,3 +81,12 @@ test('firewall-only configuration fails closed without connector credentials and
  expect((await POST(firewallRequest('application/json'))).status).toBe(503);
  expect(mocks.from).not.toHaveBeenCalled();
 });
+
+test('fixed administrator firewall-check payload cannot write even with policy disabled',async()=>{
+ enableIdentity();
+ const empty=()=>new Request('https://example.test/api/scheduling/office-hours',{method:'POST',headers:{origin:'https://example.test','content-type':'text/plain'},body:'{}'});
+ vi.stubEnv('OMNICORE_OFFICE_HOURS_FIREWALL_ENABLED','true');expect((await POST(empty())).status).toBe(403);
+ expect(mocks.from).not.toHaveBeenCalled();
+ vi.stubEnv('OMNICORE_OFFICE_HOURS_FIREWALL_ENABLED','false');expect((await POST(empty())).status).toBe(400);
+ expect(mocks.insert).not.toHaveBeenCalled();
+});

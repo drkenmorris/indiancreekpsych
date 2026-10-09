@@ -1,5 +1,16 @@
 import { after } from "next/server";
 import { createOmniCore } from "./omnicore-server.mjs";
+import { supabaseUrl } from "./supabase/config";
+
+// Reject malformed configuration rather than deriving authority from a path or credentials.
+function protectedDatabaseOrigin() {
+  try {
+    const url = new URL(supabaseUrl);
+    if (url.protocol !== "https:" || url.username || url.password ||
+        url.pathname !== "/" || url.search || url.hash) return undefined;
+    return url.origin;
+  } catch { return undefined; }
+}
 
 let monitor: ReturnType<typeof createOmniCore> | undefined;
 export function siteMonitor() {
@@ -39,9 +50,12 @@ export const monitoredSupabaseFetch: typeof fetch = (input, init) => {
 export const protectedSupabaseFetch: typeof fetch = (input, init) => {
   const connector = siteMonitor();
   if (!connector) return Promise.resolve(Response.json({ error: "Verified request connector unavailable" }, { status: 503 }));
+  const origin = protectedDatabaseOrigin();
+  if (!origin) return Promise.resolve(Response.json({ error: "Protected database destination unavailable" }, { status: 503 }));
   return connector.observedFetch(input, init, {
     route: "/server/supabase", scope: "outbound", dataClass: "personal",
     requireVerifiedRequest: true,
+    outboundFirewall: { mode: "enforce", allowedOrigins: [origin] },
     schedule: delivery => after(async () => { await delivery; }),
   });
 };

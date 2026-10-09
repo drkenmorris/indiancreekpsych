@@ -1,0 +1,13 @@
+Office-hours API firewall pilot
+
+Scope: POST /api/scheduling/office-hours only.
+Activation: set server-only OMNICORE_OFFICE_HOURS_FIREWALL_ENABLED=true and redeploy the clinic project. Disabled by default. Preserve OMNICORE_VERIFIED_REQUESTS_ENABLED=true.
+Policy: enforce allowedContentTypes=[application/json]. Charset parameters and case variants accepted. Missing content-type, text/plain, URL-encoded and multipart form submissions denied before the application handler. Authentication service calls may still occur; caller identity and administrator authorization are not replaced.
+Missing connector configuration with policy enabled returns 503 rather than bypassing the policy.
+Telemetry: firewall.mode=enforce, outcome=allowed/denied; a type denial includes content_type_not_allowed. Authentication denial can take precedence over the firewall response. Existing event delivery and analysis remain in use.
+
+Local verification uses the actual route and connector with mocked identity/database/network dependencies. Blocked types cause no application database calls. JSON positive controls preserve successful synthetic admin saves, signed-out denial and non-admin denial. Mode changes and missing connector configuration also tested.
+
+Production release and flag activation require release approval. After activation: verify signed-out JSON still yields 401; repeat signed-in invalid reserved-hour test expecting 400 and firewall=allowed; submit a non-JSON request expecting denied telemetry (401 can take precedence for signed-out callers); verify no office-hour data changes.
+Rollback policy: set only OMNICORE_OFFICE_HOURS_FIREWALL_ENABLED=false and redeploy. Keep identity protection enabled.
+This pilot does not inspect malicious content inside valid JSON, enforce a streamed body-size limit, protect all routes, or replace an edge WAF/DDoS service.

@@ -35,18 +35,20 @@ async function saveOfficeHours(request: Request) {
 // Initialize during a request, not during Next.js build-time route discovery.
 let monitoredPost: ReturnType<ReturnType<typeof createOmniCore>["withRoute"]> | undefined;
 let monitoredIdentityMode: boolean | undefined;
+let monitoredFirewallMode: boolean | undefined;
 
 export async function POST(request: Request) {
   const identityRequired = process.env.OMNICORE_VERIFIED_REQUESTS_ENABLED === "true";
+  const firewallEnabled = process.env.OMNICORE_OFFICE_HOURS_FIREWALL_ENABLED === "true";
   // Reject cross-origin writes before invoking even the identification service.
   if (request.headers.get("origin") !== new URL(request.url).origin)
     return NextResponse.json({ error: "Invalid request origin." }, { status: 403 });
   if (!process.env.OMNICORE_SITE_ID || !process.env.OMNICORE_INGEST_KEY) {
-    if (identityRequired) return NextResponse.json({ error: "Caller verification unavailable. Retry later." }, { status: 503 });
+    if (identityRequired || firewallEnabled) return NextResponse.json({ error: "Caller verification unavailable. Retry later." }, { status: 503 });
     console.warn("OmniCore monitoring unavailable: server connector settings are missing.");
     return saveOfficeHours(request);
   }
-  if (!monitoredPost || monitoredIdentityMode !== identityRequired) {
+  if (!monitoredPost || monitoredIdentityMode !== identityRequired || monitoredFirewallMode !== firewallEnabled) {
     const monitor = createOmniCore({
       onDelivery: ({ ok, status }) => {
         if (!ok) console.warn("OmniCore telemetry delivery failed", status);
@@ -54,6 +56,7 @@ export async function POST(request: Request) {
     });
     monitoredPost = monitor.withRoute(saveOfficeHours, {
       ...(identityRequired ? { identity: { verify: verifyExistingSiteIdentity, authenticationPath: "/login", timeoutMs: 3000 } } : {}),
+      ...(firewallEnabled ? { requestFirewall: { mode: "enforce" as const, allowedContentTypes: ["application/json"] } } : {}),
       route: "/api/scheduling/office-hours",
       dataClass: "operational",
       scope: "application",
@@ -64,6 +67,7 @@ export async function POST(request: Request) {
       },
     });
     monitoredIdentityMode = identityRequired;
+    monitoredFirewallMode = firewallEnabled;
   }
   return monitoredPost(request);
 }

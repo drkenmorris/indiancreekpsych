@@ -10,9 +10,9 @@ export default function FirewallCheck({ disabled = false }: { disabled?: boolean
     setMessage("");
     try {
       // Deliberately lacks all required office-hours fields, even if the policy is disabled.
-      const response = await fetch("/api/scheduling/office-hours", {
+      const response = await fetch("/api/scheduling/office-hours/protection-check", {
         method: "POST", credentials: "same-origin",
-        headers: { "Content-Type": "text/plain" }, body: "{}",
+        headers: { "Content-Type": "application/json" }, body: "{}",
         signal: AbortSignal.timeout(15000),
       });
       const result = await response.json();
@@ -29,7 +29,7 @@ export default function FirewallCheck({ disabled = false }: { disabled?: boolean
   }
   return <details>
     <summary>OmniCore protection check</summary>
-    <p>Send an empty test request in a prohibited format using your current sign-in. It contains no office-hours values and cannot create valid hours.</p>
+    <p>Ask the server to construct a labeled, fixed test request in a prohibited format using your current sign-in. It contains no office-hours values and cannot create valid hours.</p>
     <button type="button" className="secondaryAction" disabled={disabled || running} onClick={() => void check()}>{running ? "Checking protection…" : "Test request-format protection"}</button>
     {message && <p className="authMessage" role="status">{message}</p>}
   </details>;

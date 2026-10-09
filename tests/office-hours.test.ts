@@ -3,6 +3,7 @@ const mocks=vi.hoisted(()=>({getUser:vi.fn(),getClaims:vi.fn(),single:vi.fn(),in
 vi.mock('@/lib/supabase/server',()=>({createClient:async()=>({auth:{getUser:mocks.getUser,getClaims:mocks.getClaims},from:mocks.from})}));
 vi.mock('next/server',async original=>({...await original<any>(),after:(fn:()=>Promise<unknown>)=>{void fn();}}));
 import {POST} from '../app/api/scheduling/office-hours/route';
+import {POST as CHECK} from '../app/api/scheduling/office-hours/protection-check/route';
 const request=(body:unknown,origin='https://example.test')=>new Request('https://example.test/api/scheduling/office-hours',{method:'POST',headers:{origin,'Content-Type':'application/json'},body:JSON.stringify(body)});
 beforeEach(()=>{
  vi.stubEnv('OMNICORE_VERIFIED_REQUESTS_ENABLED','false');
@@ -89,4 +90,26 @@ test('fixed administrator firewall-check payload cannot write even with policy d
  expect(mocks.from).not.toHaveBeenCalled();
  vi.stubEnv('OMNICORE_OFFICE_HOURS_FIREWALL_ENABLED','false');expect((await POST(empty())).status).toBe(400);
  expect(mocks.insert).not.toHaveBeenCalled();
+});
+
+const checkRequest=(origin='https://example.test')=>new Request('https://example.test/api/scheduling/office-hours/protection-check',{method:'POST',headers:{origin,'content-type':'application/json','x-omnicore-test':'true'},body:JSON.stringify({weekday:1,start_time:'09:00',end_time:'17:00',testProvenance:'spoof'})});
+test('administrator check constructs a fixed server fixture, records trusted provenance and cannot save submitted hours',async()=>{
+ enableIdentity();vi.stubEnv('OMNICORE_OFFICE_HOURS_FIREWALL_ENABLED','true');
+ expect((await CHECK(checkRequest())).status).toBe(403);
+ const events=firewallEvents().filter(e=>e.direction==='inbound');expect(events).toHaveLength(2);
+ for(const e of events){expect(e.synthetic).toBe(false);expect(e.testProvenance).toMatchObject({kind:'controlled_test',source:'server_fixed_fixture',scenario:'office_hours_content_type'});}
+ expect(events[1].firewallEvidence).toMatchObject({contentType:'text/plain',allowedContentTypes:['application/json'],stage:'before_handler'});
+ expect(mocks.insert).not.toHaveBeenCalled();
+ vi.stubEnv('OMNICORE_OFFICE_HOURS_FIREWALL_ENABLED','false');expect((await CHECK(checkRequest())).status).toBe(400);expect(mocks.insert).not.toHaveBeenCalled();
+});
+test('fixed fixture endpoint denies anonymous, non-admin, cross-origin and unavailable identity before constructing tests',async()=>{
+ enableIdentity();expect((await CHECK(checkRequest('https://other.test'))).status).toBe(403);
+ mocks.getUser.mockResolvedValue({data:{user:null},error:null});expect((await CHECK(checkRequest())).status).toBe(401);
+ mocks.getUser.mockResolvedValue({data:{user:{id:'patient'}},error:null});mocks.single.mockResolvedValue({data:{account_type:'patient'},error:null});expect((await CHECK(checkRequest())).status).toBe(403);
+ mocks.getUser.mockRejectedValue(new Error('offline'));expect((await CHECK(checkRequest())).status).toBe(503);
+ expect(firewallEvents()).toHaveLength(0);expect(mocks.insert).not.toHaveBeenCalled();
+});
+test('ordinary route cannot acquire trusted provenance from user-supplied flags',async()=>{
+ enableIdentity();const req=checkRequest();expect((await POST(req)).status).toBe(200);
+ expect(firewallEvents().every(e=>e.testProvenance===undefined)).toBe(true);
 });

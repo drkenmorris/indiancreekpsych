@@ -55,6 +55,10 @@ export type MonitorOptions = {
   ) => BoundarySignal[] | Promise<BoundarySignal[]>;
   dataClass?: "operational" | "personal" | "health" | "credential" | "unknown";
   synthetic?: boolean;
+  /** Trusted server configuration only; never derive from request headers/body.
+   * Describes a fixed controlled test; confers no authority or protection bypass.
+   */
+  testProvenance?: { kind: "controlled_test"; source: "server_fixed_fixture"; version: "OC-TEST-PROVENANCE-1"; scenario: "office_hours_content_type"; runId: string };
   /** On Vercel/Next.js, register this promise with waitUntil/after. */
   schedule?: (delivery: Promise<boolean>) => void;
 };

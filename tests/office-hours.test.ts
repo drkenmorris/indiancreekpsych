@@ -6,6 +6,7 @@ import {POST} from '../app/api/scheduling/office-hours/route';
 const request=(body:unknown,origin='https://example.test')=>new Request('https://example.test/api/scheduling/office-hours',{method:'POST',headers:{origin,'Content-Type':'application/json'},body:JSON.stringify(body)});
 beforeEach(()=>{
  vi.stubEnv('OMNICORE_VERIFIED_REQUESTS_ENABLED','false');
+ vi.stubEnv('OMNICORE_OFFICE_HOURS_FIREWALL_ENABLED','false');
  mocks.getClaims.mockResolvedValue({data:{claims:{sub:'admin',exp:Math.floor(Date.now()/1000)+60}},error:null});
  mocks.delivery.mockResolvedValue(new Response('{}',{status:202}));vi.stubGlobal('fetch',mocks.delivery);
  vi.clearAllMocks();mocks.getUser.mockResolvedValue({data:{user:{id:'admin'}},error:null});mocks.single.mockResolvedValue({data:{account_type:'admin'},error:null});
@@ -39,4 +40,44 @@ test('identity gate does not override administrator checks and fails closed when
  mocks.getClaims.mockRejectedValue(new Error('provider offline'));
  expect((await POST(request({}))).status).toBe(503);expect(mocks.insert).not.toHaveBeenCalled();
  vi.stubEnv('OMNICORE_INGEST_KEY','');expect((await POST(request({}))).status).toBe(503);
+});
+
+function firewallRequest(contentType:string|null){
+ const headers:Record<string,string>={origin:'https://example.test'};
+ if(contentType!==null)headers['content-type']=contentType;
+ return new Request('https://example.test/api/scheduling/office-hours',{method:'POST',headers,body:new TextEncoder().encode(JSON.stringify({weekday:6,start_time:'09:00',end_time:'17:00'}))});
+}
+function firewallEvents(){return mocks.delivery.mock.calls.flatMap(([,init])=>JSON.parse(String(init?.body)).events??[]);}
+test('office-hours firewall denies missing and non-JSON types before handler/database access and records the reason',async()=>{
+ enableIdentity();vi.stubEnv('OMNICORE_OFFICE_HOURS_FIREWALL_ENABLED','true');
+ for(const type of [null,'text/plain','application/x-www-form-urlencoded','multipart/form-data; boundary=test']){
+  const r=await POST(firewallRequest(type));expect(r.status).toBe(403);
+ }
+ expect(mocks.from).not.toHaveBeenCalled();expect(mocks.insert).not.toHaveBeenCalled();
+ const completed=firewallEvents().filter(e=>e.direction==='inbound'&&e.phase==='completed');
+ expect(completed).toHaveLength(4);
+ for(const event of completed)expect(event.firewall).toMatchObject({mode:'enforce',outcome:'denied',codes:['content_type_not_allowed']});
+});
+test('office-hours firewall permits JSON and charset variants without bypassing identity or admin checks',async()=>{
+ enableIdentity();vi.stubEnv('OMNICORE_OFFICE_HOURS_FIREWALL_ENABLED','true');
+ for(const type of ['application/json','application/json; charset=utf-8','Application/JSON'])expect((await POST(firewallRequest(type))).status).toBe(200);
+ expect(mocks.insert).toHaveBeenCalledTimes(3);
+ mocks.insert.mockClear();mocks.getClaims.mockResolvedValue({data:null,error:null});
+ expect((await POST(firewallRequest('application/json'))).status).toBe(401);
+ mocks.getClaims.mockResolvedValue({data:{claims:{sub:'admin',exp:Math.floor(Date.now()/1000)+60}},error:null});
+ mocks.single.mockResolvedValue({data:{account_type:'patient'},error:null});
+ expect((await POST(firewallRequest('application/json'))).status).toBe(403);
+ expect(mocks.insert).not.toHaveBeenCalled();
+});
+test('firewall-only configuration fails closed without connector credentials and switches modes predictably',async()=>{
+ enableIdentity();vi.stubEnv('OMNICORE_VERIFIED_REQUESTS_ENABLED','false');
+ vi.stubEnv('OMNICORE_OFFICE_HOURS_FIREWALL_ENABLED','true');
+ expect((await POST(firewallRequest('text/plain'))).status).toBe(403);
+ vi.stubEnv('OMNICORE_OFFICE_HOURS_FIREWALL_ENABLED','false');
+ expect((await POST(firewallRequest('text/plain'))).status).toBe(200);
+ vi.stubEnv('OMNICORE_OFFICE_HOURS_FIREWALL_ENABLED','true');
+ expect((await POST(firewallRequest('text/plain'))).status).toBe(403);
+ mocks.from.mockClear();vi.stubEnv('OMNICORE_INGEST_KEY','');
+ expect((await POST(firewallRequest('application/json'))).status).toBe(503);
+ expect(mocks.from).not.toHaveBeenCalled();
 });

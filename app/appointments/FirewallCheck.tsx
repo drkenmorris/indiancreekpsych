@@ -5,6 +5,30 @@ import { useState } from "react";
 export default function FirewallCheck({ disabled = false }: { disabled?: boolean }) {
   const [running, setRunning] = useState(false);
   const [message, setMessage] = useState("");
+  const [operationMessage, setOperationMessage] = useState("");
+  async function checkOperation() {
+    setRunning(true);
+    setOperationMessage("");
+    try {
+      const response = await fetch("/api/scheduling/office-hours/toggle", {
+        method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: "00000000-0000-0000-0000-000000000000", enabled: false }),
+        signal: AbortSignal.timeout(15000),
+      });
+      const result = await response.json();
+      if (response.status === 200 && result.check === "office_hours_protected_operation" && result.matchedRules === 0 && result.changed === false) {
+        setOperationMessage("The protected request completed without changing office hours. Check its event in OmniCore to confirm verified access and an allowed outgoing destination.");
+      } else if (response.status === 401) {
+        setOperationMessage("Sign in again before testing. Authentication rejected this request.");
+      } else if (response.status === 403 && result.code === "owner_approval_required") {
+        setOperationMessage("This check requires current approval in OmniCore. No office-hours change was requested.");
+      } else {
+        setOperationMessage(`Protected connection was not confirmed (HTTP ${response.status}). Review the OmniCore event before retrying.`);
+      }
+    } catch {
+      setOperationMessage("The protected connection check could not be confirmed. Review OmniCore before retrying.");
+    } finally { setRunning(false); }
+  }
   async function check() {
     setRunning(true);
     setMessage("");
@@ -32,5 +56,8 @@ export default function FirewallCheck({ disabled = false }: { disabled?: boolean
     <p>Send an empty test request in a prohibited format using your current sign-in. It contains no office-hours values and cannot create valid hours.</p>
     <button type="button" className="secondaryAction" disabled={disabled || running} onClick={() => void check()}>{running ? "Checking protection…" : "Test request-format protection"}</button>
     {message && <p className="authMessage" role="status">{message}</p>}
+    <p>Check the protected office-hours connection without changing availability. Current sign-in, administrator permission, and OmniCore approval are still required.</p>
+    <button type="button" className="secondaryAction" disabled={disabled || running} onClick={() => void checkOperation()}>Test protected connection (no changes)</button>
+    {operationMessage && <p className="authMessage" role="status">{operationMessage}</p>}
   </details>;
 }

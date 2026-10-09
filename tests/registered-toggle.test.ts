@@ -1,7 +1,8 @@
 // @vitest-environment node
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { operationManifestHash } from '../lib/omnicore-operations.mjs';
-const state=vi.hoisted(()=>({user:true,role:'admin',approved:true,receiverHits:0,enabled:true,missing:false,fail:false,fetch:vi.fn(),events:[] as any[],deliveries:[] as Promise<unknown>[]}));
+import { PGlite } from '@electric-sql/pglite';
+const state=vi.hoisted(()=>({user:true,role:'admin',approved:true,receiverHits:0,enabled:true,missing:false,fail:false,receiver:undefined as undefined | ((url:string, init:any)=>Promise<Response>),fetch:vi.fn(),events:[] as any[],deliveries:[] as Promise<unknown>[]}));
 vi.mock('@/lib/supabase/config',()=>({supabaseUrl:'https://db.example'}));
 vi.mock('@/lib/omnicore-identity',()=>({verifyExistingSiteIdentity:()=>state.user?{verified:true,subject:'synthetic-admin',expiresAt:Date.now()+60000}:null}));
 vi.mock('next/server',()=>({after:(fn:()=>Promise<unknown>)=>{state.deliveries.push(fn());}}));
@@ -13,7 +14,7 @@ import {POST} from '../app/api/scheduling/office-hours/toggle/route';
 const siteId='00000000-0000-4000-8000-000000000001', id='00000000-0000-4000-8000-000000000002';
 const request=(input:unknown,origin='https://www.indiancreekpsych.com',type='application/json')=>new Request('https://www.indiancreekpsych.com/api/scheduling/office-hours/toggle',{method:'POST',headers:{origin,'content-type':type},body:JSON.stringify(input)});
 beforeEach(()=>{
-  state.user=true;state.role='admin';state.approved=true;state.receiverHits=0;state.enabled=true;state.missing=false;state.fail=false;state.events.length=0;state.deliveries.length=0;
+  state.user=true;state.role='admin';state.approved=true;state.receiverHits=0;state.enabled=true;state.missing=false;state.fail=false;state.receiver=undefined;state.events.length=0;state.deliveries.length=0;
   vi.stubEnv('OMNICORE_SITE_ID',siteId);vi.stubEnv('OMNICORE_INGEST_KEY','synthetic-only');
   state.fetch.mockReset();state.fetch.mockImplementation(async(input:any,init:any)=>{
     const url=String(input);
@@ -22,6 +23,7 @@ beforeEach(()=>{
     state.receiverHits++;expect(init.redirect).toBe('error');
     expect(new URL(url).origin).toBe('https://db.example');expect(init.method).toBe('PATCH');
     if(state.fail)return Response.json({message:'synthetic receiver failure'},{status:500});
+    if(state.receiver)return state.receiver(url,init);
     if(state.missing)return Response.json([]);
     state.enabled=JSON.parse(init.body).enabled;
     return Response.json({id,weekday:1,start_time:'09:00:00',end_time:'17:00:00',anchor_time:null,enabled:state.enabled});
@@ -50,3 +52,30 @@ test('missing row and failed receiver are not reported as successful updates',as
   state.missing=true;expect((await POST(request({id,enabled:false}))).status).toBe(404);
   state.missing=false;state.fail=true;expect((await POST(request({id,enabled:false}))).status).toBe(503);expect(state.enabled).toBe(true);
 });
+test('connection check executes guarded PATCH but cannot update even an existing reserved-ID row',async()=>{
+  const db=new PGlite();
+  const diagnostic='00000000-0000-0000-0000-000000000000';
+  try {
+    await db.exec('create table rules(id uuid primary key, enabled boolean not null)');
+    await db.query('insert into rules values($1,true),($2,true)',[diagnostic,id]);
+    state.receiver=async(url,init)=>{
+      // Interpret all PostgREST equality filters against real isolated PostgreSQL.
+      const filters=new URL(url).searchParams.getAll('id');
+      expect(filters).toHaveLength(2);
+      const values=filters.map(filter=>{expect(filter.startsWith('eq.')).toBe(true);return filter.slice(3);});
+      const result=await db.query('update rules set enabled=$1 where '+values.map((_,i)=>'id=$'+(i+2)).join(' and ')+' returning *',[JSON.parse(init.body).enabled,...values]);
+      return Response.json(result.rows);
+    };
+    const response=await POST(request({id:diagnostic,enabled:false}));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({check:'office_hours_protected_operation',matchedRules:0,changed:false});
+    expect(state.receiverHits).toBe(1);
+    expect((await db.query('select enabled from rules')).rows).toEqual([{enabled:true},{enabled:true}]);
+    await Promise.all(state.deliveries);
+    const outgoing=state.events.find(e=>e.scope==='outbound'&&e.phase==='completed');
+    expect(outgoing.status).toBe(200);expect(outgoing.method).toBe('PATCH');expect(outgoing.access.outcome).toBe('verified');expect(outgoing.firewall.outcome).toBe('allowed');
+    state.approved=false;expect((await POST(request({id:diagnostic,enabled:false}))).status).toBe(403);expect(state.receiverHits).toBe(1);
+    state.approved=true;state.role='patient';expect((await POST(request({id:diagnostic,enabled:false}))).status).toBe(403);expect(state.receiverHits).toBe(1);
+    state.role='admin';state.fail=true;expect((await POST(request({id:diagnostic,enabled:false}))).status).toBe(503);
+  } finally {await db.close();}
+},60000);

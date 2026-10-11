@@ -32,7 +32,7 @@ export async function POST(request: Request) {
           if (typeof value.id !== 'string' || !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(value.id) || typeof value.enabled !== 'boolean') throw Error('Invalid input');
           return value;
         },
-        handler: async ({ input, fetch: operationFetch }) => {
+        handler: async ({ input, fetch: operationFetch, recordEffect }) => {
           const client = await createClient({ operationFetch });
           const check = input.id === CHECK_ID;
           let update = client.from('appointment_availability_rules').update({ enabled: input.enabled }).eq('id', input.id);
@@ -40,12 +40,24 @@ export async function POST(request: Request) {
           if (check) update = update.eq('id', CHECK_EXCLUSION_ID);
           const { data, error } = await update
             .select('id,weekday,start_time,end_time,anchor_time,enabled').abortSignal(AbortSignal.timeout(10000)).maybeSingle();
-          if (error) return reply({ error: 'Office hours could not be updated. Check OmniCore approval and refresh before retrying.' }, 503);
+          if (error) {
+            recordEffect({ action: 'update', resource: 'records', outcome: 'unknown', count: null });
+            return reply({ error: 'Office hours could not be updated. Check OmniCore approval and refresh before retrying.' }, 503);
+          }
           if (check) {
-            if (data) return reply({ error: 'Protected connection check could not be confirmed.' }, 503);
+            if (data) {
+              recordEffect({ action: 'update', resource: 'records', outcome: 'unknown', count: null });
+              return reply({ error: 'Protected connection check could not be confirmed.' }, 503);
+            }
+            recordEffect({ action: 'update', resource: 'records', outcome: 'none', count: 0 });
             return reply({ check: 'office_hours_protected_operation', matchedRules: 0, changed: false }, 200);
           }
-          if (!data) return reply({ error: 'Office-hours rule not found.' }, 404);
+          if (!data) {
+            recordEffect({ action: 'update', resource: 'records', outcome: 'none', count: 0 });
+            return reply({ error: 'Office-hours rule not found.' }, 404);
+          }
+          // Selected receipt from the returned database result; no row ID or content is emitted.
+          recordEffect({ action: 'update', resource: 'records', outcome: 'changed', count: 1 });
           return reply({ rule: data }, 200);
         },
         schedule: delivery => after(async () => { await delivery; }),

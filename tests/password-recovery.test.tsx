@@ -7,8 +7,13 @@ import Recovery from '../app/forgot-password/PasswordRecovery';
 import Reset from '../app/reset-password/ResetPassword';
 import {GET} from '../app/auth/confirm/route';
 import {NextRequest} from 'next/server';
+import {passwordRecoveryRedirect} from '../lib/password-recovery';
 beforeEach(()=>{vi.clearAllMocks();mocks.getUser.mockResolvedValue({data:{user:{id:'synthetic-user'}},error:null});mocks.updateUser.mockResolvedValue({error:null});mocks.signOut.mockResolvedValue({error:null});mocks.resetPasswordForEmail.mockResolvedValue({error:null});mocks.verifyOtp.mockResolvedValue({error:null});});
 afterEach(cleanup);
+test('www and apex production use allowlisted apex callback while preview stays on its own origin',()=>{
+ for(const origin of ['https://www.indiancreekpsych.com','https://indiancreekpsych.com'])expect(passwordRecoveryRedirect(origin)).toBe('https://indiancreekpsych.com/auth/callback?next=/reset-password');
+ expect(passwordRecoveryRedirect('https://synthetic-preview.vercel.app')).toBe('https://synthetic-preview.vercel.app/auth/callback?next=/reset-password');
+});
 async function form(){render(<Reset/>);await screen.findByLabelText('New password');fireEvent.change(screen.getByLabelText('New password'),{target:{value:'synthetic-test-only-123'}});fireEvent.change(screen.getByLabelText('Confirm new password'),{target:{value:'synthetic-test-only-123'}});}
 test('recovery uses same-origin PKCE callback and generic account response',async()=>{render(<Recovery/>);fireEvent.change(screen.getByLabelText('Email'),{target:{value:'synthetic@example.com'}});fireEvent.click(screen.getByRole('button',{name:'Send recovery email'}));await screen.findByText(/If an account exists/);expect(mocks.resetPasswordForEmail).toHaveBeenCalledWith('synthetic@example.com',{redirectTo:window.location.origin+'/auth/callback?next=/reset-password'});});
 test('recovery failure does not expose provider details or claim email sent',async()=>{mocks.resetPasswordForEmail.mockRejectedValue(new Error('internal details'));render(<Recovery/>);fireEvent.change(screen.getByLabelText('Email'),{target:{value:'synthetic@example.com'}});fireEvent.click(screen.getByRole('button',{name:'Send recovery email'}));await screen.findByText(/could not be completed/);expect(screen.queryByText(/internal details/)).toBeNull();});

@@ -2,11 +2,12 @@
 import Link from 'next/link';
 import {useMemo,useState,type FormEvent} from 'react';
 import {createClient} from '@/lib/supabase/client';
+import {passwordRecoveryRedirect} from '@/lib/password-recovery';
 export default function PasswordRecovery(){
  const client=useMemo(()=>createClient(),[]);
  const [email,setEmail]=useState(''),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
  async function submit(e:FormEvent){e.preventDefault();setBusy(true);setMessage('');try{
-  const {error}=await client.auth.resetPasswordForEmail(email.trim(),{redirectTo:window.location.origin+'/auth/callback?next=/reset-password'});
+  const {error}=await client.auth.resetPasswordForEmail(email.trim(),{redirectTo:passwordRecoveryRedirect(window.location.origin)});
   if(error)throw error;
   setMessage('If an account exists for that email, a recovery link has been requested. Check your inbox and spam folder. Open the newest link in this same browser, then enter your new password on the clinic website.');
  }catch{setMessage('The recovery request could not be completed. Please wait a moment and try again.');}finally{setBusy(false);}}

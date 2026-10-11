@@ -1,4 +1,4 @@
-import type { MonitorOptions } from './omnicore-server.mjs';
+import type { MonitorOptions, OperationEffect } from './omnicore-server.mjs';
 export type OperationManifest = { version: 1; id: string; name: string; route: string;
   method: 'POST' | 'PUT' | 'PATCH' | 'DELETE'; allowedOrigins: readonly string[]; maxBodyBytes: number };
 export type VerifiedIdentity = { verified: true; subject: string; expiresAt: number };
@@ -9,7 +9,7 @@ export type OperationAdapters<T> = {
   /** Pure validation. Throw to reject. Request bodies stay on the website. */
   validateInput: (input: unknown) => T;
   /** All protected outgoing calls must use this fetch, including SDK global.fetch. */
-  handler: (context: { request: Request; identity: VerifiedIdentity; input: T; fetch: typeof fetch }) => Response | Promise<Response>;
+  handler: (context: { request: Request; identity: VerifiedIdentity; input: T; fetch: typeof fetch; recordEffect:(effect:OperationEffect)=>boolean }) => Response | Promise<Response>;
   schedule?: MonitorOptions['schedule']; synthetic?: boolean; dataClass?: MonitorOptions['dataClass'];
 };
 export function operationManifest(value: unknown): Readonly<OperationManifest>;

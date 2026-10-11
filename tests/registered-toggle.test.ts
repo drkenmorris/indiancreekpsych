@@ -35,6 +35,9 @@ test('registered clinic adapter pauses and enables only the synthetic rule throu
   const response=await POST(request({id,enabled:true}));expect(response.status).toBe(200);expect((await response.json()).rule.enabled).toBe(true);expect(state.receiverHits).toBe(2);
   await Promise.all(state.deliveries);
   const outgoing=state.events.filter(e=>e.scope==='outbound'&&e.phase==='completed');expect(outgoing).toHaveLength(2);
+  const incoming=state.events.filter(e=>e.scope==='application'&&e.phase==='completed');expect(incoming).toHaveLength(2);
+  for(const event of incoming){expect(event.operationEvidence).toMatchObject({definitionId:'office-hours-toggle',gateReason:'authorized',handlerState:'completed',effects:[{action:'update',resource:'records',outcome:'changed',count:1}],effectsDropped:0});expect(outgoing.some(o=>o.requestId===event.requestId&&o.parentOperationId===event.operationId)).toBe(true);}
+  expect(JSON.stringify(incoming.map(e=>e.operationEvidence))).not.toContain(id);
   for(const event of outgoing){expect(event.access.outcome).toBe('verified');expect(event.firewall.outcome).toBe('allowed');expect(event.parentOperationId).toBeTruthy();expect(event.requestId).toBeTruthy();}
 });
 test('missing approval, unsigned caller, non-admin, cross-origin and format controls cannot update',async()=>{
@@ -44,6 +47,11 @@ test('missing approval, unsigned caller, non-admin, cross-origin and format cont
   expect((await POST(request({id,enabled:false},'https://evil.example'))).status).toBe(403);
   expect((await POST(request({id,enabled:false},undefined,'text/plain'))).status).toBe(403);
   expect(state.receiverHits).toBe(0);expect(state.enabled).toBe(true);
+  await Promise.all(state.deliveries);
+  const completed=state.events.filter(e=>e.scope==='application'&&e.phase==='completed');
+  expect(completed.some(e=>e.operationEvidence.gateReason==='owner_approval_required')).toBe(true);
+  expect(completed.some(e=>e.operationEvidence.gateReason==='operation_not_authorized')).toBe(true);
+  expect(completed.every(e=>e.operationEvidence.handlerState==='not_started'&&e.operationEvidence.effects.length===0)).toBe(true);
 });
 test.each([{id:'bad-id',enabled:false},{id,enabled:'false'},{id,enabled:false,extra:'synthetic'}])('invalid operation payload %j sends nothing',async input=>{
   expect((await POST(request(input))).status).toBe(422);expect(state.receiverHits).toBe(0);
@@ -51,6 +59,9 @@ test.each([{id:'bad-id',enabled:false},{id,enabled:'false'},{id,enabled:false,ex
 test('missing row and failed receiver are not reported as successful updates',async()=>{
   state.missing=true;expect((await POST(request({id,enabled:false}))).status).toBe(404);
   state.missing=false;state.fail=true;expect((await POST(request({id,enabled:false}))).status).toBe(503);expect(state.enabled).toBe(true);
+  await Promise.all(state.deliveries);
+  const completed=state.events.filter(e=>e.scope==='application'&&e.phase==='completed');
+  expect(completed.map(e=>e.operationEvidence.effects)).toEqual([[{action:'update',resource:'records',outcome:'none',count:0}],[{action:'update',resource:'records',outcome:'unknown',count:null}]]);
 });
 test('connection check executes guarded PATCH but cannot update even an existing reserved-ID row',async()=>{
   const db=new PGlite();
@@ -70,6 +81,8 @@ test('connection check executes guarded PATCH but cannot update even an existing
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({check:'office_hours_protected_operation',matchedRules:0,changed:false});
     expect(state.receiverHits).toBe(1);
+    await Promise.all(state.deliveries);
+    expect(state.events.find(e=>e.scope==='application'&&e.phase==='completed').operationEvidence.effects).toEqual([{action:'update',resource:'records',outcome:'none',count:0}]);
     expect((await db.query('select enabled from rules')).rows).toEqual([{enabled:true},{enabled:true}]);
     await Promise.all(state.deliveries);
     const outgoing=state.events.find(e=>e.scope==='outbound'&&e.phase==='completed');

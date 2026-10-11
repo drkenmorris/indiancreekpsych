@@ -1,3 +1,6 @@
+export type OperationEffect={action:'create'|'update'|'delete';resource:'records'|'files'|'configuration';outcome:'changed'|'none'|'unknown';count:number|null};
+export type OperationEvidence={version:'OC-OPERATION-EVIDENCE-1';definitionId:string;gateReason:'not_evaluated'|'authorized'|'policy_unavailable'|'owner_approval_required'|'invalid_operation_input'|'authorization_unavailable'|'operation_not_authorized'|'identity_expired'|'operation_approval_expired'|'operation_context_required'|'operation_approval_changed';handlerState:'not_started'|'completed'|'failed';effects:OperationEffect[];effectsDropped:number};
+export function operationEvidence(value:unknown):OperationEvidence;
 export type BoundarySignal = {
   udvId: string;
   acceptableConditionsMet: boolean;
@@ -8,6 +11,8 @@ export type BoundarySignal = {
   evidenceRefs: string[];
 };
 export type MonitorOptions = {
+  /** Trusted server callback only. No body contents, identifiers or free text. */
+  operationEvidence?: (request:Request)=>OperationEvidence|undefined;
   /** Server-configured native rules. Defaults to observe-only. Not a managed WAF ruleset. */
   requestFirewall?: {
     mode?: "observe" | "enforce";

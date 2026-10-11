@@ -3,6 +3,7 @@
 import {FormEvent,useEffect,useMemo,useRef,useState} from 'react';
 import {createClient} from '@/lib/supabase/client';
 import {costFields,intakeSections,IntakeAnswers,validateIntake} from '@/lib/patient/intake';
+import {sameIntakeAnswers} from '@/lib/patient/intake-answer-comparison';
 import styles from './KioskIntake.module.css';
 
 type KioskSession={
@@ -25,10 +26,6 @@ function normalizeSession(data:unknown):KioskSession|null{
   status:value.status,
   expires_at:value.expires_at
  };
-}
-
-function sameAnswers(a:IntakeAnswers,b:IntakeAnswers){
- return JSON.stringify(a)===JSON.stringify(b);
 }
 
 export default function KioskIntake({token}:{token:string}){
@@ -57,7 +54,7 @@ export default function KioskIntake({token}:{token:string}){
     baseline.current={};setAnswers({});setComplete(true);setLoading(false);return;
    }
    const loaded={full_name:session.patient_name,date_of_birth:session.date_of_birth,...session.answers};
-   baseline.current=loaded;setAnswers(loaded);setLoading(false);
+   baseline.current={...session.answers};setAnswers(loaded);setLoading(false);
   })();
   return()=>{active=false;};
  },[supabase,token]);
@@ -89,7 +86,7 @@ export default function KioskIntake({token}:{token:string}){
    if(remote.status==='submitted'){
     baseline.current={};setAnswers({});setComplete(true);setDirty(false);return;
    }
-   if(!sameAnswers(remote.answers,baseline.current)){
+   if(!sameIntakeAnswers(remote.answers,baseline.current)){
     throw new Error('A newer saved version of this intake was found. This page was not overwritten. Reload the page to continue from the newest saved version.');
    }
    const result=await supabase.rpc('save_intake_kiosk_session',{p_token:token,p_answers:answers,p_submit:submit});

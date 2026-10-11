@@ -52,6 +52,7 @@ export default function LoginPage() {
             <button type="submit" disabled={busy}>{busy ? "Signing in…" : "Sign in"}</button>
           </form>
           {message && <p className="authMessage" role="alert">{message}</p>}
+          <p className="authSwitch"><Link href="/forgot-password">Forgot your password?</Link></p>
           <p className="authSwitch">Need an account? <Link href="/register">Register</Link> · <Link href="/appointments">Appointments</Link></p>
         </section>
       </main>

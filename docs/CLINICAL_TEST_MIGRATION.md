@@ -21,7 +21,7 @@ The destination `indiancreekpsych.com` is Vercel `indiancreekpsych` backed by `d
 **Not clinical tests:** FNBO PDF utility, marketing hub, ConscienceOS X core moral governance, Mirror and other shared decision engines; exclude from transfer unless a concrete dependency requires an adapter.
 
 ## Staging tranche 1
-Copied CSEQ assessment, scoring, results and item bank (admin synthetic QA only), plus Level 1 and 19 Level 2 clinical module source files (plus the shared engine) into `lib/clinical-tests/legacy/dev`.
+Copied CSEQ, ASQ/ASEQ, SRRCI-X, RTAFI, RDII, RVTI standalone assessment source and their scoring/report dependencies (admin synthetic QA only), plus Level 1 and 19 Level 2 clinical module source files (plus the shared engine) into `lib/clinical-tests/legacy/dev`.
 These are wired to an administrator-only `/clinical-tests` workspace with the existing verified account, role and security gate from `patientAccess(true)`.
 The legacy React Router links use the Next.js navigation adapter.
 Legacy localStorage persistence was replaced by an in-memory QA-only adapter to avoid writing sensitive test answers to the browser's persistent storage.
@@ -32,6 +32,6 @@ Legacy localStorage persistence was replaced by an in-memory QA-only adapter to 
 1. Inventory every clinical source and dependency; create an exact source→destination route map, including legacy deep links and menus.
 2. Clinical instrument rights and psychometric-version checks.
 3. Create encrypted/role-restricted Supabase assessment sessions and scoring/results tables; row-level security, retention, audit logs and explicit consent; account ownership and provider access.
-4. Move ASQ, CSEQ, SRRCI-X, RTAFI, RDII, RVTI and registry prototypes, including scoring, reports, results and test administration.
+4. Validate migrated ASQ, CSEQ, SRRCI-X, RTAFI, RDII and RVTI workflows end-to-end; connect clinically appropriate Supabase storage with RLS and patient permissions; review incomplete screener registry prototypes and CogSwitch.
 5. Functional/automated QA on previews with synthetic identities; protect the 21 governance assessments with regression tests.
 6. Only after test parity and authorized cutover: add source redirects, remove duplicate clinical menu branches and deploy target/source in that order. Never delete legacy patient records merely to change UI ownership.

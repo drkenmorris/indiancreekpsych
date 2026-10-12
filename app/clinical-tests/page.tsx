@@ -23,8 +23,12 @@ export default async function ClinicalTestsPage() {
       <p><Link href="/clinical-tests/asq">Open student, parent, teacher, combined results and records</Link></p>
       <h2>SRRCI-X relationship assessment</h2>
       <p><Link href="/clinical-tests/srrci">Open registration, questionnaire and results</Link></p>
+      <h2>RTAFI, RDII and RVTI</h2>
+      <p><Link href="/clinical-tests/rtafi">RTAFI — intake, household setup, questionnaire, results</Link></p>
+      <p><Link href="/clinical-tests/rdii">RDII — assessment, scoring and reports</Link></p>
+      <p><Link href="/clinical-tests/rvti">RVTI — active-domain assessment dashboard</Link></p>
       <h2>Other independent assessment suites</h2>
-      <p>RTAFI, RDII, RVTI, autism/ADHD screeners, and their reports remain in dependency review.
+      <p>autism/ADHD screener registry prototypes, and their reports remain in dependency review.
         They must not be linked here as working assessments until administration, scoring, storage,
         consent, and permissions have migrated.</p>
     </main>

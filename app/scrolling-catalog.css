@@ -1,0 +1,181 @@
+/* Shared continuously moving image menus on Services and Specialties. */
+.scrollingCatalog{
+  background:#f5f8fa;
+  padding:clamp(25px,4vh,46px) 0 clamp(28px,5vh,55px);
+  overflow:hidden;
+}
+.scrollingCatalogHeading{
+  max-width:1480px;
+  margin:0 auto 24px;
+  padding:0 clamp(18px,5vw,80px);
+  display:flex;
+  justify-content:space-between;
+  gap:20px;
+  align-items:end;
+}
+.scrollingCatalogHeading .eyebrow{
+  margin:0 0 6px;
+}
+.scrollingCatalogHeading h2{
+  font-family:Georgia,'Times New Roman',serif;
+  font-size:clamp(27px,3.2vw,43px);
+  line-height:1.1;
+  font-weight:500;
+  color:#0b3658;
+  margin:0 0 8px;
+}
+.scrollingCatalogHeading p:not(.eyebrow){
+  font-family:Arial,Helvetica,sans-serif;
+  font-size:15px;
+  line-height:1.5;
+  color:#536b7c;
+  max-width:760px;
+  margin:0;
+}
+.scrollingCatalogToggle{
+  flex:0 0 auto;
+  background:#072b47;
+  border:1px solid #072b47;
+  color:#fff;
+  border-radius:999px;
+  padding:11px 19px;
+  font:700 13px Arial,Helvetica,sans-serif;
+  cursor:pointer;
+}
+.scrollingCatalogToggle:hover{background:#145073}
+.scrollingCatalogToggle:focus-visible,
+.scrollingCatalogCard:focus-visible{
+  outline:3px solid #c79643;
+  outline-offset:3px;
+}
+.scrollingCatalogViewport{
+  width:100%;
+  overflow:hidden;
+  padding:7px 0 18px;
+}
+.scrollingCatalogTrack{
+  width:max-content;
+  display:flex;
+  animation:scrollingCatalogToLeft 63s linear infinite;
+  will-change:transform;
+}
+.scrollingCatalogGroup{
+  flex:0 0 auto;
+  display:flex;
+  gap:20px;
+  padding-right:20px;
+}
+.scrollingCatalogCard{
+  display:flex;
+  flex-direction:column;
+  flex:0 0 clamp(260px,25vw,335px);
+  width:clamp(260px,25vw,335px);
+  min-height:365px;
+  border-radius:14px;
+  overflow:hidden;
+  text-decoration:none;
+  color:#123b58;
+  background:#fff;
+  border:1px solid #d7e3e9;
+  box-shadow:0 8px 26px rgba(8,41,67,.1);
+  transition:box-shadow .2s ease,border-color .2s ease;
+}
+.scrollingCatalogCard:hover{
+  border-color:#90aec0;
+  box-shadow:0 13px 35px rgba(8,41,67,.18);
+}
+.scrollingCatalogImage{
+  width:100%;
+  height:190px;
+  background:#e8eef3;
+  overflow:hidden;
+}
+.scrollingCatalogImage img{
+  display:block;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  object-position:center;
+}
+.scrollingCatalogCardBody{
+  display:flex;
+  flex:1;
+  flex-direction:column;
+  padding:20px 22px 22px;
+  gap:9px;
+}
+.scrollingCatalogCardBody h3{
+  margin:0;
+  font:500 24px/1.14 Georgia,'Times New Roman',serif;
+  color:#0d3b5e;
+}
+.scrollingCatalogCardBody p{
+  flex:1;
+  margin:0;
+  font:14px/1.5 Arial,Helvetica,sans-serif;
+  color:#536b7c;
+}
+.scrollingCatalogCardBody>span{
+  margin-top:3px;
+  font:700 13px Arial,Helvetica,sans-serif;
+  color:#155f83;
+}
+.scrollingCatalogHelp{
+  padding:0 clamp(18px,5vw,80px);
+  margin:5px auto 0;
+  max-width:1480px;
+  font:12px/1.4 Arial,Helvetica,sans-serif;
+  color:#637d8d;
+}
+@keyframes scrollingCatalogToLeft{
+  from{transform:translate3d(0,0,0)}
+  to{transform:translate3d(-50%,0,0)}
+}
+/* Stop the motion whenever a user tries to interact with a card. */
+.scrollingCatalogViewport:hover .scrollingCatalogTrack,
+.scrollingCatalogViewport:focus-within .scrollingCatalogTrack,
+.scrollingCatalogViewport[data-paused="true"] .scrollingCatalogTrack{
+  animation-play-state:paused;
+}
+/* Pausing switches to a stationary, swipeable / horizontally scrollable list.
+   This lets someone examine any item rather than waiting for the marquee. */
+.scrollingCatalogViewport[data-paused="true"]{
+  overflow-x:auto;
+  overscroll-behavior-x:contain;
+  scroll-snap-type:x proximity;
+}
+.scrollingCatalogViewport[data-paused="true"] .scrollingCatalogTrack{
+  animation:none!important;
+  transform:none;
+  will-change:auto;
+}
+.scrollingCatalogViewport[data-paused="true"] .scrollingCatalogGroup[aria-hidden="true"]{
+  display:none;
+}
+.scrollingCatalogViewport[data-paused="true"] .scrollingCatalogCard{
+  scroll-snap-align:start;
+}
+.scrollingCatalogReducedHelp{display:none}
+@media(max-width:620px){
+  .scrollingCatalogHeading{align-items:flex-start;flex-direction:column}
+  .scrollingCatalogCard{flex-basis:270px;width:270px;min-height:352px}
+  .scrollingCatalogImage{height:175px}
+  .scrollingCatalogCardBody h3{font-size:22px}
+  .scrollingCatalogHelp{font-size:11px}
+}
+/* People who request less motion can still swipe through cards manually. */
+@media(prefers-reduced-motion:reduce){
+  .scrollingCatalogViewport{overflow-x:auto;scroll-snap-type:x mandatory}
+  .scrollingCatalogTrack{animation:none!important;transform:none;will-change:auto}
+  .scrollingCatalogCard{scroll-snap-align:start}
+  .scrollingCatalogGroup[aria-hidden="true"]{display:none}
+  .scrollingCatalogToggle,.scrollingCatalogHelp{display:none}
+  .scrollingCatalogReducedHelp{
+    display:block;
+    max-width:1480px;
+    margin:5px auto 0;
+    padding:0 clamp(18px,5vw,80px);
+    font:12px/1.4 Arial,Helvetica,sans-serif;
+    color:#637d8d;
+  }
+}

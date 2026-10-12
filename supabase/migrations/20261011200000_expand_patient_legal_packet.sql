@@ -27,7 +27,9 @@ declare
 'telehealth_choice','telehealth_questions','telehealth_signature','telehealth_signature_date',
 'electronic_choice','electronic_questions','electronic_signature','electronic_signature_date',
 'representative_signer','representative_name','representative_authority','representative_signature','representative_signature_date',
-'roi_discloser','roi_representative_capacity','psych_notes_discloser','psych_notes_representative_capacity'
+'roi_discloser','roi_representative_capacity','psych_notes_discloser','psych_notes_representative_capacity',
+'part2_authorize','part2_discloser','part2_recipient','part2_scope','part2_purpose','part2_purpose_details','part2_expiration','part2_revocation_ack','part2_signature','part2_signature_date','part2_representative_capacity',
+'sud_notes_authorize','sud_notes_discloser','sud_notes_recipient','sud_notes_scope','sud_notes_purpose','sud_notes_expiration','sud_notes_revocation_ack','sud_notes_signature','sud_notes_signature_date','sud_notes_representative_capacity'
  ];
 begin
  if jsonb_typeof(p_answers)<>'object' or octet_length(p_answers::text)>160000 then raise exception 'Invalid intake answers'; end if;
@@ -51,9 +53,10 @@ begin
   -- pre-revision payloads. The follow-up required-version migration closes that window.
   if p_answers ? 'legal_packet_version' then
    if p_answers->>'legal_packet_version'<>'2026-10-11' then raise exception 'Unrecognized patient legal packet revision'; end if;
-   foreach required_key in array array['treatment_consent','financial_review','telehealth_choice','electronic_choice','representative_signer'] loop
+   foreach required_key in array array['treatment_consent','financial_review','telehealth_choice','electronic_choice','representative_signer','part2_authorize','sud_notes_authorize'] loop
     if coalesce(btrim(p_answers->>required_key),'')='' then raise exception 'Complete the required patient document choice'; end if;
    end loop;
+   if p_answers->>'part2_authorize' not in ('No','Yes') or p_answers->>'sud_notes_authorize' not in ('No','Yes') then raise exception 'Invalid Part 2 authorization selection'; end if;
    if p_answers->>'treatment_consent' not in ('Yes, I consent to outpatient counseling','I need to discuss this before consenting') then raise exception 'Invalid treatment consent choice'; end if;
    if p_answers->>'financial_review' not in ('I reviewed this information','I request fee clarification before treatment') then raise exception 'Invalid financial information choice'; end if;
    if p_answers->>'telehealth_choice' not in ('Yes, I consent to telehealth','No, in-person care only','Discuss before deciding') then raise exception 'Invalid telehealth choice'; end if;
@@ -83,6 +86,18 @@ begin
   if p_answers->>'psych_notes_authorize'='Yes' then
    foreach required_key in array array['psych_notes_discloser','psych_notes_recipient','psych_notes_purpose','psych_notes_expiration','psych_notes_revocation_ack','psych_notes_signature','psych_notes_signature_date'] loop
     if coalesce(btrim(p_answers->>required_key),'')='' then raise exception 'Complete the psychotherapy-notes authorization'; end if;
+   end loop;
+  end if;
+  if p_answers->>'part2_authorize'='Yes' then
+   foreach required_key in array array['part2_discloser','part2_recipient','part2_scope','part2_purpose','part2_expiration','part2_revocation_ack','part2_signature','part2_signature_date'] loop
+    if nullif(btrim(p_answers->>required_key),'') is null then raise exception 'Complete the separate Part 2 consent'; end if;
+   end loop;
+   if p_answers->>'part2_purpose' not in ('Treatment, payment and health care operations','Specific purpose') then raise exception 'Invalid Part 2 consent purpose'; end if;
+   if p_answers->>'part2_purpose'='Specific purpose' and nullif(btrim(p_answers->>'part2_purpose_details'),'') is null then raise exception 'Describe the Part 2 consent purpose'; end if;
+  end if;
+  if p_answers->>'sud_notes_authorize'='Yes' then
+   foreach required_key in array array['sud_notes_discloser','sud_notes_recipient','sud_notes_scope','sud_notes_purpose','sud_notes_expiration','sud_notes_revocation_ack','sud_notes_signature','sud_notes_signature_date'] loop
+    if nullif(btrim(p_answers->>required_key),'') is null then raise exception 'Complete the separate SUD counseling-notes consent'; end if;
    end loop;
   end if;
   if (p_answers->>'suicidal_plan_current'='Yes' or p_answers->>'homicidal_thoughts_current'='Yes') and coalesce(btrim(p_answers->>'violence_risk_details'),'')='' then raise exception 'Describe the current safety concern before submitting'; end if;

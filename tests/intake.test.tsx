@@ -4,13 +4,18 @@ const mock=vi.hoisted(()=>({insert:vi.fn(),save:vi.fn(),list:vi.fn(),assurance:v
 vi.mock('@/lib/supabase/client',()=>({createClient:()=>({auth:{mfa:{listFactors:mock.list,getAuthenticatorAssuranceLevel:mock.assurance}},from:()=>{const q:any={};for(const k of ['select','eq','abortSignal','update'])q[k]=()=>q;q.insert=(p:any)=>{mock.insert(p);return q;};q.single=mock.save;return q;}})}));
 import IntakeForm from '../app/patient/intake/IntakeForm';
 import SecurityClient from '../app/account/security/SecurityClient';
-import {validateIntake,IntakeAnswers} from '../lib/patient/intake';
+import {validateIntake,IntakeAnswers,intakeSections} from '../lib/patient/intake';
+import {LEGAL_PACKET_VERSION} from '../lib/patient/legal-documents';
 import {safeNext} from '../lib/patient/redirect';
 const complete:IntakeAnswers={full_name:'Test Person',date_of_birth:'1990-01-01',address:'1 Example St',city:'Example',state:'KS',postal_code:'66000',phone:'5550100',email:'test@example.com',insurance_coverage:'self-pay',counseling_reason:'Test concern',
  emergency_contact_name:'Synthetic Contact',emergency_contact_relationship:'Friend',emergency_contact_phone:'5550101',emergency_contact_permission:'Yes',
  functional_impact:'Synthetic fixture only',counseling_goals:'Synthetic fixture only',prior_mental_health_treatment:'No',medical_conditions:'None',medications_current:'None',
  suicidal_thoughts_current:'No',suicidal_plan_current:'No',homicidal_thoughts_current:'No',abuse_neglect_current:'No',
  comm_phone_calls:'No',comm_voicemail:'No',comm_text:'No',comm_email:'No',comm_portal:'Yes',comm_mail:'No',
+ treatment_consent:'Yes, I consent to outpatient counseling',treatment_signature:'Test Person',treatment_signature_date:'2026-10-11',
+ financial_review:'I reviewed this information',financial_signature:'Test Person',financial_signature_date:'2026-10-11',
+ telehealth_choice:'No, in-person care only',electronic_choice:'I agree to electronic intake and portal use',electronic_signature:'Test Person',electronic_signature_date:'2026-10-11',
+ representative_signer:'Patient signing for myself',
  npp_received:'Yes',npp_signature:'Test Person',npp_signature_date:'2026-01-01',roi_authorize:'No',psych_notes_authorize:'No',
  information_accuracy:'Yes',electronic_signature_consent:'Yes',patient_signature:'Test Person',patient_signature_date:'2026-01-01'};
 beforeEach(()=>{vi.clearAllMocks();vi.spyOn(window,'scrollTo').mockImplementation(()=>{});});afterEach(()=>{cleanup();vi.restoreAllMocks();});
@@ -20,17 +25,27 @@ test('external and script redirects rejected',()=>{for(const url of ['//evil.tes
 test('submission requires explicit confirmation and preserves answers on save failure',async()=>{
  mock.save.mockResolvedValue({error:{message:'offline'}});render(<IntakeForm userId="patient" initial={null} defaults={complete}/>);
  expect(screen.queryByRole('button',{name:'Review and submit'})).toBeNull();
- fireEvent.click(screen.getByRole('tab',{name:'14'}));
+ fireEvent.click(screen.getByRole('tab',{name:String(intakeSections.length)}));
  fireEvent.click(screen.getByRole('button',{name:'Review and submit'}));expect(mock.insert).not.toHaveBeenCalled();fireEvent.click(screen.getByRole('button',{name:'Confirm submission'}));await screen.findByRole('alert');
  fireEvent.click(screen.getByRole('tab',{name:'1'}));
- expect((screen.getByLabelText(/Full legal name/) as HTMLInputElement).value).toBe('Test Person');expect(mock.insert).toHaveBeenCalledWith({patient_id:'patient',answers:complete,status:'submitted'});
+ expect((screen.getByLabelText(/Full legal name/) as HTMLInputElement).value).toBe('Test Person');expect(mock.insert).toHaveBeenCalledWith({patient_id:'patient',answers:{...complete,legal_packet_version:LEGAL_PACKET_VERSION},status:'submitted'});
 });
 test('draft save accepts incomplete answers and confirms success',async()=>{
- mock.save.mockResolvedValue({data:{patient_id:'patient',answers:{},status:'draft',version:1},error:null});render(<IntakeForm userId="patient" initial={null} defaults={{}}/>);fireEvent.click(screen.getByRole('button',{name:'Save draft'}));await screen.findByText('Draft saved securely.');expect(mock.insert).toHaveBeenCalledWith({patient_id:'patient',answers:{},status:'draft'});
+ mock.save.mockResolvedValue({data:{patient_id:'patient',answers:{},status:'draft',version:1},error:null});render(<IntakeForm userId="patient" initial={null} defaults={{}}/>);fireEvent.click(screen.getByRole('button',{name:'Save draft'}));await screen.findByText('Draft saved securely.');expect(mock.insert).toHaveBeenCalledWith({patient_id:'patient',answers:{legal_packet_version:LEGAL_PACKET_VERSION},status:'draft'});
 });
 test('security load failure never offers fresh factor enrollment',async()=>{
  mock.list.mockResolvedValue({error:{message:'offline'}});mock.assurance.mockResolvedValue({error:{message:'offline'}});render(<SecurityClient next="/patient/intake"/>);await screen.findByRole('alert');expect(screen.queryByRole('button',{name:'Set up authenticator app'})).toBeNull();
 });
 test('existing factor requires verification before adding another',async()=>{
  mock.list.mockResolvedValue({data:{all:[{id:'factor',factor_type:'totp',status:'verified'}]},error:null});mock.assurance.mockResolvedValue({data:{currentLevel:'aal1'},error:null});render(<SecurityClient next="/patient/intake"/>);await screen.findByRole('button',{name:'Use authenticator app'});expect(screen.queryByRole('button',{name:'Set up passkey / device'})).toBeNull();
+});
+
+
+test('optional releases and telehealth are independent; acknowledgment may be declined',()=>{
+ const choices={...complete,npp_received:'Decline acknowledgment',npp_signature:'',npp_signature_date:'',roi_authorize:'No',psych_notes_authorize:'No',telehealth_choice:'No, in-person care only'};
+ expect(validateIntake(choices,true)).toBeNull();
+ expect(validateIntake({...choices,treatment_signature:''},true)).toContain('informed treatment consent');
+ expect(validateIntake({...choices,roi_authorize:'Yes'},true)).toContain('authorized discloser');
+ expect(validateIntake({...choices,telehealth_choice:'Yes, I consent to telehealth'},true)).toContain('telehealth');
+ expect(validateIntake({...choices,representative_signer:'Parent/guardian/authorized representative'},true)).toContain('representative');
 });

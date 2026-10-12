@@ -43,6 +43,6 @@ test('submitted signed questionnaire is visibly locked; preview remains independ
   version:1,updated_at:'2026-10-10T00:00:00Z',submitted_at:'2026-10-10T00:00:00Z'
  }} defaults={{}}/></main>);
  expect(screen.getByText(/Signed submissions are intentionally locked/)).toBeTruthy();
- expect((screen.getByRole('textbox',{name:/^Full legal name/}) as HTMLInputElement).disabled).toBe(true);
+ expect((screen.getByRole('textbox',{name:/^Full legal name/}) as HTMLInputElement).closest('fieldset')?.disabled).toBe(true);
  expect(screen.queryByRole('button',{name:'Save draft'})).toBeNull();
 });

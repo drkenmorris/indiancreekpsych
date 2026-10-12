@@ -10,7 +10,7 @@ export default function PublicFooter() {
         <Link href="/specialties">Specialties</Link>
         <Link href="/meet-the-therapist">Meet the Therapist</Link>
         <Link href="/contact">Contact</Link>
-        <Link href="/appointments">Appointments</Link>
+        <Link href="/make-an-appointment">Make an Appointment</Link>
         <Link href="/login">Login</Link>
         <Link href="/register">Register</Link>
         <Link href="/privacy">HIPAA Privacy Notice</Link>

@@ -1,0 +1,605 @@
+/* src/features/psychometrics/rtafi/pages/rtafi.css */
+
+.rtafi-page {
+  min-height: 100vh;
+  background:
+    linear-gradient(
+      135deg,
+      #eef6ff 0%,
+      #f8fbff 42%,
+      #ffffff 100%
+    );
+
+  padding: 2rem;
+  color: #0f172a;
+  font-family:
+    Inter,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+}
+
+.rtafi-header {
+  margin-bottom: 2rem;
+}
+
+.rtafi-header-inner {
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.rtafi-system-name {
+  margin: 0;
+  color: #0f62fe;
+  font-size: 0.82rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.rtafi-title {
+  margin:
+    0.5rem 0
+    0.75rem;
+
+  font-size: 2.35rem;
+  font-weight: 900;
+  line-height: 1.08;
+  color: #0f172a;
+}
+
+.rtafi-description {
+  max-width: 980px;
+  line-height: 1.8;
+  color: #475569;
+  font-size: 1rem;
+}
+
+.rtafi-domain-section {
+  max-width: 1180px;
+  margin:
+    0 auto
+    1.5rem;
+
+  background: #ffffff;
+
+  border:
+    1px solid #dbeafe;
+
+  border-radius: 20px;
+
+  padding: 1.5rem;
+
+  box-shadow:
+    0 18px 48px
+    rgba(
+      15,
+      23,
+      42,
+      0.08
+    );
+}
+
+.rtafi-domain-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.rtafi-domain-header h2 {
+  margin: 0;
+  font-size: 1.3rem;
+  color: #0f172a;
+}
+
+.rtafi-domain-header p {
+  margin:
+    0.4rem 0 0;
+  color: #64748b;
+}
+
+.rtafi-form-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(
+      auto-fit,
+      minmax(240px, 1fr)
+    );
+
+  gap: 1rem;
+}
+
+.rtafi-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.rtafi-form-field label {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.rtafi-form-field input,
+.rtafi-form-field select,
+.rtafi-form-field textarea {
+  border:
+    1px solid #cbd5e1;
+
+  border-radius: 12px;
+
+  padding:
+    0.8rem 0.9rem;
+
+  font-size: 0.95rem;
+
+  background: #ffffff;
+
+  color: #0f172a;
+
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.rtafi-form-field textarea {
+  min-height: 120px;
+  resize: vertical;
+  line-height: 1.55;
+}
+
+.rtafi-form-field input:focus,
+.rtafi-form-field select:focus,
+.rtafi-form-field textarea:focus {
+  outline: none;
+
+  border-color: #0f62fe;
+
+  box-shadow:
+    0 0 0 4px
+    rgba(
+      15,
+      98,
+      254,
+      0.12
+    );
+}
+
+.rtafi-checkbox-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(
+      auto-fit,
+      minmax(260px, 1fr)
+    );
+
+  gap: 1rem;
+}
+
+.rtafi-checkbox-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.8rem;
+
+  border:
+    1px solid #dbeafe;
+
+  border-radius: 16px;
+
+  background:
+    linear-gradient(
+      180deg,
+      #ffffff 0%,
+      #f8fbff 100%
+    );
+
+  padding: 1rem;
+
+  cursor: pointer;
+
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.rtafi-checkbox-card:hover {
+  transform:
+    translateY(-2px);
+
+  border-color: #93c5fd;
+
+  box-shadow:
+    0 12px 28px
+    rgba(
+      15,
+      98,
+      254,
+      0.08
+    );
+}
+
+.rtafi-checkbox-card input {
+  margin-top: 0.2rem;
+}
+
+.rtafi-checkbox-card span {
+  line-height: 1.55;
+  color: #334155;
+  font-size: 0.95rem;
+}
+
+.rtafi-setting-card {
+  border:
+    1px solid #dbeafe;
+
+  border-radius: 18px;
+
+  padding: 1.25rem;
+
+  background:
+    linear-gradient(
+      180deg,
+      #ffffff 0%,
+      #f8fbff 100%
+    );
+
+  margin-bottom: 1rem;
+}
+
+.rtafi-progress-panel {
+  max-width: 1180px;
+
+  margin:
+    0 auto
+    1.5rem;
+
+  background: #ffffff;
+
+  border:
+    1px solid #dbeafe;
+
+  border-radius: 20px;
+
+  padding: 1.25rem;
+
+  box-shadow:
+    0 18px 48px
+    rgba(
+      15,
+      23,
+      42,
+      0.08
+    );
+}
+
+.rtafi-progress-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  font-size: 0.92rem;
+  font-weight: 700;
+
+  color: #334155;
+
+  margin-bottom: 0.75rem;
+}
+
+.rtafi-progress-bar {
+  width: 100%;
+  height: 14px;
+
+  border-radius: 999px;
+
+  overflow: hidden;
+
+  background: #dbeafe;
+}
+
+.rtafi-progress-fill {
+  height: 100%;
+
+  background:
+    linear-gradient(
+      90deg,
+      #0f62fe 0%,
+      #2563eb 100%
+    );
+
+  transition:
+    width 0.25s ease;
+}
+
+.rtafi-progress-note {
+  margin:
+    0.75rem 0 0;
+
+  color: #64748b;
+
+  font-size: 0.88rem;
+}
+
+.rtafi-question-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.rtafi-question-card {
+  border:
+    1px solid #dbeafe;
+
+  border-radius: 18px;
+
+  background:
+    linear-gradient(
+      180deg,
+      #ffffff 0%,
+      #f8fbff 100%
+    );
+
+  padding: 1.25rem;
+}
+
+.rtafi-question-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+
+  margin-bottom: 0.8rem;
+}
+
+.rtafi-question-number {
+  font-size: 0.82rem;
+  font-weight: 900;
+  color: #0f62fe;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.rtafi-question-subscale {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #475569;
+}
+
+.rtafi-question-text {
+  margin:
+    0 0 1rem;
+
+  font-size: 1rem;
+  line-height: 1.7;
+  color: #0f172a;
+}
+
+.rtafi-response-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(
+      auto-fit,
+      minmax(140px, 1fr)
+    );
+
+  gap: 0.75rem;
+}
+
+.rtafi-response-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  border:
+    1px solid #cbd5e1;
+
+  border-radius: 16px;
+
+  background: #ffffff;
+
+  padding:
+    0.9rem 0.7rem;
+
+  cursor: pointer;
+
+  transition:
+    transform 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.rtafi-response-button:hover {
+  transform:
+    translateY(-2px);
+
+  border-color: #93c5fd;
+
+  box-shadow:
+    0 10px 24px
+    rgba(
+      15,
+      98,
+      254,
+      0.08
+    );
+}
+
+.rtafi-response-button.active {
+  border-color: #0f62fe;
+
+  background:
+    linear-gradient(
+      180deg,
+      #eef6ff 0%,
+      #dbeafe 100%
+    );
+
+  box-shadow:
+    0 12px 28px
+    rgba(
+      15,
+      98,
+      254,
+      0.12
+    );
+}
+
+.rtafi-response-value {
+  font-size: 1.25rem;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.rtafi-response-label {
+  margin-top: 0.35rem;
+
+  font-size: 0.82rem;
+  line-height: 1.35;
+
+  color: #475569;
+  text-align: center;
+}
+
+.rtafi-submit-button,
+.rtafi-remove-setting-button {
+  border: none;
+
+  border-radius: 999px;
+
+  background:
+    linear-gradient(
+      90deg,
+      #0f62fe 0%,
+      #2563eb 100%
+    );
+
+  color: #ffffff;
+
+  font-weight: 900;
+
+  cursor: pointer;
+
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+
+  padding:
+    0.9rem 1.25rem;
+}
+
+.rtafi-remove-setting-button {
+  background:
+    linear-gradient(
+      90deg,
+      #dc2626 0%,
+      #ef4444 100%
+    );
+
+  margin-top: 1rem;
+}
+
+.rtafi-submit-button:hover,
+.rtafi-remove-setting-button:hover {
+  transform:
+    translateY(-2px);
+
+  box-shadow:
+    0 14px 30px
+    rgba(
+      15,
+      98,
+      254,
+      0.18
+    );
+}
+
+.rtafi-mode-preview {
+  text-align: center;
+}
+
+.rtafi-mode-preview h2 {
+  margin:
+    0 0 1rem;
+
+  font-size: 1.4rem;
+  color: #0f172a;
+}
+
+.rtafi-mode-preview p {
+  max-width: 760px;
+  margin:
+    1rem auto 0;
+
+  line-height: 1.75;
+  color: #475569;
+}
+
+.rtafi-mode-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 999px;
+
+  background:
+    linear-gradient(
+      90deg,
+      #0f62fe 0%,
+      #2563eb 100%
+    );
+
+  color: #ffffff;
+
+  font-weight: 900;
+
+  padding:
+    0.8rem 1.2rem;
+
+  font-size: 0.92rem;
+
+  box-shadow:
+    0 14px 30px
+    rgba(
+      15,
+      98,
+      254,
+      0.18
+    );
+}
+
+.rtafi-footer {
+  max-width: 1180px;
+
+  margin:
+    0 auto
+    4rem;
+
+  display: flex;
+  justify-content: center;
+}
+
+@media (max-width: 900px) {
+  .rtafi-page {
+    padding: 1rem;
+  }
+
+  .rtafi-title {
+    font-size: 1.9rem;
+  }
+
+  .rtafi-domain-header,
+  .rtafi-question-top,
+  .rtafi-progress-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

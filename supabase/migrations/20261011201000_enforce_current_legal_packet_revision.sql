@@ -6,7 +6,6 @@ returns trigger language plpgsql set search_path=''
 as $body$
 begin
  if new.status='submitted'
-  and (tg_op='INSERT' or old.status is distinct from new.status)
   and coalesce(new.answers->>'legal_packet_version','')<>'2026-10-11'
  then
   raise exception 'The current patient legal packet must be reviewed and signed before submission';

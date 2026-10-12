@@ -1,5 +1,5 @@
 'use client';
-import {FormEvent,useEffect,useMemo,useState} from 'react';
+import {FormEvent,useEffect,useMemo,useRef,useState} from 'react';
 import {createClient} from '@/lib/supabase/client';
 import LegalSectionDocument from '@/app/components/LegalSectionDocument';
 import {LEGAL_PACKET_VERSION} from '@/lib/patient/legal-documents';
@@ -10,11 +10,16 @@ export default function IntakeForm({userId,initial,defaults,preview=false}:{user
  const [record,setRecord]=useState(initial),[answers,setAnswers]=useState<IntakeAnswers>(initial?.answers??defaults);
  const [busy,setBusy]=useState(false),[message,setMessage]=useState(''),[error,setError]=useState(''),[confirm,setConfirm]=useState(false),[dirty,setDirty]=useState(false);
  const [sectionIndex,setSectionIndex]=useState(0);
+ const formRef=useRef<HTMLFormElement|null>(null);
  const submitted=!preview&&record?.status==='submitted';
  const section=intakeSections[sectionIndex];
 
  useEffect(()=>{if(!dirty)return;const warn=(event:BeforeUnloadEvent)=>{event.preventDefault();event.returnValue='';};window.addEventListener('beforeunload',warn);return()=>window.removeEventListener('beforeunload',warn);},[dirty]);
- useEffect(()=>{window.scrollTo({top:0,behavior:'smooth'});},[sectionIndex]);
+ useEffect(()=>{
+  // The site's fixed shell and intakePage use independent scrollports.
+  const scrollRoot=formRef.current?.closest('.intakePage');
+  if(scrollRoot instanceof HTMLElement)scrollRoot.scrollTop=0;
+ },[sectionIndex]);
 
  const update=(key:string,value:string)=>{setAnswers(a=>({...a,[key]:value}));setDirty(true);setConfirm(false);setMessage('');};
  async function save(submit:boolean){
@@ -37,7 +42,7 @@ export default function IntakeForm({userId,initial,defaults,preview=false}:{user
  const next=()=>{setError('');setMessage('');setSectionIndex(i=>Math.min(i+1,intakeSections.length-1));};
  const previous=()=>{setError('');setMessage('');setSectionIndex(i=>Math.max(i-1,0));};
 
- return <form onSubmit={submit} className="authForm intakeWizard" autoComplete="off">
+ return <form ref={formRef} onSubmit={submit} className="authForm intakeWizard" autoComplete="off">
   <section className="intakeProgress" aria-label="Questionnaire progress">
    <div><strong>Section {sectionIndex+1} of {intakeSections.length}</strong><span>{Math.round(((sectionIndex+1)/intakeSections.length)*100)}% complete</span></div>
    <progress max={intakeSections.length} value={sectionIndex+1}/>

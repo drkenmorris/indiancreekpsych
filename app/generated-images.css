@@ -167,3 +167,59 @@
   .homeLandingHeroCopy h1{font-size:clamp(26px,6.8vw,34px)}
   .homeLandingHeroCopy .heroActions{margin-top:14px}
 }
+
+/* About page: remove the redundant photographic hero; use one larger,
+   uncropped portrait beside the practice introduction. */
+.aboutPracticeIntroduction{
+  width:100%;
+  max-width:none;
+  display:grid;
+  grid-template-columns:minmax(0,1.08fr) minmax(0,1fr);
+  gap:clamp(28px,4vw,68px);
+  align-items:center;
+  padding:clamp(30px,5vw,68px) clamp(22px,6vw,96px);
+  background:#fff;
+}
+.aboutPracticePhoto{
+  display:block;
+  width:100%;
+  height:auto;
+  max-height:720px;
+  object-fit:contain;
+  object-position:center;
+  border-radius:18px;
+  box-shadow:0 16px 38px rgba(8,41,67,.12);
+}
+.aboutPracticeCopy h1{
+  font-family:Georgia,'Times New Roman',serif;
+  font-size:clamp(33px,3.4vw,52px);
+  line-height:1.12;
+  font-weight:500;
+  color:#0d3b5e;
+  margin:0 0 20px;
+}
+.aboutPracticeCopy h2{
+  font-family:Georgia,'Times New Roman',serif;
+  font-size:clamp(26px,2.45vw,37px);
+  line-height:1.2;
+  font-weight:500;
+  color:#0d3b5e;
+  margin:0 0 22px;
+}
+.aboutPracticeCopy p{
+  font-family:Arial,Helvetica,sans-serif;
+  color:#576f80;
+  font-size:16px;
+  line-height:1.65;
+  margin:0 0 16px;
+}
+.aboutPracticeCopy .primaryButton{margin-top:12px}
+@media(max-width:900px){
+  .aboutPracticeIntroduction{
+    grid-template-columns:1fr;
+    gap:28px;
+    padding:28px clamp(18px,5vw,42px) 44px;
+  }
+  .aboutPracticePhoto{max-width:720px;margin:0 auto}
+  .aboutPracticeCopy{max-width:760px;margin:0 auto}
+}

@@ -16,7 +16,7 @@ const complete:IntakeAnswers={full_name:'Test Person',date_of_birth:'1990-01-01'
  financial_review:'I reviewed this information',financial_signature:'Test Person',financial_signature_date:'2026-10-11',
  telehealth_choice:'No, in-person care only',electronic_choice:'I agree to electronic intake and portal use',electronic_signature:'Test Person',electronic_signature_date:'2026-10-11',
  representative_signer:'Patient signing for myself',
- npp_received:'Yes',npp_signature:'Test Person',npp_signature_date:'2026-01-01',roi_authorize:'No',psych_notes_authorize:'No',
+ npp_received:'Yes',npp_signature:'Test Person',npp_signature_date:'2026-01-01',roi_authorize:'No',psych_notes_authorize:'No',part2_authorize:'No',sud_notes_authorize:'No',
  information_accuracy:'Yes',electronic_signature_consent:'Yes',patient_signature:'Test Person',patient_signature_date:'2026-01-01'};
 beforeEach(()=>{vi.clearAllMocks();vi.spyOn(window,'scrollTo').mockImplementation(()=>{});});afterEach(()=>{cleanup();vi.restoreAllMocks();});
 test('incomplete drafts allowed, submission requires demographics and reason',()=>{expect(validateIntake({},false)).toBeNull();expect(validateIntake({},true)).toContain('Full legal name');expect(validateIntake(complete,true)).toBeNull();});
@@ -46,6 +46,8 @@ test('optional releases and telehealth are independent; acknowledgment may be de
  expect(validateIntake(choices,true)).toBeNull();
  expect(validateIntake({...choices,treatment_signature:''},true)).toContain('informed treatment consent');
  expect(validateIntake({...choices,roi_authorize:'Yes'},true)).toContain('authorized discloser');
+ expect(validateIntake({...choices,part2_authorize:'Yes'},true)).toContain('Part 2 discloser');
+ expect(validateIntake({...choices,sud_notes_authorize:'Yes'},true)).toContain('SUD counseling-notes discloser');
  expect(validateIntake({...choices,telehealth_choice:'Yes, I consent to telehealth'},true)).toContain('telehealth');
  expect(validateIntake({...choices,representative_signer:'Parent/guardian/authorized representative'},true)).toContain('representative');
 });

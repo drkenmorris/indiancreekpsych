@@ -80,25 +80,56 @@ export const intakeSections:{title:string;description?:string;fields:readonly In
   ['comm_mail','May we send postal mail to your listed address?','select',true,yesNo],['comm_other_number','Alternative safe phone number, if any','tel'],['comm_other_address','Alternative safe mailing address, if any','textarea'],
   ['comm_restrictions','Other communication restrictions or privacy requests','textarea']
  ]},
+ {title:'Consent to Counseling and Informed Treatment',description:'Review informed consent, clinical benefits and risks, clinician qualifications, confidentiality and alternatives.',fields:[
+  ['treatment_consent','Decision about outpatient counseling','select',true,['Yes, I consent to outpatient counseling','I need to discuss this before consenting']],
+  ['treatment_questions','Questions or concerns to discuss with the clinician','textarea'],
+  ['treatment_signature','Electronic signature for informed treatment consent (if Yes)','text'],
+  ['treatment_signature_date','Date signed (if Yes)','date']
+ ]},
+ {title:'Financial Agreement and Good Faith Estimate',description:'Review rates, insurance obligations and self-pay estimate rights; actual practice fees must be separately supplied.',fields:[
+  ['financial_review','Financial information review','select',true,['I reviewed this information','I request fee clarification before treatment']],
+  ['financial_questions','Questions about charges, coverage or a Good Faith Estimate','textarea'],
+  ['financial_signature','Electronic signature acknowledging financial information (if reviewed)','text'],
+  ['financial_signature_date','Date signed (if reviewed)','date']
+ ]},
+ {title:'Telehealth Informed Consent',description:'Optional remote-session consent; declining does not affect possible in-person counseling.',fields:[
+  ['telehealth_choice','Telehealth preference','select',true,['Yes, I consent to telehealth','No, in-person care only','Discuss before deciding']],
+  ['telehealth_questions','Telehealth privacy, access or accommodation questions','textarea'],
+  ['telehealth_signature','Electronic signature authorizing telehealth (if Yes)','text'],
+  ['telehealth_signature_date','Date signed (if Yes)','date']
+ ]},
+ {title:'Electronic Communications and Patient Portal',description:'Separate patient communication preferences remain in the earlier communications section.',fields:[
+  ['electronic_choice','Electronic documents and portal preference','select',true,['I agree to electronic intake and portal use','I request paper intake']],
+  ['electronic_questions','Questions about electronic communication or alternative delivery','textarea'],
+  ['electronic_signature','Electronic signature agreeing to electronic intake (if Yes)','text'],
+  ['electronic_signature_date','Date signed (if Yes)','date']
+ ]},
+ {title:'Legal Representative and Minor Consent',description:'Complete representative authority only when someone signs for the patient. Staff must verify capacity and legal limits.',fields:[
+  ['representative_signer','Who is signing this intake?','select',true,['Patient signing for myself','Parent/guardian/authorized representative']],
+  ['representative_name','Representative full name (if applicable)','text'],
+  ['representative_authority','Relationship and legal authority to act (if applicable)','textarea'],
+  ['representative_signature','Representative electronic signature (if applicable)','text'],
+  ['representative_signature_date','Representative date signed (if applicable)','date']
+ ]},
  {title:'Notice of Privacy Practices acknowledgment',description:'This acknowledges receipt or availability of the practice Notice of Privacy Practices. It is not a blanket authorization to disclose your information.',fields:[
-  ['npp_received','I acknowledge that I received or was offered access to the Notice of Privacy Practices.','select',true,['Yes']],
-  ['npp_questions','Questions or concerns about the privacy notice','textarea'],['npp_signature','Electronic signature — type your full legal name','text',true],['npp_signature_date','Date signed','date',true]
+  ['npp_received','Did you receive or review the Notice of Privacy Practices? (You may decline to acknowledge without refusing care.)','select',true,['Yes','Decline acknowledgment']],
+  ['npp_questions','Questions or concerns about the privacy notice','textarea'],['npp_signature','Signature acknowledging receipt (only if Yes)','text'],['npp_signature_date','Date acknowledged (only if Yes)','date']
  ]},
  {title:'Authorization to share health information',description:'Optional. Complete this section only if you want Indian Creek Psychological Services to disclose information to a family member, loved one, attorney, school, employer, physician, or other professional. Psychotherapy notes are not included in this authorization.',fields:[
-  ['roi_authorize','Do you want to authorize a disclosure to another person or organization?','select',true,['No','Yes']],
+  ['roi_authorize','Do you want to authorize a disclosure to another person or organization?','select',true,['No','Yes']],['roi_discloser','Person or organization authorized to disclose information (if Yes)','text'],
   ['roi_recipient_name','Person / organization authorized to receive information','text'],['roi_recipient_relationship','Relationship / organization type','text'],['roi_recipient_phone','Recipient phone','tel'],['roi_recipient_email','Recipient email / secure destination','email'],
   ['roi_information_scope','Information that may be disclosed','textarea'],['roi_information_exclusions','Information that must NOT be disclosed','textarea'],
   ['roi_purpose','Purpose of disclosure','text'],['roi_expiration','Authorization expiration date or event','text'],
   ['roi_direction','Direction of exchange','select',false,['Indian Creek may disclose to recipient','Recipient may disclose to Indian Creek','Two-way exchange']],
   ['roi_revocation_ack','I understand I may revoke this authorization in writing, except to the extent action has already been taken in reliance on it.','select',false,['Yes']],
   ['roi_voluntary_ack','I understand treatment/payment generally may not be conditioned on signing this optional authorization, and information disclosed to some recipients may be subject to redisclosure.','select',false,['Yes']],
-  ['roi_signature','Electronic signature — type your full legal name','text'],['roi_signature_date','Date signed','date']
+  ['roi_signature','Electronic signature — type your full legal name','text'],['roi_signature_date','Date signed','date'],['roi_representative_capacity','If representative signs, describe their legal authority','text']
  ]},
  {title:'Separate authorization for psychotherapy notes',description:'Optional and separate from the general release above. Psychotherapy notes receive special protection and are not included in the general release-of-information section.',fields:[
-  ['psych_notes_authorize','Do you authorize disclosure of psychotherapy notes?','select',true,['No','Yes']],
+  ['psych_notes_authorize','Do you authorize disclosure of psychotherapy notes?','select',true,['No','Yes']],['psych_notes_discloser','Person or organization authorized to disclose psychotherapy notes (if Yes)','text'],
   ['psych_notes_recipient','If yes, person / organization authorized to receive psychotherapy notes','text'],['psych_notes_purpose','Purpose of disclosure','text'],['psych_notes_expiration','Expiration date or event','text'],
   ['psych_notes_revocation_ack','I understand I may revoke this authorization in writing, subject to actions already taken in reliance on it.','select',false,['Yes']],
-  ['psych_notes_signature','Electronic signature — type your full legal name','text'],['psych_notes_signature_date','Date signed','date']
+  ['psych_notes_signature','Electronic signature — type your full legal name','text'],['psych_notes_signature_date','Date signed','date'],['psych_notes_representative_capacity','If representative signs, describe their legal authority','text']
  ]},
  {title:'Patient attestation and consent to submit',description:'Review your answers before submitting. Clinical diagnosis, mental-status examination, medical-necessity determination, and treatment planning are completed separately by the clinician.',fields:[
   ['information_accuracy','I certify that the information I provided is accurate and complete to the best of my knowledge.','select',true,['Yes']],
@@ -123,11 +154,29 @@ export function validateIntake(answers:IntakeAnswers,submit:boolean){
  if(answers.roi_recipient_email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(answers.roi_recipient_email))return 'Enter a valid release recipient email.';
  if(answers.date_of_birth&&answers.date_of_birth>new Date().toISOString().slice(0,10))return 'Date of birth cannot be in the future.';
  for(const k of costFields){const v=answers[k];if(v&&v!=='I don’t know'&&(!/^\d+(\.\d{1,2})?$/.test(v)||Number(v)<0||(k==='coinsurance'&&Number(v)>100)))return k==='coinsurance'?'Coinsurance must be between 0 and 100, or choose I don’t know.':'Enter a non-negative amount, or choose I don’t know.';}
+ if(submit){
+  const signedFor=(choice:string,yes:string,signature:string,date:string,label:string)=>{
+   if(answers[choice]!==yes)return null;
+   if(!answers[signature]?.trim()||!answers[date]?.trim())return `Please sign and date the ${label} form.`;
+   return null;
+  };
+  for(const error of [
+   signedFor('treatment_consent','Yes, I consent to outpatient counseling','treatment_signature','treatment_signature_date','informed treatment consent'),
+   signedFor('financial_review','I reviewed this information','financial_signature','financial_signature_date','financial acknowledgment'),
+   signedFor('telehealth_choice','Yes, I consent to telehealth','telehealth_signature','telehealth_signature_date','telehealth consent'),
+   signedFor('electronic_choice','I agree to electronic intake and portal use','electronic_signature','electronic_signature_date','electronic-services consent'),
+   signedFor('npp_received','Yes','npp_signature','npp_signature_date','privacy-notice acknowledgment')
+  ])if(error)return error;
+  if(answers.representative_signer==='Parent/guardian/authorized representative'){
+   for(const k of ['representative_name','representative_authority','representative_signature','representative_signature_date'])
+    if(!answers[k]?.trim())return 'Please identify the representative, their legal authority, signature and date.';
+  }
+ }
  if(submit&&answers.roi_authorize==='Yes'){
-  for(const [k,label] of [['roi_recipient_name','release recipient'],['roi_information_scope','information to be disclosed'],['roi_purpose','purpose of disclosure'],['roi_expiration','authorization expiration'],['roi_revocation_ack','revocation acknowledgment'],['roi_voluntary_ack','authorization acknowledgment'],['roi_signature','release signature'],['roi_signature_date','release signature date']] as const)if(!answers[k]?.trim())return `Please complete the ${label} for the release authorization.`;
+  for(const [k,label] of [['roi_discloser','authorized discloser'],['roi_recipient_name','release recipient'],['roi_information_scope','information to be disclosed'],['roi_purpose','purpose of disclosure'],['roi_expiration','authorization expiration'],['roi_revocation_ack','revocation acknowledgment'],['roi_voluntary_ack','authorization acknowledgment'],['roi_signature','release signature'],['roi_signature_date','release signature date']] as const)if(!answers[k]?.trim())return `Please complete the ${label} for the release authorization.`;
  }
  if(submit&&answers.psych_notes_authorize==='Yes'){
-  for(const [k,label] of [['psych_notes_recipient','psychotherapy-notes recipient'],['psych_notes_purpose','psychotherapy-notes purpose'],['psych_notes_expiration','psychotherapy-notes expiration'],['psych_notes_revocation_ack','psychotherapy-notes revocation acknowledgment'],['psych_notes_signature','psychotherapy-notes signature'],['psych_notes_signature_date','psychotherapy-notes signature date']] as const)if(!answers[k]?.trim())return `Please complete the ${label}.`;
+  for(const [k,label] of [['psych_notes_discloser','authorized psychotherapy-notes discloser'],['psych_notes_recipient','psychotherapy-notes recipient'],['psych_notes_purpose','psychotherapy-notes purpose'],['psych_notes_expiration','psychotherapy-notes expiration'],['psych_notes_revocation_ack','psychotherapy-notes revocation acknowledgment'],['psych_notes_signature','psychotherapy-notes signature'],['psych_notes_signature_date','psychotherapy-notes signature date']] as const)if(!answers[k]?.trim())return `Please complete the ${label}.`;
  }
  if(submit&&(answers.suicidal_plan_current==='Yes'||answers.homicidal_thoughts_current==='Yes')&&!answers.violence_risk_details?.trim())return 'Please describe the current safety concern so the clinician can review it.';
  return null;

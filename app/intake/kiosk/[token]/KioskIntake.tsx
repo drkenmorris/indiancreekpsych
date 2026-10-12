@@ -2,6 +2,8 @@
 
 import {FormEvent,useEffect,useMemo,useRef,useState} from 'react';
 import {createClient} from '@/lib/supabase/client';
+import LegalSectionDocument from '@/app/components/LegalSectionDocument';
+import {LEGAL_PACKET_VERSION} from '@/lib/patient/legal-documents';
 import {costFields,intakeSections,IntakeAnswers,validateIntake} from '@/lib/patient/intake';
 import {sameIntakeAnswers} from '@/lib/patient/intake-answer-comparison';
 import styles from './KioskIntake.module.css';
@@ -89,13 +91,14 @@ export default function KioskIntake({token}:{token:string}){
    if(!sameIntakeAnswers(remote.answers,baseline.current)){
     throw new Error('A newer saved version of this intake was found. This page was not overwritten. Reload the page to continue from the newest saved version.');
    }
-   const result=await supabase.rpc('save_intake_kiosk_session',{p_token:token,p_answers:answers,p_submit:submit});
+   const storedAnswers={...answers,legal_packet_version:LEGAL_PACKET_VERSION};
+   const result=await supabase.rpc('save_intake_kiosk_session',{p_token:token,p_answers:storedAnswers,p_submit:submit});
    if(result.error)throw new Error(result.error.message||'The save could not be confirmed.');
    if(submit){
     baseline.current={};setAnswers({});setDirty(false);setConfirm(false);setComplete(true);
     window.history.replaceState(null,'',window.location.pathname+'?complete=1');
    }else{
-    baseline.current={...answers};setDirty(false);setMessage('Progress saved securely.');
+    baseline.current={...storedAnswers};setDirty(false);setMessage('Progress saved securely.');
    }
   }catch(e){
    setError(e instanceof Error?e.message:'The save could not be confirmed. Your answers remain on this device.');
@@ -133,6 +136,7 @@ export default function KioskIntake({token}:{token:string}){
     {section.title==='Authorization to share health information'&&<p className={styles.notice}>This optional authorization does not include psychotherapy notes. You may choose “No” and still receive care.</p>}
     {section.title==='Separate authorization for psychotherapy notes'&&<p className={styles.notice}>This authorization is intentionally separate from the general release because psychotherapy notes receive additional privacy protection.</p>}
 
+    <LegalSectionDocument sectionTitle={section.title}/>
     <div className={styles.fields}>{section.fields.map(field=>{
      const [key,label,type]=field;
      const required=field.length>3&&field[3];

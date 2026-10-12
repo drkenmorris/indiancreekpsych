@@ -14,7 +14,7 @@ const valid={
  suicidal_thoughts_current:'No',suicidal_plan_current:'No',homicidal_thoughts_current:'No',abuse_neglect_current:'No',
  comm_phone_calls:'No',comm_voicemail:'No',comm_text:'No',comm_email:'No',comm_portal:'Yes',comm_mail:'No',
  npp_received:'Yes',npp_signature:'Synthetic Patient',npp_signature_date:'2026-10-11',
- roi_authorize:'No',psych_notes_authorize:'No',information_accuracy:'Yes',electronic_signature_consent:'Yes',patient_signature:'Synthetic Patient',patient_signature_date:'2026-10-11',
+ roi_authorize:'No',psych_notes_authorize:'No',part2_authorize:'No',sud_notes_authorize:'No',information_accuracy:'Yes',electronic_signature_consent:'Yes',patient_signature:'Synthetic Patient',patient_signature_date:'2026-10-11',
  legal_packet_version:'2026-10-11',treatment_consent:'Yes, I consent to outpatient counseling',treatment_signature:'Synthetic Patient',treatment_signature_date:'2026-10-11',
  financial_review:'I reviewed this information',financial_signature:'Synthetic Patient',financial_signature_date:'2026-10-11',
  telehealth_choice:'No, in-person care only',electronic_choice:'I agree to electronic intake and portal use',electronic_signature:'Synthetic Patient',electronic_signature_date:'2026-10-11',
@@ -37,6 +37,8 @@ await test('telehealth refusal needs no telehealth signature but consent does',a
 await test('authorizations remain separate and require disclosure details',async()=>{
  await assert.rejects(check({...valid,roi_authorize:'Yes'}),/release authorization/);
  await assert.rejects(check({...valid,psych_notes_authorize:'Yes'}),/psychotherapy-notes authorization/);
+ await assert.rejects(check({...valid,part2_authorize:'Yes'}),/separate Part 2 consent/);
+ await assert.rejects(check({...valid,sud_notes_authorize:'Yes'}),/separate SUD counseling-notes consent/);
 });
 await test('representative requires legal capacity and signature',async()=>{
  await assert.rejects(check({...valid,representative_signer:'Parent\/guardian\/authorized representative'}),/representative capacity/);

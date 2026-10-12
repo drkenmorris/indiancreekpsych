@@ -279,3 +279,11 @@ var(--dr-ken-therapist-image) center/cover no-repeat}
     background-position:68% center;
   }
 }
+
+/* Detailed patient legal packet; shared by authenticated intake, kiosk and public notice. */
+.legalDocument{background:#fff;border:1px solid #cadbd5;border-radius:16px;padding:clamp(18px,3vw,30px);margin:22px 0;color:#263b35;line-height:1.65;max-width:100%}
+.legalDocumentHeader{border-bottom:2px solid #d8e6df;padding-bottom:18px;margin-bottom:16px}.legalDocumentHeader h3{font-family:Georgia,'Times New Roman',serif;font-size:clamp(23px,3vw,32px);line-height:1.25;margin:8px 0 12px;color:#173b35}
+.legalDocumentHeader p{margin:8px 0}.legalDocumentPart{margin:22px 0}.legalDocumentPart h4{font-family:Georgia,'Times New Roman',serif;color:#173b35;font-size:21px;margin:0 0 10px}.legalDocumentPart p{margin:0 0 13px;font-weight:400}
+.legalDocumentClosing{font-weight:700;border-top:1px solid #d8e6df;padding-top:18px}.legalDocument a,.publicLegalPage a{color:#115f50;text-decoration:underline;text-underline-offset:3px}.legalDocument a:focus-visible{outline:3px solid #126d59;outline-offset:2px}
+.publicLegalPage{background:#f7f5f0;padding:48px clamp(16px,5vw,80px);color:#24322f}.publicLegalInner{max-width:1100px;margin:auto}.publicLegalInner>h1{font-family:Georgia,'Times New Roman',serif;color:#173b35;font-size:clamp(32px,5vw,50px)}.legalReferences{background:#fff;border-radius:12px;padding:22px;margin-top:25px}
+@media print{.publicSite header,.publicSite footer,.intakeProgress,.intakeWizardActions{display:none!important}.publicLegalPage,.legalDocument{background:white!important;border:0!important;padding:0!important}.legalDocumentPart{break-inside:avoid}}

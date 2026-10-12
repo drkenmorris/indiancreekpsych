@@ -4,9 +4,9 @@ import PublicFooter from "./components/PublicFooter";
 
 export default function Home() {
   return (
-    <div className="publicSite">
+    <div className="publicSite homeLandingPage">
       <PublicHeader />
-      <main>
+      <main className="homeLandingMain">
         <section className="mockHero homeMockHero homeLandingHero">
           <img
             className="homeLandingHeroPhoto"

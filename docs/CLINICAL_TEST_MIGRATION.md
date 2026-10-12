@@ -21,7 +21,7 @@ The destination `indiancreekpsych.com` is Vercel `indiancreekpsych` backed by `d
 **Not clinical tests:** FNBO PDF utility, marketing hub, ConscienceOS X core moral governance, Mirror and other shared decision engines; exclude from transfer unless a concrete dependency requires an adapter.
 
 ## Staging tranche 1
-Copied Level 1 and 19 Level 2 clinical module source files (plus the shared engine) into `lib/clinical-tests/legacy/dev`.
+Copied CSEQ assessment, scoring, results and item bank (admin synthetic QA only), plus Level 1 and 19 Level 2 clinical module source files (plus the shared engine) into `lib/clinical-tests/legacy/dev`.
 These are wired to an administrator-only `/clinical-tests` workspace with the existing verified account, role and security gate from `patientAccess(true)`.
 The legacy React Router links use the Next.js navigation adapter.
 Legacy localStorage persistence was replaced by an in-memory QA-only adapter to avoid writing sensitive test answers to the browser's persistent storage.

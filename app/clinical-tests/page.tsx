@@ -17,8 +17,10 @@ export default async function ClinicalTestsPage() {
       <ul>{clinicalDevScreenList.map(([key, label]) => (
         <li key={key}><Link href={`/clinical-tests/dev/${key}`}>{label}</Link></li>
       ))}</ul>
+      <h2>Self-Esteem — CSEQ</h2>
+      <p><Link href="/clinical-tests/cseq">Open CSEQ questionnaire</Link> · <Link href="/clinical-tests/cseq/results">Review CSEQ results</Link></p>
       <h2>Other independent assessment suites</h2>
-      <p>ASQ/ASEQ, CSEQ, SRRCI-X, RTAFI, RDII, RVTI, autism/ADHD screeners, and their reports remain in dependency review.
+      <p>ASQ/ASEQ, SRRCI-X, RTAFI, RDII, RVTI, autism/ADHD screeners, and their reports remain in dependency review.
         They must not be linked here as working assessments until administration, scoring, storage,
         consent, and permissions have migrated.</p>
     </main>

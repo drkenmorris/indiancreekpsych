@@ -17,6 +17,10 @@ export function useNavigate() {
       router.push("/clinical-tests" + destination);
     } else if (destination === "/dev/level1") {
       router.push("/clinical-tests/dev/level1");
+    } else if (destination === "/cseq") {
+      router.push("/clinical-tests/cseq");
+    } else if (destination === "/cseq-results") {
+      router.push("/clinical-tests/cseq/results");
     } else if (destination.startsWith("/clinical-tests/")) {
       router.push(destination);
     } else {

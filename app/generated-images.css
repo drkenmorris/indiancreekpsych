@@ -415,8 +415,12 @@
 }
 .therapistLandingFigure .therapistLandingPhoto {
   width:100%;
-  height:clamp(195px,30vh,330px);
+  height:clamp(310px,40vh,440px);
   min-height:0;
+  max-height:440px;
+  background-size:contain;
+  background-repeat:no-repeat;
+  background-position:center top;
 }
 .therapistLandingCaption {
   padding:8px 2px 0;
@@ -437,11 +441,13 @@
 }
 @media(max-width:900px) {
   .therapistLandingFigure .therapistLandingPhoto {
-    height:clamp(220px,35vw,340px);
+    height:clamp(260px,48vw,420px);
+    background-size:contain;
+    background-position:center top;
   }
   .therapistLandingName {font-size:clamp(29px,4.7vw,38px)}
 }
 @media(min-width:901px) and (max-height:730px) {
-  .therapistLandingFigure .therapistLandingPhoto {height:clamp(175px,25vh,280px)}
+  .therapistLandingFigure .therapistLandingPhoto {height:clamp(290px,37vh,420px);background-size:contain}
   .therapistLandingName {font-size:clamp(25px,2.4vw,34px);margin-bottom:6px}
 }

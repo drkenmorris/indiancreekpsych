@@ -287,3 +287,11 @@ var(--dr-ken-therapist-image) center/cover no-repeat}
 .legalDocumentClosing{font-weight:700;border-top:1px solid #d8e6df;padding-top:18px}.legalDocument a,.publicLegalPage a{color:#115f50;text-decoration:underline;text-underline-offset:3px}.legalDocument a:focus-visible{outline:3px solid #126d59;outline-offset:2px}
 .publicLegalPage{background:#f7f5f0;padding:48px clamp(16px,5vw,80px);color:#24322f}.publicLegalInner{max-width:1100px;margin:auto}.publicLegalInner>h1{font-family:Georgia,'Times New Roman',serif;color:#173b35;font-size:clamp(32px,5vw,50px)}.legalReferences{background:#fff;border-radius:12px;padding:22px;margin-top:25px}
 @media print{.publicSite header,.publicSite footer,.intakeProgress,.intakeWizardActions{display:none!important}.publicLegalPage,.legalDocument{background:white!important;border:0!important;padding:0!important}.legalDocumentPart{break-inside:avoid}}
+
+/* A complete consent stays one click away, but fields remain directly reachable. */
+.legalDocumentFullText{margin:14px 0;padding:12px 16px;border:1px solid #b8d1c5;border-radius:12px;background:#f7fbf9}
+.legalDocumentFullText>summary{cursor:pointer;font-weight:800;color:#1b5144;padding:7px 0;line-height:1.45}
+.legalDocumentFullText>summary:focus-visible{outline:3px solid #1b745a;outline-offset:4px}
+.legalDocumentFullText[open]>summary{border-bottom:1px solid #cbded5;padding-bottom:14px;margin-bottom:14px}
+.intakePreviewNotice,.intakeSubmittedNotice{background:#eaf2ff;border:1px solid #9bbbe4;border-radius:12px;padding:16px 20px;margin:18px auto;color:#123b63;line-height:1.6}
+.intakePreviewNotice a,.intakeSubmittedNotice a{color:#124b9b;text-decoration:underline}

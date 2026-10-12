@@ -35,3 +35,6 @@ Legacy localStorage persistence was replaced by an in-memory QA-only adapter to 
 4. Validate migrated ASQ, CSEQ, SRRCI-X, RTAFI, RDII and RVTI workflows end-to-end; connect clinically appropriate Supabase storage with RLS and patient permissions; review incomplete screener registry prototypes and CogSwitch.
 5. Functional/automated QA on previews with synthetic identities; protect the 21 governance assessments with regression tests.
 6. Only after test parity and authorized cutover: add source redirects, remove duplicate clinical menu branches and deploy target/source in that order. Never delete legacy patient records merely to change UI ownership.
+
+## Cognitive-Motor Switching
+CogSwitch cognitive reaction and Go/No-Go exercises have also been copied into the administrator-only QA library. Settings, reports, and results remain temporary until clinical persistence and testing are complete.

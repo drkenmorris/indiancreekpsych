@@ -13,7 +13,9 @@ export function useNavigate() {
       if (destination === -1) router.back();
       return;
     }
-    if (destination.startsWith("/dev/")) {
+    if (destination.startsWith("/cogswitch")) {
+      router.push("/clinical-tests" + destination);
+    } else if (destination.startsWith("/dev/")) {
       router.push("/clinical-tests" + destination);
     } else if (destination === "/dev/level1") {
       router.push("/clinical-tests/dev/level1");

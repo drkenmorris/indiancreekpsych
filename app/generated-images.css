@@ -28,57 +28,113 @@
 .specialtyHero-stress-management,.specialtyHero-life-transitions{background-image:linear-gradient(90deg,rgba(246,251,253,.97),rgba(246,251,253,.80) 48%,rgba(246,251,253,.08) 76%),var(--gen-general)}
 @media(max-width:620px){.homeMockHero,.aboutPageHero,.therapistPageHero{background-position:58% center}.servicesMockHero,.contactMockHero,.specialtiesMockHero,.serviceDetailHero,.specialtyDetailHero{background-position:center}}
 
-/* Homepage-only layout refresh: unobstructed scenic photo, right-side welcome,
-   compact practice introduction visible directly beneath the photo. */
+/* Homepage hero: genuine full-photo placement (no cover-cropping).
+   The original 1600x900 photograph is rendered as an actual image so the
+   top of the portrait is never clipped by the short homepage hero. */
 .homeLandingHero{
   min-height:0;
-  height:clamp(425px,51vh,490px);
-  padding:clamp(16px,3vh,30px) clamp(20px,5vw,78px);
-  justify-content:flex-end;
+  height:clamp(428px,51vh,500px);
+  padding:clamp(14px,2vw,26px) clamp(16px,3vw,42px);
+  display:grid;
+  grid-template-columns:minmax(0,1.14fr) minmax(0,.86fr);
+  gap:clamp(10px,1.7vw,28px);
   align-items:center;
-  background-image:linear-gradient(270deg,rgba(250,251,252,.94) 0%,rgba(250,251,252,.77) 30%,rgba(250,251,252,.05) 59%,rgba(250,251,252,0) 78%),var(--gen-home);
-  background-position:46% center;
+  overflow:hidden;
+  background:#edf3f7;
+  background-image:linear-gradient(90deg,#e6eef4 0%,#edf4f8 46%,#f6f9fb 68%,#eaf1f6 100%);
+}
+.homeLandingHeroPhoto{
+  display:block;
+  width:100%;
+  height:100%;
+  min-height:0;
+  object-fit:contain;
+  object-position:center;
 }
 .homeLandingHeroCopy{
-  width:min(535px,47vw);
-  max-width:100%;
-  margin:0;
-  padding:clamp(18px,2.25vw,28px);
+  width:100%;
+  max-width:590px;
+  margin:0 auto;
+  padding:clamp(18px,2.1vw,30px);
   background:rgba(255,255,255,.86);
   backdrop-filter:none;
+  text-align:center;
+  box-shadow:0 12px 35px rgba(8,41,67,.08);
 }
-.homeLandingHeroCopy .eyebrow{font-size:10px;letter-spacing:.12em;margin-bottom:9px}
-.homeLandingHeroCopy h1{font-size:clamp(27px,2.8vw,40px);line-height:1.13;margin:0 0 10px}
-.homeLandingHeroCopy>p:not(.eyebrow){font-size:clamp(13px,1.1vw,16px);line-height:1.45;margin:0}
-.homeLandingHeroCopy .heroActions{gap:9px;margin:15px 0 0}
-.homeLandingHeroCopy .heroActions a{padding:10px 14px;font-size:12px}
+.homeLandingHeroCopy h1{
+  font-size:clamp(26px,2.55vw,38px);
+  line-height:1.13;
+  margin:0 0 12px;
+}
+.homeLandingHeroCopy>p:not(.eyebrow){
+  font-size:clamp(13px,1.1vw,16px);
+  line-height:1.48;
+  margin:0;
+  max-width:none;
+}
+.homeLandingHeroCopy .heroActions{
+  display:flex;
+  justify-content:center;
+  gap:10px;
+  margin:19px 0 0;
+}
+.homeLandingHeroCopy .heroActions a{padding:11px 15px;font-size:12px}
+
+/* Inverted blue-and-white practice introduction directly under hero. */
 .homeLandingIntro{
-  max-width:1100px;
-  padding:clamp(18px,2.9vh,29px) clamp(20px,5vw,74px) clamp(21px,3vh,31px);
+  width:100%;
+  max-width:none;
+  margin:0;
+  padding:clamp(21px,3.1vh,34px) clamp(22px,5vw,78px);
+  background:linear-gradient(135deg,#09314f,#0e5574);
+  color:#fff;
+  text-align:center;
 }
-.homeLandingIntro .eyebrow{font-size:11px;margin-bottom:5px}
-.homeLandingIntro h2{font-size:clamp(25px,2.7vw,35px);line-height:1.12;margin:0 0 9px}
-.homeLandingIntro>p:not(.eyebrow){font-size:clamp(13px,1.08vw,16px);line-height:1.48;margin:0 auto;max-width:960px}
-.homeLandingIntro .heroActions{justify-content:center;gap:12px;margin:14px 0 0}
-.homeLandingIntro .heroActions a{padding:10px 16px}
+.homeLandingIntro .eyebrow{color:#cde7f5;font-size:11px;margin-bottom:6px}
+.homeLandingIntro h2{color:#fff;font-size:clamp(26px,2.65vw,38px);line-height:1.12;margin:0 0 11px}
+.homeLandingIntro>p:not(.eyebrow){
+  color:#fff;
+  font-size:clamp(13px,1.13vw,16px);
+  line-height:1.5;
+  max-width:1050px;
+  margin:0 auto;
+}
+.homeLandingIntro .heroActions{justify-content:center;gap:12px;margin:17px 0 0}
+.homeLandingIntro .secondaryButton{
+  padding:10px 16px;
+  background:transparent;
+  border:1px solid rgba(255,255,255,.88);
+  color:#fff;
+}
+.homeLandingIntro .secondaryButton:hover,.homeLandingIntro .secondaryButton:focus-visible{
+  background:rgba(255,255,255,.14);
+}
 @media(max-width:900px){
-  .homeLandingHero{height:auto;min-height:460px;justify-content:flex-end;background-position:41% center}
-  .homeLandingHeroCopy{width:min(520px,62vw);margin:0}
+  .homeLandingHero{
+    height:auto;
+    min-height:0;
+    grid-template-columns:1fr;
+    padding:18px clamp(16px,4vw,32px) 28px;
+    gap:10px;
+  }
+  .homeLandingHeroPhoto{
+    width:100%;
+    height:auto;
+    aspect-ratio:16/9;
+    object-fit:contain;
+  }
+  .homeLandingHeroCopy{width:min(650px,100%);max-width:100%;margin:0 auto}
 }
 @media(max-width:620px){
-  .homeLandingHero{
-    min-height:570px;
-    padding:18px 16px 26px;
-    align-items:flex-end;
-    background-image:linear-gradient(0deg,rgba(250,251,252,.96) 0%,rgba(250,251,252,.72) 30%,rgba(250,251,252,.02) 65%),var(--gen-home);
-    background-position:36% center;
-  }
-  .homeLandingHeroCopy{width:100%;padding:18px;margin:0}
-  .homeLandingHeroCopy h1{font-size:clamp(27px,7vw,36px)}
-  .homeLandingIntro{padding:24px 18px 30px}
+  .homeLandingHero{padding:14px 14px 22px;gap:8px}
+  .homeLandingHeroPhoto{height:auto}
+  .homeLandingHeroCopy{padding:21px 16px}
+  .homeLandingHeroCopy h1{font-size:clamp(27px,6.6vw,35px)}
+  .homeLandingHeroCopy .heroActions{gap:9px}
+  .homeLandingIntro{padding:28px 18px 32px}
   .homeLandingIntro h2{font-size:28px}
 }
 @media(max-height:700px) and (min-width:901px){
   .homeLandingHero{height:420px}
-  .homeLandingHeroCopy h1{font-size:clamp(26px,2.55vw,35px)}
+  .homeLandingHeroCopy h1{font-size:clamp(26px,2.4vw,35px)}
 }

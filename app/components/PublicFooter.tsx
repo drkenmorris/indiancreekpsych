@@ -17,7 +17,7 @@ export default function PublicFooter() {
       </nav>
       <div className="footerContact">
         <span>15022 W. 128th St., Olathe, KS 66062</span>
-        <span>913-636-5657</span>
+        <span>(913) 353-6116</span>
       </div>
     </footer>
   );

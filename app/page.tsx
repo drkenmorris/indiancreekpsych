@@ -8,9 +8,12 @@ export default function Home() {
       <PublicHeader />
       <main>
         <section className="mockHero homeMockHero homeLandingHero">
-          
+          <img
+            className="homeLandingHeroPhoto"
+            src="/images/home-hero-dr-ken-mountain.webp"
+            alt="Full scenic Indian Creek Psychological Services photograph featuring Dr. Ken Morris"
+          />
           <div className="heroScrim homeLandingHeroCopy">
-            <p className="eyebrow">Compassionate • Experienced • Focused on You</p>
             <h1>Welcome to Indian Creek Psychological Services where you will experience compassionate care that is focused on you.</h1>
             <p>Compassionate, evidence-informed psychological care for a more fulfilling life.</p>
             <div className="heroActions">
@@ -30,10 +33,6 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="contactBand">
-          <div><p className="eyebrow light">Get in touch</p><h2>We&apos;re here to help you take the next step.</h2></div>
-          <div><strong>15022 W. 128th St.</strong><span>Olathe, KS 66062</span><strong>913-636-5657</strong><Link href="/contact">Contact Indian Creek →</Link></div>
-        </section>
       </main>
       <PublicFooter />
     </div>

@@ -5,12 +5,12 @@ import LegalSectionDocument from '@/app/components/LegalSectionDocument';
 import {LEGAL_PACKET_VERSION} from '@/lib/patient/legal-documents';
 import {costFields,intakeSections,IntakeAnswers,IntakeRecord,validateIntake} from '@/lib/patient/intake';
 
-export default function IntakeForm({userId,initial,defaults}:{userId:string;initial:IntakeRecord|null;defaults:IntakeAnswers}){
- const supabase=useMemo(()=>createClient(),[]);
+export default function IntakeForm({userId,initial,defaults,preview=false}:{userId:string;initial:IntakeRecord|null;defaults:IntakeAnswers;preview?:boolean}){
+ const supabase=useMemo(()=>preview?null:createClient(),[preview]);
  const [record,setRecord]=useState(initial),[answers,setAnswers]=useState<IntakeAnswers>(initial?.answers??defaults);
  const [busy,setBusy]=useState(false),[message,setMessage]=useState(''),[error,setError]=useState(''),[confirm,setConfirm]=useState(false),[dirty,setDirty]=useState(false);
  const [sectionIndex,setSectionIndex]=useState(0);
- const submitted=record?.status==='submitted';
+ const submitted=!preview&&record?.status==='submitted';
  const section=intakeSections[sectionIndex];
 
  useEffect(()=>{if(!dirty)return;const warn=(event:BeforeUnloadEvent)=>{event.preventDefault();event.returnValue='';};window.addEventListener('beforeunload',warn);return()=>window.removeEventListener('beforeunload',warn);},[dirty]);
@@ -18,7 +18,11 @@ export default function IntakeForm({userId,initial,defaults}:{userId:string;init
 
  const update=(key:string,value:string)=>{setAnswers(a=>({...a,[key]:value}));setDirty(true);setConfirm(false);setMessage('');};
  async function save(submit:boolean){
-  if(busy||submitted)return;setError('');const invalid=validateIntake(answers,submit);if(invalid){setError(invalid);return;}
+  if(busy||submitted)return;
+  setError('');
+  if(preview){setMessage(submit?'Preview mode: submission is disabled; no information was sent.':'The fields are responding to input. Preview mode never saves data to Supabase.');return;}
+  if(!supabase){setError('Database connection unavailable.');return;}
+  const invalid=validateIntake(answers,submit);if(invalid){setError(invalid);return;}
   setBusy(true);
   try{
    const payload={answers:{...answers,legal_packet_version:LEGAL_PACKET_VERSION},status:submit?'submitted':'draft'};
@@ -28,7 +32,8 @@ export default function IntakeForm({userId,initial,defaults}:{userId:string;init
    setRecord(data);setDirty(false);setMessage(submit?'Your questionnaire has been submitted to the practice.':'Draft saved securely.');setConfirm(false);
   }catch(e){setError(e instanceof Error?e.message:'Unable to save. Your answers remain on this page.');}finally{setBusy(false);}
  }
- function submit(e:FormEvent){e.preventDefault();const invalid=validateIntake(answers,true);if(invalid){setError(invalid);return;}setError('');setConfirm(true);}
+ function submit(e:FormEvent){e.preventDefault();if(preview){setMessage('Preview only: this form cannot be submitted. Start a new office intake to test secure saving.');return;}
+  const invalid=validateIntake(answers,true);if(invalid){setError(invalid);return;}setError('');setConfirm(true);}
  const next=()=>{setError('');setMessage('');setSectionIndex(i=>Math.min(i+1,intakeSections.length-1));};
  const previous=()=>{setError('');setMessage('');setSectionIndex(i=>Math.max(i-1,0));};
 
@@ -41,7 +46,8 @@ export default function IntakeForm({userId,initial,defaults}:{userId:string;init
    </div>
   </section>
 
-  {submitted&&<p role="status">Submitted on {new Date(record.submitted_at!).toLocaleDateString()}. Contact the practice if any information needs correction.</p>}
+  {preview&&<section className="intakePreviewNotice" role="status"><strong>Editable staff preview — testing only.</strong> Type into any field and switch sections. This page never stores answers or signatures; use fictional information only. Use <a href="/admin/intake-kiosk">Start office intake</a> to test real saving to Supabase.</section>}
+  {submitted&&<section className="intakeSubmittedNotice" role="status"><strong>This questionnaire was submitted on {record?.submitted_at?new Date(record.submitted_at).toLocaleDateString():'an earlier date'}.</strong> Signed submissions are intentionally locked to protect the original record. To make a correction or complete a new questionnaire, contact the practice at 913-636-5657.</section>}
 
   <fieldset disabled={busy||submitted} className="appointmentPanel intakeSectionCard" aria-labelledby="intake-current-section">
    <p className="eyebrow">Patient intake</p>
@@ -67,9 +73,10 @@ export default function IntakeForm({userId,initial,defaults}:{userId:string;init
    <p>* Required to submit. Drafts may be incomplete. {dirty?'You have unsaved changes.':''}</p>
    <div className="intakeActionRow">
     <button className="secondaryAction" type="button" disabled={busy||sectionIndex===0} onClick={previous}>← Previous</button>
-    <button className="secondaryAction" type="button" disabled={busy} onClick={()=>void save(false)}>Save draft</button>
+    <button className="secondaryAction" type="button" disabled={busy} onClick={()=>void save(false)}>{preview?'Check inputs (no save)':'Save draft'}</button>
     {sectionIndex<intakeSections.length-1
       ?<button type="button" disabled={busy} onClick={next}>Next →</button>
+      :preview?<button type="button" disabled={busy} onClick={()=>setMessage('All questionnaire sections are available. This preview does not submit patient information.')}>Finish preview</button>
       :<button type="submit" disabled={busy}>Review and submit</button>}
    </div>
   </section>}

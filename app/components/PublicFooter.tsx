@@ -13,6 +13,7 @@ export default function PublicFooter() {
         <Link href="/appointments">Appointments</Link>
         <Link href="/login">Login</Link>
         <Link href="/register">Register</Link>
+        <Link href="/privacy">HIPAA Privacy Notice</Link>
       </nav>
       <div className="footerContact">
         <span>15022 W. 128th St., Olathe, KS 66062</span>

@@ -125,6 +125,29 @@ export const intakeSections:{title:string;description?:string;fields:readonly In
   ['roi_voluntary_ack','I understand treatment/payment generally may not be conditioned on signing this optional authorization, and information disclosed to some recipients may be subject to redisclosure.','select',false,['Yes']],
   ['roi_signature','Electronic signature — type your full legal name','text'],['roi_signature_date','Date signed','date'],['roi_representative_capacity','If representative signs, describe their legal authority','text']
  ]},
+ {title:'Optional consent for Part 2 substance-use records',description:'Only for records legally subject to 42 CFR Part 2. This consent is separate from the general HIPAA release and may require clinical-office review.',fields:[
+  ['part2_authorize','Authorize a specific use or disclosure of Part 2 substance-use records?','select',true,['No','Yes']],
+  ['part2_discloser','Part 2 program / holder authorized to disclose (if Yes)','text'],
+  ['part2_recipient','Named recipient(s) or lawful recipient class (if Yes)','text'],
+  ['part2_scope','Specific substance-use records to disclose (if Yes)','textarea'],
+  ['part2_purpose','Purpose for the Part 2 consent (if Yes)','select',false,['Treatment, payment and health care operations','Specific purpose']],
+  ['part2_purpose_details','If specific purpose, describe it','textarea'],
+  ['part2_expiration','Expiration date or event relating to patient/purpose','text'],
+  ['part2_revocation_ack','I understand I can revoke in writing subject to permitted reliance','select',false,['Yes']],
+  ['part2_signature','Separate Part 2 consent signature (if Yes)','text'],['part2_signature_date','Date signed (if Yes)','date'],
+  ['part2_representative_capacity','If representative signs, describe authority','text']
+ ]},
+ {title:'Separate consent for SUD counseling notes',description:'Optional and independent consent for separately maintained substance-use disorder counseling notes when Part 2 applies.',fields:[
+  ['sud_notes_authorize','Authorize disclosure of separate SUD counseling notes?','select',true,['No','Yes']],
+  ['sud_notes_discloser','Part 2 program / holder authorized to disclose (if Yes)','text'],
+  ['sud_notes_recipient','Intended person or organization receiving SUD counseling notes','text'],
+  ['sud_notes_scope','Specific notes covered','textarea'],
+  ['sud_notes_purpose','Purpose of this disclosure','text'],
+  ['sud_notes_expiration','Expiration date or event','text'],
+  ['sud_notes_revocation_ack','I understand the right to revoke in writing subject to lawful exceptions','select',false,['Yes']],
+  ['sud_notes_signature','Separate electronic signature','text'],['sud_notes_signature_date','Date signed','date'],
+  ['sud_notes_representative_capacity','If representative signs, describe authority','text']
+ ]},
  {title:'Separate authorization for psychotherapy notes',description:'Optional and separate from the general release above. Psychotherapy notes receive special protection and are not included in the general release-of-information section.',fields:[
   ['psych_notes_authorize','Do you authorize disclosure of psychotherapy notes?','select',true,['No','Yes']],['psych_notes_discloser','Person or organization authorized to disclose psychotherapy notes (if Yes)','text'],
   ['psych_notes_recipient','If yes, person / organization authorized to receive psychotherapy notes','text'],['psych_notes_purpose','Purpose of disclosure','text'],['psych_notes_expiration','Expiration date or event','text'],
@@ -177,6 +200,15 @@ export function validateIntake(answers:IntakeAnswers,submit:boolean){
  }
  if(submit&&answers.psych_notes_authorize==='Yes'){
   for(const [k,label] of [['psych_notes_discloser','authorized psychotherapy-notes discloser'],['psych_notes_recipient','psychotherapy-notes recipient'],['psych_notes_purpose','psychotherapy-notes purpose'],['psych_notes_expiration','psychotherapy-notes expiration'],['psych_notes_revocation_ack','psychotherapy-notes revocation acknowledgment'],['psych_notes_signature','psychotherapy-notes signature'],['psych_notes_signature_date','psychotherapy-notes signature date']] as const)if(!answers[k]?.trim())return `Please complete the ${label}.`;
+ }
+ if(submit&&answers.part2_authorize==='Yes'){
+  for(const [k,label] of [['part2_discloser','Part 2 discloser'],['part2_recipient','Part 2 recipient'],['part2_scope','Part 2 information scope'],['part2_purpose','Part 2 purpose'],['part2_expiration','Part 2 expiration'],['part2_revocation_ack','Part 2 revocation acknowledgment'],['part2_signature','Part 2 signature'],['part2_signature_date','Part 2 signature date']] as const)
+   if(!answers[k]?.trim())return `Please complete the ${label}.`;
+  if(answers.part2_purpose==='Specific purpose'&&!answers.part2_purpose_details?.trim())return 'Please describe the specific Part 2 purpose.';
+ }
+ if(submit&&answers.sud_notes_authorize==='Yes'){
+  for(const [k,label] of [['sud_notes_discloser','SUD counseling-notes discloser'],['sud_notes_recipient','SUD counseling-notes recipient'],['sud_notes_scope','SUD counseling-notes scope'],['sud_notes_purpose','SUD counseling-notes purpose'],['sud_notes_expiration','SUD counseling-notes expiration'],['sud_notes_revocation_ack','SUD counseling-notes revocation acknowledgment'],['sud_notes_signature','SUD counseling-notes signature'],['sud_notes_signature_date','SUD counseling-notes date']] as const)
+   if(!answers[k]?.trim())return `Please complete the ${label}.`;
  }
  if(submit&&(answers.suicidal_plan_current==='Yes'||answers.homicidal_thoughts_current==='Yes')&&!answers.violence_risk_details?.trim())return 'Please describe the current safety concern so the clinician can review it.';
  return null;

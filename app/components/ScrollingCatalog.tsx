@@ -80,7 +80,10 @@ export default function ScrollingCatalog({
         </div>
       </div>
       <p className="scrollingCatalogHelp">
-        Moving right to left · Hover over a card to pause · Click a card to read more
+        Moving right to left · Hover over a card to pause · Use Pause to browse or swipe manually · Select a card to read more
+      </p>
+      <p className="scrollingCatalogReducedHelp">
+        Swipe or scroll horizontally to browse all topics. Select a card to learn more.
       </p>
     </section>
   );

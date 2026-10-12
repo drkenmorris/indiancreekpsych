@@ -27,3 +27,58 @@
 .specialtyHero-relationship-issues{background-image:linear-gradient(90deg,rgba(246,251,253,.97),rgba(246,251,253,.80) 48%,rgba(246,251,253,.08) 76%),var(--gen-couples)}
 .specialtyHero-stress-management,.specialtyHero-life-transitions{background-image:linear-gradient(90deg,rgba(246,251,253,.97),rgba(246,251,253,.80) 48%,rgba(246,251,253,.08) 76%),var(--gen-general)}
 @media(max-width:620px){.homeMockHero,.aboutPageHero,.therapistPageHero{background-position:58% center}.servicesMockHero,.contactMockHero,.specialtiesMockHero,.serviceDetailHero,.specialtyDetailHero{background-position:center}}
+
+/* Homepage-only layout refresh: unobstructed scenic photo, right-side welcome,
+   compact practice introduction visible directly beneath the photo. */
+.homeLandingHero{
+  min-height:0;
+  height:clamp(345px,48vh,465px);
+  padding:clamp(16px,3vh,30px) clamp(20px,5vw,78px);
+  justify-content:flex-end;
+  align-items:center;
+  background-image:linear-gradient(270deg,rgba(250,251,252,.94) 0%,rgba(250,251,252,.77) 30%,rgba(250,251,252,.05) 59%,rgba(250,251,252,0) 78%),var(--gen-home);
+  background-position:46% center;
+}
+.homeLandingHeroCopy{
+  width:min(535px,47vw);
+  max-width:100%;
+  margin:0;
+  padding:clamp(18px,2.25vw,28px);
+  background:rgba(255,255,255,.86);
+  backdrop-filter:none;
+}
+.homeLandingHeroCopy .eyebrow{font-size:10px;letter-spacing:.12em;margin-bottom:9px}
+.homeLandingHeroCopy h1{font-size:clamp(27px,2.8vw,40px);line-height:1.13;margin:0 0 10px}
+.homeLandingHeroCopy>p:not(.eyebrow){font-size:clamp(13px,1.1vw,16px);line-height:1.45;margin:0}
+.homeLandingHeroCopy .heroActions{gap:9px;margin:15px 0 0}
+.homeLandingHeroCopy .heroActions a{padding:10px 14px;font-size:12px}
+.homeLandingIntro{
+  max-width:1100px;
+  padding:clamp(18px,2.9vh,29px) clamp(20px,5vw,74px) clamp(21px,3vh,31px);
+}
+.homeLandingIntro .eyebrow{font-size:11px;margin-bottom:5px}
+.homeLandingIntro h2{font-size:clamp(25px,2.7vw,35px);line-height:1.12;margin:0 0 9px}
+.homeLandingIntro>p:not(.eyebrow){font-size:clamp(13px,1.08vw,16px);line-height:1.48;margin:0 auto;max-width:960px}
+.homeLandingIntro .heroActions{justify-content:center;gap:12px;margin:14px 0 0}
+.homeLandingIntro .heroActions a{padding:10px 16px}
+@media(max-width:900px){
+  .homeLandingHero{height:auto;min-height:460px;justify-content:flex-end;background-position:41% center}
+  .homeLandingHeroCopy{width:min(520px,62vw);margin:0}
+}
+@media(max-width:620px){
+  .homeLandingHero{
+    min-height:570px;
+    padding:18px 16px 26px;
+    align-items:flex-end;
+    background-image:linear-gradient(0deg,rgba(250,251,252,.96) 0%,rgba(250,251,252,.72) 30%,rgba(250,251,252,.02) 65%),var(--gen-home);
+    background-position:36% center;
+  }
+  .homeLandingHeroCopy{width:100%;padding:18px;margin:0}
+  .homeLandingHeroCopy h1{font-size:clamp(27px,7vw,36px)}
+  .homeLandingIntro{padding:24px 18px 30px}
+  .homeLandingIntro h2{font-size:28px}
+}
+@media(max-height:700px) and (min-width:901px){
+  .homeLandingHero{height:clamp(310px,46vh,395px)}
+  .homeLandingHeroCopy h1{font-size:clamp(26px,2.55vw,35px)}
+}

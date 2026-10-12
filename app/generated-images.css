@@ -28,113 +28,142 @@
 .specialtyHero-stress-management,.specialtyHero-life-transitions{background-image:linear-gradient(90deg,rgba(246,251,253,.97),rgba(246,251,253,.80) 48%,rgba(246,251,253,.08) 76%),var(--gen-general)}
 @media(max-width:620px){.homeMockHero,.aboutPageHero,.therapistPageHero{background-position:58% center}.servicesMockHero,.contactMockHero,.specialtiesMockHero,.serviceDetailHero,.specialtyDetailHero{background-position:center}}
 
-/* Homepage hero: genuine full-photo placement (no cover-cropping).
-   The original 1600x900 photograph is rendered as an actual image so the
-   top of the portrait is never clipped by the short homepage hero. */
+/* Homepage only: edge-to-edge, uncropped 16:9 scenic image.
+   The image controls its own height; it is never scaled into a narrow column,
+   constrained to a short viewport, or clipped with background-size:cover. */
+.homeLandingMain{
+  position:relative;
+  min-width:0;
+  scrollbar-gutter:auto;
+  background:#e9f0f5;
+}
 .homeLandingHero{
+  position:relative;
+  display:block;
+  width:100%;
+  height:auto;
   min-height:0;
-  height:clamp(428px,51vh,500px);
-  padding:clamp(14px,2vw,26px) clamp(16px,3vw,42px);
-  display:grid;
-  grid-template-columns:minmax(0,1.14fr) minmax(0,.86fr);
-  gap:clamp(10px,1.7vw,28px);
-  align-items:center;
-  overflow:hidden;
-  background:#edf3f7;
-  background-image:linear-gradient(90deg,#e6eef4 0%,#edf4f8 46%,#f6f9fb 68%,#eaf1f6 100%);
+  margin:0;
+  padding:0;
+  overflow:visible;
+  background:none;
+  background-image:none;
 }
 .homeLandingHeroPhoto{
   display:block;
   width:100%;
-  height:100%;
+  max-width:none;
+  height:auto;
   min-height:0;
+  margin:0;
+  padding:0;
   object-fit:contain;
   object-position:center;
 }
+/* Text stays centered in its panel, but the panel floats over the right of
+   the entire photograph instead of reducing photograph width. */
 .homeLandingHeroCopy{
-  width:100%;
-  max-width:590px;
-  margin:0 auto;
-  padding:clamp(18px,2.1vw,30px);
-  background:rgba(255,255,255,.86);
-  backdrop-filter:none;
+  position:absolute;
+  z-index:2;
+  top:50%;
+  right:clamp(20px,4.5vw,82px);
+  transform:translateY(-50%);
+  width:min(535px,43%);
+  max-width:none;
+  margin:0;
+  padding:clamp(17px,2.3vw,32px);
+  background:rgba(255,255,255,.87);
+  border:1px solid rgba(255,255,255,.68);
+  border-radius:18px;
   text-align:center;
-  box-shadow:0 12px 35px rgba(8,41,67,.08);
+  backdrop-filter:none;
+  box-shadow:0 16px 38px rgba(8,41,67,.14);
 }
 .homeLandingHeroCopy h1{
-  font-size:clamp(26px,2.55vw,38px);
-  line-height:1.13;
+  font-size:clamp(26px,2.55vw,39px);
+  line-height:1.14;
   margin:0 0 12px;
 }
 .homeLandingHeroCopy>p:not(.eyebrow){
-  font-size:clamp(13px,1.1vw,16px);
-  line-height:1.48;
   margin:0;
   max-width:none;
+  font-size:clamp(13px,1.12vw,16px);
+  line-height:1.5;
 }
 .homeLandingHeroCopy .heroActions{
   display:flex;
+  flex-wrap:wrap;
   justify-content:center;
   gap:10px;
-  margin:19px 0 0;
+  margin:18px 0 0;
 }
 .homeLandingHeroCopy .heroActions a{padding:11px 15px;font-size:12px}
 
-/* Inverted blue-and-white practice introduction directly under hero. */
+/* The introduction is pinned to the bottom of the scrolling home content:
+   it touches the fixed footer menu with no intervening white strip. The full
+   image can still be viewed by scrolling the main content above it. */
 .homeLandingIntro{
+  position:sticky;
+  bottom:0;
+  z-index:5;
+  box-sizing:border-box;
   width:100%;
   max-width:none;
   margin:0;
-  padding:clamp(21px,3.1vh,34px) clamp(22px,5vw,78px);
+  padding:clamp(20px,3vh,31px) clamp(18px,4vw,65px);
+  border:0;
   background:linear-gradient(135deg,#09314f,#0e5574);
   color:#fff;
   text-align:center;
+  box-shadow:0 -5px 14px rgba(5,26,45,.13);
 }
-.homeLandingIntro .eyebrow{color:#cde7f5;font-size:11px;margin-bottom:6px}
-.homeLandingIntro h2{color:#fff;font-size:clamp(26px,2.65vw,38px);line-height:1.12;margin:0 0 11px}
+.homeLandingIntro .eyebrow{color:#cde7f5;font-size:11px;margin-bottom:5px}
+.homeLandingIntro h2{color:#fff;font-size:clamp(25px,2.6vw,37px);line-height:1.12;margin:0 0 10px}
 .homeLandingIntro>p:not(.eyebrow){
   color:#fff;
-  font-size:clamp(13px,1.13vw,16px);
-  line-height:1.5;
+  font-size:clamp(13px,1.1vw,16px);
+  line-height:1.48;
   max-width:1050px;
   margin:0 auto;
 }
-.homeLandingIntro .heroActions{justify-content:center;gap:12px;margin:17px 0 0}
+.homeLandingIntro .heroActions{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;margin:16px 0 0}
 .homeLandingIntro .secondaryButton{
   padding:10px 16px;
   background:transparent;
-  border:1px solid rgba(255,255,255,.88);
+  border:1px solid rgba(255,255,255,.9);
   color:#fff;
 }
 .homeLandingIntro .secondaryButton:hover,.homeLandingIntro .secondaryButton:focus-visible{
   background:rgba(255,255,255,.14);
 }
+/* Keep the existing bottom navigation fixed while the photograph scrolls. */
+.homeLandingPage>main{min-height:0;overflow-y:auto}
+.homeLandingPage>.publicFooter{margin:0;border-top:0}
 @media(max-width:900px){
-  .homeLandingHero{
-    height:auto;
-    min-height:0;
-    grid-template-columns:1fr;
-    padding:18px clamp(16px,4vw,32px) 28px;
-    gap:10px;
-  }
-  .homeLandingHeroPhoto{
+  .homeLandingHeroCopy{
+    top:auto;
+    right:auto;
+    transform:none;
+    position:relative;
     width:100%;
-    height:auto;
-    aspect-ratio:16/9;
-    object-fit:contain;
+    max-width:none;
+    padding:clamp(20px,4vw,30px);
+    border-radius:0;
+    box-shadow:none;
+    background:#f4f8fa;
   }
-  .homeLandingHeroCopy{width:min(650px,100%);max-width:100%;margin:0 auto}
+  .homeLandingHeroCopy h1{font-size:clamp(28px,4.7vw,36px)}
+  .homeLandingIntro{
+    /* On small screens keep the full introduction readable, not as a
+       floating panel that obscures the much shorter full-width image. */
+    position:relative;
+    bottom:auto;
+    padding:26px 18px 30px;
+  }
+  .homeLandingIntro h2{font-size:clamp(26px,4.5vw,32px)}
 }
 @media(max-width:620px){
-  .homeLandingHero{padding:14px 14px 22px;gap:8px}
-  .homeLandingHeroPhoto{height:auto}
-  .homeLandingHeroCopy{padding:21px 16px}
-  .homeLandingHeroCopy h1{font-size:clamp(27px,6.6vw,35px)}
-  .homeLandingHeroCopy .heroActions{gap:9px}
-  .homeLandingIntro{padding:28px 18px 32px}
-  .homeLandingIntro h2{font-size:28px}
-}
-@media(max-height:700px) and (min-width:901px){
-  .homeLandingHero{height:420px}
-  .homeLandingHeroCopy h1{font-size:clamp(26px,2.4vw,35px)}
+  .homeLandingHeroCopy{padding:20px 16px 23px;margin:0}
+  .homeLandingHeroCopy h1{font-size:clamp(26px,6.8vw,34px)}
+  .homeLandingHeroCopy .heroActions{margin-top:14px}
 }

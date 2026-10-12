@@ -32,7 +32,7 @@
    compact practice introduction visible directly beneath the photo. */
 .homeLandingHero{
   min-height:0;
-  height:clamp(345px,48vh,465px);
+  height:clamp(425px,51vh,490px);
   padding:clamp(16px,3vh,30px) clamp(20px,5vw,78px);
   justify-content:flex-end;
   align-items:center;
@@ -79,6 +79,6 @@
   .homeLandingIntro h2{font-size:28px}
 }
 @media(max-height:700px) and (min-width:901px){
-  .homeLandingHero{height:clamp(310px,46vh,395px)}
+  .homeLandingHero{height:420px}
   .homeLandingHeroCopy h1{font-size:clamp(26px,2.55vw,35px)}
 }

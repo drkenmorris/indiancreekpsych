@@ -1,6 +1,8 @@
 'use client';
 import {FormEvent,useEffect,useMemo,useState} from 'react';
 import {createClient} from '@/lib/supabase/client';
+import LegalSectionDocument from '@/app/components/LegalSectionDocument';
+import {LEGAL_PACKET_VERSION} from '@/lib/patient/legal-documents';
 import {costFields,intakeSections,IntakeAnswers,IntakeRecord,validateIntake} from '@/lib/patient/intake';
 
 export default function IntakeForm({userId,initial,defaults}:{userId:string;initial:IntakeRecord|null;defaults:IntakeAnswers}){
@@ -19,7 +21,7 @@ export default function IntakeForm({userId,initial,defaults}:{userId:string;init
   if(busy||submitted)return;setError('');const invalid=validateIntake(answers,submit);if(invalid){setError(invalid);return;}
   setBusy(true);
   try{
-   const payload={answers,status:submit?'submitted':'draft'};
+   const payload={answers:{...answers,legal_packet_version:LEGAL_PACKET_VERSION},status:submit?'submitted':'draft'};
    const q=record?supabase.from('patient_intakes').update(payload).eq('patient_id',userId).eq('version',record.version):supabase.from('patient_intakes').insert({patient_id:userId,...payload});
    const {data,error:saveError}=await q.select().abortSignal(AbortSignal.timeout(20000)).single();
    if(saveError||!data)throw new Error('Your save could not be confirmed. Keep this page open and check your account in another tab before retrying. A newer version may already be saved.');
@@ -50,6 +52,7 @@ export default function IntakeForm({userId,initial,defaults}:{userId:string;init
    {section.title==='Authorization to share health information'&&<p className="intakeHelp">This optional authorization covers the information you specifically describe below. It does not include separately maintained psychotherapy notes. You may leave this authorization as “No” and still receive care.</p>}
    {section.title==='Separate authorization for psychotherapy notes'&&<p className="intakeHelp">This optional authorization is intentionally separate from the general release because psychotherapy notes receive additional privacy protection.</p>}
 
+   <LegalSectionDocument sectionTitle={section.title}/>
    <div className="intakeFields">{section.fields.map(field=>{
     const [key,label,type]=field;const required=field.length>3&&field[3];const options=(field.length>4?field[4]:[])??[];const cost=costFields.includes(key);
     return <div key={key} className={type==='textarea'?'intakeWide':''}><label>{label}{required?' *':''}

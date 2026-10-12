@@ -223,3 +223,16 @@
   .aboutPracticePhoto{max-width:720px;margin:0 auto}
   .aboutPracticeCopy{max-width:760px;margin:0 auto}
 }
+
+/* Keep the About page calls to action side-by-side, wrapping on narrow screens. */
+.aboutPracticeActions{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:12px;
+  margin-top:24px;
+}
+.aboutPracticeActions .primaryButton,
+.aboutPracticeActions .secondaryButton{
+  margin:0;
+}

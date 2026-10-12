@@ -27,6 +27,8 @@ export default async function ClinicalTestsPage() {
       <p><Link href="/clinical-tests/rtafi">RTAFI — intake, household setup, questionnaire, results</Link></p>
       <p><Link href="/clinical-tests/rdii">RDII — assessment, scoring and reports</Link></p>
       <p><Link href="/clinical-tests/rvti">RVTI — active-domain assessment dashboard</Link></p>
+      <h2>Cognitive-Motor Switching</h2>
+      <p><Link href="/clinical-tests/cogswitch">Open CogSwitch assessment and results module</Link></p>
       <h2>Other independent assessment suites</h2>
       <p>autism/ADHD screener registry prototypes, and their reports remain in dependency review.
         They must not be linked here as working assessments until administration, scoring, storage,

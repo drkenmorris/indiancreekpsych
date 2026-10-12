@@ -54,7 +54,7 @@ export default async function AccountPage() {
           newsletterFrequency={(newsletter?.frequency as "weekly" | "biweekly" | undefined) ?? "biweekly"}
         />
       </main>
-      <nav className="icp-bottom-menu" aria-label="Account navigation"><Link href="/">Home</Link><Link href="/account">Account</Link><Link href="/appointments">Appointments</Link></nav>
+      <nav className="icp-bottom-menu" aria-label="Account navigation"><Link href="/">Home</Link><Link href="/account">Account</Link><Link href="/appointments">Appointments</Link>{profile?.account_type === "admin" && <Link href="/clinical-tests">Clinical Tests (QA)</Link>}</nav>
     </div>
   );
 }

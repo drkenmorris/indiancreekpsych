@@ -19,8 +19,10 @@ export default async function ClinicalTestsPage() {
       ))}</ul>
       <h2>Self-Esteem — CSEQ</h2>
       <p><Link href="/clinical-tests/cseq">Open CSEQ questionnaire</Link> · <Link href="/clinical-tests/cseq/results">Review CSEQ results</Link></p>
+      <h2>ASQ / ASEQ autism suite</h2>
+      <p><Link href="/clinical-tests/asq">Open student, parent, teacher, combined results and records</Link></p>
       <h2>Other independent assessment suites</h2>
-      <p>ASQ/ASEQ, SRRCI-X, RTAFI, RDII, RVTI, autism/ADHD screeners, and their reports remain in dependency review.
+      <p>SRRCI-X, RTAFI, RDII, RVTI, autism/ADHD screeners, and their reports remain in dependency review.
         They must not be linked here as working assessments until administration, scoring, storage,
         consent, and permissions have migrated.</p>
     </main>

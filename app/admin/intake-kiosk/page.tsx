@@ -1,4 +1,5 @@
 import {redirect} from 'next/navigation';
+import Link from 'next/link';
 import {createClient} from '@/lib/supabase/server';
 import KioskLauncher from './KioskLauncher';
 
@@ -11,7 +12,7 @@ export default async function Page(){
  return <main className="authPage intakePage"><section className="appointmentPanel kioskLauncher">
   <p className="eyebrow">Front desk</p>
   <h1>Start intake</h1>
-  <p>Create a temporary session on this device. The session expires automatically after eight hours.</p>
+  <p>Create a new temporary questionnaire session using the patient name and date of birth. Each session expires after eight hours, and a submitted session cannot be edited.</p><p>For a safe test without creating a patient record, <Link href="/admin/intake-preview">open the editable questionnaire preview</Link>. To verify Supabase draft saving, create a fresh office session using clearly fictional information.</p>
   <KioskLauncher/>
  </section></main>;
 }

@@ -43,6 +43,7 @@ export default function KioskIntake({token}:{token:string}){
  const [complete,setComplete]=useState(false);
  const [invalid,setInvalid]=useState(false);
  const baseline=useRef<IntakeAnswers>({});
+ const pageRef=useRef<HTMLElement|null>(null);
  const section=intakeSections[sectionIndex];
 
  useEffect(()=>{
@@ -68,7 +69,7 @@ export default function KioskIntake({token}:{token:string}){
   return()=>window.removeEventListener('beforeunload',warn);
  },[dirty]);
 
- useEffect(()=>{window.scrollTo({top:0,behavior:'smooth'});},[sectionIndex]);
+ useEffect(()=>{if(typeof pageRef.current?.scrollTo==='function')pageRef.current.scrollTo({top:0,behavior:'smooth'});},[sectionIndex]);
 
  const update=(key:string,value:string)=>{
   setAnswers(current=>({...current,[key]:value}));
@@ -116,7 +117,7 @@ export default function KioskIntake({token}:{token:string}){
  if(invalid)return <main className={styles.page}><section className={styles.statusCard}><p className={styles.eyebrow}>Indian Creek Psychological Services</p><h1>Intake session unavailable</h1><p role="alert">This link is invalid, expired, or could not be loaded. Please return the iPad to office personnel so a new intake session can be prepared.</p></section></main>;
  if(complete)return <main className={styles.page}><section className={styles.completeCard}><p className={styles.eyebrow}>Indian Creek Psychological Services</p><h1>Thank you.</h1><p>Your intake questionnaire has been submitted. Please return the iPad to office personnel.</p><p className={styles.privacyNote}>For your privacy, completed answers are no longer displayed on this screen.</p></section></main>;
 
- return <main className={styles.page}>
+ return <main ref={pageRef} className={styles.page}>
   <form className={styles.shell} onSubmit={requestSubmit} autoComplete="off">
    <header className={styles.header}>
     <p className={styles.eyebrow}>Indian Creek Psychological Services</p>

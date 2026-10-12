@@ -124,7 +124,7 @@ export default function AccountClient({ email, fullName: initialFullName, prefer
           </form>
           {message && <p className="authMessage">{message}</p>}
           {accountType==='patient'&&<Link className="portalHomeLink" href="/patient/intake">Your intake questionnaire</Link>}
-          {(accountType==='admin'||accountType==='staff')&&<><Link className="portalHomeLink" href="/admin/intakes">Review submitted questionnaires</Link><Link className="portalHomeLink" href="/admin/intake-kiosk">Start office intake</Link></>}
+          {(accountType==='admin'||accountType==='staff')&&<><Link className="portalHomeLink" href="/admin/intakes">Review submitted questionnaires</Link><Link className="portalHomeLink" href="/admin/intake-preview">Test questionnaire fields (no patient data)</Link><Link className="portalHomeLink" href="/admin/intake-kiosk">Start office intake</Link></>}
           <Link className="portalHomeLink" href="/account/security">Account security and backup verification</Link>
           <section className="newsletterPrefs">
             <p className="eyebrow">Newsletter</p>

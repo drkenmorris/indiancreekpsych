@@ -137,6 +137,25 @@
 .scrollingCatalogViewport[data-paused="true"] .scrollingCatalogTrack{
   animation-play-state:paused;
 }
+/* Pausing switches to a stationary, swipeable / horizontally scrollable list.
+   This lets someone examine any item rather than waiting for the marquee. */
+.scrollingCatalogViewport[data-paused="true"]{
+  overflow-x:auto;
+  overscroll-behavior-x:contain;
+  scroll-snap-type:x proximity;
+}
+.scrollingCatalogViewport[data-paused="true"] .scrollingCatalogTrack{
+  animation:none!important;
+  transform:none;
+  will-change:auto;
+}
+.scrollingCatalogViewport[data-paused="true"] .scrollingCatalogGroup[aria-hidden="true"]{
+  display:none;
+}
+.scrollingCatalogViewport[data-paused="true"] .scrollingCatalogCard{
+  scroll-snap-align:start;
+}
+.scrollingCatalogReducedHelp{display:none}
 @media(max-width:620px){
   .scrollingCatalogHeading{align-items:flex-start;flex-direction:column}
   .scrollingCatalogCard{flex-basis:270px;width:270px;min-height:352px}
@@ -147,7 +166,16 @@
 /* People who request less motion can still swipe through cards manually. */
 @media(prefers-reduced-motion:reduce){
   .scrollingCatalogViewport{overflow-x:auto;scroll-snap-type:x mandatory}
-  .scrollingCatalogTrack{animation:none!important;will-change:auto}
+  .scrollingCatalogTrack{animation:none!important;transform:none;will-change:auto}
   .scrollingCatalogCard{scroll-snap-align:start}
   .scrollingCatalogGroup[aria-hidden="true"]{display:none}
+  .scrollingCatalogToggle,.scrollingCatalogHelp{display:none}
+  .scrollingCatalogReducedHelp{
+    display:block;
+    max-width:1480px;
+    margin:5px auto 0;
+    padding:0 clamp(18px,5vw,80px);
+    font:12px/1.4 Arial,Helvetica,sans-serif;
+    color:#637d8d;
+  }
 }

@@ -124,6 +124,34 @@ export const legalDocuments:Record<string,LegalDocument>={
    ]}
   ]
  },
+ 'Optional consent for Part 2 substance-use records':{
+  title:'Separate Consent for 42 CFR Part 2 Substance-Use Disorder Records',
+  summary:'Use this optional consent only after the practice confirms that the identified records are protected by 42 CFR Part 2. It is not a blanket HIPAA release.',
+  parts:[
+   {heading:'Your separate choice and protected information',paragraphs:[
+    'Certain records identifying a person as receiving substance-use disorder services from a federally assisted Part 2 program are protected by 42 CFR Part 2. If this rule applies, the practice or other holder generally needs a compliant written consent or a recognized exception before sharing such information.',
+    'If you choose Yes, identify the specific program or holder that may disclose, the specific recipient or qualifying class of recipients, what records may be shared, the purpose, and an expiration date or event. You may choose a treatment/payment/health-care-operations consent where the rule permits it, or a different specific purpose. Do not sign a form with incomplete disclosure details.',
+    'A lawful Part 2 consent does not automatically authorize using your records in civil, criminal, administrative or legislative proceedings against you. An appropriate separate consent or qualifying court order and legal process are required. If a HIPAA-regulated recipient receives Part 2 records under an authorized treatment/payment/operations consent, subsequent disclosures may be governed by HIPAA while special legal-proceedings restrictions continue.'
+   ]},
+   {heading:'Voluntary authorization, revocation and other protected notes',paragraphs:[
+    'You may decline this authorization. You may revoke a valid consent in writing through the identified disclosing program or the practice, subject to lawful reliance and exceptions. Certain downstream redisclosures may occur under the governing regulations; discuss those implications before signing.',
+    'This consent does not authorize disclosure of separately maintained Part 2 SUD counseling notes. Such notes, if applicable, require their own separate authorization under the specific rules. The office must review every completed Part 2 request for scope and applicability before releasing information.'
+   ]}
+  ]
+ },
+ 'Separate consent for SUD counseling notes':{
+  title:'Independent Authorization for Substance-Use Disorder Counseling Notes',
+  summary:'Separate consent for specially protected SUD counseling notes, when applicable. It is not bundled with routine substance-use or psychotherapy information.',
+  parts:[
+   {heading:'What this form covers',paragraphs:[
+    'Part 2 protects separately maintained SUD counseling notes that document or analyze the contents of a conversation during a private or group SUD counseling session, as defined by the regulation. This category is distinct from ordinary SUD treatment records and also may differ from psychotherapy notes under HIPAA.',
+    'If you elect Yes, identify the holder authorized to disclose, the intended recipient, the precise notes, the purpose, expiration date or event, and provide a separately dated signature. This optional consent does not authorize disclosure of unrelated treatment information or other categories of notes.'
+   ]},
+   {heading:'Your control',paragraphs:[
+    'You may choose No. A refusal is not a refusal of all substance-use treatment. You may revoke permission in writing, subject to permitted prior reliance and legal exceptions. Staff will verify record classification, legal authority and the completed authorization before making a disclosure.'
+   ]}
+  ]
+ },
  'Separate authorization for psychotherapy notes':{
   title:'Separate, Optional Psychotherapy-Notes Authorization',
   summary:'This permission is not combined with the general release, and declining it does not prevent ordinary treatment.',

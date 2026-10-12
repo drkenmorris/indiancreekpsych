@@ -4,7 +4,7 @@ import {PGlite} from '@electric-sql/pglite';
 import {readFileSync} from 'node:fs';
 
 const db=new PGlite();
-await db.exec('create schema private;');
+await db.exec('create role anon; create role authenticated; create schema private;');
 const migration=readFileSync(new URL('../supabase/migrations/20261011200000_expand_patient_legal_packet.sql',import.meta.url),'utf8');
 await db.exec(migration);
 const valid={

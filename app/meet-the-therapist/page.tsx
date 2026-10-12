@@ -6,9 +6,13 @@ export default function MeetTheTherapistPage() {
     <div className="publicSite therapistLandingPage">
       <PublicHeader />
       <main className="therapistLandingMain">
-<section className="aboutSupport therapistLandingIntro">
-          <div className="aboutPhoto aboutPhotoRed therapistLandingPhoto" role="img" aria-label="Indian Creek counseling scene" />
+        <section className="aboutSupport therapistLandingIntro">
+          <figure className="therapistLandingFigure">
+            <div className="aboutPhoto aboutPhotoRed therapistLandingPhoto" role="img" aria-label="Dr. Ken Morris" />
+            <figcaption className="therapistLandingCaption">Dr. Ken Morris</figcaption>
+          </figure>
           <div className="therapistLandingCopy">
+            <h1 className="therapistLandingName">Meet Dr. Ken Morris</h1>
             <p className="eyebrow">A thoughtful place to begin</p>
             <h2>Therapy should help you understand what is happening—and give you a practical way forward.</h2>
             <p>People rarely arrive in therapy with one neatly defined problem. Stress can affect relationships. Trauma can shape mood and decision-making. ADHD or autism can change how someone experiences expectations, communication, and daily demands. Substance use may become part of a larger effort to cope.</p>

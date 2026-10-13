@@ -3,7 +3,7 @@ import { patientAccess } from "@/lib/patient/access";
 import SelfEsteemQuestionnaire from "@/lib/clinical-tests/legacy/selfesteem/SelfEsteemQuestionnaire";
 import ClinicalStageMenu from "../ClinicalStageMenu";
 export default async function CseqPage() {
-  await patientAccess(true);
+  await patientAccess(true, "/clinical-tests/cseq");
   return <main className="authPage" style={{maxWidth:1050,margin:"auto",padding:24}}>
     <Link href="/clinical-tests">← Clinical testing library</Link>
     <h1>Comprehensive Self-Esteem Quotient Questionnaire (CSEQ)</h1>

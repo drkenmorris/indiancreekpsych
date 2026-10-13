@@ -15,6 +15,7 @@ type ScrollingCatalogProps = {
   description: string;
   label: string;
   items: ScrollingCatalogItem[];
+  appearance?: "default" | "immersive";
 };
 
 export default function ScrollingCatalog({
@@ -22,13 +23,14 @@ export default function ScrollingCatalog({
   description,
   label,
   items,
+  appearance = "default",
 }: ScrollingCatalogProps) {
   const [paused, setPaused] = useState(false);
 
   if (items.length === 0) return null;
 
   return (
-    <section className="scrollingCatalog" aria-label={label}>
+    <section className={appearance === "immersive" ? "scrollingCatalog scrollingCatalogImmersive" : "scrollingCatalog"} aria-label={label}>
       <div className="scrollingCatalogHeading">
         <div>
           <p className="eyebrow">{label}</p>
@@ -47,7 +49,7 @@ export default function ScrollingCatalog({
       <div className="scrollingCatalogViewport" data-paused={paused}>
         <div
           className="scrollingCatalogTrack"
-          style={{ animationDuration: `${items.length * 7}s` }}
+          style={{ animationDuration: `${items.length * (appearance === "immersive" ? 9 : 7)}s` }}
         >
           {[false, true].map((duplicate) => (
             <div
@@ -80,7 +82,9 @@ export default function ScrollingCatalog({
         </div>
       </div>
       <p className="scrollingCatalogHelp">
-        Moving right to left · Hover over a card to pause · Use Pause to browse or swipe manually · Select a card to read more
+        {appearance === "immersive"
+          ? "Moving automatically from right to left · Press Pause to browse manually · Select any card to read more"
+          : "Moving right to left · Hover over a card to pause · Use Pause to browse or swipe manually · Select a card to read more"}
       </p>
       <p className="scrollingCatalogReducedHelp">
         Swipe or scroll horizontally to browse all topics. Select a card to learn more.

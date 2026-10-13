@@ -16,21 +16,15 @@ const specialties: ScrollingCatalogItem[] = [
 
 export default function SpecialtiesPage() {
   return (
-    <div className="publicSite">
+    <div className="publicSite specialtiesImmersivePage">
       <PublicHeader />
-      <main>
-        <section className="mockHero specialtiesMockHero">
-          <div className="heroScrim compact">
-            <p className="eyebrow">Focused expertise</p>
-            <h1>Areas of Specialization</h1>
-            <p>These pages describe the kinds of concerns, diagnoses, and life challenges in which our practice has focused clinical experience.</p>
-          </div>
-        </section>
+      <main className="specialtiesImmersiveMain">
         <ScrollingCatalog
           title="Explore Our Specialties"
           description="Browse the specialties as they move across the screen. Select any picture or description to learn more."
           items={specialties}
           label="Specialties"
+          appearance="immersive"
         />
       </main>
       <PublicFooter />

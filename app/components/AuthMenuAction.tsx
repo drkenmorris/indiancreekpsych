@@ -4,20 +4,56 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
+type UserStatus = "loading" | "signed-in" | "signed-out";
+
 export default function AuthMenuAction() {
-  const [userStatus, setUserStatus] = useState<"loading" | "signed-in" | "signed-out">("loading");
+  const [userStatus, setUserStatus] = useState<UserStatus>("loading");
+  const [isPatient, setIsPatient] = useState(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     const supabase = createClient();
     let mounted = true;
-    void supabase.auth.getUser().then(({ data }) => {
-      if (mounted) setUserStatus(data.user ? "signed-in" : "signed-out");
-    }).catch(() => {
-      if (mounted) setUserStatus("signed-out");
-    });
+
+    async function refreshIdentity() {
+      try {
+        const { data, error } = await supabase.auth.getUser();
+        if (!mounted) return;
+        if (error || !data.user) {
+          setUserStatus("signed-out");
+          setIsPatient(false);
+          return;
+        }
+
+        // Patient role must be read from protected profiles, not editable
+        // user_metadata. A failed lookup never shows patient-only links.
+        const { data: profile, error: profileError } = await supabase
+          .from("profiles")
+          .select("account_type")
+          .eq("id", data.user.id)
+          .maybeSingle();
+
+        if (!mounted) return;
+        setUserStatus("signed-in");
+        setIsPatient(!profileError && profile?.account_type === "patient");
+      } catch {
+        if (!mounted) return;
+        setUserStatus("signed-out");
+        setIsPatient(false);
+      }
+    }
+
+    void refreshIdentity();
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (mounted) setUserStatus(session?.user ? "signed-in" : "signed-out");
+      if (!mounted) return;
+      if (!session) {
+        setUserStatus("signed-out");
+        setIsPatient(false);
+        return;
+      }
+      // Auth callbacks must not await more Supabase calls while the auth
+      // state change lock is active. Schedule the role lookup afterward.
+      setTimeout(() => { if (mounted) void refreshIdentity(); }, 0);
     });
     return () => { mounted = false; subscription.unsubscribe(); };
   }, []);
@@ -36,5 +72,13 @@ export default function AuthMenuAction() {
 
   if (userStatus === "loading") return <span className="authMenuLoading" aria-label="Checking sign-in status">Account</span>;
   if (userStatus === "signed-out") return <Link href="/login?next=/account">Login</Link>;
-  return <button type="button" className="authMenuLogout" disabled={busy} onClick={() => void signOut()}>{busy ? "Signing out…" : "Logout"}</button>;
+
+  return (
+    <>
+      {isPatient && <Link href="/patient/psychological-tests">Psychological Tests</Link>}
+      <button type="button" className="authMenuLogout" disabled={busy} onClick={() => void signOut()}>
+        {busy ? "Signing out…" : "Logout"}
+      </button>
+    </>
+  );
 }

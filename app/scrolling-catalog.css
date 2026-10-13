@@ -131,8 +131,8 @@
   from{transform:translate3d(0,0,0)}
   to{transform:translate3d(-50%,0,0)}
 }
-/* Stop the motion whenever a user tries to interact with a card. */
-.scrollingCatalogViewport:hover .scrollingCatalogTrack,
+/* Keyboard focus pauses a moving card for accessibility; hovering alone
+   must not stop the carousel on either page. */
 .scrollingCatalogViewport:focus-within .scrollingCatalogTrack,
 .scrollingCatalogViewport[data-paused="true"] .scrollingCatalogTrack{
   animation-play-state:paused;
@@ -163,28 +163,37 @@
   .scrollingCatalogCardBody h3{font-size:22px}
   .scrollingCatalogHelp{font-size:11px}
 }
-/* People who request less motion can still swipe through cards manually. */
+/* Reduced motion remains the default when requested by the device.
+   A user may deliberately press Start scrolling to enable the animation. */
 @media(prefers-reduced-motion:reduce){
-  .scrollingCatalogViewport{overflow-x:auto;scroll-snap-type:x mandatory}
-  .scrollingCatalogTrack{animation:none!important;transform:none;will-change:auto}
-  .scrollingCatalogCard{scroll-snap-align:start}
-  .scrollingCatalogGroup[aria-hidden="true"]{display:none}
-  .scrollingCatalogToggle,.scrollingCatalogHelp{display:none}
-  .scrollingCatalogReducedHelp{
-    display:block;
-    max-width:1480px;
-    margin:5px auto 0;
-    padding:0 clamp(18px,5vw,80px);
-    font:12px/1.4 Arial,Helvetica,sans-serif;
-    color:#637d8d;
+  .scrollingCatalogViewport:not([data-explicit-motion="true"]){
+    overflow-x:auto;scroll-snap-type:x mandatory;
   }
+  .scrollingCatalogViewport:not([data-explicit-motion="true"]) .scrollingCatalogTrack{
+    animation:none!important;transform:none;will-change:auto;
+  }
+  .scrollingCatalogViewport:not([data-explicit-motion="true"]) .scrollingCatalogGroup[aria-hidden="true"]{
+    display:none;
+  }
+  .scrollingCatalogViewport[data-explicit-motion="true"]:not([data-paused="true"]){
+    overflow-x:hidden;scroll-snap-type:none;
+  }
+  .scrollingCatalogViewport[data-explicit-motion="true"]:not([data-paused="true"]) .scrollingCatalogTrack{
+    animation:scrollingCatalogToLeft 45s linear infinite!important;
+    transform:none;
+    will-change:transform;
+  }
+  .scrollingCatalogCard{scroll-snap-align:start}
+  .scrollingCatalogHelp{display:block}
+  .scrollingCatalogReducedHelp{display:none}
 }
 
 /* Specialties only: photo fills all available viewport space above footer. */
-.specialtiesImmersivePage{
+.specialtiesImmersivePage,.servicesImmersivePage{
   background:#0e314a;
 }
-.specialtiesImmersiveMain{
+.servicesImmersiveMain{--immersiveBackdrop:var(--gen-consultation);}
+:is(.specialtiesImmersiveMain,.servicesImmersiveMain){
   position:relative;
   display:flex;
   align-items:center;
@@ -198,12 +207,12 @@
   scrollbar-gutter:auto;
   background-image:
     linear-gradient(180deg,rgba(5,24,41,.28),rgba(5,24,41,.4)),
-    var(--gen-general);
+    var(--immersiveBackdrop,var(--gen-general));
   background-size:cover;
   background-position:center center;
   background-repeat:no-repeat;
 }
-.specialtiesImmersiveMain .scrollingCatalogImmersive{
+:is(.specialtiesImmersiveMain,.servicesImmersiveMain) .scrollingCatalogImmersive{
   position:relative;
   display:flex;
   flex-direction:column;
@@ -217,7 +226,7 @@
   background:transparent;
   overflow:hidden;
 }
-.specialtiesImmersiveMain .scrollingCatalogHeading{
+:is(.specialtiesImmersiveMain,.servicesImmersiveMain) .scrollingCatalogHeading{
   display:flex;
   align-items:center;
   justify-content:space-between;
@@ -232,53 +241,53 @@
   box-shadow:0 10px 35px rgba(0,0,0,.18);
   color:#fff;
 }
-.specialtiesImmersiveMain .scrollingCatalogHeading .eyebrow{
+:is(.specialtiesImmersiveMain,.servicesImmersiveMain) .scrollingCatalogHeading .eyebrow{
   color:#d5eaf3;
   margin:0 0 3px;
 }
-.specialtiesImmersiveMain .scrollingCatalogHeading h2{
+:is(.specialtiesImmersiveMain,.servicesImmersiveMain) .scrollingCatalogHeading h2{
   color:#fff;
   font-size:clamp(25px,2.9vw,37px);
   margin:0 0 4px;
 }
-.specialtiesImmersiveMain .scrollingCatalogHeading p:not(.eyebrow){
+:is(.specialtiesImmersiveMain,.servicesImmersiveMain) .scrollingCatalogHeading p:not(.eyebrow){
   color:#fff;
   font-size:clamp(12px,1vw,14px);
   line-height:1.42;
   max-width:810px;
 }
-.specialtiesImmersiveMain .scrollingCatalogToggle{
+:is(.specialtiesImmersiveMain,.servicesImmersiveMain) .scrollingCatalogToggle{
   background:#fff;
   color:#072b47;
   border-color:#fff;
 }
-.specialtiesImmersiveMain .scrollingCatalogToggle:hover{
+:is(.specialtiesImmersiveMain,.servicesImmersiveMain) .scrollingCatalogToggle:hover{
   background:#e4f2f8;
 }
-.specialtiesImmersiveMain .scrollingCatalogViewport{
+:is(.specialtiesImmersiveMain,.servicesImmersiveMain) .scrollingCatalogViewport{
   padding:8px 0 13px;
 }
-.specialtiesImmersiveMain .scrollingCatalogCard{
+:is(.specialtiesImmersiveMain,.servicesImmersiveMain) .scrollingCatalogCard{
   flex-basis:clamp(245px,22vw,310px);
   width:clamp(245px,22vw,310px);
   min-height:330px;
 }
-.specialtiesImmersiveMain .scrollingCatalogImage{
+:is(.specialtiesImmersiveMain,.servicesImmersiveMain) .scrollingCatalogImage{
   height:166px;
 }
-.specialtiesImmersiveMain .scrollingCatalogCardBody{
+:is(.specialtiesImmersiveMain,.servicesImmersiveMain) .scrollingCatalogCardBody{
   padding:15px 20px 18px;
   gap:8px;
 }
-.specialtiesImmersiveMain .scrollingCatalogCardBody h3{
+:is(.specialtiesImmersiveMain,.servicesImmersiveMain) .scrollingCatalogCardBody h3{
   font-size:clamp(19px,1.65vw,23px);
 }
-.specialtiesImmersiveMain .scrollingCatalogCardBody p{
+:is(.specialtiesImmersiveMain,.servicesImmersiveMain) .scrollingCatalogCardBody p{
   font-size:13px;
   line-height:1.4;
 }
-.specialtiesImmersiveMain .scrollingCatalogHelp,
-.specialtiesImmersiveMain .scrollingCatalogReducedHelp{
+:is(.specialtiesImmersiveMain,.servicesImmersiveMain) .scrollingCatalogHelp,
+:is(.specialtiesImmersiveMain,.servicesImmersiveMain) .scrollingCatalogReducedHelp{
   margin:0 auto;
   padding:5px clamp(20px,5vw,75px);
   color:#fff;
@@ -288,55 +297,53 @@
   width:fit-content;
   max-width:calc(100% - 32px);
 }
-/* Fix nonmoving marquee: hovering over the entire viewport used to pause it.
-   On this page motion stays active until user presses Pause or focuses a link. */
-.specialtiesImmersiveMain .scrollingCatalogViewport:hover .scrollingCatalogTrack{
-  animation-play-state:running;
-}
-.specialtiesImmersiveMain .scrollingCatalogViewport:focus-within .scrollingCatalogTrack{
+/* Motion runs on hover; keyboard focus pauses for safe link selection. */
+:is(.specialtiesImmersiveMain,.servicesImmersiveMain) .scrollingCatalogViewport:focus-within .scrollingCatalogTrack{
   animation-play-state:paused;
 }
-.specialtiesImmersiveMain .scrollingCatalogViewport[data-paused="true"] .scrollingCatalogTrack{
+:is(.specialtiesImmersiveMain,.servicesImmersiveMain) .scrollingCatalogViewport[data-paused="true"] .scrollingCatalogTrack{
   animation:none!important;
   transform:none;
 }
-.specialtiesImmersivePage>.publicFooter{
+:is(.specialtiesImmersivePage,.servicesImmersivePage)>.publicFooter{
   margin:0;
 }
 @media(max-width:900px){
-  .specialtiesImmersiveMain .scrollingCatalogHeading{
+  :is(.specialtiesImmersiveMain,.servicesImmersiveMain) .scrollingCatalogHeading{
     align-items:flex-start;
     flex-direction:column;
     gap:12px;
     width:calc(100% - 32px);
   }
-  .specialtiesImmersiveMain .scrollingCatalogCard{
+  :is(.specialtiesImmersiveMain,.servicesImmersiveMain) .scrollingCatalogCard{
     flex-basis:268px;
     width:268px;
     min-height:330px;
   }
 }
 @media(max-width:620px){
-  .specialtiesImmersiveMain .scrollingCatalogImmersive{
+  :is(.specialtiesImmersiveMain,.servicesImmersiveMain) .scrollingCatalogImmersive{
     gap:7px;
     padding:14px 0 22px;
   }
-  .specialtiesImmersiveMain .scrollingCatalogHeading{
+  :is(.specialtiesImmersiveMain,.servicesImmersiveMain) .scrollingCatalogHeading{
     padding:15px 17px;
   }
-  .specialtiesImmersiveMain .scrollingCatalogHeading h2{font-size:27px}
-  .specialtiesImmersiveMain .scrollingCatalogCard{
+  :is(.specialtiesImmersiveMain,.servicesImmersiveMain) .scrollingCatalogHeading h2{font-size:27px}
+  :is(.specialtiesImmersiveMain,.servicesImmersiveMain) .scrollingCatalogCard{
     flex-basis:254px;
     width:254px;
     min-height:322px;
   }
-  .specialtiesImmersiveMain .scrollingCatalogImage{height:151px}
+  :is(.specialtiesImmersiveMain,.servicesImmersiveMain) .scrollingCatalogImage{height:151px}
 }
 @media(prefers-reduced-motion:reduce){
-  /* Respect visitor accessibility settings: manual horizontal scroll. */
-  .specialtiesImmersiveMain .scrollingCatalogViewport:hover .scrollingCatalogTrack,
-  .specialtiesImmersiveMain .scrollingCatalogViewport:focus-within .scrollingCatalogTrack{
+  /* Keep manual scrolling when device requests it, but honor explicit opt-in. */
+  :is(.specialtiesImmersiveMain,.servicesImmersiveMain) .scrollingCatalogViewport:not([data-explicit-motion="true"]) .scrollingCatalogTrack{
     animation:none!important;
     transform:none;
+  }
+  :is(.specialtiesImmersiveMain,.servicesImmersiveMain) .scrollingCatalogViewport[data-explicit-motion="true"]:not([data-paused="true"]) .scrollingCatalogTrack{
+    animation:scrollingCatalogToLeft 45s linear infinite!important;
   }
 }

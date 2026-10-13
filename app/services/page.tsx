@@ -16,21 +16,15 @@ const services: ScrollingCatalogItem[] = [
 
 export default function ServicesPage() {
   return (
-    <div className="publicSite">
+    <div className="publicSite servicesImmersivePage">
       <PublicHeader />
-      <main>
-        <section className="mockHero servicesMockHero">
-          <div className="heroScrim compact">
-            <p className="eyebrow">Evidence-informed care</p>
-            <h1>Our Services</h1>
-            <p>Professional psychological services designed to support mental health, personal growth, relationships, recovery, and overall well-being.</p>
-          </div>
-        </section>
+      <main className="servicesImmersiveMain">
         <ScrollingCatalog
           title="Explore Our Services"
           description="Browse our services as they move across the screen. Select any picture or description to learn more."
           items={services}
           label="Services"
+          appearance="immersive"
         />
       </main>
       <PublicFooter />

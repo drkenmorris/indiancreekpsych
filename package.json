@@ -9,7 +9,7 @@
     "lint": "next lint",
     "test:scheduling": "node --test tests/scheduling.test.mjs && vitest run",
     "typecheck": "tsc --noEmit",
-    "test:intake": "node --test tests/intake-security.test.mjs tests/legal-packet-db.test.mjs tests/patient-test-mode.test.mjs && vitest run tests/intake.test.tsx tests/kiosk-intake.test.tsx tests/intake-input.test.tsx tests/asq-student-items.test.tsx"
+    "test:intake": "node --test tests/intake-security.test.mjs tests/legal-packet-db.test.mjs tests/patient-test-mode.test.mjs && vitest run tests/intake.test.tsx tests/kiosk-intake.test.tsx tests/intake-input.test.tsx tests/asq-student-items.test.tsx tests/asq-persistence.test.ts"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",

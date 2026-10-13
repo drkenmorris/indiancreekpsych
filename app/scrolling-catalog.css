@@ -180,7 +180,6 @@
   }
   .scrollingCatalogViewport[data-explicit-motion="true"]:not([data-paused="true"]) .scrollingCatalogTrack{
     animation:scrollingCatalogToLeft 45s linear infinite!important;
-    transform:none;
     will-change:transform;
   }
   .scrollingCatalogCard{scroll-snap-align:start}

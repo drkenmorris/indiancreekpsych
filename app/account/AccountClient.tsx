@@ -47,16 +47,25 @@ export default function AccountClient({
       });
       if (userUpdateError) throw userUpdateError;
 
-      const { error: newsletterError } = await supabase.from("newsletter_subscriptions").upsert({
-        user_id: result.user.id,
-        email: result.user.email ?? email,
-        subscribed: newsletterSubscribed,
-        frequency: "biweekly",
-        consented_at: newsletterSubscribed ? new Date().toISOString() : new Date().toISOString(),
-        unsubscribed_at: newsletterSubscribed ? null : new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }, { onConflict: "user_id" });
-      if (newsletterError) throw newsletterError;
+      // Opt-out does not create a newsletter record or invent consent.
+      // Explicit opt-in is required before a subscription can be created.
+      if (newsletterSubscribed) {
+        const { error: newsletterError } = await supabase.from("newsletter_subscriptions").upsert({
+          user_id: result.user.id,
+          email: result.user.email ?? email,
+          subscribed: true,
+          frequency: "biweekly",
+          consented_at: new Date().toISOString(),
+          unsubscribed_at: null,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "user_id" });
+        if (newsletterError) throw newsletterError;
+      } else {
+        const { error: newsletterError } = await supabase.from("newsletter_subscriptions")
+          .update({ subscribed: false, unsubscribed_at: new Date().toISOString() })
+          .eq("user_id", result.user.id);
+        if (newsletterError) throw newsletterError;
+      }
       setMessage("Account details and newsletter preference saved.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Account information could not be saved.");

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { patientAccess } from "@/lib/patient/access";
 import ClinicalScreenClient from "../../ClinicalScreenClient";
+import DsmScreenNavigator from "../../DsmScreenNavigator";
 import { allowedScreenKeys } from "@/lib/clinical-tests/catalog";
 
 export default async function ClinicalDevScreenPage({
@@ -22,6 +23,7 @@ export default async function ClinicalDevScreenPage({
         Administrator-only synthetic QA. These imported screeners are not validated diagnostic instruments.
         Results are not sent to the patient record or saved to Supabase. Do not enter real patient information.
       </p>
+      <DsmScreenNavigator activeKey={key} />
       <ClinicalScreenClient screenKey={key} />
     </main>
   );

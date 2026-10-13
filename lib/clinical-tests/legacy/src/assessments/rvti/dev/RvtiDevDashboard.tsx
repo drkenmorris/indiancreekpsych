@@ -487,6 +487,22 @@ export default function RvtiDevDashboard() {
     <div style={{ padding: 20, maxWidth: 960 }}>
       <h2 style={{ marginBottom: 6 }}>RVTI Development Dashboard</h2>
 
+      <nav className="rvtiDomainNavigator" aria-label="RVTI domain sections">
+        <label htmlFor="rvti-domain-select">Select assessment domain</label>
+        <select
+          id="rvti-domain-select"
+          value={currentDomainIndex}
+          onChange={event=>setCurrentDomainIndex(Number(event.target.value))}
+        >
+          {domainGroups.map((group,index)=>(
+            <option key={group.domain} value={index}>
+              {String(index+1).padStart(2,"0")} · {formatDomainTitle(group.domain)}
+            </option>
+          ))}
+        </select>
+        <small>Choose a domain directly or use the Previous / Next controls below.</small>
+      </nav>
+
       <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 8 }}>
         Domain {currentDomainIndex + 1} of {domainGroups.length}
       </div>

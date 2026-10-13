@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import ClinicalStageMenu from "../ClinicalStageMenu";
 import { SelfForm } from "@/lib/clinical-tests/legacy/src/asq/SelfForm";
 import { ParentForm } from "@/lib/clinical-tests/legacy/src/asq/ParentForm";
 import { TeacherForm } from "@/lib/clinical-tests/legacy/src/asq/TeacherForm";
@@ -22,12 +23,8 @@ type Section = typeof sections[number][0];
 export default function AsqWorkspace() {
   const [section, setSection] = useState<Section>("student");
   return <div>
-    <nav aria-label="ASQ test pages" style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:20}}>
-      {sections.map(([key,label])=><button key={key} type="button" onClick={()=>setSection(key)}
-        aria-pressed={section===key} style={{padding:"8px 12px",borderRadius:8,background:section===key?"#dbeafe":"#f8fafc",border:"1px solid #94a3b8"}}>
-        {label}
-      </button>)}
-    </nav>
+    <ClinicalStageMenu label="ASQ assessment sections" stages={sections.map(([key,label])=>({key,label}))}
+      activeKey={section} onSelect={key=>setSection(key as Section)}/>
     {section==="student"&&<SelfForm />}
     {section==="parent"&&<ParentForm />}
     {section==="teacher"&&<TeacherForm />}

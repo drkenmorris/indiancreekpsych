@@ -62,3 +62,44 @@
 .rvtiDomainNavigator small{display:block;color:#577586;margin-top:5px}
 @media(max-width:960px){.clinicalSuiteGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:680px){.clinicalSuiteGrid,.clinicalDsmList{grid-template-columns:1fr}.clinicalLabHeaderTop{flex-wrap:wrap}.clinicalLabHeaderActions{width:100%}.dsmNavigator{grid-template-columns:1fr}.clinicalLabContent{padding:0 10px 40px}.clinicalStageItems{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px}.clinicalStageButton{white-space:nowrap}}
+
+/* ASQ/ASEQ administrator-only persistent QA records; isolated from patient-intake UI. */
+.asqPersistencePanel{
+  border:1px solid #b5d0dc;border-top:5px solid #1b6786;background:#fff;
+  border-radius:13px;margin:20px 0;padding:clamp(15px,2vw,23px);
+  box-shadow:0 5px 16px rgba(10,48,73,.05);
+}
+.asqPersistenceHead h2{
+  margin:0 0 5px;color:#0b3b58;font:500 clamp(23px,2.4vw,31px)/1.17 Georgia,serif;
+}
+.asqPersistenceHead .eyebrow{color:#246687;margin:0 0 7px;font-size:11px}
+.asqPersistenceHead p:not(.eyebrow){font:13px/1.5 Arial,sans-serif;color:#4f6877;max-width:960px;margin:4px 0 13px}
+.asqPersistenceControls,.asqPersistenceNew{
+  display:flex;align-items:end;flex-wrap:wrap;gap:10px 13px;margin:10px 0;
+}
+.asqPersistenceControls label,.asqPersistenceNew label{
+  display:grid;gap:4px;min-width:200px;flex:1 1 270px;
+  color:#244d63;font:700 12px Arial,sans-serif;
+}
+.asqPersistenceControls select,.asqPersistenceNew input{
+  width:100%;border:1px solid #9fbecb;border-radius:8px;background:#fff;
+  color:#193d50;padding:10px 12px;font:14px Arial,sans-serif;min-height:40px;
+}
+.asqPersistencePanel button{
+  border:0;border-radius:8px;background:#072b47;color:#fff;
+  font:700 12px Arial,sans-serif;padding:12px 14px;cursor:pointer;min-height:40px;
+}
+.asqPersistencePanel button:hover:not(:disabled){background:#195779}
+.asqPersistencePanel button:disabled{opacity:.52;cursor:not-allowed}
+.asqPersistencePanel button.asqRestoreButton{
+  background:#e8f3f7;color:#0d405d;border:1px solid #a9c4d1;
+}
+.asqPersistenceHelp{
+  margin:10px 0 0;font:12px/1.5 Arial,sans-serif;color:#596f7c;
+}
+.asqPersistenceStatus,.asqPersistenceError{
+  padding:10px 13px;margin:12px 0 0;border-radius:8px;font:13px/1.45 Arial,sans-serif;
+}
+.asqPersistenceStatus{background:#e8f6ed;border:1px solid #a6d1b4;color:#174c32}
+.asqPersistenceError{background:#fff3ee;border:1px solid #e9b4a1;color:#79392a}
+@media(max-width:640px){.asqPersistenceControls,.asqPersistenceNew{align-items:stretch}.asqPersistencePanel button{width:100%}}

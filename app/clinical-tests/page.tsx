@@ -11,7 +11,7 @@ const categories = [
 ] as const;
 
 export default async function ClinicalTestsPage() {
-  await patientAccess(true);
+  await patientAccess(true, "/clinical-tests");
   return (
     <main className="clinicalTestDashboard">
       <header className="clinicalDashboardIntro">

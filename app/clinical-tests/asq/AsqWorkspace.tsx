@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import ClinicalStageMenu from "../ClinicalStageMenu";
+import AsqPersistencePanel from "./AsqPersistencePanel";
 import { SelfForm } from "@/lib/clinical-tests/legacy/src/asq/SelfForm";
 import { ParentForm } from "@/lib/clinical-tests/legacy/src/asq/ParentForm";
 import { TeacherForm } from "@/lib/clinical-tests/legacy/src/asq/TeacherForm";
@@ -22,7 +23,10 @@ type Section = typeof sections[number][0];
 
 export default function AsqWorkspace() {
   const [section, setSection] = useState<Section>("student");
+  const [restoredKey, setRestoredKey] = useState(0);
   return <div>
+    <AsqPersistencePanel onRestored={()=>{setSection("student");setRestoredKey(k=>k+1);}}/>
+    <div key={restoredKey}>
     <ClinicalStageMenu label="ASQ assessment sections" stages={sections.map(([key,label])=>({key,label}))}
       activeKey={section} onSelect={key=>setSection(key as Section)}/>
     {section==="student"&&<SelfForm />}
@@ -32,5 +36,6 @@ export default function AsqWorkspace() {
     {section==="records"&&<StudentRecordsPage />}
     {section==="support"&&<SupportPage onGoToStudentRecords={()=>setSection("records")}/>}
     {section==="autism-parent"&&<ParentAutismAssessmentForm />}
+    </div>
   </div>;
 }

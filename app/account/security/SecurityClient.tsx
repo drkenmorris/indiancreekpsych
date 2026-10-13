@@ -9,6 +9,7 @@ export default function SecurityClient({ next }: { next: string }) {
   const [factors, setFactors] = useState<Factor[]>([]);
   const [verifiedSession, setVerifiedSession] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [factorsLoaded, setFactorsLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -24,6 +25,7 @@ export default function SecurityClient({ next }: { next: string }) {
     if (list.error || assurance.error) throw new Error("Security settings could not be loaded.");
     setFactors(list.data.totp.filter(f => f.status === "verified"));
     setVerifiedSession(assurance.data.currentLevel === "aal2");
+    setFactorsLoaded(true);
   }
 
   useEffect(() => {
@@ -103,7 +105,7 @@ export default function SecurityClient({ next }: { next: string }) {
               Verify with {f.friendly_name || "authenticator app"}
             </button>
           ))}
-          {(factors.length === 0 || verifiedSession) && !factorId && (
+          {factorsLoaded && (factors.length === 0 || verifiedSession) && !factorId && (
             <button type="button" disabled={busy} onClick={() => void enrollTotp()}>Set up authenticator-app MFA</button>
           )}
           {factorId && (
@@ -119,7 +121,7 @@ export default function SecurityClient({ next }: { next: string }) {
           <div className="accountPasskeyPanel">
             <strong>Passkey sign-in (experimental)</strong>
             <p>A passkey uses your device, fingerprint, face unlock, PIN, or security key for sign-in. It is separate from the authenticator-app verification required for patient information.</p>
-            <button type="button" disabled={busy} className="secondaryAction" onClick={() => void registerPasskey()}>Add a passkey to this account</button>
+            <button type="button" disabled={busy || !factorsLoaded} className="secondaryAction" onClick={() => void registerPasskey()}>Add a passkey to this account</button>
           </div>
           {verifiedSession && <a className="accountPrimaryLink" href={next}>Continue</a>}
         </>

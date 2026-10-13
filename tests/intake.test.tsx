@@ -34,10 +34,10 @@ test('draft save accepts incomplete answers and confirms success',async()=>{
  mock.save.mockResolvedValue({data:{patient_id:'patient',answers:{},status:'draft',version:1},error:null});render(<IntakeForm userId="patient" initial={null} defaults={{}}/>);fireEvent.click(screen.getByRole('button',{name:'Save draft'}));await screen.findByText('Draft saved securely.');expect(mock.insert).toHaveBeenCalledWith({patient_id:'patient',answers:{legal_packet_version:LEGAL_PACKET_VERSION},status:'draft'});
 });
 test('security load failure never offers fresh factor enrollment',async()=>{
- mock.list.mockResolvedValue({error:{message:'offline'}});mock.assurance.mockResolvedValue({error:{message:'offline'}});render(<SecurityClient next="/patient/intake"/>);await screen.findByRole('alert');expect(screen.queryByRole('button',{name:'Set up authenticator app'})).toBeNull();
+ mock.list.mockResolvedValue({error:{message:'offline'}});mock.assurance.mockResolvedValue({error:{message:'offline'}});render(<SecurityClient next="/patient/intake"/>);await screen.findByRole('alert');expect(screen.queryByRole('button',{name:'Set up authenticator-app MFA'})).toBeNull();
 });
 test('existing factor requires verification before adding another',async()=>{
- mock.list.mockResolvedValue({data:{all:[{id:'factor',factor_type:'totp',status:'verified'}]},error:null});mock.assurance.mockResolvedValue({data:{currentLevel:'aal1'},error:null});render(<SecurityClient next="/patient/intake"/>);await screen.findByRole('button',{name:'Use authenticator app'});expect(screen.queryByRole('button',{name:'Set up passkey / device'})).toBeNull();
+ mock.list.mockResolvedValue({data:{totp:[{id:'factor',factor_type:'totp',status:'verified'}]},error:null});mock.assurance.mockResolvedValue({data:{currentLevel:'aal1'},error:null});render(<SecurityClient next="/patient/intake"/>);await screen.findByRole('button',{name:'Verify with authenticator app'});expect(screen.queryByRole('button',{name:'Set up authenticator-app MFA'})).toBeNull();
 });
 
 

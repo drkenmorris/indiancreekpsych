@@ -95,8 +95,17 @@ export default function AccountClient({
       <div className="accountEssentialActions">
         <Link className="accountPrimaryLink" href="/account/security">MFA and passkey security settings</Link>
         {accountType === "patient" && <Link className="accountPrimaryLink" href="/patient/intake">Open Intake Questionnaire</Link>}
+        {accountType === "admin" && (
+          <Link className="accountPrimaryLink" href="/clinical-tests">Psychological Tests and Questionnaires</Link>
+        )}
+        {(accountType === "admin" || accountType === "staff") && (
+          <Link className="accountPrimaryLink" href="/admin/questionnaires">Patient Questionnaires and Intake Tools</Link>
+        )}
       </div>
       {accountType === "guest" && <p className="accountPrivacyNote">Guest accounts receive practice information. Patient intake requires a Patient account and verified security.</p>}
+      {(accountType === "admin" || accountType === "staff") && (
+        <p className="accountPrivacyNote">Practice administrators can test the full intake questionnaire using fictional answers, launch an office intake, and review authorized submissions. Real patient responses remain protected by MFA and clinical permissions.</p>
+      )}
     </section>
   );
 }

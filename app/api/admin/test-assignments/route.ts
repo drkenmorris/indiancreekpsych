@@ -4,7 +4,10 @@ import { normalizeAssignmentData, assignedTestOptions } from "@/lib/clinical-tes
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-const EMAIL_READY = () => Boolean(process.env.RESEND_API_KEY && process.env.TEST_INVITATION_FROM_EMAIL);
+const EMAIL_READY = () => Boolean(process.env.PAUBOX_API_KEY
+  && process.env.TEST_INVITATION_FROM_EMAIL
+  && process.env.PAUBOX_BAA_CONFIRMED === "true"
+  && process.env.PATIENT_TEST_INVITATIONS_ENABLED === "true");
 
 async function authorize() {
   const supabase=await createClient();
@@ -56,37 +59,42 @@ export async function POST(request:NextRequest) {
   }
   if(body.action==="send") {
     if(!EMAIL_READY())return NextResponse.json(
-      {error:"Email delivery is not configured. Set RESEND_API_KEY and TEST_INVITATION_FROM_EMAIL in Vercel, using a verified sender domain. This assignment has NOT been emailed."},
+      {error:"Secure patient invitations are not active. Configure Paubox Email API, confirm the BAA, verify the sending domain, and complete patient testing approval. No email was sent."},
       {status:503});
     const id=typeof body.id==="string"?body.id:"";
     if(!/^[a-f\d]{8}(-[a-f\d]{4}){3}-[a-f\d]{12}$/i.test(id))
       return NextResponse.json({error:"Invalid assignment."},{status:400});
     const {data:record,error}=await ctx.supabase.from("psych_test_assignments")
-      .select("id,recipient_email,status,expires_at").eq("id",id).maybeSingle();
+      .select("id,recipient_email,test_key,status,expires_at").eq("id",id).maybeSingle();
     if(error||!record)return NextResponse.json({error:"Assignment not found."},{status:404});
     if(record.status!=="draft")return NextResponse.json({error:"This assignment has already been sent or revoked."},{status:409});
     if(Date.parse(record.expires_at)<=Date.now())return NextResponse.json({error:"This invitation expired. Create a new assignment."},{status:409});
+    // A test invitation is never an authorization to access unreleased questionnaires.
+    const approvedTest = assignedTestOptions.find(t=>t.value===record.test_key);
+    if(!approvedTest?.patientReady)
+      return NextResponse.json({error:"This questionnaire has not yet been approved for patient administration. Invitation not sent."},{status:409});
     const link="https://www.indiancreekpsych.com/patient/assigned-tests/"+encodeURIComponent(id);
     const sender=process.env.TEST_INVITATION_FROM_EMAIL!;
     let acceptedId:string|undefined;
     try{
-      const response=await fetch("https://api.resend.com/emails",{
-        method:"POST",headers:{"Content-Type":"application/json",
-          "Authorization":"Bearer "+process.env.RESEND_API_KEY,
-          "Idempotency-Key":"indiancreek-test-invitation-"+id},
-        body:JSON.stringify({
-          from:sender,to:[record.recipient_email],
-          subject:"Secure message from Indian Creek Psychological Services",
-          text:"A secure assessment invitation has been prepared for your account. To view it, sign in to Indian Creek Psychological Services using the email address receiving this message. If you do not yet have an account, create a Patient account using this email, then return to the link.\n\n"+link+"\n\nFor your privacy, this message does not include assessment details or personal medical information. Never send medical information by replying to this email. If you were not expecting this invitation, please contact the office at 913-353-6116.",
-          reply_to:"drkenmorris@indiancreekpsych.com",
-        }),signal:AbortSignal.timeout(15000),
+      const response=await fetch("https://api.paubox.com/v1/email/messages",{
+        method:"POST",
+        headers:{"Content-Type":"application/json",
+          "Authorization":"Bearer "+process.env.PAUBOX_API_KEY},
+        body:JSON.stringify({data:{message:{
+          recipients:[record.recipient_email],
+          headers:{from:sender,subject:"Secure message from Indian Creek Psychological Services"},
+          content:{"text/plain":"A secure message is available in your Indian Creek Psychological Services patient account. Sign in using the email address receiving this invitation. If you do not have a Patient account, register using this email first.\\n\\n"+link+"\\n\\nFor privacy, this email contains no assessment details or results. If you did not expect this message, please call 913-353-6116."}
+        }}}),
+        signal:AbortSignal.timeout(15000),
       });
       if(!response.ok)throw Error("provider rejected invitation");
       const result:unknown=await response.json();
-      acceptedId=typeof result==="object"&&result!==null&&"id" in result&&typeof result.id==="string"?result.id:undefined;
+      acceptedId=typeof result==="object"&&result!==null&&"sourceTrackingId" in result
+        &&typeof result.sourceTrackingId==="string"?result.sourceTrackingId:undefined;
       if(!acceptedId)throw Error("provider acceptance not confirmed");
     }catch{
-      return NextResponse.json({error:"The email service did not confirm delivery acceptance. Assignment remains a draft; check the email provider before retrying."},{status:502});
+      return NextResponse.json({error:"The email provider did not confirm acceptance. Assignment is still a draft; check provider status before retrying."},{status:502});
     }
     const {data:updated,error:updateError}=await ctx.supabase.from("psych_test_assignments")
       .update({status:"sent",sent_at:new Date().toISOString(),email_provider_id:acceptedId})

@@ -2,7 +2,7 @@
 import { clinicalSessionStore } from "@/lib/clinical-tests/clinicalSessionStore";
 // src/asq/ParentForm.tsx
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { parentItems } from "./parentItems";
 import { LikertQuestion } from "./LikertQuestion";
 import type { LikertValue } from "./LikertQuestion";
@@ -25,6 +25,7 @@ import {
 // We are leaving this unchanged to avoid breaking existing saved parent profiles.
 // If you want, item #2 can be unifying key patterns across pages.
 const profileKey = (studentId: string) => `asq_profile_parent_${studentId}_v1`;
+const responseKey = "asq_parent_responses_v1";
 
 type ParentResponses = Record<number, LikertValue>;
 
@@ -86,6 +87,20 @@ export const ParentForm: React.FC = () => {
 
   const [responses, setResponses] = useState<ParentResponses>({});
   const [reportText, setReportText] = useState<string>("");
+  useEffect(() => {
+    const saved = clinicalSessionStore.getItem(responseKey);
+    if (saved) {
+      try {
+        const parsed: unknown = JSON.parse(saved);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          setResponses(parsed as ParentResponses);
+        }
+      } catch { /* Ignore a damaged QA draft. */ }
+    }
+  }, []);
+  useEffect(() => {
+    clinicalSessionStore.setItem(responseKey, JSON.stringify(responses));
+  }, [responses]);
 
   // ✅ Student selector state (mirrors ResultsPage behavior)
   const [studentNameInput, setStudentNameInput] = useState("");
@@ -149,6 +164,7 @@ export const ParentForm: React.FC = () => {
 
     const narrative = buildInformantNarrative(profile);
     setReportText(narrative);
+    clinicalSessionStore.setItem(`asq_narrative_parent_${sid}_v1`, narrative);
   };
 
   return (

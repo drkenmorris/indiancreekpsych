@@ -166,6 +166,7 @@ export const TeacherForm: React.FC = () => {
 
     const narrative = buildInformantNarrative(profile);
     setReportText(narrative);
+    clinicalSessionStore.setItem(`asq_narrative_teacher_${sid}_v1`, narrative);
   };
 
   return (

@@ -37,6 +37,10 @@ export default function ResultsPage() {
   const [studentNameInput, setStudentNameInput] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
   const [combinedText, setCombinedText] = useState<string>("");
+  useEffect(() => {
+    const sid = getCurrentStudentId();
+    if (sid) setCombinedText(clinicalSessionStore.getItem(`asq_combined_report_${sid}_v1`) ?? "");
+  }, []);
 
   // Refresh when any scoring page saves profiles
   useEffect(() => {
@@ -101,6 +105,7 @@ export default function ResultsPage() {
     });
 
     setCombinedText(report);
+    clinicalSessionStore.setItem(`asq_combined_report_${currentStudentId}_v1`,report);
   }
 
   return (

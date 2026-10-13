@@ -2,7 +2,7 @@
 import { clinicalSessionStore } from "@/lib/clinical-tests/clinicalSessionStore";
 // src/assessments/autism/UI/ParentAutismAssessmentForm.tsx
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { AUTISM_PARENT_ITEM_BANK } from "../items/autismItemsParent";
 
 type AutismItemDomain =
@@ -45,6 +45,21 @@ export function ParentAutismAssessmentForm({
   const [activeDomain, setActiveDomain] = useState<AutismItemDomain | "ALL">("ALL");
   const [responses, setResponses] = useState<AutismRawResponseMap>({});
   const [report, setReport] = useState<AutismScoreReport | null>(null);
+  const legacyResponseKey = "asq_legacy_parent_responses_v1";
+  useEffect(() => {
+    const saved = clinicalSessionStore.getItem(legacyResponseKey);
+    if (saved) {
+      try {
+        const parsed: unknown = JSON.parse(saved);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          setResponses(parsed as AutismRawResponseMap);
+        }
+      } catch { /* Invalid synthetic test draft. */ }
+    }
+  }, []);
+  useEffect(() => {
+    clinicalSessionStore.setItem(legacyResponseKey, JSON.stringify(responses));
+  }, [responses]);
 
   const itemsByDomain = useMemo(() => {
     const map = new Map<AutismItemDomain, typeof AUTISM_PARENT_ITEM_BANK.items>();
@@ -99,6 +114,7 @@ export function ParentAutismAssessmentForm({
     const r = scoreAutismAssessment(AUTISM_PARENT_ITEM_BANK, responses);
 
     setReport(r);
+    clinicalSessionStore.setItem(`asq_legacy_parent_scores_${sid}_v1`, JSON.stringify(r));
     setView("RESULTS");
 
     // Convert scoring output into the InformantProfile format Results/Comparison expects.
@@ -153,6 +169,7 @@ export function ParentAutismAssessmentForm({
 
   const handleClear = () => {
     setResponses({});
+    clinicalSessionStore.removeItem(legacyResponseKey);
     setReport(null);
     setView("FORM");
 

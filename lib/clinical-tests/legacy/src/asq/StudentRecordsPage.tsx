@@ -168,17 +168,28 @@ export default function StudentRecordsPage() {
   }, [refreshKey, currentStudentId]);
 
   const [demo, setDemo] = useState<StudentDemographics>({ ...DEFAULT_DEMO });
+  const [demoLoadedId, setDemoLoadedId] = useState("");
   const [status, setStatus] = useState<string>("");
 
   // Load demo when selected student changes
   useEffect(() => {
     if (!currentStudentId) {
+      setDemoLoadedId("");
       setDemo({ ...DEFAULT_DEMO });
       return;
     }
     const loaded = safeParseDemo(clinicalSessionStore.getItem(demoKey(currentStudentId)));
     setDemo(loaded);
+    setDemoLoadedId(currentStudentId);
   }, [currentStudentId]);
+
+  // Stage each student record field in the existing ASQ memory store so the
+  // new explicit Supabase Save Workspace also captures unsaved text edits.
+  // The ID guard prevents overwriting another student's demographics.
+  useEffect(() => {
+    if (!currentStudentId || demoLoadedId !== currentStudentId) return;
+    clinicalSessionStore.setItem(demoKey(currentStudentId), JSON.stringify(demo));
+  }, [demo, currentStudentId, demoLoadedId]);
 
   function createAndSelectStudent() {
     const first = newFirst.trim();

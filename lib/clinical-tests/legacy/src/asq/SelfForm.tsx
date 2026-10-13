@@ -104,6 +104,7 @@ export const SelfForm = () => {
 
     const narrative = buildInformantNarrative(profile);
     setReportText(narrative);
+    clinicalSessionStore.setItem(`asq_narrative_student_${sid}_v1`, narrative);
   };
 
   return (

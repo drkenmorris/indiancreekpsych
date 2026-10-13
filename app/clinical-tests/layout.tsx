@@ -5,7 +5,7 @@ import "./clinical-test-ui.css";
 
 export default async function ClinicalTestsLayout({ children }: { children: ReactNode }) {
   // Every test route remains administrator-only with verified email and aal2.
-  await patientAccess(true);
+  await patientAccess(true, "/clinical-tests");
   return (
     <div className="clinicalLabShell">
       <ClinicalLabNavigation />

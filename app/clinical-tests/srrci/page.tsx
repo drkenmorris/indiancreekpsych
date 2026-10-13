@@ -2,7 +2,7 @@ import Link from "next/link";
 import { patientAccess } from "@/lib/patient/access";
 import SrrciWorkspace from "./SrrciWorkspace";
 export default async function SrrciPage() {
-  await patientAccess(true);
+  await patientAccess(true, "/clinical-tests/srrci");
   return <main className="authPage" style={{maxWidth:1100,margin:"auto",padding:24}}>
     <Link href="/clinical-tests">← Clinical testing library</Link>
     <h1>SRRCI-X Relationship Assessment</h1>

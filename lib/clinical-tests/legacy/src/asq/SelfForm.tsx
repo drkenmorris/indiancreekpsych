@@ -128,7 +128,7 @@ export const SelfForm = () => {
         <LikertQuestion
           key={item.id}
           id={item.id}
-          text={item.prompt ?? ""}
+          text={item.text ?? item.prompt ?? ""}
           value={responses[item.id] ?? null}
           onChange={handleChange}
         />

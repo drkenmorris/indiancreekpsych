@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import ClinicalStageMenu from "../ClinicalStageMenu";
 import { clinicalSessionStore } from "@/lib/clinical-tests/clinicalSessionStore";
 import RtafiIntakePage from "@/lib/clinical-tests/legacy/src/features/psychometrics/rtafi/pages/RtafiIntakePage";
 import RtafiHouseholdSetupPage from "@/lib/clinical-tests/legacy/src/features/psychometrics/rtafi/pages/RtafiHouseholdSetupPage";
@@ -13,11 +14,10 @@ export default function RtafiWorkspace() {
  let result: RtafiAssessmentResult | null = null;
  try {result=raw?JSON.parse(raw) as RtafiAssessmentResult:null;}catch{result=null;}
  return <section>
-  <nav aria-label="RTAFI stages" style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:20}}>
-   {([["intake","Intake"],["setup","Household setup"],["assessment","Assessment"],["results","Results"]] as const)
-    .map(([key,label])=><button type="button" key={key} onClick={()=>setTab(key)} aria-pressed={tab===key}
-     style={{padding:8,border:"1px solid #94a3b8",borderRadius:8}}>{label}</button>)}
-  </nav>
+  <ClinicalStageMenu label="RTAFI test stages" stages={[
+    {key:"intake",label:"Intake"},{key:"setup",label:"Household setup"},
+    {key:"assessment",label:"Assessment"},{key:"results",label:"Results"}
+  ]} activeKey={tab} onSelect={key=>setTab(key as Tab)}/>
   {tab==="intake"&&<RtafiIntakePage onContinue={()=>setTab("setup")}/>}
   {tab==="setup"&&<RtafiHouseholdSetupPage onContinue={()=>setTab("assessment")}/>}
   {tab==="assessment"&&<RtafiAssessmentPage onComplete={()=>setTab("results")}/>}

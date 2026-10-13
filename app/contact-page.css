@@ -1,0 +1,118 @@
+/* Contact page only: compact desktop layout, with mobile scrolling retained. */
+.compactContactMain{
+  display:grid;grid-template-rows:auto minmax(0,1fr);
+  min-height:0;height:100%;overflow-y:auto;overflow-x:hidden;
+  scrollbar-gutter:auto;background:#f5f8fa;
+}
+.compactContactHero{
+  min-height:clamp(155px,23vh,210px);height:auto;
+  padding:clamp(10px,2vh,20px) clamp(20px,6vw,90px);
+  align-items:center;
+}
+.compactContactHero .heroScrim.compact{
+  width:min(800px,65vw);max-width:100%;margin:0;
+  padding:clamp(13px,2vw,23px);
+}
+.compactContactHero .heroScrim .eyebrow{margin:0 0 5px}
+.compactContactHero .heroScrim h1{
+  font-size:clamp(29px,3.3vw,43px);line-height:1.09;margin:0 0 8px;
+}
+.compactContactHero .heroScrim>p:not(.eyebrow){
+  font:clamp(13px,1.15vw,16px)/1.4 Arial,Helvetica,sans-serif;margin:0;
+}
+.compactContactGrid{
+  display:grid;grid-template-columns:minmax(0,.88fr) minmax(0,1.12fr);
+  align-items:stretch;gap:clamp(12px,2vw,25px);
+  min-height:0;padding:clamp(10px,2vh,20px) clamp(18px,5vw,74px);
+  background:#f5f8fa;
+}
+.compactContactDetails,.compactContactCallout{
+  min-width:0;padding:clamp(15px,1.8vw,25px);border-radius:14px;
+}
+.compactContactDetails h2{
+  font-size:clamp(23px,2.1vw,31px);line-height:1.12;
+  margin:0 0 15px;color:#0d3b5e;
+}
+.compactContactDetails p{margin:0 0 12px;line-height:1.4}
+.compactContactDetails p strong,.compactContactDetails p span,
+.compactContactDetails .contactEmail strong{display:block}
+.compactContactDetails a{overflow-wrap:anywhere}
+.compactContactDetails .heroActions{gap:8px;margin:15px 0}
+.compactContactDetails .heroActions a{padding:10px 14px;font-size:12px}
+.contactEmail{
+  border-top:1px solid #d8e3e8;padding-top:11px;
+  font:14px/1.4 Arial,Helvetica,sans-serif;
+}
+.contactEmail a{color:#155c83}
+.contactMessageComposer .eyebrow{margin:0 0 4px}
+.contactMessageComposer h2{
+  font-size:clamp(23px,2.3vw,32px);line-height:1.12;
+  margin:0 0 8px;color:#0d3b5e;
+}
+.contactMessageNotice{
+  font:12px/1.4 Arial,Helvetica,sans-serif;
+  color:#496271;margin:0 0 11px;
+}
+.contactQuickForm{display:grid;gap:9px}
+.contactQuickFields{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;
+}
+.contactQuickForm label{
+  display:grid;gap:4px;
+  font:700 12px/1.25 Arial,Helvetica,sans-serif;color:#24465d;
+}
+.contactQuickForm label>span:not(.contactMessageLabelRow){font-weight:400;color:#576f80}
+.contactQuickForm input,.contactQuickForm textarea{
+  display:block;width:100%;min-width:0;padding:9px 10px;
+  border:1px solid #a9bec9;border-radius:8px;
+  background:#fff;color:#183246;font:14px/1.3 Arial,Helvetica,sans-serif;
+}
+.contactQuickForm textarea{resize:vertical;min-height:66px;max-height:160px}
+.contactQuickForm input:focus-visible,.contactQuickForm textarea:focus-visible{
+  outline:2px solid #1a6487;outline-offset:1px;
+}
+.contactMessageLabelRow{
+  display:flex;justify-content:space-between;align-items:baseline;gap:10px;
+}
+.contactCharacterCount{
+  font:400 11px Arial,Helvetica,sans-serif;color:#536b7c;
+}
+.contactMessageSubmit{
+  justify-self:start;border:0;padding:10px 15px;
+  font:700 12px Arial,Helvetica,sans-serif;cursor:pointer;
+}
+.contactMessageSubmit:hover{filter:brightness(1.08)}
+.contactSendExplanation{margin:0;color:#4a6171;font:11px/1.35 Arial,Helvetica,sans-serif}
+.contactSecureAccess{
+  display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;
+  margin-top:13px;padding-top:10px;border-top:1px solid #d8e3e8;
+  color:#405b69;font:12px/1.4 Arial,Helvetica,sans-serif;
+}
+.contactSecureAccess strong{color:#0d3b5e}
+.contactSecureAccess a{color:#155c83;font-weight:700}
+@media(max-width:900px){
+  .compactContactMain{display:block;overflow-y:auto}
+  .compactContactHero{min-height:0;padding:20px clamp(18px,4vw,40px)}
+  .compactContactHero .heroScrim.compact{width:min(750px,100%);margin:0}
+  .compactContactGrid{
+    grid-template-columns:1fr;
+    padding:18px clamp(18px,4vw,40px);
+  }
+}
+@media(max-width:620px){
+  .compactContactHero{min-height:0;align-items:center;padding:18px}
+  .compactContactHero .heroScrim.compact{padding:17px}
+  .compactContactHero .heroScrim h1{font-size:31px}
+  .compactContactGrid{padding:14px}
+  .compactContactDetails,.compactContactCallout{padding:18px}
+  .contactQuickFields{grid-template-columns:1fr}
+}
+@media(min-width:901px) and (max-height:700px){
+  .compactContactHero{min-height:140px;padding-top:9px;padding-bottom:9px}
+  .compactContactGrid{padding-top:9px;padding-bottom:9px}
+  .compactContactDetails,.compactContactCallout{padding:14px 18px}
+  .compactContactDetails h2{margin-bottom:9px}
+  .contactMessageNotice{margin-bottom:6px}
+  .contactQuickForm{gap:6px}
+  .contactSendExplanation{font-size:10px}
+}

@@ -79,3 +79,47 @@
  .accountPortalShell .authCard{padding:19px}
  .accountPortalShell .icp-bottom-menu{justify-content:flex-start}
 }
+
+/* Administrator/staff questionnaire navigation is independent of patient records. */
+.adminQuestionnaireHub{
+  width:100%;max-width:1260px;margin:0 auto;
+  min-height:100%;padding:clamp(22px,3.5vw,46px)!important;
+  display:block!important;background:#f2f6f8;
+}
+.adminQuestionnaireIntro{max-width:1000px;margin:0 auto 23px}
+.adminQuestionnaireIntro .eyebrow{margin:0 0 6px}
+.adminQuestionnaireIntro h1{
+  font:500 clamp(33px,3.8vw,49px)/1.15 Georgia,serif;color:#0e3c5b;margin:0 0 10px
+}
+.adminQuestionnaireIntro>p:not(.eyebrow){font:15px/1.5 Arial,sans-serif;color:#435d6d;margin:0 0 15px}
+.adminQuestionnaireSecurity{
+  padding:12px 15px;background:#fff6e8;color:#563e20!important;
+  border:1px solid #f0ce99;border-radius:10px;
+}
+.adminQuestionnaireSecurity a{color:#124f76;font-weight:700}
+.adminQuestionnaireCards{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:15px;max-width:1180px;margin:0 auto 22px;
+}
+.adminQuestionnaireCard{
+  display:flex;flex-direction:column;align-items:flex-start;min-width:0;
+  padding:22px 24px;border-radius:14px;background:#fff;
+  border:1px solid #d6e2e8;box-shadow:0 5px 16px rgba(9,44,67,.04);
+}
+.adminQuestionnaireCard>span{
+  text-transform:uppercase;letter-spacing:.09em;color:#4d7288;font:700 11px Arial,sans-serif;
+}
+.adminQuestionnaireCard h2{color:#0c3b5e;font:500 26px/1.15 Georgia,serif;margin:10px 0 9px}
+.adminQuestionnaireCard p{font:14px/1.5 Arial,sans-serif;color:#465e6d;flex:1;margin:0 0 17px}
+.adminQuestionnaireCard a{
+  display:inline-block;background:#072b47;color:#fff!important;
+  text-decoration:none;font:700 13px Arial,sans-serif;
+  padding:11px 15px;border-radius:9px
+}
+.adminQuestionnaireCard a:hover{background:#185775}
+.adminPsychTestsCard{border-top:4px solid #b88032}
+.adminQuestionnaireHelp{
+  max-width:1180px;margin:0 auto 18px;padding:15px 20px;
+  border-radius:11px;background:#e6eff5;color:#234459;font:13px/1.6 Arial,sans-serif
+}
+@media(max-width:760px){.adminQuestionnaireCards{grid-template-columns:1fr}.adminQuestionnaireHub{padding:18px!important}}

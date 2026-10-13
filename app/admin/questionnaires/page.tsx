@@ -62,6 +62,14 @@ export default async function AdminQuestionnairesPage() {
       <section className="adminQuestionnaireCards" aria-label="Available administrative questionnaires">
         {isAdmin && (
           <article className="adminQuestionnaireCard adminPsychTestsCard">
+            <span>Administrator · Patient invitations</span>
+            <h2>Assign Psychological Tests</h2>
+            <p>Create a patient assessment assignment with first and last name, email, date of birth, and a test selected from the library. Review invitation delivery readiness before emailing.</p>
+            <Link href="/admin/assign-test">Open test assignment center →</Link>
+          </article>
+        )}
+        {isAdmin && (
+          <article className="adminQuestionnaireCard adminPsychTestsCard">
             <span>Administrator-only testing</span>
             <h2>Psychological Testing Library</h2>
             <p>Open the relocated DSM screening modules, CSEQ, ASQ/ASEQ, SRRCI-X, RTAFI, RDII, RVTI, and CogSwitch. Their internal questionnaires and reports remain synthetic QA tools.</p>

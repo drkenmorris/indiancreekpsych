@@ -96,7 +96,10 @@ export default function AccountClient({
         <Link className="accountPrimaryLink" href="/account/security">MFA and passkey security settings</Link>
         {accountType === "patient" && <Link className="accountPrimaryLink" href="/patient/intake">Open Intake Questionnaire</Link>}
         {accountType === "admin" && (
-          <Link className="accountPrimaryLink" href="/clinical-tests">Psychological Tests and Questionnaires</Link>
+          <>
+            <Link className="accountPrimaryLink" href="/clinical-tests">Psychological Tests and Questionnaires</Link>
+            <Link className="accountPrimaryLink" href="/admin/assign-test">Assign Psychological Test</Link>
+          </>
         )}
         {(accountType === "admin" || accountType === "staff") && (
           <Link className="accountPrimaryLink" href="/admin/questionnaires">Patient Questionnaires and Intake Tools</Link>

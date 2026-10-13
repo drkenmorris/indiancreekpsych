@@ -123,3 +123,43 @@
   border-radius:11px;background:#e6eff5;color:#234459;font:13px/1.6 Arial,sans-serif
 }
 @media(max-width:760px){.adminQuestionnaireCards{grid-template-columns:1fr}.adminQuestionnaireHub{padding:18px!important}}
+
+/* Psychological Test assignment hub: administrator only; responsive and scannable. */
+.assignmentPage{padding:clamp(18px,3vw,42px)!important;display:block!important;background:#f1f6f9}
+.assignmentWrap{max-width:1230px;margin:0 auto}
+.assignmentTop>a{color:#145778;font-weight:700;text-decoration:none;font-size:13px}
+.assignmentTop .eyebrow{margin:18px 0 5px}
+.assignmentTop h1{font:500 clamp(32px,3.8vw,48px)/1.13 Georgia,'Times New Roman',serif;color:#0a3b5a;margin:0 0 8px}
+.assignmentTop>p:last-child{font-size:14px;line-height:1.5;color:#526a7b;max-width:920px}
+.assignmentPanels{display:grid;grid-template-columns:1fr 1.12fr;gap:16px;align-items:start;margin-top:24px}
+.assignmentCard{background:#fff;border:1px solid #d5e3ea;border-radius:14px;padding:clamp(17px,2.3vw,26px);box-shadow:0 7px 20px rgba(6,47,72,.05)}
+.assignmentCard h2{font:500 27px/1.15 Georgia,serif;color:#0d3c5a;margin:0 0 10px}
+.assignmentCard>p{font:13px/1.5 Arial,sans-serif;color:#51697a}
+.assignmentCard h3{font:500 22px Georgia,serif;color:#0c3c5a;margin:20px 0 10px}
+.assignmentForm{display:grid;gap:13px;margin-top:18px}
+.assignmentForm label{display:grid;gap:5px;min-width:0;color:#244a61;font:700 13px Arial,sans-serif}
+.assignmentForm input,.assignmentForm select{width:100%;min-width:0;border:1px solid #9dbbc9;background:white;color:#183d55;border-radius:8px;padding:11px 12px;font:14px Arial,sans-serif}
+.assignmentTwoFields{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+.assignmentCard button{border:0;border-radius:9px;background:#072b47;color:white;padding:10px 13px;font:700 12px Arial,sans-serif;cursor:pointer}
+.assignmentCard button:disabled{opacity:.5;cursor:not-allowed}
+.assignmentForm>button{justify-self:start;padding:12px 17px}
+.assignmentCaution{background:#fff6e7;border:1px solid #edc894;border-left:4px solid #c08e4d;border-radius:8px;color:#62471f!important;padding:13px;font:12px/1.5 Arial,sans-serif}
+.assignmentCaution code{color:#61441f;font-size:11px}
+.assignmentStatusRow{display:flex;gap:12px;align-items:baseline;justify-content:space-between;flex-wrap:wrap}
+.deliveryConfigured,.deliveryOffline{border-radius:999px;padding:6px 10px;font:700 11px Arial,sans-serif}
+.deliveryConfigured{background:#e3f5eb;color:#1e6943}.deliveryOffline{background:#f8e6d6;color:#80501e}
+.assignmentTableWrap{width:100%;overflow-x:auto}
+.assignmentTable{border-collapse:collapse;width:100%;font:12px/1.5 Arial,sans-serif}
+.assignmentTable th{text-align:left;background:#f0f5f8;color:#355b72;padding:10px 8px}
+.assignmentTable td{padding:12px 8px;border-bottom:1px solid #dbe5e9;vertical-align:top}
+.assignmentTable td small{display:block;margin-top:5px;color:#526a7a;overflow-wrap:anywhere}
+.assignmentPill{display:inline-block;white-space:nowrap;color:#455f70;font-size:11px}
+.assignmentHelp{font-size:12px!important;border-top:1px solid #e0e9ed;padding-top:14px}
+.assignmentFeedback,.assignmentFeedbackError{grid-column:1/-1;border-radius:9px;padding:14px 17px;font:13px Arial,sans-serif}
+.assignmentFeedback{background:#e4f6e9;color:#1c5938}.assignmentFeedbackError{background:#fbe9e6;color:#813a30}
+.assignmentPatientCard{width:min(760px,100%);background:white;border:1px solid #d5e3ea;border-radius:15px;padding:clamp(22px,4vw,42px)}
+.assignmentPatientCard h1{font:500 34px Georgia,serif;color:#0c3c5a}
+.assignmentPatientCard p{color:#375a6c;line-height:1.58}
+.assignmentPatientCard a{color:#155c7e;font-weight:700}
+@media(max-width:1000px){.assignmentPanels{grid-template-columns:1fr}}
+@media(max-width:620px){.assignmentTwoFields{grid-template-columns:1fr}}

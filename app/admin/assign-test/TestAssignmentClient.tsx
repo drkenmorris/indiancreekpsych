@@ -91,7 +91,7 @@ export default function TestAssignmentClient(){
   <section className="assignmentCard">
    <div className="assignmentStatusRow"><h2>Invitation status</h2><span className={emailReady?"deliveryConfigured":"deliveryOffline"}>{emailReady?"Email provider configured":"Secure email inactive"}</span></div>
    <p>Invitations are delivered through a transactional email provider. They do not contain the patient's name, birth date, assessment name, or results.</p>
-   {!emailReady&&<p className="assignmentCaution">To activate patient email delivery, enroll with the healthcare email provider Paubox and verify your practice domain. Then configure <code>PAUBOX_API_KEY</code> and <code>TEST_INVITATION_FROM_EMAIL</code> as protected Vercel secrets. Patient-release and BAA approval are also required. No email is sent until all controls are satisfied.</p>}
+   {!emailReady&&<p className="assignmentCaution">To activate patient email delivery, enroll with the healthcare email provider Paubox and verify your practice domain. Then configure <code>PAUBOX_API_KEY</code> and <code>TEST_INVITATION_FROM_EMAIL</code> as protected Vercel secrets. Once the signed BAA is confirmed and patient test release is approved, enable <code>PAUBOX_BAA_CONFIRMED</code> and <code>PATIENT_TEST_INVITATIONS_ENABLED</code>. No email is sent until all controls are satisfied.</p>}
    <h3>Recent assignments</h3>
    {loading?<p>Loading securely…</p>:assignments.length===0?<p>No assignments saved yet.</p>:
     <div className="assignmentTableWrap"><table className="assignmentTable">

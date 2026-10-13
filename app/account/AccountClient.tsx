@@ -1,174 +1,102 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, type FormEvent } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 type Props = {
   email: string;
-  fullName: string;
-  preferredName: string;
+  firstName: string;
+  lastName: string;
   accountType: "guest" | "patient" | "staff" | "admin";
+  emailVerified: boolean;
   newsletterSubscribed: boolean;
-  newsletterFrequency: "weekly" | "biweekly";
 };
 
-const portalModules = [
-  {
-    title: "Appointments",
-    description: "View open times, book appointments, and manage your scheduled visits.",
-    status: "Active",
-    href: "/appointments",
-  },
-  {
-    title: "Assessments",
-    description: "Assigned questionnaires and assessments will be available through a protected workflow.",
-    status: "Planned",
-  },
-  {
-    title: "Resources",
-    description: "Practice resources, forms, and educational materials can be delivered through this account.",
-    status: "Foundation ready",
-  },
-  {
-    title: "Records",
-    description: "Appropriate client records will require a separate protected-health-information security design before activation.",
-    status: "Security design required",
-  },
-];
-
-export default function AccountClient({ email, fullName: initialFullName, preferredName: initialPreferredName, accountType, newsletterSubscribed: initialNewsletterSubscribed, newsletterFrequency: initialNewsletterFrequency }: Props) {
-  const router = useRouter();
-  const [fullName, setFullName] = useState(initialFullName);
-  const [preferredName, setPreferredName] = useState(initialPreferredName);
-  const [message, setMessage] = useState("");
+export default function AccountClient({
+  email,
+  firstName: initialFirstName,
+  lastName: initialLastName,
+  accountType,
+  emailVerified,
+  newsletterSubscribed: initialNewsletterSubscribed,
+}: Props) {
+  const [firstName, setFirstName] = useState(initialFirstName);
+  const [lastName, setLastName] = useState(initialLastName);
   const [newsletterSubscribed, setNewsletterSubscribed] = useState(initialNewsletterSubscribed);
-  const [newsletterFrequency, setNewsletterFrequency] = useState<"weekly" | "biweekly">(initialNewsletterFrequency);
-  const [busy, setBusy] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setBusy(true);
+    setSaving(true);
     setMessage("");
-    const supabase = createClient();
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();
-    const userId = claimsData?.claims?.sub;
+    try {
+      const supabase = createClient();
+      const { data: result, error: userError } = await supabase.auth.getUser();
+      if (userError || !result.user) throw new Error("Please sign in again.");
+      const trimmedFirst = firstName.trim();
+      const trimmedLast = lastName.trim();
+      if (!trimmedFirst || !trimmedLast) throw new Error("First and last name are required.");
+      const { error: profileError } = await supabase.from("profiles").update({
+        full_name: `${trimmedFirst} ${trimmedLast}`,
+      }).eq("id", result.user.id);
+      if (profileError) throw profileError;
+      const { error: userUpdateError } = await supabase.auth.updateUser({
+        data: { first_name: trimmedFirst, last_name: trimmedLast, full_name: `${trimmedFirst} ${trimmedLast}` },
+      });
+      if (userUpdateError) throw userUpdateError;
 
-    if (claimsError || !userId) {
-      setMessage("Your session could not be verified. Please sign in again.");
-      setBusy(false);
-      return;
+      // Opt-out does not create a newsletter record or invent consent.
+      // Explicit opt-in is required before a subscription can be created.
+      if (newsletterSubscribed) {
+        const { error: newsletterError } = await supabase.from("newsletter_subscriptions").upsert({
+          user_id: result.user.id,
+          email: result.user.email ?? email,
+          subscribed: true,
+          frequency: "biweekly",
+          consented_at: new Date().toISOString(),
+          unsubscribed_at: null,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "user_id" });
+        if (newsletterError) throw newsletterError;
+      } else {
+        const { error: newsletterError } = await supabase.from("newsletter_subscriptions")
+          .update({ subscribed: false, unsubscribed_at: new Date().toISOString() })
+          .eq("user_id", result.user.id);
+        if (newsletterError) throw newsletterError;
+      }
+      setMessage("Account details and newsletter preference saved.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Account information could not be saved.");
+    } finally {
+      setSaving(false);
     }
-
-    const { error } = await supabase.from("profiles").update({
-      full_name: fullName,
-      preferred_name: preferredName,
-    }).eq("id", userId);
-
-    setMessage(error ? error.message : "Profile updated.");
-    setBusy(false);
-  }
-
-  async function saveNewsletter() {
-    setBusy(true);
-    setMessage("");
-    const supabase = createClient();
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();
-    const userId = claimsData?.claims?.sub;
-
-    if (claimsError || !userId) {
-      setMessage("Your session could not be verified. Please sign in again.");
-      setBusy(false);
-      return;
-    }
-
-    const payload = {
-      user_id: userId,
-      email,
-      subscribed: newsletterSubscribed,
-      frequency: newsletterFrequency,
-      consented_at: new Date().toISOString(),
-      unsubscribed_at: newsletterSubscribed ? null : new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-
-    const { error } = await supabase
-      .from("newsletter_subscriptions")
-      .upsert(payload, { onConflict: "user_id" });
-
-    setMessage(error ? error.message : "Newsletter preferences updated.");
-    setBusy(false);
-  }
-
-  async function signOut() {
-    setBusy(true);
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    router.replace("/");
-    router.refresh();
   }
 
   return (
-    <div className="portalStack">
-      <section className="accountGrid">
-        <div className="accountPanel">
-          <p className="eyebrow">Secure client account</p>
-          <h1>{preferredName ? `Welcome, ${preferredName}` : "Welcome to your account"}</h1>
-          <p className="accountEmail">{email}</p>
-          <span className="accountTypeBadge">{accountType === "patient" ? "Patient" : accountType === "admin" ? "Administrator" : accountType === "staff" ? "Office Staff" : "Guest"}</span>
-          <form className="authForm" onSubmit={save}>
-            <label>Full name<input value={fullName} onChange={(e) => setFullName(e.target.value)} /></label>
-            <label>Preferred name<input value={preferredName} onChange={(e) => setPreferredName(e.target.value)} /></label>
-            <button disabled={busy} type="submit">{busy ? "Saving…" : "Save profile"}</button>
-          </form>
-          {message && <p className="authMessage">{message}</p>}
-          {accountType==='patient'&&<Link className="portalHomeLink" href="/patient/intake">Your intake questionnaire</Link>}
-          {(accountType==='admin'||accountType==='staff')&&<><Link className="portalHomeLink" href="/admin/intakes">Review submitted questionnaires</Link><Link className="portalHomeLink" href="/admin/intake-preview">Test questionnaire fields (no patient data)</Link><Link className="portalHomeLink" href="/admin/test-accounts">Temporary test patient accounts</Link><Link className="portalHomeLink" href="/admin/intake-kiosk">Start office intake</Link></>}
-          <Link className="portalHomeLink" href="/account/security">Account security and backup verification</Link>
-          <section className="newsletterPrefs">
-            <p className="eyebrow">Newsletter</p>
-            <label className="newsletterConsent"><span><input type="checkbox" checked={newsletterSubscribed} onChange={(e) => setNewsletterSubscribed(e.target.checked)} /> Subscribe to Indian Creek newsletters and practice updates.</span></label>
-            {newsletterSubscribed && (
-              <label>Frequency
-                <select value={newsletterFrequency} onChange={(e) => setNewsletterFrequency(e.target.value as "weekly" | "biweekly")}>
-                  <option value="biweekly">Every two weeks</option>
-                  <option value="weekly">Weekly</option>
-                </select>
-              </label>
-            )}
-            <button className="secondaryAction" type="button" onClick={saveNewsletter} disabled={busy}>Save newsletter preferences</button>
-          </section>
-          <button className="secondaryAction" type="button" onClick={signOut} disabled={busy}>Sign out</button>
+    <section className="authCard accountRegistrationCard accountDashboardCard">
+      <p className="eyebrow">Secure account</p>
+      <h1>Your Account</h1>
+      <p className="accountEmail">{email}</p>
+      <p><strong>Account type:</strong> {accountType === "patient" ? "Patient" : accountType === "guest" ? "Guest" : accountType === "staff" ? "Office Staff" : "Administrator"}</p>
+      {!emailVerified && <p className="authMessage">Please verify your email before using Patient services or adding a passkey.</p>}
+      <form className="authForm" onSubmit={save}>
+        <div className="accountNameFields">
+          <label>First name<input autoComplete="given-name" required maxLength={80} value={firstName} onChange={e => setFirstName(e.target.value)} /></label>
+          <label>Last name<input autoComplete="family-name" required maxLength={80} value={lastName} onChange={e => setLastName(e.target.value)} /></label>
         </div>
-
-        <aside className="accountPanel accountNotice">
-          <p className="eyebrow">Security boundary</p>
-          <h2>General account foundation</h2>
-          <p>
-            Patient intake is stored separately from your general profile and requires additional security verification. Treatment notes and other clinical record features are not available in this portal.
-          </p>
-          <Link className="portalHomeLink" href="/">Return to public site</Link>
-        </aside>
-      </section>
-
-      <section className="portalModules" aria-label="Client portal modules">
-        <div className="portalModulesHeading">
-          <p className="eyebrow">Client portal</p>
-          <h2>Your secure service areas</h2>
-          <p>The account framework is active. Additional services will be enabled here as their workflows are completed.</p>
-        </div>
-        <div className="portalModuleGrid">
-          {portalModules.map((module) => (
-            <article className="portalModuleCard" key={module.title}>
-              <span className="portalModuleStatus">{module.status}</span>
-              <h3>{module.title}</h3>
-              <p>{module.description}</p>
-              {"href" in module && module.href && <Link className="portalHomeLink" href={module.href}>Open appointments</Link>}
-            </article>
-          ))}
-        </div>
-      </section>
-    </div>
+        <label className="newsletterConsent">
+          <span><input type="checkbox" checked={newsletterSubscribed} onChange={e => setNewsletterSubscribed(e.target.checked)} /> Subscribe to our newsletter every two weeks (optional).</span>
+        </label>
+        <button disabled={saving} type="submit">{saving ? "Saving…" : "Save Account Preferences"}</button>
+      </form>
+      {message && <p className="authMessage" role="status">{message}</p>}
+      <div className="accountEssentialActions">
+        <Link className="accountPrimaryLink" href="/account/security">MFA and passkey security settings</Link>
+        {accountType === "patient" && <Link className="accountPrimaryLink" href="/patient/intake">Open Intake Questionnaire</Link>}
+      </div>
+      {accountType === "guest" && <p className="accountPrivacyNote">Guest accounts receive practice information. Patient intake requires a Patient account and verified security.</p>}
+    </section>
   );
 }

@@ -26,7 +26,9 @@ export async function updateSession(request: NextRequest) {
   const { data } = await supabase.auth.getClaims();
   const user = data?.claims;
 
-  const isProtected = request.nextUrl.pathname.startsWith("/account");
+  // /account is public so a visitor can choose Guest or Patient registration.
+  // Deeper account/security pages remain sign-in protected.
+  const isProtected = request.nextUrl.pathname.startsWith("/account/");
 
   if (!user && isProtected) {
     const url = request.nextUrl.clone();

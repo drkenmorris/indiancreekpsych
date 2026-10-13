@@ -41,7 +41,7 @@ export default function TestAssignmentClient(){
    setForm(defaults);
    await load();
    setMessage("Assignment saved as a draft. No email has been sent. "+
-     (emailReady?"Use Send Invitation on its row to email the secure link.":"Email delivery must be configured before invitations can be sent."));
+     (emailReady?"Use Send Invitation on its row to email the secure link.":"Paubox email and patient test-release approvals must be completed before invitations can be sent."));
   }catch(e){setError(e instanceof Error?e.message:"Could not create assignment.");}
   finally{setBusy(false);}
  }
@@ -89,9 +89,9 @@ export default function TestAssignmentClient(){
    </form>
   </section>
   <section className="assignmentCard">
-   <div className="assignmentStatusRow"><h2>Invitation status</h2><span className={emailReady?"deliveryConfigured":"deliveryOffline"}>{emailReady?"Email provider configured":"Email not configured"}</span></div>
+   <div className="assignmentStatusRow"><h2>Invitation status</h2><span className={emailReady?"deliveryConfigured":"deliveryOffline"}>{emailReady?"Email provider configured":"Secure email inactive"}</span></div>
    <p>Invitations are delivered through a transactional email provider. They do not contain the patient's name, birth date, assessment name, or results.</p>
-   {!emailReady&&<p className="assignmentCaution">To activate actual email delivery, configure <code>RESEND_API_KEY</code> and <code>TEST_INVITATION_FROM_EMAIL</code> as secure Vercel environment variables. Use an authenticated, verified sender domain. No message is sent until this is configured.</p>}
+   {!emailReady&&<p className="assignmentCaution">To activate patient email delivery, enroll with the healthcare email provider Paubox and verify your practice domain. Then configure <code>PAUBOX_API_KEY</code> and <code>TEST_INVITATION_FROM_EMAIL</code> as protected Vercel secrets. Patient-release and BAA approval are also required. No email is sent until all controls are satisfied.</p>}
    <h3>Recent assignments</h3>
    {loading?<p>Loading securely…</p>:assignments.length===0?<p>No assignments saved yet.</p>:
     <div className="assignmentTableWrap"><table className="assignmentTable">

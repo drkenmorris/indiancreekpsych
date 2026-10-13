@@ -15,6 +15,7 @@ export default function ClinicalLabNavigation() {
         </Link>
         <div className="clinicalLabHeaderActions">
           <Link href="/clinical-tests" className="clinicalLabDirectoryLink">All tests</Link>
+          <Link href="/admin/assign-test" className="clinicalLabDirectoryLink">Assign a Test</Link>
           <Link href="/account" className="clinicalLabDirectoryLink">Account</Link>
           <Link href="/" className="clinicalLabDirectoryLink">Main site</Link>
         </div>

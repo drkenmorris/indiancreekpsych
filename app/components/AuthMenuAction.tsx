@@ -8,7 +8,7 @@ type UserStatus = "loading" | "signed-in" | "signed-out";
 
 export default function AuthMenuAction() {
   const [userStatus, setUserStatus] = useState<UserStatus>("loading");
-  const [isPatient, setIsPatient] = useState(false);
+  const [accountRole, setAccountRole] = useState<"guest" | "patient" | "staff" | "admin" | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -21,7 +21,7 @@ export default function AuthMenuAction() {
         if (!mounted) return;
         if (error || !data.user) {
           setUserStatus("signed-out");
-          setIsPatient(false);
+          setAccountRole(null);
           return;
         }
 
@@ -35,11 +35,13 @@ export default function AuthMenuAction() {
 
         if (!mounted) return;
         setUserStatus("signed-in");
-        setIsPatient(!profileError && profile?.account_type === "patient");
+        const role = profile?.account_type;
+        setAccountRole(!profileError && ["guest", "patient", "staff", "admin"].includes(role ?? "")
+          ? role as "guest" | "patient" | "staff" | "admin" : null);
       } catch {
         if (!mounted) return;
         setUserStatus("signed-out");
-        setIsPatient(false);
+        setAccountRole(null);
       }
     }
 
@@ -48,7 +50,7 @@ export default function AuthMenuAction() {
       if (!mounted) return;
       if (!session) {
         setUserStatus("signed-out");
-        setIsPatient(false);
+        setAccountRole(null);
         return;
       }
       // Auth callbacks must not await more Supabase calls while the auth
@@ -75,7 +77,11 @@ export default function AuthMenuAction() {
 
   return (
     <>
-      {isPatient && <Link href="/patient/psychological-tests">Psychological Tests</Link>}
+      {accountRole === "patient" && <Link href="/patient/psychological-tests">Psychological Tests</Link>}
+      {accountRole === "admin" && <Link href="/clinical-tests">Psychological Tests</Link>}
+      {(accountRole === "admin" || accountRole === "staff") && (
+        <Link href="/admin/questionnaires">Patient Questionnaires</Link>
+      )}
       <button type="button" className="authMenuLogout" disabled={busy} onClick={() => void signOut()}>
         {busy ? "Signing out…" : "Logout"}
       </button>

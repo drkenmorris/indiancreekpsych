@@ -163,29 +163,8 @@
   .scrollingCatalogCardBody h3{font-size:22px}
   .scrollingCatalogHelp{font-size:11px}
 }
-/* Reduced motion remains the default when requested by the device.
-   A user may deliberately press Start scrolling to enable the animation. */
-@media(prefers-reduced-motion:reduce){
-  .scrollingCatalogViewport:not([data-explicit-motion="true"]){
-    overflow-x:auto;scroll-snap-type:x mandatory;
-  }
-  .scrollingCatalogViewport:not([data-explicit-motion="true"]) .scrollingCatalogTrack{
-    animation:none!important;transform:none;will-change:auto;
-  }
-  .scrollingCatalogViewport:not([data-explicit-motion="true"]) .scrollingCatalogGroup[aria-hidden="true"]{
-    display:none;
-  }
-  .scrollingCatalogViewport[data-explicit-motion="true"]:not([data-paused="true"]){
-    overflow-x:hidden;scroll-snap-type:none;
-  }
-  .scrollingCatalogViewport[data-explicit-motion="true"]:not([data-paused="true"]) .scrollingCatalogTrack{
-    animation:scrollingCatalogToLeft 45s linear infinite!important;
-    will-change:transform;
-  }
-  .scrollingCatalogCard{scroll-snap-align:start}
-  .scrollingCatalogHelp{display:block}
-  .scrollingCatalogReducedHelp{display:none}
-}
+/* Autoplay is the default for both catalogs, including browsers configured to
+   reduce motion; Pause remains the explicit accessible stop control. */
 
 /* Specialties only: photo fills all available viewport space above footer. */
 .specialtiesImmersivePage,.servicesImmersivePage{
@@ -335,14 +314,4 @@
     min-height:322px;
   }
   :is(.specialtiesImmersiveMain,.servicesImmersiveMain) .scrollingCatalogImage{height:151px}
-}
-@media(prefers-reduced-motion:reduce){
-  /* Keep manual scrolling when device requests it, but honor explicit opt-in. */
-  :is(.specialtiesImmersiveMain,.servicesImmersiveMain) .scrollingCatalogViewport:not([data-explicit-motion="true"]) .scrollingCatalogTrack{
-    animation:none!important;
-    transform:none;
-  }
-  :is(.specialtiesImmersiveMain,.servicesImmersiveMain) .scrollingCatalogViewport[data-explicit-motion="true"]:not([data-paused="true"]) .scrollingCatalogTrack{
-    animation:scrollingCatalogToLeft 45s linear infinite!important;
-  }
 }

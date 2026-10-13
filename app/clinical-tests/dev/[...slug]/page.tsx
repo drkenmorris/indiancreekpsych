@@ -11,10 +11,10 @@ export default async function ClinicalDevScreenPage({
   params: Promise<{ slug: string[] }>;
 }) {
   // Never expose unvalidated clinical prototypes to patients.
-  await patientAccess(true);
   const { slug } = await params;
   const key = slug.join("/");
   if (!allowedScreenKeys.includes(key)) notFound();
+  await patientAccess(true, "/clinical-tests/dev/" + key);
   return (
     <main className="authPage" style={{ maxWidth: 1040, margin: "0 auto", padding: "24px" }}>
       <Link href="/clinical-tests">← Clinical testing library</Link>

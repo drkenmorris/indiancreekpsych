@@ -1,3 +1,5 @@
+export type SourceAttribution={version:'OC-SOURCE-1';observedIp:string|null;observation:'vercel_edge'|'unavailable';originHostname:string|null;referrerHostname:string|null;listedWebsite:string|null;listedWebsiteSource:'origin'|'referer'|'not_provided';websiteTrust:'caller_declared_unverified';proxyIndicators:('via_header_present'|'forwarded_header_present'|'origin_referrer_disagree')[];proxyAssessment:'possible_intermediary_unverified'|'not_determined';ultimateSource:'not_identified'};
+export function observeSource(request:Request,options?:{trustedVercel?:boolean}):SourceAttribution;
 export type OperationEffect={action:'create'|'update'|'delete';resource:'records'|'files'|'configuration';outcome:'changed'|'none'|'unknown';count:number|null};
 export type OperationEvidence={version:'OC-OPERATION-EVIDENCE-1';definitionId:string;gateReason:'not_evaluated'|'authorized'|'policy_unavailable'|'owner_approval_required'|'invalid_operation_input'|'authorization_unavailable'|'operation_not_authorized'|'identity_expired'|'operation_approval_expired'|'operation_context_required'|'operation_approval_changed';handlerState:'not_started'|'completed'|'failed';effects:OperationEffect[];effectsDropped:number};
 export function operationEvidence(value:unknown):OperationEvidence;
@@ -11,6 +13,8 @@ export type BoundarySignal = {
   evidenceRefs: string[];
 };
 export type MonitorOptions = {
+  /** Owner opt-in: site-reported connection IP and unverified website/proxy hints. */
+  sourceAttribution?: boolean;
   /** Trusted server callback only. No body contents, identifiers or free text. */
   operationEvidence?: (request:Request)=>OperationEvidence|undefined;
   /** Server-configured native rules. Defaults to observe-only. Not a managed WAF ruleset. */

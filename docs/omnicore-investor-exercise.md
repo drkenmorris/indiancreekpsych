@@ -1,24 +1,19 @@
-# Dormant investor exercise route
+# Permanent investor enforcement test facility
 
-Adds only `/api/omnicore-investor-demo/action` and self-contained server modules. No patient/database/scheduling/email integration. Existing OmniCore connector bytes and existing protection settings are unchanged.
+The owner has authorized permanent availability of the synthetic test facility on indiancreekpsych.com and www.indiancreekpsych.com. The investor dashboard includes a bottom menu item, Enforcement test, opening `/explore?stage=exercise` with a 12-minute duration and a 36-request cap selected. Starting a run remains an authenticated, explicit dashboard action.
 
-The route is disabled by default (404), exact-host restricted, and requires a short activation window, signed per-run lease, test-bot credential, and separately authenticated witness. It uses the shipped connector for identity, input inspection/native firewall and selected outbound restrictions. Application authorization of the restricted dummy record is explicitly a separate result.
+## Availability and run authorization
 
-Inputs are bounded to dummy read/write/export operations, two record labels and two configured owner-controlled receiver origins. SQL-pattern and script-pattern text is inert and never executed. An independent witness reserves attempts, caps requests, prevents replay, and stores effect receipts plus dummy state using persistent SQLite. The controller/witness package is delivered separately and must be configured/rehearsed before activation. Optional default tools are disabled in the model runtime; models return action IDs only and never receive credentials.
+`OMNICORE_DEMO_ENABLED=true` enables the facility without an activation expiry. `false` is an explicit off switch. If omitted, the prior short-window `OMNICORE_DEMO_UNTIL` mode remains supported and fails closed on expired or excessive windows. Production and preview configuration must remain separate; clinic preview hostnames always return 404.
 
-## Required deployment configuration
+Permanent availability does not create an unlimited run lease. Each run requires a signed lease of at most 16 minutes, the existing bot and witness credentials, persistent attempt reservations, replay prevention, request limits, and a durable Stop record. Unsigned, expired, or stopped operations cannot produce a dummy effect. The dashboard permits runs of 2, 12, or 15 minutes and at most 36 requests; the aggregate model spending limit remains in effect.
 
-Do not configure or activate this route as part of a code-only preview. A preview hostname always returns 404. Live release and activation are separate owner-reviewed steps.
+The route has no patient/database/scheduling/email imports. Inputs remain fixed dummy read/write/export operations and inert detector-pattern text. The approved and unapproved receiver origins are distinct owner-controlled HTTPS aliases of the same durable private Blob ledger. Both receivers require server-only witness authentication and deployment-protection authorization. Existing OmniCore connector bytes and clinical protection settings are unchanged.
 
-- `OMNICORE_DEMO_UNTIL`: ISO time, future but no more than 16 minutes ahead when requests execute.
-- `OMNICORE_DEMO_RUN_SECRET`, `OMNICORE_DEMO_BOT_SECRET`, `OMNICORE_DEMO_WITNESS_SECRET`: three independent 32-byte random hex secrets, shared only with their respective controller/witness components.
-- `OMNICORE_DEMO_APPROVED_ORIGIN`, `OMNICORE_DEMO_UNAPPROVED_ORIGIN`: distinct exact HTTPS origins for owner-controlled receivers. Never a third-party destination. Both receivers must use the same persistent witness ledger.
-- Existing `OMNICORE_SITE_ID`, `OMNICORE_INGEST_KEY`: reused for awaited real OmniCore ingest delivery.
+## Configuration
 
-The route returns bounded, sanitized connector events only to a caller with a valid exercise lease. Ingest delivery is reported separately from actual hosted analysis/storage. No criterion colors or desired allow/block results are supplied. A no-effect conclusion additionally requires independent receiver health and receipt checks in the controller.
+Both projects use `OMNICORE_DEMO_ENABLED=true` and matching, separate RUN_SECRET, BOT_SECRET, WITNESS_SECRET, APPROVED_ORIGIN, UNAPPROVED_ORIGIN and WITNESS_BYPASS values under the OMNICORE_DEMO prefix. Secrets are provider-managed and never returned to the browser. The clinic also uses HOSTED_WITNESS=true and its existing OmniCore site identity and ingest configuration.
 
-## Validation and limits
+The public discovery manifest publishes only the nine marked synthetic capabilities. Actual operations require a short signed lease. Existing selected OmniCore identity, input inspection and outbound policy decisions are distinguished from application authorization denials. Reports preserve discovery, action, connector evidence, independent receipts, and inconclusive outcomes.
 
-Clinic typecheck, 11 relevant Vitest checks (including disabled activation and preview rejection), and production build passed for this change. Local controller verification uses the exact connector and real HTTPS requests, but a local telemetry collector and scripted choices. No live clinic run, model-driven exercise, hosted-analysis acceptance or investor video is claimed. Model connection and separately hosted persistent witness remain prerequisites.
-
-Production credentials, environment variables, schema, policy activation and clinical operations remain untouched. This is a narrowly scoped test facility, not evidence of general malicious-intent recognition, all-attack protection or a reproduction of the original Hugging Face agents.
+This facility is an incident-inspired dummy-resource demonstration, not an unrestricted exploit system or proof of all-attack protection. Completed evidence is retained across runs. A future run is not started merely by enabling the facility or opening its menu.

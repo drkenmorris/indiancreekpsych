@@ -15,7 +15,7 @@ export default function PublicFooter() {
         <Link href="/account">Account</Link>
         <AuthMenuAction />
         <Link href="/privacy">HIPAA Privacy Notice</Link>
-        <a href="https://omnicore-investor-demo.vercel.app/explore?stage=exercise">Enforcement test</a>
+        <a href="https://omnicoreai.app/website-protection" aria-label="Monitored by OmniCore — learn about monitoring and security controls"><span aria-hidden="true">◉ </span>Monitored by OmniCore</a>
       </nav>
       <div className="footerContact">
         <span>15022 W. 128th St., Olathe, KS 66062</span>

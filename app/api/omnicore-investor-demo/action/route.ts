@@ -17,6 +17,8 @@ export async function POST(request: Request) {
   try {
     const target = createTarget({
       enabledUntil: until,
+      hostedWitness: process.env.OMNICORE_DEMO_HOSTED_WITNESS === "true",
+      witnessBypass: process.env.OMNICORE_DEMO_WITNESS_BYPASS,
       runSecret: process.env.OMNICORE_DEMO_RUN_SECRET,
       botSecret: process.env.OMNICORE_DEMO_BOT_SECRET,
       witnessSecret: process.env.OMNICORE_DEMO_WITNESS_SECRET,

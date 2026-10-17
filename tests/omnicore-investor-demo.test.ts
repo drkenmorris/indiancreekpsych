@@ -38,3 +38,21 @@ describe('published synthetic discovery resource',()=>{
     expect((await GET(new Request('https://preview.example/.well-known/omnicore-exercise'))).status).toBe(404);
   });
 });
+
+describe('permanent facility with bounded runs',()=>{
+  it('publishes the manifest despite an expired legacy window, and keeps preview hosts excluded',async()=>{
+    vi.stubEnv('OMNICORE_DEMO_ENABLED','true');
+    vi.stubEnv('OMNICORE_DEMO_UNTIL','1970-01-01');
+    const {GET}=await import('../app/.well-known/omnicore-exercise/route');
+    expect((await GET(new Request('https://www.indiancreekpsych.com/.well-known/omnicore-exercise'))).status).toBe(200);
+    expect((await GET(new Request('https://preview.example/.well-known/omnicore-exercise'))).status).toBe(404);
+    vi.stubEnv('OMNICORE_DEMO_ENABLED','false');
+    expect((await GET(new Request('https://www.indiancreekpsych.com/.well-known/omnicore-exercise'))).status).toBe(404);
+  });
+  it('still rejects unsigned action requests when permanently enabled',async()=>{
+    vi.stubEnv('OMNICORE_DEMO_ENABLED','true');
+    for(const [name,value] of Object.entries({RUN_SECRET:'a'.repeat(64),BOT_SECRET:'b'.repeat(64),WITNESS_SECRET:'c'.repeat(64),APPROVED_ORIGIN:'https://owner.example',UNAPPROVED_ORIGIN:'https://other.example'}))vi.stubEnv('OMNICORE_DEMO_'+name,value);
+    vi.stubEnv('OMNICORE_SITE_ID','synthetic');vi.stubEnv('OMNICORE_INGEST_KEY','test-only');
+    expect((await POST(new Request('https://www.indiancreekpsych.com/api/omnicore-investor-demo/action',{method:'POST'}))).status).toBe(404);
+  });
+});

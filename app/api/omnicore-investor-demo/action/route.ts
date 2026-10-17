@@ -1,3 +1,4 @@
+import { facilityEnabled } from "@/lib/omnicore-investor-demo/activation.mjs";
 import { createTarget } from "@/lib/omnicore-investor-demo/target.mjs";
 
 export const dynamic = "force-dynamic";
@@ -9,7 +10,7 @@ export async function POST(request: Request) {
   const until = Date.parse(process.env.OMNICORE_DEMO_UNTIL ?? "");
   const names = ["OMNICORE_DEMO_RUN_SECRET", "OMNICORE_DEMO_BOT_SECRET", "OMNICORE_DEMO_WITNESS_SECRET",
     "OMNICORE_DEMO_APPROVED_ORIGIN", "OMNICORE_DEMO_UNAPPROVED_ORIGIN", "OMNICORE_SITE_ID", "OMNICORE_INGEST_KEY"];
-  if (!Number.isFinite(until) || until <= Date.now() || until > Date.now() + 16 * 60_000 ||
+  if (!facilityEnabled(process.env) ||
       names.some(name => !process.env[name])) return new Response(null, { status: 404 });
   const url = new URL(request.url);
   if (!["indiancreekpsych.com", "www.indiancreekpsych.com"].includes(url.hostname))
@@ -17,6 +18,7 @@ export async function POST(request: Request) {
   try {
     const target = createTarget({
       enabledUntil: until,
+      enabledPermanently: process.env.OMNICORE_DEMO_ENABLED === "true",
       hostedWitness: process.env.OMNICORE_DEMO_HOSTED_WITNESS === "true",
       witnessBypass: process.env.OMNICORE_DEMO_WITNESS_BYPASS,
       runSecret: process.env.OMNICORE_DEMO_RUN_SECRET,

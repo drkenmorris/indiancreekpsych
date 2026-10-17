@@ -21,3 +21,20 @@ describe('investor exercise deployment boundary',()=>{
     expect(response.status).toBe(404);
   });
 });
+
+describe('published synthetic discovery resource',()=>{
+  it('is absent outside activation',async()=>{
+    vi.stubEnv('OMNICORE_DEMO_UNTIL','');
+    const {GET}=await import('../app/.well-known/omnicore-exercise/route');
+    expect((await GET(new Request('https://www.indiancreekpsych.com/.well-known/omnicore-exercise'))).status).toBe(404);
+  });
+  it('publishes only dummy capabilities on the exact clinic hosts during activation',async()=>{
+    vi.stubEnv('OMNICORE_DEMO_UNTIL',new Date(Date.now()+60000).toISOString());
+    const {GET}=await import('../app/.well-known/omnicore-exercise/route');
+    const response=await GET(new Request('https://www.indiancreekpsych.com/.well-known/omnicore-exercise'));
+    expect(response.status).toBe(200);const data=await response.json();
+    expect(data.synthetic).toBe(true);expect(data.canary).toBe('DUMMY_DISCOVERY_CANARY_ONLY');expect(data.actions).toHaveLength(9);
+    expect(response.headers.get('cache-control')).toBe('no-store');
+    expect((await GET(new Request('https://preview.example/.well-known/omnicore-exercise'))).status).toBe(404);
+  });
+});

@@ -74,48 +74,23 @@ export default function AsqPersistencePanel({ onRestored }: { onRestored: () => 
       if (bytes > 1900000) throw new Error("This record is too large for a single save. Remove unnecessary synthetic incident details before retrying.");
 
       const supabase = createClient();
-      const { data: updatedCase, error: caseError } = await supabase.from("asq_cases")
-        .update({ student_profile: currentAsqStudentProfile() })
-        .eq("id", caseId).select("id").single();
-      if (caseError || !updatedCase) throw new Error("Case access was not confirmed. Sign in and complete MFA.");
-
-      // Persist each informant form, demographics, reports and support record.
-      // Never write responses to the unrelated patient_intakes table.
       const documents = asqDocuments(snapshot);
-      for (const document of documents) {
-        const { data: existing, error: readError } = await supabase.from("asq_documents")
-          .select("id,revision,status").eq("case_id",caseId)
-          .eq("document_kind",document.document_kind).maybeSingle();
-        if (readError) throw new Error("Could not read " + document.document_kind + ": " + readError.message);
-        if (existing?.status === "completed") {
-          throw new Error("This questionnaire was finalized and cannot be overwritten. Open a new synthetic case.");
-        }
-        if (existing) {
-          const { data: revised, error: writeError } = await supabase.from("asq_documents")
-            .update(document).eq("id",existing.id).eq("revision",existing.revision)
-            .select("id").maybeSingle();
-          if (writeError || !revised) throw new Error("Version conflict while saving " + document.document_kind + ". Reload the saved case and retry.");
-        } else {
-          const { data: inserted, error: writeError } = await supabase.from("asq_documents")
-            .insert({ case_id: caseId, ...document }).select("id").single();
-          if (writeError || !inserted) throw new Error("Unable to save " + document.document_kind + ": " + (writeError?.message ?? "Unknown error"));
-        }
-      }
-
-      // The full scoped snapshot is saved last, only after indexed documents succeed.
-      const { data: oldSnapshot, error: snapshotReadError } = await supabase.from("asq_snapshots")
-        .select("revision").eq("case_id",caseId).maybeSingle();
-      if (snapshotReadError) throw new Error("Unable to read the latest snapshot revision.");
-      const write = oldSnapshot
-        ? supabase.from("asq_snapshots").update({ payload: snapshot })
-          .eq("case_id",caseId).eq("revision",oldSnapshot.revision).select("revision").maybeSingle()
-        : supabase.from("asq_snapshots").insert({ case_id:caseId, payload:snapshot })
-          .select("revision").single();
-      const { data: saved, error: snapshotError } = await write;
-      if (snapshotError || !saved) throw new Error("ASQ snapshot was not confirmed. Retry the save after reviewing the selected record.");
+      const { data: revisionData, error: revisionError } = await supabase.from("asq_snapshots")
+        .select("revision").eq("case_id", caseId).maybeSingle();
+      if (revisionError) throw new Error("Cannot verify current ASQ revision.");
+      const expectedRevision = revisionData?.revision ?? 0;
+      const { data: savedRevision, error: saveError } = await supabase.rpc("asq_save_qa_workspace", {
+        p_case_id: caseId,
+        p_expected_revision: expectedRevision,
+        p_snapshot: snapshot,
+        p_documents: documents,
+        p_student_profile: currentAsqStudentProfile(),
+      });
+      if (saveError || typeof savedRevision !== "number")
+        throw new Error("Atomic ASQ save failed. No partial write was committed. " + (saveError?.message ?? "Retry after restoring the selected case."));
       setRestoredCaseId(caseId);
       await refreshCases();
-      setStatus("Saved to Supabase: all " + documents.length + " ASQ sections plus the full workspace snapshot (revision " + saved.revision + ").");
+      setStatus("Saved to Supabase: all " + documents.length + " ASQ sections plus the full workspace snapshot (revision " + savedRevision + ").");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save ASQ data. Do not close this page until you verify the record.");
     } finally { setBusy(false); }

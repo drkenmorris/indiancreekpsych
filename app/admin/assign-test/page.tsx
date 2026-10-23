@@ -8,7 +8,7 @@ export default async function AssignTestPage(){
   return <main className="authPage assignmentPage">
     <div className="assignmentWrap">
       <div className="assignmentTop">
-        <Link href="/admin/questionnaires">← Questionnaire Center</Link>
+        <Link href="/admin/questionnaires">← Questionnaire Center</Link> <Link href="/admin/paubox-test">Paubox Email Diagnostic</Link>
         <p className="eyebrow">Administrator · MFA required</p>
         <h1>Assign a Psychological Test</h1>
         <p>Create a secure assignment using a patient's first and last name, email address, date of birth, and an assessment from the practice's library.</p>

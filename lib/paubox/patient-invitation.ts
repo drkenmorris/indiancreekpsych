@@ -46,7 +46,7 @@ export async function sendPauboxPatientInvitation({ recipient, assignmentUrl }: 
           "",
           "For your privacy, assessment names, responses, and results are not included in this email.",
           "If you did not expect this invitation or need assistance, call Indian Creek Psychological Services at 913-353-6116.",
-        ].join("\\n"),
+        ].join("\n"),
       },
     } } }),
     signal: AbortSignal.timeout(15000),

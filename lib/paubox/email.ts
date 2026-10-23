@@ -84,7 +84,7 @@ export async function sendControlledPauboxTest(recipient: string): Promise<Paubo
     response = await fetch(PAUBOX_SEND_URL, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${apiKey}`,
+        Authorization: `Token token=${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({

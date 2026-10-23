@@ -22,6 +22,9 @@ export default async function AssignedTestPage({params}:{params:Promise<{id:stri
     <p className="eyebrow">Indian Creek Psychological Services</p>
     <h1>Secure psychological test assignment</h1>
     <p>Your practice has prepared an assignment for <strong>{assignedTestLabel(data.test_key)}</strong>.</p>
+    <p><strong>Assignment available until:</strong> {new Date(data.expires_at).toLocaleString("en-US",{dateStyle:"long",timeStyle:"short",timeZone:"America/Chicago"})} Central Time.</p>
+    <p>When your assessment is available for completion, use a quiet, private space with a reliable internet connection and set aside uninterrupted time. Follow the instructions in the assessment itself. Do not share your assignment link or have anyone else answer for you.</p>
+    <p>If you experience a technical problem, are interrupted, or need more time, contact the office before the assignment expires.</p>
     <p><strong>This questionnaire has not yet been released for patient completion.</strong> Your assignment is visible here, but the underlying testing form remains restricted to the clinical testing environment until its patient permissions, validation and recording process are approved.</p>
     <p>Please contact the office at 913-353-6116 if you need assistance.</p>
     <Link href="/patient/psychological-tests">Return to Psychological Tests</Link>

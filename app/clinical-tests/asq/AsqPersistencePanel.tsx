@@ -16,6 +16,7 @@ export default function AsqPersistencePanel({ onRestored }: { onRestored: () => 
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const [loaded, setLoaded] = useState(false);
+  const [restoredCaseId, setRestoredCaseId] = useState("");
 
   async function refreshCases() {
     const supabase = createClient();
@@ -37,6 +38,7 @@ export default function AsqPersistencePanel({ onRestored }: { onRestored: () => 
   async function createCase(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (busy) return;
+    if (!window.confirm("Create a new synthetic ASQ case? The current in-memory ASQ workspace will be cleared after the new case is created. Save existing work first.")) return;
     setBusy(true); setStatus(""); setError("");
     try {
       const label = newCaseLabel.trim();
@@ -47,15 +49,23 @@ export default function AsqPersistencePanel({ onRestored }: { onRestored: () => 
         .select("id").single();
       if (createError || !data) throw new Error("Unable to create a secure ASQ record: " + (createError?.message ?? "Unknown error"));
       setCaseId(data.id);
+      setRestoredCaseId("");
+      importAsqSnapshot({});
+      onRestored();
       setNewCaseLabel("");
       await refreshCases();
-      setStatus("Synthetic record created. Use Save Workspace to persist its current questionnaire answers and reports.");
+      setStatus("New empty synthetic case created. Complete QA questionnaires, then choose Save Workspace.");
     } catch (err) { setError(err instanceof Error ? err.message : "Unable to create record."); }
     finally { setBusy(false); }
   }
 
   async function save() {
     if (!caseId || busy) return;
+    if (restoredCaseId && restoredCaseId !== caseId) {
+      setError("You selected another case. Restore that case before saving, or clear the open ASQ workspace to begin a new synthetic record.");
+      return;
+    }
+    if (!window.confirm("Save the currently open synthetic ASQ workspace to the selected case? Check the case label before confirming.")) return;
     setBusy(true); setError(""); setStatus("");
     try {
       const snapshot = readAsqSnapshot();
@@ -103,6 +113,7 @@ export default function AsqPersistencePanel({ onRestored }: { onRestored: () => 
           .select("revision").single();
       const { data: saved, error: snapshotError } = await write;
       if (snapshotError || !saved) throw new Error("ASQ snapshot was not confirmed. Retry the save after reviewing the selected record.");
+      setRestoredCaseId(caseId);
       await refreshCases();
       setStatus("Saved to Supabase: all " + documents.length + " ASQ sections plus the full workspace snapshot (revision " + saved.revision + ").");
     } catch (err) {
@@ -123,6 +134,7 @@ export default function AsqPersistencePanel({ onRestored }: { onRestored: () => 
       const snapshot = data as StoredSnapshot;
       if (!snapshot.payload || typeof snapshot.payload !== "object" || Array.isArray(snapshot.payload)) throw new Error("Stored record format is invalid.");
       importAsqSnapshot(snapshot.payload);
+      setRestoredCaseId(caseId);
       onRestored();
       setStatus("Restored saved ASQ/ASEQ workspace (revision " + snapshot.revision + "). Switch between the sections above to review responses.");
     } catch (err) { setError(err instanceof Error ? err.message : "Unable to restore ASQ record."); }
@@ -139,6 +151,7 @@ export default function AsqPersistencePanel({ onRestored }: { onRestored: () => 
         </div>
       </div>
       <div className="asqPersistenceControls">
+        <p role="status"><strong>QA workspace:</strong> {caseId ? (cases.find(c=>c.id===caseId)?.label ?? "Selected synthetic record") : "No case selected"}. {restoredCaseId && restoredCaseId===caseId ? "Workspace linked to this case." : "Restore the selected case before editing existing work."}</p>
         <label>Saved synthetic case
           <select value={caseId} disabled={busy || !loaded} onChange={e=>{setCaseId(e.target.value);setStatus("");setError("");}}>
             <option value="">Select a saved case</option>

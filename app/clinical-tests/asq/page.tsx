@@ -8,8 +8,8 @@ export default async function AsqPage() {
     <h1>ASQ / ASEQ Autism Questionnaire Suite</h1>
     <p role="alert" style={{padding:12,background:"#fff7ed",border:"1px solid #fed7aa"}}>
       Administrator-only synthetic QA. Not validated for diagnosis. Do not enter real patient, child,
-      parent, teacher or school information. Responses are held temporarily in browser memory only,
-      are not transmitted to Supabase, and disappear when the page is reloaded.
+      parent, teacher or school information. Unsaved responses remain in browser memory and disappear on reload. Use the explicit
+      Save Workspace action to persist synthetic QA records securely to Supabase.
     </p>
     <AsqWorkspace />
   </main>;

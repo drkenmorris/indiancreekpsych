@@ -38,6 +38,7 @@ export default function AsqPersistencePanel({ onRestored }: { onRestored: () => 
   async function createCase(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (busy) return;
+    if (!window.confirm("Create a new synthetic ASQ case? The current in-memory ASQ workspace will be cleared after the new case is created. Save existing work first.")) return;
     setBusy(true); setStatus(""); setError("");
     try {
       const label = newCaseLabel.trim();
@@ -49,9 +50,11 @@ export default function AsqPersistencePanel({ onRestored }: { onRestored: () => 
       if (createError || !data) throw new Error("Unable to create a secure ASQ record: " + (createError?.message ?? "Unknown error"));
       setCaseId(data.id);
       setRestoredCaseId("");
+      importAsqSnapshot({});
+      onRestored();
       setNewCaseLabel("");
       await refreshCases();
-      setStatus("Synthetic record created. Use Save Workspace to persist its current questionnaire answers and reports.");
+      setStatus("New empty synthetic case created. Complete QA questionnaires, then choose Save Workspace.");
     } catch (err) { setError(err instanceof Error ? err.message : "Unable to create record."); }
     finally { setBusy(false); }
   }

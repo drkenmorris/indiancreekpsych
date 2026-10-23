@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { sendPauboxPatientInvitation } from "@/lib/paubox/patient-invitation";
 import { createClient } from "@/lib/supabase/server";
 import { normalizeAssignmentData, assignedTestOptions } from "@/lib/clinical-tests/assignments";
 
@@ -74,26 +75,13 @@ export async function POST(request:NextRequest) {
     if(!approvedTest?.patientReady)
       return NextResponse.json({error:"This questionnaire has not yet been approved for patient administration. Invitation not sent."},{status:409});
     const link="https://www.indiancreekpsych.com/patient/assigned-tests/"+encodeURIComponent(id);
-    const sender=process.env.TEST_INVITATION_FROM_EMAIL!;
-    let acceptedId:string|undefined;
-    try{
-      const response=await fetch("https://api.paubox.com/v1/email/messages",{
-        method:"POST",
-        headers:{"Content-Type":"application/json",
-          "Authorization":"Bearer "+process.env.PAUBOX_API_KEY},
-        body:JSON.stringify({data:{message:{
-          recipients:[record.recipient_email],
-          headers:{from:sender,subject:"Secure message from Indian Creek Psychological Services"},
-          content:{"text/plain":"A secure message is available in your Indian Creek Psychological Services patient account. Sign in using the email address receiving this invitation. If you do not have a Patient account, register using this email first.\\n\\n"+link+"\\n\\nFor privacy, this email contains no assessment details or results. If you did not expect this message, please call 913-353-6116."}
-        }}}),
-        signal:AbortSignal.timeout(15000),
+    let acceptedId: string;
+    try {
+      acceptedId = await sendPauboxPatientInvitation({
+        recipient: record.recipient_email,
+        assignmentUrl: link,
       });
-      if(!response.ok)throw Error("provider rejected invitation");
-      const result:unknown=await response.json();
-      acceptedId=typeof result==="object"&&result!==null&&"sourceTrackingId" in result
-        &&typeof result.sourceTrackingId==="string"?result.sourceTrackingId:undefined;
-      if(!acceptedId)throw Error("provider acceptance not confirmed");
-    }catch{
+    } catch {
       return NextResponse.json({error:"The email provider did not confirm acceptance. Assignment is still a draft; check provider status before retrying."},{status:502});
     }
     const {data:updated,error:updateError}=await ctx.supabase.from("psych_test_assignments")

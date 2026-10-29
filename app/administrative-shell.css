@@ -1,0 +1,49 @@
+/* Viewport-pinned navigation in its own track: never overlays workspace controls. */
+.administrativeShell {
+  height:100vh;height:100dvh;width:100%;
+  display:grid;grid-template-rows:minmax(0,1fr) auto;
+  background:#eef3f6;
+}
+.administrativeScroll {
+  min-height:0;min-width:0;overflow:auto;
+  scrollbar-gutter:stable;scroll-padding-block:1rem;
+}
+.administrativeScroll > .clinicalLabShell {
+  height:auto;min-height:100%;overflow:visible;
+}
+.administrativeScroll > .icp-shell {
+  width:100%;height:auto;min-height:100%;
+  grid-template-rows:minmax(48px,6vh) minmax(0,1fr);
+}
+.administrativeScroll .icp-shell-center {overflow:visible;}
+/* Account's signed-out registration fallback uses the common outer footer too. */
+.administrativeScroll .icp-bottom-menu {display:none;}
+.administrativeShell > .publicFooter {
+  min-width:0;position:relative;z-index:50;
+  display:flex;align-items:center;gap:1rem;
+  padding:.5rem clamp(1rem,4vw,3.375rem);
+  padding-bottom:calc(.5rem + env(safe-area-inset-bottom,0px));
+}
+.administrativeShell > .publicFooter nav {min-width:0;flex:1 1 auto;}
+.administrativeShell > .publicFooter nav a,
+.administrativeShell > .publicFooter nav button {
+  min-height:44px;display:inline-flex;align-items:center;
+}
+.administrativeShell > .publicFooter :focus-visible {
+  outline:3px solid #f8bb56;outline-offset:2px;
+}
+.administrativeContextNav {display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1rem;}
+@media(max-width:900px) {
+  .administrativeShell > .publicFooter {flex-direction:column;align-items:stretch;gap:.25rem;padding-inline:.75rem;}
+  .administrativeShell > .publicFooter nav {
+    flex-wrap:nowrap;justify-content:flex-start;overflow-x:auto;
+    scrollbar-width:thin;overscroll-behavior-inline:contain;
+  }
+  .administrativeShell > .publicFooter nav > * {flex:0 0 auto;white-space:nowrap;}
+  .administrativeShell .footerContact {display:flex;justify-content:center;flex-wrap:wrap;gap:.25rem .75rem;font-size:11px;}
+}
+@media print {
+  .administrativeShell {display:block;height:auto;}
+  .administrativeScroll,.administrativeScroll>.clinicalLabShell {height:auto;overflow:visible;}
+  .administrativeShell>.publicFooter {display:none;}
+}

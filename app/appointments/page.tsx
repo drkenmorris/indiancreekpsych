@@ -36,6 +36,10 @@ export default async function AppointmentsPage() {
         <div className="icp-top-menu-right"><span className="icp-top-tagline">Secure Appointment Scheduling</span></div>
       </header>
       <main className="icp-shell-center authPage appointmentPage">
+        <nav className="administrativeContextNav" aria-label="Appointment views">
+          <Link href="/appointments">Appointments</Link>
+          {accountType === "admin" && <Link href="/appointments/calendar">Monthly calendar</Link>}
+        </nav>
         <AppointmentsClient
           userId={claims.sub}
           accountType={accountType}
@@ -45,12 +49,7 @@ export default async function AppointmentsPage() {
           initialBlocks={blocks ?? []}
         />
       </main>
-      <nav className="icp-bottom-menu" aria-label="Appointment navigation">
-        <Link href="/">Home</Link>
-        <Link href="/account">Account</Link>
-        <Link href="/appointments">Appointments</Link>
-        {accountType === "admin" && <Link href="/appointments/calendar">Monthly calendar</Link>}
-      </nav>
+
     </div>
   );
 }

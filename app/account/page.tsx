@@ -2,7 +2,6 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import AccountClient from "./AccountClient";
 import RegisterPage from "../register/page";
-import AuthMenuAction from "../components/AuthMenuAction";
 
 export default async function AccountPage() {
   const supabase = await createClient();
@@ -47,10 +46,7 @@ export default async function AccountPage() {
           newsletterSubscribed={newsletter?.subscribed ?? false}
         />
       </main>
-      <nav className="icp-bottom-menu" aria-label="Account navigation">
-        <Link href="/">Home</Link><Link href="/account">Account</Link>
-        <AuthMenuAction />
-      </nav>
+
     </div>
   );
 }

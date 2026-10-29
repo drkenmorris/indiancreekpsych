@@ -79,6 +79,11 @@ export default function AuthMenuAction() {
     <>
       {accountRole === "patient" && <Link href="/patient/psychological-tests">Psychological Tests</Link>}
       {accountRole === "admin" && <Link href="/clinical-tests">Psychological Tests</Link>}
+      {accountRole === "admin" && (
+        <a href="https://emr-workflow-demo.vercel.app" target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">
+          EMR Demo (opens in new tab)
+        </a>
+      )}
       {(accountRole === "admin" || accountRole === "staff") && (
         <Link href="/admin/questionnaires">Patient Questionnaires</Link>
       )}

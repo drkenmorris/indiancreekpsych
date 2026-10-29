@@ -6,7 +6,7 @@ export default function AdministrativeShell({ children }: { children: ReactNode 
   return (
     <div className="administrativeShell">
       <div className="administrativeScroll">{children}</div>
-      <PublicFooter />
+      <PublicFooter workspace />
     </div>
   );
 }

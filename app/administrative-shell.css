@@ -47,3 +47,17 @@
   .administrativeScroll,.administrativeScroll>.clinicalLabShell {height:auto;overflow:visible;}
   .administrativeShell>.publicFooter {display:none;}
 }
+
+/* Compact workspaces keep major destinations behind one accessible disclosure. */
+.publicFooter {position:relative;}
+.publicFooter.workspaceFooter > nav {flex-wrap:wrap;overflow:visible;}
+.publicFooter .administratorSections {position:static;flex:0 0 auto;}
+.publicFooter .administratorSections > summary {display:flex;align-items:center;gap:.6rem;min-height:44px;padding:.5rem .8rem;border:1px solid #a9c2d3;border-radius:7px;color:#fff;background:#123e5c;font-size:12px;font-weight:700;cursor:pointer;list-style:none;}
+.publicFooter .administratorSections > summary::-webkit-details-marker {display:none;}
+.publicFooter .administratorSections[open] > summary {background:#245d7e;}
+.publicFooter .administratorSectionsPanel {position:absolute;inset-block-end:calc(100% + .5rem);inset-inline-start:clamp(.75rem,4vw,3.375rem);width:min(22rem,calc(100vw - 1.5rem));max-height:min(70vh,30rem);overflow-y:auto;scrollbar-gutter:stable;z-index:100;display:grid;gap:.25rem;padding:.6rem;margin:0;background:#fff;border:1px solid #b4c8d4;border-radius:10px;box-shadow:0 12px 35px #072b4740;}
+.publicFooter .administratorSections:not([open]) > .administratorSectionsPanel {display:none;}
+.publicFooter .administratorSectionsPanel a {display:flex;flex-direction:column;align-items:flex-start;justify-content:center;min-height:44px;color:#173e56;background:#f1f6f8;text-align:left;white-space:normal;padding:.65rem .8rem;font-size:13px;border-radius:6px;}
+.publicFooter .administratorSectionsPanel a:hover {background:#dcecf3;}
+.publicFooter .administratorSectionsPanel small {font-size:10px;font-weight:400;color:#506c7c;}
+@media print {.administratorSections{display:none;}}

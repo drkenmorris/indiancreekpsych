@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import AdministratorSections from "./AdministratorSections";
 
 type UserStatus = "loading" | "signed-in" | "signed-out";
 
-export default function AuthMenuAction() {
+export default function AuthMenuAction({ compact = false }: { compact?: boolean }) {
   const [userStatus, setUserStatus] = useState<UserStatus>("loading");
   const [accountRole, setAccountRole] = useState<"guest" | "patient" | "staff" | "admin" | null>(null);
   const [busy, setBusy] = useState(false);
@@ -78,13 +79,14 @@ export default function AuthMenuAction() {
   return (
     <>
       {accountRole === "patient" && <Link href="/patient/psychological-tests">Psychological Tests</Link>}
-      {accountRole === "admin" && <Link href="/clinical-tests">Psychological Tests</Link>}
-      {accountRole === "admin" && (
+      {!compact && accountRole === "admin" && <Link href="/clinical-tests">Psychological Tests</Link>}
+      {accountRole === "admin" && <AdministratorSections />}
+      {!compact && accountRole === "admin" && (
         <a href="https://emr-workflow-demo.vercel.app" target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">
           EMR Demo (opens in new tab)
         </a>
       )}
-      {(accountRole === "admin" || accountRole === "staff") && (
+      {((!compact && accountRole === "admin") || accountRole === "staff") && (
         <Link href="/admin/questionnaires">Patient Questionnaires</Link>
       )}
       <button type="button" className="authMenuLogout" disabled={busy} onClick={() => void signOut()}>

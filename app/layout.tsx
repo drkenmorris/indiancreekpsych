@@ -7,6 +7,7 @@ import "./contact-page.css";
 import "./account-page.css";
 import "./patient-psychological-tests.css";
 import "./administrative-shell.css";
+import "./clinic-brand.css";
 
 export const metadata: Metadata = {
   title: "Indian Creek Psychological Services | Counseling & Therapy",

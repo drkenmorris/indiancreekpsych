@@ -1,5 +1,7 @@
 "use client";
 
+import ClinicLogo from "../components/ClinicLogo";
+
 import { safeNext } from "@/lib/patient/redirect";
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
@@ -63,7 +65,7 @@ export default function LoginPage() {
 
   return (
     <div className="icp-shell accountPortalShell">
-      <header className="icp-top-menu"><Link className="icp-brand" href="/">Indian Creek Psychological Services</Link></header>
+      <header className="icp-top-menu"><Link className="icp-brand" href="/" aria-label="Indian Creek Psychological Services home"><ClinicLogo className="clinicAuthLogo" /></Link></header>
       <main className="icp-shell-center authPage">
         <section className="authCard accountRegistrationCard">
           <p className="eyebrow">Secure account access</p>

@@ -1,3 +1,4 @@
+import ClinicLogo from "../components/ClinicLogo";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import AccountClient from "./AccountClient";
@@ -33,7 +34,7 @@ export default async function AccountPage() {
   return (
     <div className="icp-shell accountPortalShell">
       <header className="icp-top-menu">
-        <div className="icp-top-menu-left"><Link className="icp-brand" href="/">Indian Creek Psychological Services</Link></div>
+        <div className="icp-top-menu-left"><Link className="icp-brand" href="/" aria-label="Indian Creek Psychological Services home"><ClinicLogo className="clinicAuthLogo" /></Link></div>
         <div className="icp-top-menu-right"><span className="icp-top-tagline">Account</span></div>
       </header>
       <main className="icp-shell-center authPage">

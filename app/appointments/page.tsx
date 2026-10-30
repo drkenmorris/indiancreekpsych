@@ -1,3 +1,4 @@
+import ClinicLogo from "../components/ClinicLogo";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -31,7 +32,7 @@ export default async function AppointmentsPage() {
     <div className="icp-shell">
       <header className="icp-top-menu">
         <div className="icp-top-menu-left">
-          <Link className="icp-brand" href="/"></Link>
+          <Link className="icp-brand" href="/" aria-label="Indian Creek Psychological Services home"><ClinicLogo className="clinicAuthLogo" /></Link>
         </div>
         <div className="icp-top-menu-right"><span className="icp-top-tagline">Secure Appointment Scheduling</span></div>
       </header>

@@ -1,5 +1,7 @@
 "use client";
 
+import ClinicLogo from "../components/ClinicLogo";
+
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -59,7 +61,7 @@ export default function RegisterPage() {
   return (
     <div className="icp-shell accountPortalShell">
       <header className="icp-top-menu">
-        <Link className="icp-brand" href="/">Indian Creek Psychological Services</Link>
+        <Link className="icp-brand" href="/" aria-label="Indian Creek Psychological Services home"><ClinicLogo className="clinicAuthLogo" /></Link>
       </header>
       <main className="icp-shell-center authPage">
         <section className="authCard accountRegistrationCard">

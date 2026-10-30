@@ -1,9 +1,11 @@
 import Link from "next/link";
+import ClinicLogo from "./ClinicLogo";
 import AuthMenuAction from "./AuthMenuAction";
 
 export default function PublicFooter({ workspace = false }: { workspace?: boolean }) {
   return (
     <footer className={`publicFooter${workspace ? " workspaceFooter" : ""}`}>
+      <Link className="clinicFooterLogoLink" href="/" aria-label="Indian Creek Psychological Services home"><ClinicLogo loading="lazy" /></Link>
       <nav aria-label={workspace ? "Workspace navigation" : "Primary site navigation"}>
         <Link href="/">Home</Link>
         {!workspace && (<>

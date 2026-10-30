@@ -1,0 +1,14 @@
+.clinicFullColorLogo{display:block;width:100%;height:auto;object-fit:contain}
+.publicSite{position:relative}
+.clinicBrandArea{display:flex;align-items:center;padding:10px clamp(16px,4vw,54px);background:#f8faf9;border-bottom:1px solid #dce4e6}
+.clinicBrandArea>a{display:block;width:126px;flex:0 0 auto}
+.publicSite:not(.homeLandingPage){grid-template-rows:104px minmax(0,1fr) auto}
+.homeLandingPage>.clinicBrandArea{position:absolute;z-index:8;top:14px;right:clamp(16px,4vw,54px);padding:6px 10px;border:1px solid #ffffffb3;border-radius:12px;background:#ffffffed;box-shadow:0 4px 20px #072b471c}
+.homeLandingPage>.clinicBrandArea>a{width:180px}
+.clinicFooterLogoLink{display:block;flex:0 0 112px;width:112px}
+.workspaceFooter .clinicFooterLogoLink{flex-basis:84px;width:84px;padding:0;background:transparent}
+.clinicAuthLogo{width:66px;height:44px;flex:0 0 auto;object-fit:contain}
+.clinicBrandArea a:focus-visible,.clinicFooterLogoLink:focus-visible{outline:3px solid #e8b453;outline-offset:4px;border-radius:5px}
+@media(max-width:900px){.administrativeShell>.publicFooter.workspaceFooter{display:grid;grid-template-columns:76px minmax(0,1fr);gap:.2rem .65rem}.workspaceFooter .clinicFooterLogoLink{width:76px;grid-column:1;grid-row:1}.administrativeShell>.workspaceFooter>nav{grid-column:2;grid-row:1}.administrativeShell>.workspaceFooter>.footerContact{grid-column:1/-1;grid-row:2}}
+@media(max-width:620px){.publicSite,.publicSite:not(.homeLandingPage){grid-template-rows:88px minmax(0,1fr) auto}.homeLandingPage>.clinicBrandArea,.clinicBrandArea{position:static;border:0;border-bottom:1px solid #dce4e6;border-radius:0;box-shadow:none;background:#f8faf9;padding:4px 16px;justify-content:center}.homeLandingPage>.clinicBrandArea>a,.clinicBrandArea>a{width:120px}.publicFooter:not(.workspaceFooter)>.clinicFooterLogoLink{display:none}.clinicAuthLogo{width:66px;height:44px}}
+@media print{.clinicBrandArea{display:none!important}}

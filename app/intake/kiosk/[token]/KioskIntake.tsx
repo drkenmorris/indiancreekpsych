@@ -2,12 +2,13 @@
 
 import {FormEvent,useEffect,useMemo,useRef,useState} from 'react';
 import {createClient} from '@/lib/supabase/client';
+import LegalFormCopy from '@/app/components/LegalFormCopy';
 import IntakeMedicalSubstance from '@/app/components/IntakeMedicalSubstance';
 import IntakeMedications from '@/app/components/IntakeMedications';
 import IntakeTreatmentHistory from '@/app/components/IntakeTreatmentHistory';
 import IntakeAssignmentDocuments from '@/app/components/IntakeAssignmentDocuments';
 import LegalSectionDocument from '@/app/components/LegalSectionDocument';
-import {LEGAL_PACKET_VERSION} from '@/lib/patient/legal-documents';
+import {LEGAL_PACKET_VERSION,prepareLegalDraft} from '@/lib/patient/legal-documents';
 import {costFields,intakeSections,IntakeAnswers,validateIntake} from '@/lib/patient/intake';
 import {sameIntakeAnswers} from '@/lib/patient/intake-answer-comparison';
 import styles from './KioskIntake.module.css';
@@ -60,8 +61,8 @@ export default function KioskIntake({token}:{token:string}){
    if(session.status==='submitted'){
     baseline.current={};setAnswers({});setComplete(true);setLoading(false);return;
    }
-   const loaded={full_name:session.patient_name,date_of_birth:session.date_of_birth,...session.answers};
-   baseline.current={...session.answers};setAnswers(loaded);setLoading(false);
+   const loaded={full_name:session.patient_name,date_of_birth:session.date_of_birth,...prepareLegalDraft(session.answers)};
+   baseline.current={...session.answers};setAnswers(loaded);if(session.answers.legal_packet_version&&session.answers.legal_packet_version!==LEGAL_PACKET_VERSION)setMessage('Legal statements were revised. Review and re-enter the separate decisions, signatures and dates before submission. Other intake information is retained.');setLoading(false);
   })();
   return()=>{active=false;};
  },[supabase,token]);
@@ -163,6 +164,7 @@ export default function KioskIntake({token}:{token:string}){
     })}</div>
    </section>
 
+   {sectionIndex>=10&&<LegalFormCopy sectionTitle={section.title} answers={answers} reference="Office intake draft — finalized copies available in staff review after submission"/>}
    {sectionIndex===1&&<IntakeAssignmentDocuments token={token} disabled={busy} onBusy={setBusy}/>}
 
    <footer className={styles.actions}>

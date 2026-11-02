@@ -323,3 +323,6 @@ var(--dr-ken-therapist-image) center/cover no-repeat}
 .intakeMedicalDetails input,.intakeMedicalDetails textarea { width: 100%; box-sizing: border-box; min-height: 48px; font: inherit; padding: 10px; border: 1px solid #aab8b1; border-radius: 6px; }
 .intakeMedicalLegacy { margin: 16px 0; padding: 14px; border: 1px solid #aab8b1; border-radius: 8px; }
 @media (max-width: 760px) { .intakeMedicalGrid { grid-template-columns: 1fr; } }
+.legalFormCopy { margin: 20px 0; padding: 18px; border: 1px solid #bccfc6; border-radius: 12px; background: #f3f7f4; }
+.legalFormCopy h3 { margin-top: 0; }
+.legalPrintSource { display: none; }

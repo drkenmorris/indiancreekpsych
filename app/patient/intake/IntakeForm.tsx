@@ -1,17 +1,18 @@
 'use client';
 import {FormEvent,useEffect,useMemo,useRef,useState} from 'react';
 import {createClient} from '@/lib/supabase/client';
+import LegalFormCopy from '@/app/components/LegalFormCopy';
 import IntakeMedicalSubstance from '@/app/components/IntakeMedicalSubstance';
 import IntakeMedications from '@/app/components/IntakeMedications';
 import IntakeTreatmentHistory from '@/app/components/IntakeTreatmentHistory';
 import IntakeAssignmentDocuments from '@/app/components/IntakeAssignmentDocuments';
 import LegalSectionDocument from '@/app/components/LegalSectionDocument';
-import {LEGAL_PACKET_VERSION} from '@/lib/patient/legal-documents';
+import {LEGAL_PACKET_VERSION,prepareLegalDraft} from '@/lib/patient/legal-documents';
 import {costFields,intakeSections,IntakeAnswers,IntakeRecord,validateIntake} from '@/lib/patient/intake';
 
 export default function IntakeForm({userId,initial,defaults,preview=false}:{userId:string;initial:IntakeRecord|null;defaults:IntakeAnswers;preview?:boolean}){
  const supabase=useMemo(()=>preview?null:createClient(),[preview]);
- const [record,setRecord]=useState(initial),[answers,setAnswers]=useState<IntakeAnswers>(initial?.answers??defaults);
+ const [record,setRecord]=useState(initial),[answers,setAnswers]=useState<IntakeAnswers>(prepareLegalDraft(initial?.answers??defaults,initial?.status==='submitted'));
  const [busy,setBusy]=useState(false),[message,setMessage]=useState(''),[error,setError]=useState(''),[confirm,setConfirm]=useState(false),[dirty,setDirty]=useState(false);
  const [sectionIndex,setSectionIndex]=useState(0);
  const formRef=useRef<HTMLFormElement|null>(null);
@@ -55,6 +56,7 @@ export default function IntakeForm({userId,initial,defaults,preview=false}:{user
    </div>
   </section>
 
+  {record?.status==='draft'&&record.answers.legal_packet_version&&record.answers.legal_packet_version!==LEGAL_PACKET_VERSION&&<p className="intakePreviewNotice">The legal statements were revised. Review the current statements and re-enter the separate decisions, signatures and dates before submitting; other intake information is retained.</p>}
   {preview&&<section className="intakePreviewNotice" role="status"><strong>Editable staff preview — testing only.</strong> Type into any field and switch sections. This page never stores answers or signatures; use fictional information only. Use <a href="/admin/intake-kiosk">Start office intake</a> to test real saving to Supabase.</section>}
   {submitted&&<section className="intakeSubmittedNotice" role="status"><strong>This questionnaire was submitted on {record?.submitted_at?new Date(record.submitted_at).toLocaleDateString():'an earlier date'}.</strong> Signed submissions are intentionally locked to protect the original record. To make a correction or complete a new questionnaire, contact the practice at 913-636-5657.</section>}
 
@@ -67,7 +69,7 @@ export default function IntakeForm({userId,initial,defaults,preview=false}:{user
    {section.title==='Authorization to share health information'&&<p className="intakeHelp">This optional authorization covers the information you specifically describe below. It does not include separately maintained psychotherapy notes. You may leave this authorization as “No” and still receive care.</p>}
    {section.title==='Separate authorization for psychotherapy notes'&&<p className="intakeHelp">This optional authorization is intentionally separate from the general release because psychotherapy notes receive additional privacy protection.</p>}
 
-   <LegalSectionDocument sectionTitle={section.title}/>
+   <LegalSectionDocument sectionTitle={section.title} version={submitted?(record?.answers.legal_packet_version||'legacy-unversioned'):LEGAL_PACKET_VERSION}/>
    <div className="intakeFields">{section.fields.map(field=>{
     const [key,label,type]=field;const required=field.length>3&&field[3];const options=(field.length>4?field[4]:[])??[];const cost=costFields.includes(key);
     if(type==='medical-substance')return <div key={key} className="intakeWide"><IntakeMedicalSubstance value={answers[key]??''} onChange={v=>update(key,v)} legacyAnswers={answers} readOnly={submitted}/></div>;
@@ -80,6 +82,7 @@ export default function IntakeForm({userId,initial,defaults,preview=false}:{user
     </label>{cost&&<label className="checkRow"><input type="checkbox" checked={answers[key]==='I don’t know'} onChange={e=>update(key,e.target.checked?'I don’t know':'')}/> I don’t know</label>}</div>;
    })}</div>
   </fieldset>
+  {sectionIndex>=10&&<LegalFormCopy sectionTitle={section.title} answers={answers} submitted={submitted} version={submitted?(record?.answers.legal_packet_version||'legacy-unversioned'):LEGAL_PACKET_VERSION} reference={record?`Patient account intake ${userId} / version ${record.version}`:'Draft / non-saving preview'} submittedAt={record?.submitted_at}/> }
   {sectionIndex===1&&<IntakeAssignmentDocuments patientId={userId} preview={preview} readOnly={submitted} disabled={busy} onBusy={setBusy}/>}
 
   {!submitted&&<section className="intakeWizardActions">

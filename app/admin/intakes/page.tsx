@@ -1,3 +1,4 @@
+import SubmittedLegalForms from '@/app/components/SubmittedLegalForms';
 import IntakeMedicalSubstance from '@/app/components/IntakeMedicalSubstance';
 import IntakeMedications from '@/app/components/IntakeMedications';
 import IntakeTreatmentHistory from '@/app/components/IntakeTreatmentHistory';
@@ -21,6 +22,7 @@ function SubmittedPacket({record}:{record:Saved}){
    <h2>{section.title}</h2>
    <dl>{section.fields.map(([key,label,type])=>type==='medical-substance'?<div key={key}><IntakeMedicalSubstance value={record.answers[key]??''} legacyAnswers={record.answers} readOnly/></div>:type==='medications'?<div key={key}><IntakeMedications value={record.answers[key]??''} readOnly/></div>:type==='treatment-history'?<div key={key}><IntakeTreatmentHistory value={record.answers[key]??''} readOnly/></div>:<div key={key}><dt><strong>{label}</strong></dt><dd style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>{record.answers[key]||'Not provided'}</dd></div>)}</dl>
   </section>)}
+  <SubmittedLegalForms answers={record.answers} reference={`${record.source} / ${record.id}`} submittedAt={record.when}/>
   {retiredMentalHealthFields.some(([key])=>record.answers[key]?.trim())&&<section className="intakeStaffReviewSection"><h2>Previously recorded treatment history</h2><dl>{retiredMentalHealthFields.filter(([key])=>record.answers[key]?.trim()).map(([key,label])=><div key={key}><dt><strong>{label}</strong></dt><dd style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>{record.answers[key]}</dd></div>)}</dl></section>}
   <IntakeAssignmentDocuments patientId={record.source==='Patient account'?record.id:undefined} kioskId={record.source!=='Patient account'?record.id:undefined} readOnly/>
  </details>;

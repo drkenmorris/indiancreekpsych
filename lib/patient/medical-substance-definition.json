@@ -1,0 +1,181 @@
+{
+  "version": "2.1.0",
+  "consolidation_version": "1",
+  "groups": [
+    {
+      "key": "medical_conditions",
+      "label": "Medical Conditions — Current or Past",
+      "choices": [
+        "Heart / cardiovascular disease",
+        "High blood pressure",
+        "High cholesterol",
+        "Diabetes",
+        "Thyroid / endocrine condition",
+        "Asthma",
+        "Other respiratory disease",
+        "Seizure disorder",
+        "Stroke / TIA",
+        "Head injury / concussion",
+        "Other neurological condition",
+        "Chronic pain",
+        "Migraine / recurrent headache",
+        "Arthritis / musculoskeletal condition",
+        "Gastrointestinal condition",
+        "Liver disease",
+        "Kidney disease",
+        "Cancer",
+        "Blood disorder / anemia",
+        "Sleep apnea / sleep disorder",
+        "Infectious disease",
+        "Autoimmune condition",
+        "Vision impairment",
+        "Hearing impairment",
+        "Reproductive / pregnancy-related condition or concern",
+        "Physical disability",
+        "Other medical condition",
+        "None reported",
+        "History unknown"
+      ]
+    },
+    {
+      "key": "medical_care",
+      "label": "Significant Medical Care / Events",
+      "choices": [
+        "Surgery",
+        "Medical hospitalization",
+        "Emergency department visit(s)",
+        "Major accident / injury",
+        "Loss of consciousness",
+        "Long-term medical treatment",
+        "Specialist care",
+        "Rehabilitation / physical therapy",
+        "Assistive device(s)",
+        "Other medical care / event",
+        "None reported",
+        "History unknown"
+      ]
+    },
+    {
+      "key": "health_impact",
+      "label": "Health Impact on Daily Life",
+      "choices": [
+        "Pain affects daily functioning",
+        "Fatigue / low energy",
+        "Sleep disruption",
+        "Mobility limitations",
+        "Difficulty with personal care",
+        "Work / school affected",
+        "Social activities limited",
+        "Medication side effects reported",
+        "Ongoing medical follow-up needed",
+        "Other health impact",
+        "None reported",
+        "History unknown"
+      ]
+    },
+    {
+      "key": "substances",
+      "label": "Substances Used — Current or Past",
+      "choices": [
+        "Alcohol",
+        "Nicotine / tobacco (including vaping)",
+        "Cannabis / marijuana",
+        "Stimulants (cocaine, methamphetamine or nonmedical prescription use)",
+        "Opioids / nonmedical prescription pain medication",
+        "Nonmedical sedative / tranquilizer use",
+        "Hallucinogens",
+        "Inhalants",
+        "Other substance",
+        "None reported",
+        "History unknown"
+      ]
+    },
+    {
+      "key": "patterns",
+      "label": "Substance-Use Patterns Over Time",
+      "choices": [
+        "Current use reported",
+        "Past use reported",
+        "Experimental use",
+        "Occasional use",
+        "Frequent / daily use",
+        "Episodes of heavy use",
+        "Use of multiple substances",
+        "Difficulty reducing / stopping use",
+        "Other pattern",
+        "None reported",
+        "History unknown"
+      ]
+    },
+    {
+      "key": "routes",
+      "label": "Routes of Substance Use",
+      "choices": [
+        "Oral / swallowed",
+        "Smoked",
+        "Vaped",
+        "Intranasal / snorted",
+        "Injected",
+        "Other route",
+        "None reported",
+        "History unknown"
+      ]
+    },
+    {
+      "key": "effects",
+      "label": "Substance-Related Effects / Consequences",
+      "choices": [
+        "Cravings",
+        "Needing increased amounts",
+        "Withdrawal symptoms",
+        "Blackouts / memory gaps",
+        "Overdose history",
+        "Withdrawal seizure history",
+        "Health complications",
+        "Work / school problems",
+        "Relationship / family problems",
+        "Financial problems",
+        "Legal problems",
+        "Use in hazardous situations",
+        "Other consequence",
+        "None reported",
+        "History unknown"
+      ]
+    },
+    {
+      "key": "recovery",
+      "label": "Substance-Use Treatment / Recovery History",
+      "choices": [
+        "Medical withdrawal management / detoxification",
+        "Inpatient / residential treatment",
+        "Outpatient treatment",
+        "Intensive outpatient treatment",
+        "Medication-based treatment",
+        "Individual counseling",
+        "Group counseling",
+        "Peer / mutual-support group",
+        "Recovery support from family / community",
+        "Prior return to use / relapse",
+        "Periods of abstinence / recovery",
+        "Other treatment / recovery history",
+        "None reported",
+        "History unknown"
+      ]
+    }
+  ],
+  "notes": {
+    "medical_notes": "Medical Details / Conditions, Care and Dates",
+    "use_notes": "Substance-Use Details / Substance, Amount, Frequency, First and Last Use",
+    "effects_notes": "Effects / Consequences Details",
+    "recovery_notes": "Treatment / Recovery Details and Dates",
+    "source_notes": "Other Information / Source of History",
+    "primary_care_provider": "Primary Care Provider",
+    "pcp_phone": "Primary Care Provider Phone",
+    "other_allergies": "Other Allergies / Reactions (food, environmental or other non-medication allergies)",
+    "behavioral_addictions": "Gambling / Other Compulsive Behaviors and Their Impact"
+  },
+  "exclusive": [
+    "None reported",
+    "History unknown"
+  ]
+}

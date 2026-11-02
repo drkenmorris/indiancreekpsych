@@ -1,3 +1,4 @@
+import {MEDICAL_SUBSTANCE_KEY,validateMedicalSubstance} from './medical-substance';
 import {MEDICATION_ENTRIES_KEY,validateMedications,validateMedicationAllergies,allergyStatuses} from './medications';
 import {TREATMENT_HISTORY_KEY,validateTreatmentHistory} from './treatment-history';
 export type IntakeField = readonly [key:string,label:string,type:string,required?:boolean,options?:readonly string[]];
@@ -63,15 +64,7 @@ export const intakeSections:{title:string;description?:string;fields:readonly In
   ['medication_allergy_notes','Medication Allergies / Reactions','textarea'],
   ['medications_current','Additional medication information / previously recorded medication list','textarea']
  ]},
- {title:'Medical history, alcohol, substances, and behavioral health risks',description:'Medical conditions, other allergies, and substance-use information that may affect your care.',fields:[
-  ['primary_care_provider','Primary care provider','text'],['pcp_phone','Primary care provider phone','tel'],['medical_conditions','Current or significant medical conditions','textarea',true],
-  ['surgeries_hospitalizations','Significant surgeries or medical hospitalizations','textarea'],['allergies','Other or previously reported allergies (including food or environmental)','textarea'],
-  ['pregnancy_status','Pregnancy / postpartum status, if applicable','select',false,['Not applicable','No','Pregnant','Postpartum','Unsure','Prefer not to answer']],
-  ['head_injury_seizure_history','History of head injury, concussion, seizures, or neurological conditions','textarea'],
-  ['alcohol_use','Current alcohol use: type, amount, and frequency','textarea'],['drug_use','Current non-prescribed drug or cannabis use: substances, amount, and frequency','textarea'],
-  ['tobacco_nicotine','Tobacco / nicotine use','textarea'],['substance_treatment_history','Prior substance-use treatment, detoxification, or recovery supports','textarea'],
-  ['substance_consequences','Legal, medical, work, school, or relationship consequences related to substances','textarea'],['gambling_other_behaviors','Gambling or other compulsive behaviors that concern you','textarea']
- ]},
+ {title:'Medical & Substance Use History',description:'Your reported medical conditions, care, health impact, substance use, and treatment or recovery history.',fields:[[MEDICAL_SUBSTANCE_KEY,'Medical & Substance Use History','medical-substance']]},
  {title:'Safety and risk screening',description:'These questions help us identify urgent safety needs. This electronic form is not continuously monitored.',fields:[
   ['suicidal_thoughts_current','Are you currently having thoughts of killing yourself or wishing you were dead?','select',true,yesNo],
   ['suicidal_plan_current','Do you currently have a suicide plan, intent, or access to means you might use?','select',true,yesNo],
@@ -184,9 +177,10 @@ export const requiredIntakeKeys=intakeSections.flatMap(section=>section.fields.f
 export function validateIntake(answers:IntakeAnswers,submit:boolean){
  for(const section of intakeSections)for(const f of section.fields){
   const value=answers[f[0]]??'';
-  if(f[0]!==TREATMENT_HISTORY_KEY&&f[0]!==MEDICATION_ENTRIES_KEY&&value.length>8000)return `${f[1]} is too long.`;
+  if(f[0]!==TREATMENT_HISTORY_KEY&&f[0]!==MEDICATION_ENTRIES_KEY&&f[0]!==MEDICAL_SUBSTANCE_KEY&&value.length>8000)return `${f[1]} is too long.`;
   if(submit&&f[3]&&!value.trim())return `Please complete: ${f[1]}.`;
  }
+ const medicalError=validateMedicalSubstance(answers[MEDICAL_SUBSTANCE_KEY]??'');if(medicalError)return medicalError;
  const medicationError=validateMedications(answers[MEDICATION_ENTRIES_KEY]??'',submit)||validateMedicationAllergies(answers.medication_allergy_status??'',answers.medication_allergy_notes??'');if(medicationError)return medicationError;
  const historyError=validateTreatmentHistory(answers[TREATMENT_HISTORY_KEY]??'',submit);if(historyError)return historyError;
  if(answers.email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(answers.email))return 'Enter a valid contact email.';

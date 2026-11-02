@@ -313,3 +313,13 @@ var(--dr-ken-therapist-image) center/cover no-repeat}
 
 @media (max-width: 700px) { .intakeTreatmentFields { grid-template-columns: 1fr; } }
 .intakeMedicationBenefit { margin: 0 0 16px; padding: 12px; border: 1px solid #aab8b1; border-radius: 8px; }
+.intakeMedicalGrid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 18px; margin: 18px 0; }
+.intakeMedicalGroup { min-width: 0; border: 1px solid #aab8b1; border-radius: 12px; padding: 16px; }
+.intakeMedicalGroup legend { padding: 0 6px; font-weight: 800; }
+.intakeMedicalGroup label.intakeMedicalChoice { display: flex; flex-direction: row; align-items: flex-start; gap: 10px; min-height: 40px; padding: 6px 0; font-weight: 500; }
+.intakeMedicalGroup .intakeMedicalChoice input { width: 20px; height: 20px; min-height: 20px; margin-top: 2px; padding: 0; flex: 0 0 auto; }
+.intakeMedicalDetails { display: grid; gap: 16px; padding-top: 16px; }
+.intakeMedicalDetails label { display: grid; gap: 6px; font-weight: 600; }
+.intakeMedicalDetails input,.intakeMedicalDetails textarea { width: 100%; box-sizing: border-box; min-height: 48px; font: inherit; padding: 10px; border: 1px solid #aab8b1; border-radius: 6px; }
+.intakeMedicalLegacy { margin: 16px 0; padding: 14px; border: 1px solid #aab8b1; border-radius: 8px; }
+@media (max-width: 760px) { .intakeMedicalGrid { grid-template-columns: 1fr; } }

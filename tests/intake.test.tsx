@@ -7,7 +7,7 @@ import SecurityClient from '../app/account/security/SecurityClient';
 import {validateIntake,IntakeAnswers,intakeSections} from '../lib/patient/intake';
 import {LEGAL_PACKET_VERSION} from '../lib/patient/legal-documents';
 import {safeNext} from '../lib/patient/redirect';
-const complete:IntakeAnswers={full_name:'Test Person',date_of_birth:'1990-01-01',address:'1 Example St',city:'Example',state:'KS',postal_code:'66000',phone:'5550100',email:'test@example.com',insurance_coverage:'self-pay',counseling_reason:'Test concern',
+const complete:IntakeAnswers={legal_routing_answers:JSON.stringify({version:'1.0.0',answers:{telehealth:'No',electronic:'No',minor:'No',representative:'No',release:'No',part2:'No',sud_notes:'No',psychotherapy_notes:'No'}}),full_name:'Test Person',date_of_birth:'1990-01-01',address:'1 Example St',city:'Example',state:'KS',postal_code:'66000',phone:'5550100',email:'test@example.com',insurance_coverage:'self-pay',counseling_reason:'Test concern',
  emergency_contact_name:'Synthetic Contact',emergency_contact_relationship:'Friend',emergency_contact_phone:'5550101',emergency_contact_permission:'Yes',
  functional_impact:'Synthetic fixture only',counseling_goals:'Synthetic fixture only',prior_mental_health_treatment:'No',medical_conditions:'None',medications_current:'None',
  suicidal_thoughts_current:'No',suicidal_plan_current:'No',homicidal_thoughts_current:'No',abuse_neglect_current:'No',

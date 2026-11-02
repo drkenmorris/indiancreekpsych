@@ -3,7 +3,7 @@ import {useEffect,useRef,useState} from 'react';
 import {documentsForVersion,LEGAL_PACKET_VERSION,legalDecision,legalFormFor,fieldsForVersion} from '@/lib/patient/legal-documents';
 const hash=async(text:string)=>{if(!globalThis.crypto?.subtle)return 'Unavailable in this browser';const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text));return Array.from(new Uint8Array(bytes),b=>b.toString(16).padStart(2,'0')).join('');};
 export default function LegalFormCopy({sectionTitle,answers,submitted=false,version=LEGAL_PACKET_VERSION,reference='Draft intake',submittedAt=null}:{sectionTitle:string;answers:Record<string,string>;submitted?:boolean;version?:string;reference?:string;submittedAt?:string|null}){
- const ref=useRef<HTMLElement|null>(null),form=legalFormFor(sectionTitle),doc=documentsForVersion(version)?.[sectionTitle],decision=legalDecision(sectionTitle,answers),[message,setMessage]=useState('');
+ const ref=useRef<HTMLElement|null>(null),form=legalFormFor(sectionTitle,version),doc=documentsForVersion(version)?.[sectionTitle],decision=legalDecision(sectionTitle,answers),[message,setMessage]=useState('');
  const fields=fieldsForVersion(version,sectionTitle).filter(([key])=>form&&(answers[form.choice]===form.positive||key===form.choice||key.endsWith('_questions'))).map(([key,label])=>({key,label,value:answers[key]||'Not recorded'}));
  const payload=JSON.stringify({version,form_id:form?.id,reference,submitted_at:submittedAt,patient_name:answers.full_name||'Not recorded',patient_dob:answers.date_of_birth||'Not recorded',document:doc||null,fields,submitted});
  const [digests,setDigests]=useState({payload:'',document:'',snapshot:''});

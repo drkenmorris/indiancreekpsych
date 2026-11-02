@@ -1,0 +1,215 @@
+{
+  "version": "1.0.0",
+  "packet_version": "2026-11-02-directory-1",
+  "title": "Legal forms directory and questionnaire",
+  "questions": [
+    {
+      "id": "telehealth",
+      "label": "Do you plan to attend any appointments by video or other telehealth?",
+      "options": [
+        "No",
+        "Yes",
+        "Unsure"
+      ]
+    },
+    {
+      "id": "electronic",
+      "label": "Do you want to use electronic intake and the patient portal rather than request paper forms?",
+      "options": [
+        "No",
+        "Yes",
+        "Unsure"
+      ]
+    },
+    {
+      "id": "minor",
+      "label": "Is the patient under 18?",
+      "options": [
+        "No",
+        "Yes",
+        "Unsure"
+      ]
+    },
+    {
+      "id": "representative",
+      "label": "Will someone other than the patient sign or make treatment decisions for the patient?",
+      "options": [
+        "No",
+        "Yes",
+        "Unsure"
+      ]
+    },
+    {
+      "id": "release",
+      "label": "Do you want to authorize a specific release of ordinary health records to another person or organization?",
+      "options": [
+        "No",
+        "Yes",
+        "Unsure"
+      ]
+    },
+    {
+      "id": "part2",
+      "label": "Has the office asked you to complete a consent for protected records from an outside substance-use treatment program?",
+      "options": [
+        "No",
+        "Yes",
+        "Unsure"
+      ]
+    },
+    {
+      "id": "sud_notes",
+      "label": "Has the office asked you about a separate release of specially protected substance-use counseling notes?",
+      "options": [
+        "No",
+        "Yes",
+        "Unsure"
+      ]
+    },
+    {
+      "id": "psychotherapy_notes",
+      "label": "Do you want to discuss a separate release of specially protected psychotherapy notes?",
+      "options": [
+        "No",
+        "Yes",
+        "Unsure"
+      ]
+    }
+  ],
+  "forms": [
+    {
+      "page": 11,
+      "id": "treatment",
+      "section": "Consent to Counseling and Informed Treatment",
+      "category": "Routine before treatment",
+      "when": "Discuss and document informed consent before relevant nonemergency treatment; a request for discussion requires follow-up.",
+      "choice": "treatment_consent",
+      "positive": "Yes, I consent to outpatient counseling",
+      "signature": "treatment_signature",
+      "date": "treatment_signature_date",
+      "why": "Explains the therapy, risks, benefits, alternatives and confidentiality limits. Discuss and sign before routine therapy; you may request discussion before consenting."
+    },
+    {
+      "page": 12,
+      "id": "financial",
+      "section": "Financial Agreement and Good Faith Estimate",
+      "category": "Routine practice acknowledgment",
+      "when": "Review financial terms with all patients. An individualized Good Faith Estimate applies when required for uninsured/self-pay care; this acknowledgment is not the estimate.",
+      "choice": "financial_review",
+      "positive": "I reviewed this information",
+      "signature": "financial_signature",
+      "date": "financial_signature_date",
+      "why": "Explains session-day payment, disclosed fees and the 24-hour cancellation policy. Review before the first session. Ask the office about your specific amount and any required Good Faith Estimate."
+    },
+    {
+      "page": 13,
+      "id": "privacy_notice",
+      "section": "Notice of Privacy Practices acknowledgment",
+      "category": "Notice for all; signature requested",
+      "when": "Provide the notice and make a good-faith acknowledgment effort. A patient may decline acknowledgment without being denied care for that reason.",
+      "choice": "npp_received",
+      "positive": "Yes",
+      "signature": "npp_signature",
+      "date": "npp_signature_date",
+      "why": "Explains how information is used, shared and protected and describes your rights. Everyone receives it. A signature is requested, but you may decline acknowledgment without being denied care for that reason."
+    },
+    {
+      "page": 14,
+      "id": "attestation",
+      "section": "Patient attestation and consent to submit",
+      "category": "Routine for online submission",
+      "when": "Final intent and accuracy attestation for online intake. It does not replace any separately required consent.",
+      "choice": "electronic_signature_consent",
+      "positive": "Yes",
+      "signature": "patient_signature",
+      "date": "patient_signature_date",
+      "why": "Records accuracy and your intent to submit this online intake. Sign for online submission after reviewing your answers; it is not permission for optional releases."
+    },
+    {
+      "page": 15,
+      "id": "telehealth",
+      "section": "Telehealth Informed Consent",
+      "category": "Conditional \u2014 telehealth",
+      "when": "Use before telehealth when the patient chooses remote services; no telehealth signature is required for in-person-only care.",
+      "choice": "telehealth_choice",
+      "positive": "Yes, I consent to telehealth",
+      "signature": "telehealth_signature",
+      "date": "telehealth_signature_date",
+      "why": "Explains remote-treatment risks and procedures. A separate consent is needed before telehealth; in-person-only patients need not sign it."
+    },
+    {
+      "page": 16,
+      "id": "electronic",
+      "section": "Electronic Communications and Patient Portal",
+      "category": "Conditional \u2014 electronic workflow",
+      "when": "Obtain agreement for electronic workflow; keep individual contact-channel choices separate and offer a paper alternative.",
+      "choice": "electronic_choice",
+      "positive": "I agree to electronic intake and portal use",
+      "signature": "electronic_signature",
+      "date": "electronic_signature_date",
+      "why": "Explains electronic intake, portal and signature choices. Agree only if choosing this workflow; a paper alternative is available. Individual contact preferences remain separate."
+    },
+    {
+      "page": 17,
+      "id": "representative",
+      "section": "Legal Representative and Minor Consent",
+      "category": "Conditional \u2014 representative",
+      "when": "Complete when someone acts for a patient. The office must review actual authority and applicable minor-consent rules.",
+      "choice": "representative_signer",
+      "positive": "Parent/guardian/authorized representative",
+      "signature": "representative_signature",
+      "date": "representative_signature_date",
+      "why": "Identifies a person acting for the patient and the claimed authority. The office must verify capacity, court documents and applicable minor rules; age or family relationship alone does not establish authority."
+    },
+    {
+      "page": 18,
+      "id": "release",
+      "section": "Authorization to share health information",
+      "category": "Optional \u2014 specific disclosure",
+      "when": "Use for a chosen disclosure requiring authorization. A No choice requires no signature and does not itself bar care.",
+      "choice": "roi_authorize",
+      "positive": "Yes",
+      "signature": "roi_signature",
+      "date": "roi_signature_date",
+      "why": "Totally optional for routine therapy. Use only for a specific desired disclosure that requires authorization; it excludes specially protected notes. A No or blank choice is not permission."
+    },
+    {
+      "page": 19,
+      "id": "part2",
+      "section": "Optional consent for Part 2 substance-use records",
+      "category": "Not routine \u2014 conditional outside Part 2 records",
+      "when": "Indian Creek reports it is not a Part 2 program. Not required for routine intake; use only after office review of applicable outside protected records. A blank or No choice gives no authorization.",
+      "choice": "part2_authorize",
+      "positive": "Yes",
+      "signature": "part2_signature",
+      "date": "part2_signature_date",
+      "why": "Not routine: Indian Creek is not a Part 2 program. Use only after office review of applicable protected outside records. Reporting substance use alone does not make this necessary."
+    },
+    {
+      "page": 20,
+      "id": "sud_notes",
+      "section": "Separate consent for SUD counseling notes",
+      "category": "Not routine \u2014 conditional outside Part 2 records",
+      "when": "Indian Creek reports it is not a Part 2 program. Not required for routine intake; use only after office review of applicable outside protected records. A blank or No choice gives no authorization.",
+      "choice": "sud_notes_authorize",
+      "positive": "Yes",
+      "signature": "sud_notes_signature",
+      "date": "sud_notes_signature_date",
+      "why": "Not routine. Separate optional consent only when applicable protected substance-use counseling notes are involved; office review is needed."
+    },
+    {
+      "page": 21,
+      "id": "psychotherapy_notes",
+      "section": "Separate authorization for psychotherapy notes",
+      "category": "Optional \u2014 psychotherapy notes",
+      "when": "Only for specially protected psychotherapy notes, independently of ordinary progress records and general releases.",
+      "choice": "psych_notes_authorize",
+      "positive": "Yes",
+      "signature": "psych_notes_signature",
+      "date": "psych_notes_signature_date",
+      "why": "Totally optional for routine therapy. Applies only to specially protected psychotherapy notes, which are different from ordinary progress notes. Any authorization must be specific and separate."
+    }
+  ],
+  "practice_part2_program": false,
+  "statement": "This is a form guide, not consent, a signature, a legal determination or permission to disclose. Unanswered or uncertain situations need office review. You may open any form; a form is never signed automatically."
+}

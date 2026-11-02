@@ -2,6 +2,8 @@
 
 import {FormEvent,useEffect,useMemo,useRef,useState} from 'react';
 import {createClient} from '@/lib/supabase/client';
+import IntakeLegalDirectory from '@/app/components/IntakeLegalDirectory';
+import {LEGAL_ROUTING_KEY,legalRoutingResults} from '@/lib/patient/legal-routing';
 import LegalFormCopy from '@/app/components/LegalFormCopy';
 import IntakeMedicalSubstance from '@/app/components/IntakeMedicalSubstance';
 import IntakeMedications from '@/app/components/IntakeMedications';
@@ -142,13 +144,15 @@ export default function KioskIntake({token}:{token:string}){
     {section.title==='Authorization to share health information'&&<p className={styles.notice}>This optional authorization does not include psychotherapy notes. You may choose “No” and still receive care.</p>}
     {section.title==='Separate authorization for psychotherapy notes'&&<p className={styles.notice}>This authorization is intentionally separate from the general release because psychotherapy notes receive additional privacy protection.</p>}
 
-    <LegalSectionDocument sectionTitle={section.title}/>
+    {sectionIndex>=10&&answers[LEGAL_ROUTING_KEY]&&<p className="intakeHelp"><strong>Page 10 guide:</strong> {legalRoutingResults(answers[LEGAL_ROUTING_KEY])?.find(f=>f.section===section.title)?.status||'Office review needed'}. <button type="button" onClick={()=>setSectionIndex(9)}>Return to the form directory</button></p>}
+   <LegalSectionDocument sectionTitle={section.title}/>
     <div className={styles.fields}>{section.fields.map(field=>{
      const [key,label,type]=field;
      const required=field.length>3&&field[3];
      const options=(field.length>4?field[4]:[])??[];
      const cost=costFields.includes(key);
-     if(type==='medical-substance')return <div key={key} className={styles.wide}><IntakeMedicalSubstance value={answers[key]??''} onChange={v=>update(key,v)} legacyAnswers={answers} disabled={busy}/></div>;
+     if(type==='legal-routing')return <div key={key} className={styles.wide}><IntakeLegalDirectory value={answers[key]??''} onChange={v=>update(key,v)} onOpen={page=>setSectionIndex(page-1)} readOnly={busy}/><h3>Communication and confidential-contact preferences</h3><p>Choose safe contact methods below; these are not records-release permissions.</p></div>;
+    if(type==='medical-substance')return <div key={key} className={styles.wide}><IntakeMedicalSubstance value={answers[key]??''} onChange={v=>update(key,v)} legacyAnswers={answers} disabled={busy}/></div>;
      if(type==='medications')return <div key={key} className={styles.wide}><IntakeMedications value={answers[key]??''} onChange={v=>update(key,v)} disabled={busy}/></div>;
      if(type==='treatment-history')return <div key={key} className={styles.wide}><IntakeTreatmentHistory value={answers[key]??''} onChange={v=>update(key,v)} disabled={busy}/></div>;
      return <div key={key} className={type==='textarea'?styles.wide:undefined}>

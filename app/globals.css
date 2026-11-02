@@ -326,3 +326,7 @@ var(--dr-ken-therapist-image) center/cover no-repeat}
 .legalFormCopy { margin: 20px 0; padding: 18px; border: 1px solid #bccfc6; border-radius: 12px; background: #f3f7f4; }
 .legalFormCopy h3 { margin-top: 0; }
 .legalPrintSource { display: none; }
+
+.legalDirectory{grid-column:1/-1;min-width:0}.legalDirectoryQuestions{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:18px;margin:20px 0}.legalDirectoryQuestions label{display:flex;flex-direction:column;gap:8px;font-weight:600}.legalDirectoryQuestions select{width:100%;min-height:44px}.legalDirectoryResult{padding:14px;background:#eef4ed;border-left:4px solid #366549}.legalDirectoryCards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,350px),1fr));gap:16px}.legalDirectoryCards article{border:1px solid #c8d5cc;border-radius:10px;padding:18px}.legalDirectoryCards h4{font-size:1.05rem;margin:8px 0}.legalDirectoryCards p{overflow-wrap:anywhere}.legalDirectoryAnswer{display:block;font-weight:400}
+
+.legalDirectoryQuestions fieldset{min-width:0;padding:14px;border:1px solid #c8d5cc;border-radius:8px}.legalDirectoryQuestions legend{font-weight:600;padding:0 4px}.legalDirectoryQuestions .legalDirectoryChoices{display:flex;flex-wrap:wrap;gap:16px}.legalDirectoryQuestions .legalDirectoryChoices label{display:flex;flex-direction:row;align-items:center;font-weight:400;gap:6px}.legalDirectoryChoices input{width:auto;min-height:24px;accent-color:#366549}

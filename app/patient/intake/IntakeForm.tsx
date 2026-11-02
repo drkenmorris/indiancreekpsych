@@ -1,6 +1,8 @@
 'use client';
 import {FormEvent,useEffect,useMemo,useRef,useState} from 'react';
 import {createClient} from '@/lib/supabase/client';
+import IntakeLegalDirectory from '@/app/components/IntakeLegalDirectory';
+import {LEGAL_ROUTING_KEY,legalRoutingResults} from '@/lib/patient/legal-routing';
 import LegalFormCopy from '@/app/components/LegalFormCopy';
 import IntakeMedicalSubstance from '@/app/components/IntakeMedicalSubstance';
 import IntakeMedications from '@/app/components/IntakeMedications';
@@ -8,7 +10,7 @@ import IntakeTreatmentHistory from '@/app/components/IntakeTreatmentHistory';
 import IntakeAssignmentDocuments from '@/app/components/IntakeAssignmentDocuments';
 import LegalSectionDocument from '@/app/components/LegalSectionDocument';
 import {LEGAL_PACKET_VERSION,prepareLegalDraft} from '@/lib/patient/legal-documents';
-import {costFields,intakeSections,IntakeAnswers,IntakeRecord,validateIntake} from '@/lib/patient/intake';
+import {costFields,intakeSections,intakeSectionsForVersion,IntakeAnswers,IntakeRecord,validateIntake} from '@/lib/patient/intake';
 
 export default function IntakeForm({userId,initial,defaults,preview=false}:{userId:string;initial:IntakeRecord|null;defaults:IntakeAnswers;preview?:boolean}){
  const supabase=useMemo(()=>preview?null:createClient(),[preview]);
@@ -17,7 +19,8 @@ export default function IntakeForm({userId,initial,defaults,preview=false}:{user
  const [sectionIndex,setSectionIndex]=useState(0);
  const formRef=useRef<HTMLFormElement|null>(null);
  const submitted=!preview&&record?.status==='submitted';
- const section=intakeSections[sectionIndex];
+ const sections=submitted?intakeSectionsForVersion(record?.answers.legal_packet_version||''):intakeSections;
+ const section=sections[sectionIndex];
 
  useEffect(()=>{if(!dirty)return;const warn=(event:BeforeUnloadEvent)=>{event.preventDefault();event.returnValue='';};window.addEventListener('beforeunload',warn);return()=>window.removeEventListener('beforeunload',warn);},[dirty]);
  useEffect(()=>{
@@ -44,15 +47,15 @@ export default function IntakeForm({userId,initial,defaults,preview=false}:{user
  }
  function submit(e:FormEvent){e.preventDefault();if(preview){setMessage('Preview only: this form cannot be submitted. Start a new office intake to test secure saving.');return;}
   const invalid=validateIntake(answers,true);if(invalid){setError(invalid);return;}setError('');setConfirm(true);}
- const next=()=>{setError('');setMessage('');setSectionIndex(i=>Math.min(i+1,intakeSections.length-1));};
+ const next=()=>{setError('');setMessage('');setSectionIndex(i=>Math.min(i+1,sections.length-1));};
  const previous=()=>{setError('');setMessage('');setSectionIndex(i=>Math.max(i-1,0));};
 
  return <form ref={formRef} onSubmit={submit} className="authForm intakeWizard" autoComplete="off">
   <section className="intakeProgress" aria-label="Questionnaire progress">
-   <div><strong>Section {sectionIndex+1} of {intakeSections.length}</strong><span>{Math.round(((sectionIndex+1)/intakeSections.length)*100)}% complete</span></div>
-   <progress max={intakeSections.length} value={sectionIndex+1}/>
+   <div><strong>Section {sectionIndex+1} of {sections.length}</strong><span>{Math.round(((sectionIndex+1)/sections.length)*100)}% complete</span></div>
+   <progress max={sections.length} value={sectionIndex+1}/>
    <div className="intakeSectionTabs" role="tablist" aria-label="Intake sections">
-    {intakeSections.map((item,index)=><button key={item.title} type="button" role="tab" aria-selected={index===sectionIndex} disabled={busy} onClick={()=>setSectionIndex(index)}>{index+1}</button>)}
+    {sections.map((item,index)=><button key={item.title} type="button" role="tab" aria-selected={index===sectionIndex} disabled={busy} onClick={()=>setSectionIndex(index)}>{index+1}</button>)}
    </div>
   </section>
 
@@ -69,9 +72,11 @@ export default function IntakeForm({userId,initial,defaults,preview=false}:{user
    {section.title==='Authorization to share health information'&&<p className="intakeHelp">This optional authorization covers the information you specifically describe below. It does not include separately maintained psychotherapy notes. You may leave this authorization as “No” and still receive care.</p>}
    {section.title==='Separate authorization for psychotherapy notes'&&<p className="intakeHelp">This optional authorization is intentionally separate from the general release because psychotherapy notes receive additional privacy protection.</p>}
 
+   {sectionIndex>=10&&answers[LEGAL_ROUTING_KEY]&&<p className="intakeHelp"><strong>Page 10 guide:</strong> {legalRoutingResults(answers[LEGAL_ROUTING_KEY])?.find(f=>f.section===section.title)?.status||'Office review needed'}. <button type="button" onClick={()=>setSectionIndex(9)}>Return to the form directory</button></p>}
    <LegalSectionDocument sectionTitle={section.title} version={submitted?(record?.answers.legal_packet_version||'legacy-unversioned'):LEGAL_PACKET_VERSION}/>
    <div className="intakeFields">{section.fields.map(field=>{
     const [key,label,type]=field;const required=field.length>3&&field[3];const options=(field.length>4?field[4]:[])??[];const cost=costFields.includes(key);
+    if(type==='legal-routing')return <div key={key} className="intakeWide"><IntakeLegalDirectory value={answers[key]??''} onChange={v=>update(key,v)} onOpen={page=>setSectionIndex(page-1)} readOnly={submitted} preview={preview}/><h3>Communication and confidential-contact preferences</h3><p>Choose safe contact methods below. These preferences do not authorize a records release.</p></div>;
     if(type==='medical-substance')return <div key={key} className="intakeWide"><IntakeMedicalSubstance value={answers[key]??''} onChange={v=>update(key,v)} legacyAnswers={answers} readOnly={submitted}/></div>;
     if(type==='medications')return <div key={key} className="intakeWide"><IntakeMedications value={answers[key]??''} onChange={v=>update(key,v)} readOnly={submitted}/></div>;
     if(type==='treatment-history')return <div key={key} className="intakeWide"><IntakeTreatmentHistory value={answers[key]??''} onChange={v=>update(key,v)} readOnly={submitted}/></div>;
@@ -90,7 +95,7 @@ export default function IntakeForm({userId,initial,defaults,preview=false}:{user
    <div className="intakeActionRow">
     <button className="secondaryAction" type="button" disabled={busy||sectionIndex===0} onClick={previous}>← Previous</button>
     <button className="secondaryAction" type="button" disabled={busy} onClick={()=>void save(false)}>{preview?'Check inputs (no save)':'Save draft'}</button>
-    {sectionIndex<intakeSections.length-1
+    {sectionIndex<sections.length-1
       ?<button type="button" disabled={busy} onClick={next}>Next →</button>
       :preview?<button type="button" disabled={busy} onClick={()=>setMessage('All questionnaire sections are available. This preview does not submit patient information.')}>Finish preview</button>
       :<button type="submit" disabled={busy}>Review and submit</button>}

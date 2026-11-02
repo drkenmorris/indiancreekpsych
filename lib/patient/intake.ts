@@ -1,3 +1,4 @@
+import {LEGAL_ROUTING_KEY,validateLegalRouting,parseLegalRouting} from './legal-routing';
 import {validateLegalDates} from './legal-documents';
 import {MEDICAL_SUBSTANCE_KEY,validateMedicalSubstance} from './medical-substance';
 import {MEDICATION_ENTRIES_KEY,validateMedications,validateMedicationAllergies,allergyStatuses} from './medications';
@@ -14,7 +15,7 @@ export const retiredMentalHealthFields:readonly IntakeField[]=[
 const yesNo=['No','Yes'] as const;
 const yesNoUnsure=['No','Yes','Unsure'] as const;
 
-export const intakeSections:{title:string;description?:string;fields:readonly IntakeField[]}[]=[
+const originalIntakeSections:{title:string;description?:string;fields:readonly IntakeField[]}[]=[
  {title:'Demographics and contact information',description:'Basic identifying and contact information used for your care and billing.',fields:[
   ['full_name','Full legal name','text',true],['preferred_name','Preferred name','text'],['date_of_birth','Date of birth','date',true],
   ['sex_at_birth','Sex assigned at birth','select',false,['Female','Male','Intersex','Prefer not to answer']],['gender_identity','Gender identity','text'],['pronouns','Pronouns','text'],
@@ -101,19 +102,19 @@ export const intakeSections:{title:string;description?:string;fields:readonly In
   ['financial_signature_date','Date signed (if reviewed)','date']
  ]},
  {title:'Telehealth Informed Consent',description:'Optional remote-session consent; declining does not affect possible in-person counseling.',fields:[
-  ['telehealth_choice','Telehealth preference','select',true,['Yes, I consent to telehealth','No, in-person care only','Discuss before deciding']],
+  ['telehealth_choice','Telehealth preference','select',false,['Yes, I consent to telehealth','No, in-person care only','Discuss before deciding']],
   ['telehealth_questions','Telehealth privacy, access or accommodation questions','textarea'],
   ['telehealth_signature','Electronic signature authorizing telehealth (if Yes)','text'],
   ['telehealth_signature_date','Date signed (if Yes)','date']
  ]},
  {title:'Electronic Communications and Patient Portal',description:'Separate patient communication preferences remain in the earlier communications section.',fields:[
-  ['electronic_choice','Electronic documents and portal preference','select',true,['I agree to electronic intake and portal use','I request paper intake']],
+  ['electronic_choice','Electronic documents and portal preference','select',false,['I agree to electronic intake and portal use','I request paper intake']],
   ['electronic_questions','Questions about electronic communication or alternative delivery','textarea'],
   ['electronic_signature','Electronic signature agreeing to electronic intake (if Yes)','text'],
   ['electronic_signature_date','Date signed (if Yes)','date']
  ]},
  {title:'Legal Representative and Minor Consent',description:'Complete representative authority only when someone signs for the patient. Staff must verify capacity and legal limits.',fields:[
-  ['representative_signer','Who is signing this intake?','select',true,['Patient signing for myself','Parent/guardian/authorized representative']],
+  ['representative_signer','Who is signing this intake?','select',false,['Patient signing for myself','Parent/guardian/authorized representative']],
   ['representative_name','Representative full name (if applicable)','text'],
   ['representative_authority','Relationship and legal authority to act (if applicable)','textarea'],
   ['representative_signature','Representative electronic signature (if applicable)','text'],
@@ -169,6 +170,9 @@ export const intakeSections:{title:string;description?:string;fields:readonly In
  ]}
 ];
 
+export const intakeSections=[...originalIntakeSections.slice(0,9),{...originalIntakeSections[9],title:'Legal forms directory and questionnaire',description:'Answer the questions to see which forms apply. Required practice steps come first, followed by conditional and optional forms. Communication preferences are included below.',fields:[[LEGAL_ROUTING_KEY,'Legal forms questionnaire','legal-routing',true] as const,...originalIntakeSections[9].fields]},...[10,11,15,20,12,13,14,16,17,18,19].map(i=>originalIntakeSections[i])];
+export function intakeSectionsForVersion(version:string){return version==='2026-11-02-directory-1'?intakeSections:originalIntakeSections;}
+
 export type IntakeAnswers=Record<string,string>;
 export type IntakeRecord={patient_id:string;answers:IntakeAnswers;status:'draft'|'submitted';version:number;updated_at:string;submitted_at:string|null};
 export const costFields=['deductible','deductible_met','copay','coinsurance'];
@@ -179,8 +183,9 @@ export function validateIntake(answers:IntakeAnswers,submit:boolean){
  for(const section of intakeSections)for(const f of section.fields){
   const value=answers[f[0]]??'';
   if(f[0]!==TREATMENT_HISTORY_KEY&&f[0]!==MEDICATION_ENTRIES_KEY&&f[0]!==MEDICAL_SUBSTANCE_KEY&&value.length>8000)return `${f[1]} is too long.`;
-  if(submit&&f[3]&&!value.trim())return `Please complete: ${f[1]}.`;
+  if(submit&&f[3]&&!(f[0]===LEGAL_ROUTING_KEY&&answers.legal_packet_version!=='2026-11-02-directory-1')&&!value.trim())return `Please complete: ${f[1]}.`;
  }
+ const routingError=validateLegalRouting(answers[LEGAL_ROUTING_KEY]??'',submit&&answers.legal_packet_version==='2026-11-02-directory-1');if(routingError)return routingError;
  const signatureDateError=validateLegalDates(answers);if(signatureDateError)return signatureDateError;
  const medicalError=validateMedicalSubstance(answers[MEDICAL_SUBSTANCE_KEY]??'');if(medicalError)return medicalError;
  const medicationError=validateMedications(answers[MEDICATION_ENTRIES_KEY]??'',submit)||validateMedicationAllergies(answers.medication_allergy_status??'',answers.medication_allergy_notes??'');if(medicationError)return medicationError;
@@ -190,6 +195,8 @@ export function validateIntake(answers:IntakeAnswers,submit:boolean){
  if(answers.date_of_birth&&answers.date_of_birth>new Date().toISOString().slice(0,10))return 'Date of birth cannot be in the future.';
  for(const k of costFields){const v=answers[k];if(v&&v!=='I don’t know'&&(!/^\d+(\.\d{1,2})?$/.test(v)||Number(v)<0||(k==='coinsurance'&&Number(v)>100)))return k==='coinsurance'?'Coinsurance must be between 0 and 100, or choose I don’t know.':'Enter a non-negative amount, or choose I don’t know.';}
  if(submit){
+  const routing=parseLegalRouting(answers[LEGAL_ROUTING_KEY]??'');
+  if(answers.legal_packet_version==='2026-11-02-directory-1')for(const [question,decision] of [['telehealth','telehealth_choice'],['electronic','electronic_choice'],['representative','representative_signer']])if(routing?.[question]==='Yes'&&!answers[decision]?.trim())return 'Review the form for your selected '+question+' situation; choose a decision or request office discussion.';
   const signedFor=(choice:string,yes:string,signature:string,date:string,label:string)=>{
    if(answers[choice]!==yes)return null;
    if(!answers[signature]?.trim()||!answers[date]?.trim())return `Please sign and date the ${label} form.`;

@@ -2,6 +2,13 @@ import {MEDICATION_ENTRIES_KEY,validateMedications,validateMedicationAllergies,a
 import {TREATMENT_HISTORY_KEY,validateTreatmentHistory} from './treatment-history';
 export type IntakeField = readonly [key:string,label:string,type:string,required?:boolean,options?:readonly string[]];
 
+// Retained for read-only review of older submissions; absent from active questionnaires.
+export const retiredMentalHealthFields:readonly IntakeField[]=[
+ ['psychiatric_hospitalizations','Psychiatric hospitalizations, crisis stabilization, or emergency evaluations','textarea'],
+ ['prior_psychiatric_medications','Past psychiatric medications and response / side effects','textarea'],
+ ['family_mental_health_history','Family history of mental health conditions, suicide, or substance-use problems','textarea']
+];
+
 const yesNo=['No','Yes'] as const;
 const yesNoUnsure=['No','Yes','Unsure'] as const;
 
@@ -46,9 +53,9 @@ export const intakeSections:{title:string;description?:string;fields:readonly In
   [TREATMENT_HISTORY_KEY,'Counseling / Psychiatric History','treatment-history'],
   ['prior_mental_health_treatment','Have you received counseling, psychotherapy, psychiatric care, or psychological services before?','select',true,yesNoUnsure],
   ['prior_therapists','Prior therapists, psychiatrists, clinics, approximate dates, and what was helpful','textarea'],['prior_diagnoses','Prior mental health or behavioral diagnoses','textarea'],
-  ['psychiatric_hospitalizations','Psychiatric hospitalizations, crisis stabilization, or emergency evaluations','textarea'],['self_harm_history','Past self-harm or non-suicidal self-injury','textarea'],
-  ['suicide_attempt_history','Past suicide attempts or suicide-related emergency care','textarea'],['prior_psychiatric_medications','Past psychiatric medications and response / side effects','textarea'],
-  ['family_mental_health_history','Family history of mental health conditions, suicide, or substance-use problems','textarea']
+  ['self_harm_history','Past self-harm or non-suicidal self-injury','textarea'],
+  ['suicide_attempt_history','Past suicide attempts or suicide-related emergency care','textarea'],
+
  ]},
  {title:'Medications',description:'Current and past medications, prescribing clinicians, and medication allergies or reactions.',fields:[
   [MEDICATION_ENTRIES_KEY,'Current and Past Medications','medications'],

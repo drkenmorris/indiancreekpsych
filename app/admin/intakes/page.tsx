@@ -4,7 +4,7 @@ import IntakeAssignmentDocuments from '@/app/components/IntakeAssignmentDocument
 import Link from 'next/link';
 import {redirect} from 'next/navigation';
 import {createClient} from '@/lib/supabase/server';
-import {intakeSections,IntakeAnswers,IntakeRecord} from '@/lib/patient/intake';
+import {intakeSections,retiredMentalHealthFields,IntakeAnswers,IntakeRecord} from '@/lib/patient/intake';
 import {LEGAL_PACKET_VERSION} from '@/lib/patient/legal-documents';
 
 type KioskRecord={id:string;patient_name:string;date_of_birth:string;answers:IntakeAnswers;submitted_at:string|null};
@@ -20,6 +20,7 @@ function SubmittedPacket({record}:{record:Saved}){
    <h2>{section.title}</h2>
    <dl>{section.fields.map(([key,label,type])=>type==='medications'?<div key={key}><IntakeMedications value={record.answers[key]??''} readOnly/></div>:type==='treatment-history'?<div key={key}><IntakeTreatmentHistory value={record.answers[key]??''} readOnly/></div>:<div key={key}><dt><strong>{label}</strong></dt><dd style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>{record.answers[key]||'Not provided'}</dd></div>)}</dl>
   </section>)}
+  {retiredMentalHealthFields.some(([key])=>record.answers[key]?.trim())&&<section className="intakeStaffReviewSection"><h2>Previously recorded treatment history</h2><dl>{retiredMentalHealthFields.filter(([key])=>record.answers[key]?.trim()).map(([key,label])=><div key={key}><dt><strong>{label}</strong></dt><dd style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>{record.answers[key]}</dd></div>)}</dl></section>}
   <IntakeAssignmentDocuments patientId={record.source==='Patient account'?record.id:undefined} kioskId={record.source!=='Patient account'?record.id:undefined} readOnly/>
  </details>;
 }

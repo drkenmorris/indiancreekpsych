@@ -1,0 +1,11 @@
+# Medication-only intake page 6
+
+Page 6 is now Medications. It starts with repeatable entries matching the EMR Psychiatric Medications fields: medication, Current/Past status, dosage, frequency, start/end dates, prescribing physician and mutually exclusive Beneficial/Not beneficial checkboxes. Unknown details and dates may be blank; Current clears/disables the end date. Up to 20 entries. Drafts may be incomplete; populated entries need medication name and status on submission.
+
+Separate Medication Allergy Status and Medication Allergies / Reactions fields use the EMR choices. Reported allergies require notes; known-none cannot include contradictory notes. Blank/unreviewed never implies no known allergies. General preexisting allergy text is retained on page 7, not parsed or promoted into a new medication allergy status.
+
+Existing primary-care, medical-condition, surgery, general allergy, pregnancy and head-injury questions have moved to page 7 alongside substance-use questions. Original answer keys/values are retained, including submitted records. No additional numbered page is introduced. Existing medications_current text remains as optional additional medication information on page 6. Structured entries do not require duplicate free-text entry.
+
+The optional medication_entries answer is a JSON-encoded string with eight exact string fields per entry, matching the existing intake answer contract. Validation is enforced in the protected database validator for both patient and office flows: bounded shape/types/text, strict nonfuture dates/order, exact enums, Current/end-date consistency. Limit 40,000 characters within existing 160,000-byte total answers limit. Other field and treatment-history checks remain unchanged. New helper has no anon/authenticated execution grant. Existing account/MFA/role/RLS/kiosk/submission-lock rules remain unchanged.
+
+Patient and office drafts save/reload through existing paths; staff review formats each medication as labeled text. This release does not connect clinic submissions to the separate EMR prototype. The EMR uses an explicitly fictional medication/allergy autofill demonstration pending a separately built shared identity/storage integration.

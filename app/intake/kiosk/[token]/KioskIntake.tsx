@@ -2,6 +2,7 @@
 
 import {FormEvent,useEffect,useMemo,useRef,useState} from 'react';
 import {createClient} from '@/lib/supabase/client';
+import IntakeMedications from '@/app/components/IntakeMedications';
 import IntakeTreatmentHistory from '@/app/components/IntakeTreatmentHistory';
 import IntakeAssignmentDocuments from '@/app/components/IntakeAssignmentDocuments';
 import LegalSectionDocument from '@/app/components/LegalSectionDocument';
@@ -145,13 +146,14 @@ export default function KioskIntake({token}:{token:string}){
      const required=field.length>3&&field[3];
      const options=(field.length>4?field[4]:[])??[];
      const cost=costFields.includes(key);
+     if(type==='medications')return <div key={key} className={styles.wide}><IntakeMedications value={answers[key]??''} onChange={v=>update(key,v)} disabled={busy}/></div>;
      if(type==='treatment-history')return <div key={key} className={styles.wide}><IntakeTreatmentHistory value={answers[key]??''} onChange={v=>update(key,v)} disabled={busy}/></div>;
      return <div key={key} className={type==='textarea'?styles.wide:undefined}>
       <label>{label}{required?<span aria-hidden="true"> *</span>:null}
        {type==='select'
         ?<select aria-required={required||undefined} value={answers[key]??''} onChange={e=>update(key,e.target.value)}><option value="">Select…</option>{options.map(option=><option key={option} value={option}>{option==='insured'?'I have insurance':option==='self-pay'?'Self-pay / no insurance':option==='unsure'?'I’m not sure':option}</option>)}</select>
         :type==='textarea'
-         ?<textarea aria-required={required||undefined} rows={6} maxLength={8000} value={answers[key]??''} onChange={e=>update(key,e.target.value)}/>
+         ?<textarea aria-required={required||undefined} rows={6} maxLength={key==='medication_allergy_notes'?4000:8000} value={answers[key]??''} onChange={e=>update(key,e.target.value)}/>
          :<input aria-required={required||undefined} type={type} maxLength={8000} inputMode={cost?'decimal':undefined} disabled={cost&&answers[key]==='I don’t know'} value={answers[key]??''} onChange={e=>update(key,e.target.value)}/>}
       </label>
       {cost&&<label className={styles.checkRow}><input type="checkbox" checked={answers[key]==='I don’t know'} onChange={e=>update(key,e.target.checked?'I don’t know':'')}/> I don’t know</label>}

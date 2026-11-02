@@ -2,6 +2,7 @@
 
 import {FormEvent,useEffect,useMemo,useRef,useState} from 'react';
 import {createClient} from '@/lib/supabase/client';
+import IntakeTreatmentHistory from '@/app/components/IntakeTreatmentHistory';
 import IntakeAssignmentDocuments from '@/app/components/IntakeAssignmentDocuments';
 import LegalSectionDocument from '@/app/components/LegalSectionDocument';
 import {LEGAL_PACKET_VERSION} from '@/lib/patient/legal-documents';
@@ -144,6 +145,7 @@ export default function KioskIntake({token}:{token:string}){
      const required=field.length>3&&field[3];
      const options=(field.length>4?field[4]:[])??[];
      const cost=costFields.includes(key);
+     if(type==='treatment-history')return <div key={key} className={styles.wide}><IntakeTreatmentHistory value={answers[key]??''} onChange={v=>update(key,v)} disabled={busy}/></div>;
      return <div key={key} className={type==='textarea'?styles.wide:undefined}>
       <label>{label}{required?<span aria-hidden="true"> *</span>:null}
        {type==='select'

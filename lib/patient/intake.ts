@@ -1,3 +1,4 @@
+import {TREATMENT_HISTORY_KEY,validateTreatmentHistory} from './treatment-history';
 export type IntakeField = readonly [key:string,label:string,type:string,required?:boolean,options?:readonly string[]];
 
 const yesNo=['No','Yes'] as const;
@@ -41,6 +42,7 @@ export const intakeSections:{title:string;description?:string;fields:readonly In
   ['counseling_goals','What would you like to achieve through counseling?','textarea',true]
  ]},
  {title:'Mental health treatment history',description:'Prior treatment and responses help your clinician understand what has and has not been useful.',fields:[
+  [TREATMENT_HISTORY_KEY,'Counseling / Psychiatric History','treatment-history'],
   ['prior_mental_health_treatment','Have you received counseling, psychotherapy, psychiatric care, or psychological services before?','select',true,yesNoUnsure],
   ['prior_therapists','Prior therapists, psychiatrists, clinics, approximate dates, and what was helpful','textarea'],['prior_diagnoses','Prior mental health or behavioral diagnoses','textarea'],
   ['psychiatric_hospitalizations','Psychiatric hospitalizations, crisis stabilization, or emergency evaluations','textarea'],['self_harm_history','Past self-harm or non-suicidal self-injury','textarea'],
@@ -170,9 +172,10 @@ export const requiredIntakeKeys=intakeSections.flatMap(section=>section.fields.f
 export function validateIntake(answers:IntakeAnswers,submit:boolean){
  for(const section of intakeSections)for(const f of section.fields){
   const value=answers[f[0]]??'';
-  if(value.length>8000)return `${f[1]} is too long.`;
+  if(f[0]!==TREATMENT_HISTORY_KEY&&value.length>8000)return `${f[1]} is too long.`;
   if(submit&&f[3]&&!value.trim())return `Please complete: ${f[1]}.`;
  }
+ const historyError=validateTreatmentHistory(answers[TREATMENT_HISTORY_KEY]??'',submit);if(historyError)return historyError;
  if(answers.email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(answers.email))return 'Enter a valid contact email.';
  if(answers.roi_recipient_email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(answers.roi_recipient_email))return 'Enter a valid release recipient email.';
  if(answers.date_of_birth&&answers.date_of_birth>new Date().toISOString().slice(0,10))return 'Date of birth cannot be in the future.';

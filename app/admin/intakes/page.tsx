@@ -1,3 +1,4 @@
+import IntakeAssignmentDocuments from '@/app/components/IntakeAssignmentDocuments';
 import Link from 'next/link';
 import {redirect} from 'next/navigation';
 import {createClient} from '@/lib/supabase/server';
@@ -17,6 +18,7 @@ function SubmittedPacket({record}:{record:Saved}){
    <h2>{section.title}</h2>
    <dl>{section.fields.map(([key,label])=><div key={key}><dt><strong>{label}</strong></dt><dd style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>{record.answers[key]||'Not provided'}</dd></div>)}</dl>
   </section>)}
+  <IntakeAssignmentDocuments patientId={record.source==='Patient account'?record.id:undefined} kioskId={record.source!=='Patient account'?record.id:undefined} readOnly/>
  </details>;
 }
 export default async function IntakeReviewPage(){

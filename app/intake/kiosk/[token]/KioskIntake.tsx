@@ -2,6 +2,7 @@
 
 import {FormEvent,useEffect,useMemo,useRef,useState} from 'react';
 import {createClient} from '@/lib/supabase/client';
+import IntakeAssignmentDocuments from '@/app/components/IntakeAssignmentDocuments';
 import LegalSectionDocument from '@/app/components/LegalSectionDocument';
 import {LEGAL_PACKET_VERSION} from '@/lib/patient/legal-documents';
 import {costFields,intakeSections,IntakeAnswers,validateIntake} from '@/lib/patient/intake';
@@ -155,6 +156,8 @@ export default function KioskIntake({token}:{token:string}){
      </div>;
     })}</div>
    </section>
+
+   {sectionIndex===1&&<IntakeAssignmentDocuments token={token} disabled={busy} onBusy={setBusy}/>}
 
    <footer className={styles.actions}>
     <p><span aria-hidden="true">*</span> Required to submit. {dirty?'You have unsaved changes.':'Saved answers will reload if this page is refreshed.'}</p>

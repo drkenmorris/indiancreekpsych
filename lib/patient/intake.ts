@@ -1,3 +1,4 @@
+import {validateLegalDates} from './legal-documents';
 import {MEDICAL_SUBSTANCE_KEY,validateMedicalSubstance} from './medical-substance';
 import {MEDICATION_ENTRIES_KEY,validateMedications,validateMedicationAllergies,allergyStatuses} from './medications';
 import {TREATMENT_HISTORY_KEY,validateTreatmentHistory} from './treatment-history';
@@ -123,7 +124,7 @@ export const intakeSections:{title:string;description?:string;fields:readonly In
   ['npp_questions','Questions or concerns about the privacy notice','textarea'],['npp_signature','Signature acknowledging receipt (only if Yes)','text'],['npp_signature_date','Date acknowledged (only if Yes)','date']
  ]},
  {title:'Authorization to share health information',description:'Optional. Complete this section only if you want Indian Creek Psychological Services to disclose information to a family member, loved one, attorney, school, employer, physician, or other professional. Psychotherapy notes are not included in this authorization.',fields:[
-  ['roi_authorize','Do you want to authorize a disclosure to another person or organization?','select',true,['No','Yes']],['roi_discloser','Person or organization authorized to disclose information (if Yes)','text'],
+  ['roi_authorize','Do you want to authorize a disclosure to another person or organization?','select',false,['No','Yes']],['roi_discloser','Person or organization authorized to disclose information (if Yes)','text'],
   ['roi_recipient_name','Person / organization authorized to receive information','text'],['roi_recipient_relationship','Relationship / organization type','text'],['roi_recipient_phone','Recipient phone','tel'],['roi_recipient_email','Recipient email / secure destination','email'],
   ['roi_information_scope','Information that may be disclosed','textarea'],['roi_information_exclusions','Information that must NOT be disclosed','textarea'],
   ['roi_purpose','Purpose of disclosure','text'],['roi_expiration','Authorization expiration date or event','text'],
@@ -133,7 +134,7 @@ export const intakeSections:{title:string;description?:string;fields:readonly In
   ['roi_signature','Electronic signature — type your full legal name','text'],['roi_signature_date','Date signed','date'],['roi_representative_capacity','If representative signs, describe their legal authority','text']
  ]},
  {title:'Optional consent for Part 2 substance-use records',description:'Only for records legally subject to 42 CFR Part 2. This consent is separate from the general HIPAA release and may require clinical-office review.',fields:[
-  ['part2_authorize','Authorize a specific use or disclosure of Part 2 substance-use records?','select',true,['No','Yes']],
+  ['part2_authorize','Authorize a specific use or disclosure of Part 2 substance-use records?','select',false,['No','Yes']],
   ['part2_discloser','Part 2 program / holder authorized to disclose (if Yes)','text'],
   ['part2_recipient','Named recipient(s) or lawful recipient class (if Yes)','text'],
   ['part2_scope','Specific substance-use records to disclose (if Yes)','textarea'],
@@ -145,7 +146,7 @@ export const intakeSections:{title:string;description?:string;fields:readonly In
   ['part2_representative_capacity','If representative signs, describe authority','text']
  ]},
  {title:'Separate consent for SUD counseling notes',description:'Optional and independent consent for separately maintained substance-use disorder counseling notes when Part 2 applies.',fields:[
-  ['sud_notes_authorize','Authorize disclosure of separate SUD counseling notes?','select',true,['No','Yes']],
+  ['sud_notes_authorize','Authorize disclosure of separate SUD counseling notes?','select',false,['No','Yes']],
   ['sud_notes_discloser','Part 2 program / holder authorized to disclose (if Yes)','text'],
   ['sud_notes_recipient','Intended person or organization receiving SUD counseling notes','text'],
   ['sud_notes_scope','Specific notes covered','textarea'],
@@ -156,8 +157,8 @@ export const intakeSections:{title:string;description?:string;fields:readonly In
   ['sud_notes_representative_capacity','If representative signs, describe authority','text']
  ]},
  {title:'Separate authorization for psychotherapy notes',description:'Optional and separate from the general release above. Psychotherapy notes receive special protection and are not included in the general release-of-information section.',fields:[
-  ['psych_notes_authorize','Do you authorize disclosure of psychotherapy notes?','select',true,['No','Yes']],['psych_notes_discloser','Person or organization authorized to disclose psychotherapy notes (if Yes)','text'],
-  ['psych_notes_recipient','If yes, person / organization authorized to receive psychotherapy notes','text'],['psych_notes_purpose','Purpose of disclosure','text'],['psych_notes_expiration','Expiration date or event','text'],
+  ['psych_notes_authorize','Do you authorize disclosure of psychotherapy notes?','select',false,['No','Yes']],['psych_notes_discloser','Person or organization authorized to disclose psychotherapy notes (if Yes)','text'],
+  ['psych_notes_recipient','If yes, person / organization authorized to receive psychotherapy notes','text'],['psych_notes_scope','Specific psychotherapy notes / date range to disclose (if Yes)','textarea'],['psych_notes_purpose','Purpose of disclosure','text'],['psych_notes_expiration','Expiration date or event','text'],
   ['psych_notes_revocation_ack','I understand I may revoke this authorization in writing, subject to actions already taken in reliance on it.','select',false,['Yes']],
   ['psych_notes_signature','Electronic signature — type your full legal name','text'],['psych_notes_signature_date','Date signed','date'],['psych_notes_representative_capacity','If representative signs, describe their legal authority','text']
  ]},
@@ -180,6 +181,7 @@ export function validateIntake(answers:IntakeAnswers,submit:boolean){
   if(f[0]!==TREATMENT_HISTORY_KEY&&f[0]!==MEDICATION_ENTRIES_KEY&&f[0]!==MEDICAL_SUBSTANCE_KEY&&value.length>8000)return `${f[1]} is too long.`;
   if(submit&&f[3]&&!value.trim())return `Please complete: ${f[1]}.`;
  }
+ const signatureDateError=validateLegalDates(answers);if(signatureDateError)return signatureDateError;
  const medicalError=validateMedicalSubstance(answers[MEDICAL_SUBSTANCE_KEY]??'');if(medicalError)return medicalError;
  const medicationError=validateMedications(answers[MEDICATION_ENTRIES_KEY]??'',submit)||validateMedicationAllergies(answers.medication_allergy_status??'',answers.medication_allergy_notes??'');if(medicationError)return medicationError;
  const historyError=validateTreatmentHistory(answers[TREATMENT_HISTORY_KEY]??'',submit);if(historyError)return historyError;
@@ -209,7 +211,7 @@ export function validateIntake(answers:IntakeAnswers,submit:boolean){
   for(const [k,label] of [['roi_discloser','authorized discloser'],['roi_recipient_name','release recipient'],['roi_information_scope','information to be disclosed'],['roi_purpose','purpose of disclosure'],['roi_expiration','authorization expiration'],['roi_revocation_ack','revocation acknowledgment'],['roi_voluntary_ack','authorization acknowledgment'],['roi_signature','release signature'],['roi_signature_date','release signature date']] as const)if(!answers[k]?.trim())return `Please complete the ${label} for the release authorization.`;
  }
  if(submit&&answers.psych_notes_authorize==='Yes'){
-  for(const [k,label] of [['psych_notes_discloser','authorized psychotherapy-notes discloser'],['psych_notes_recipient','psychotherapy-notes recipient'],['psych_notes_purpose','psychotherapy-notes purpose'],['psych_notes_expiration','psychotherapy-notes expiration'],['psych_notes_revocation_ack','psychotherapy-notes revocation acknowledgment'],['psych_notes_signature','psychotherapy-notes signature'],['psych_notes_signature_date','psychotherapy-notes signature date']] as const)if(!answers[k]?.trim())return `Please complete the ${label}.`;
+  for(const [k,label] of [['psych_notes_discloser','authorized psychotherapy-notes discloser'],['psych_notes_recipient','psychotherapy-notes recipient'],['psych_notes_scope','psychotherapy-notes scope'],['psych_notes_purpose','psychotherapy-notes purpose'],['psych_notes_expiration','psychotherapy-notes expiration'],['psych_notes_revocation_ack','psychotherapy-notes revocation acknowledgment'],['psych_notes_signature','psychotherapy-notes signature'],['psych_notes_signature_date','psychotherapy-notes signature date']] as const)if(!answers[k]?.trim())return `Please complete the ${label}.`;
  }
  if(submit&&answers.part2_authorize==='Yes'){
   for(const [k,label] of [['part2_discloser','Part 2 discloser'],['part2_recipient','Part 2 recipient'],['part2_scope','Part 2 information scope'],['part2_purpose','Part 2 purpose'],['part2_expiration','Part 2 expiration'],['part2_revocation_ack','Part 2 revocation acknowledgment'],['part2_signature','Part 2 signature'],['part2_signature_date','Part 2 signature date']] as const)

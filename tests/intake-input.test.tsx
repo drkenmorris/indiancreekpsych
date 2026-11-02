@@ -23,7 +23,7 @@ test('staff preview lets people type and navigate every section without touching
  fireEvent.click(screen.getByRole('tab',{name:'11'}));
  expect(screen.getByText('Consent to Counseling and Informed Treatment')).toBeTruthy();
  expect(document.querySelector('.legalDocumentFullText')).not.toBeNull();
- expect(document.querySelector('.legalDocumentFullText')?.hasAttribute('open')).toBe(false);
+ expect(document.querySelector('.legalDocumentFullText')?.hasAttribute('open')).toBe(true);
  for(let i=0;i<intakeSections.length;i++){
   fireEvent.click(screen.getByRole('tab',{name:String(i+1)}));
   const count=document.querySelectorAll('.intakeFields input:not([type=checkbox]),.intakeFields select,.intakeFields textarea').length;

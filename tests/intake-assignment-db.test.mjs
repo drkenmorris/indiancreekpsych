@@ -8,7 +8,7 @@ create function extensions.digest(text,text) returns bytea language sql as $$sel
 create function private.patient_secure_session() returns boolean language sql security definer as $$select coalesce(auth.jwt()->>'aal','')='aal2' and exists(select 1 from auth.users u join public.profiles p on p.id=u.id where u.id=auth.uid() and u.email_confirmed_at is not null and p.account_type='patient')$$;
 create function private.current_user_can_manage_intakes() returns boolean language sql security definer as $$select exists(select 1 from public.profiles where id=auth.uid() and account_type='staff')$$;
 grant usage on schema auth,private,public to anon,authenticated;`);
-await db.exec(readFileSync(new URL('../supabase/migrations/20261102090000_intake_assignment_documents.sql',import.meta.url),'utf8'));
+await db.exec(readFileSync(new URL('../supabase/migrations/20261102170218_intake_assignment_documents.sql',import.meta.url),'utf8'));
 for(const [id,role] of [[p,'patient'],[other,'patient'],[staff,'staff']]){await db.query('insert into auth.users values($1,now())',[id]);await db.query('insert into profiles values($1,$2)',[id,role]);}
 await db.query("insert into patient_intakes values($1,'draft')",[p]);await db.query("insert into private.kiosk_patient_intakes values($1,encode(extensions.digest($2,'sha256'),'hex'),'draft',now()+interval '1 hour')",[kiosk,token]);
 async function actor(id,aal='aal2'){await db.exec('reset role');await db.query("select set_config('request.user',$1,false),set_config('request.aal',$2,false)",[id||'',aal]);await db.exec('set role '+(id?'authenticated':'anon'));}

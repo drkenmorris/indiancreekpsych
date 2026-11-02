@@ -295,3 +295,7 @@ var(--dr-ken-therapist-image) center/cover no-repeat}
 .legalDocumentFullText[open]>summary{border-bottom:1px solid #cbded5;padding-bottom:14px;margin-bottom:14px}
 .intakePreviewNotice,.intakeSubmittedNotice{background:#eaf2ff;border:1px solid #9bbbe4;border-radius:12px;padding:16px 20px;margin:18px auto;color:#123b63;line-height:1.6}
 .intakePreviewNotice a,.intakeSubmittedNotice a{color:#124b9b;text-decoration:underline}
+
+.intakeAssignmentDocuments{margin:20px 0}.intakeAssignmentDocuments fieldset{display:grid;gap:12px}.intakeAssignmentDocuments label{display:grid;gap:6px}.intakeAssignmentDocuments ul{display:grid;gap:12px;overflow-wrap:anywhere}
+
+.intakeAssignmentDocuments select{font:inherit;min-height:44px;padding:10px;width:100%;border:1px solid #cbd5e1;border-radius:8px;background:#fff}

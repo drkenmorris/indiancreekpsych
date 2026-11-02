@@ -1,6 +1,7 @@
 'use client';
 import {FormEvent,useEffect,useMemo,useRef,useState} from 'react';
 import {createClient} from '@/lib/supabase/client';
+import IntakeAssignmentDocuments from '@/app/components/IntakeAssignmentDocuments';
 import LegalSectionDocument from '@/app/components/LegalSectionDocument';
 import {LEGAL_PACKET_VERSION} from '@/lib/patient/legal-documents';
 import {costFields,intakeSections,IntakeAnswers,IntakeRecord,validateIntake} from '@/lib/patient/intake';
@@ -73,6 +74,7 @@ export default function IntakeForm({userId,initial,defaults,preview=false}:{user
     </label>{cost&&<label className="checkRow"><input type="checkbox" checked={answers[key]==='I don’t know'} onChange={e=>update(key,e.target.checked?'I don’t know':'')}/> I don’t know</label>}</div>;
    })}</div>
   </fieldset>
+  {sectionIndex===1&&<IntakeAssignmentDocuments patientId={userId} preview={preview} readOnly={submitted} disabled={busy} onBusy={setBusy}/>}
 
   {!submitted&&<section className="intakeWizardActions">
    <p>* Required to submit. Drafts may be incomplete. {dirty?'You have unsaved changes.':''}</p>

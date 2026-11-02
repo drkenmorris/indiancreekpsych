@@ -299,3 +299,16 @@ var(--dr-ken-therapist-image) center/cover no-repeat}
 .intakeAssignmentDocuments{margin:20px 0}.intakeAssignmentDocuments fieldset{display:grid;gap:12px}.intakeAssignmentDocuments label{display:grid;gap:6px}.intakeAssignmentDocuments ul{display:grid;gap:12px;overflow-wrap:anywhere}
 
 .intakeAssignmentDocuments select{font:inherit;min-height:44px;padding:10px;width:100%;border:1px solid #cbd5e1;border-radius:8px;background:#fff}
+
+/* Shared patient-account and office intake treatment entries. */
+.intakeTreatmentHistory { min-width: 0; }
+.intakeTreatmentHistory h3 { margin-top: 0; }
+.intakeTreatmentEntry { min-width: 0; border: 1px solid #aab8b1; border-radius: 12px; padding: 20px; margin: 16px 0; }
+.intakeTreatmentEntry legend { font-weight: 700; padding: 0 8px; }
+.intakeTreatmentFields { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; }
+.intakeTreatmentEntry label { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; font-weight: 600; }
+.intakeTreatmentEntry input:not([type=checkbox]),.intakeTreatmentEntry select,.intakeTreatmentEntry textarea { width: 100%; box-sizing: border-box; min-height: 48px; padding: 10px; font: inherit; border: 1px solid #aab8b1; border-radius: 6px; background: #fff; color: #182e29; }
+.intakeTreatmentEntry .intakeTreatmentOngoing { flex-direction: row; align-items: center; min-height: 48px; gap: 10px; }
+.intakeTreatmentEntry .intakeTreatmentOngoing input { width: 20px; height: 20px; flex: 0 0 auto; }
+
+@media (max-width: 700px) { .intakeTreatmentFields { grid-template-columns: 1fr; } }

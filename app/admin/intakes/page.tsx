@@ -1,3 +1,4 @@
+import IntakeTreatmentHistory from '@/app/components/IntakeTreatmentHistory';
 import IntakeAssignmentDocuments from '@/app/components/IntakeAssignmentDocuments';
 import Link from 'next/link';
 import {redirect} from 'next/navigation';
@@ -16,7 +17,7 @@ function SubmittedPacket({record}:{record:Saved}){
   <p><strong>Separate authorizations:</strong> Release of information: {record.answers.roi_authorize||'Not recorded'}; psychotherapy notes: {record.answers.psych_notes_authorize||'Not recorded'}; Part 2 records: {record.answers.part2_authorize||'Not recorded'}; SUD counseling notes: {record.answers.sud_notes_authorize||'Not recorded'}; telehealth: {record.answers.telehealth_choice||'Not recorded'}.</p>
   {intakeSections.map(section=><section key={section.title} className="intakeStaffReviewSection">
    <h2>{section.title}</h2>
-   <dl>{section.fields.map(([key,label])=><div key={key}><dt><strong>{label}</strong></dt><dd style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>{record.answers[key]||'Not provided'}</dd></div>)}</dl>
+   <dl>{section.fields.map(([key,label,type])=>type==='treatment-history'?<div key={key}><IntakeTreatmentHistory value={record.answers[key]??''} readOnly/></div>:<div key={key}><dt><strong>{label}</strong></dt><dd style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>{record.answers[key]||'Not provided'}</dd></div>)}</dl>
   </section>)}
   <IntakeAssignmentDocuments patientId={record.source==='Patient account'?record.id:undefined} kioskId={record.source!=='Patient account'?record.id:undefined} readOnly/>
  </details>;

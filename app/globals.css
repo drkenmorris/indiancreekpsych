@@ -312,3 +312,4 @@ var(--dr-ken-therapist-image) center/cover no-repeat}
 .intakeTreatmentEntry .intakeTreatmentOngoing input { width: 20px; height: 20px; flex: 0 0 auto; }
 
 @media (max-width: 700px) { .intakeTreatmentFields { grid-template-columns: 1fr; } }
+.intakeMedicationBenefit { margin: 0 0 16px; padding: 12px; border: 1px solid #aab8b1; border-radius: 8px; }

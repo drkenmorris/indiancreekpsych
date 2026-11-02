@@ -27,7 +27,7 @@ test('staff preview lets people type and navigate every section without touching
  for(let i=0;i<intakeSections.length;i++){
   fireEvent.click(screen.getByRole('tab',{name:String(i+1)}));
   const count=document.querySelectorAll('.intakeFields input:not([type=checkbox]),.intakeFields select,.intakeFields textarea').length;
-  expect(count).toBe(intakeSections[i].fields.reduce((total,field)=>total+(field[2]==='treatment-history'?6:1),0));
+  expect(count).toBe(intakeSections[i].fields.reduce((total,field)=>total+(field[2]==='treatment-history'?6:field[2]==='medications'?7:1),0));
  }
  fireEvent.click(screen.getByRole('tab',{name:'1'}));
  expect((screen.getByRole('textbox',{name:/^Full legal name/}) as HTMLInputElement).value).toBe('Synthetic Test');

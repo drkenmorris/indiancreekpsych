@@ -1,6 +1,7 @@
 'use client';
 import {FormEvent,useEffect,useMemo,useRef,useState} from 'react';
 import {createClient} from '@/lib/supabase/client';
+import IntakeMedications from '@/app/components/IntakeMedications';
 import IntakeTreatmentHistory from '@/app/components/IntakeTreatmentHistory';
 import IntakeAssignmentDocuments from '@/app/components/IntakeAssignmentDocuments';
 import LegalSectionDocument from '@/app/components/LegalSectionDocument';
@@ -68,10 +69,11 @@ export default function IntakeForm({userId,initial,defaults,preview=false}:{user
    <LegalSectionDocument sectionTitle={section.title}/>
    <div className="intakeFields">{section.fields.map(field=>{
     const [key,label,type]=field;const required=field.length>3&&field[3];const options=(field.length>4?field[4]:[])??[];const cost=costFields.includes(key);
+    if(type==='medications')return <div key={key} className="intakeWide"><IntakeMedications value={answers[key]??''} onChange={v=>update(key,v)} readOnly={submitted}/></div>;
     if(type==='treatment-history')return <div key={key} className="intakeWide"><IntakeTreatmentHistory value={answers[key]??''} onChange={v=>update(key,v)} readOnly={submitted}/></div>;
     return <div key={key} className={type==='textarea'?'intakeWide':''}><label>{label}{required?' *':''}
      {type==='select'?<select value={answers[key]??''} onChange={e=>update(key,e.target.value)}><option value="">Select…</option>{options.map(o=><option key={o} value={o}>{o==='insured'?'I have insurance':o==='self-pay'?'Self-pay / no insurance':o==='unsure'?'I’m not sure':o}</option>)}</select>
-     :type==='textarea'?<textarea rows={5} maxLength={8000} value={answers[key]??''} onChange={e=>update(key,e.target.value)}/>
+     :type==='textarea'?<textarea rows={5} maxLength={key==='medication_allergy_notes'?4000:8000} value={answers[key]??''} onChange={e=>update(key,e.target.value)}/>
      :<input type={type} maxLength={8000} value={answers[key]??''} inputMode={cost?'decimal':undefined} disabled={cost&&answers[key]==='I don’t know'} onChange={e=>update(key,e.target.value)}/>}
     </label>{cost&&<label className="checkRow"><input type="checkbox" checked={answers[key]==='I don’t know'} onChange={e=>update(key,e.target.checked?'I don’t know':'')}/> I don’t know</label>}</div>;
    })}</div>

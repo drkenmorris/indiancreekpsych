@@ -1,0 +1,417 @@
+{
+  "id": "icps-adult-domain-triage",
+  "version": "1.0.0",
+  "routingVersion": "1.0.0",
+  "population": "Adult self-report, age 18 and older",
+  "status": "ORIGINAL_UNVALIDATED_CLINICIAN_REVIEW_REQUIRED",
+  "instructions": "For each statement, select No, Yes currently, Yes in the past, Unsure, or Prefer to discuss privately. Consider the past month unless the question asks about longstanding patterns or earlier episodes. A current or past concern selects the domain for Tier 2. Unsure and private responses require clinician review and are never interpreted as No. No duration or impact threshold excludes a reported concern. This questionnaire does not diagnose or rule out a condition.",
+  "choices": [
+    "No",
+    "Yes, currently",
+    "Yes, in the past",
+    "Unsure",
+    "Prefer to discuss privately"
+  ],
+  "safetyChoices": [
+    "No",
+    "Yes",
+    "Unsure",
+    "Prefer to discuss privately"
+  ],
+  "safety": [
+    {
+      "id": "safety_self",
+      "text": "During the past month, have you had thoughts of suicide, not wanting to be alive, or intentionally harming yourself?"
+    },
+    {
+      "id": "safety_others",
+      "text": "During the past month, have you had thoughts or urges to seriously harm someone else?"
+    },
+    {
+      "id": "safety_now",
+      "text": "Right now, do you feel at risk of acting on harmful thoughts, or unable to keep yourself or another person safe?"
+    }
+  ],
+  "domains": [
+    {
+      "id": "neurodev",
+      "title": "Attention, learning and social communication",
+      "path": "level2/neurodevelopmental",
+      "instructions": "Include patterns present since childhood, even if first recognized in adulthood.",
+      "questions": [
+        {
+          "id": "neurodev_1",
+          "text": "I have difficulty sustaining attention, organizing tasks or controlling activity that has been present since childhood."
+        },
+        {
+          "id": "neurodev_2",
+          "text": "I have longstanding difficulty learning reading, writing, mathematics or everyday skills."
+        },
+        {
+          "id": "neurodev_3",
+          "text": "I have longstanding social-communication, sensory or repetitive-pattern differences for which I want support."
+        }
+      ]
+    },
+    {
+      "id": "psychotic",
+      "title": "Unusual perceptions and beliefs",
+      "path": "level2/psychotic",
+      "instructions": "Consider experiences while fully awake; beliefs shared within your culture or faith are not, by themselves, a concern.",
+      "questions": [
+        {
+          "id": "psychotic_1",
+          "text": "I hear, see or sense things while fully awake that other people do not seem to experience."
+        },
+        {
+          "id": "psychotic_2",
+          "text": "I feel watched, controlled or threatened in ways that other people find difficult to understand."
+        },
+        {
+          "id": "psychotic_3",
+          "text": "My thoughts or speech become so difficult to organize that communication or daily life is affected."
+        }
+      ]
+    },
+    {
+      "id": "bipolar",
+      "title": "Periods of unusually high energy",
+      "path": "level2/bipolar",
+      "instructions": "Consider distinct periods different from your usual self, including past episodes.",
+      "questions": [
+        {
+          "id": "bipolar_1",
+          "text": "I have had a distinct period of unusually elevated or irritable mood together with much more energy or activity than usual."
+        },
+        {
+          "id": "bipolar_2",
+          "text": "During a high-energy period, I needed much less sleep than usual without feeling tired."
+        },
+        {
+          "id": "bipolar_3",
+          "text": "During a high-energy period, fast thoughts, rapid speech or unusually risky actions caused concern or consequences."
+        }
+      ]
+    },
+    {
+      "id": "depressive",
+      "title": "Low mood and loss of interest",
+      "path": "level2/depression",
+      "instructions": "Consider the past month and earlier significant episodes.",
+      "questions": [
+        {
+          "id": "depressive_1",
+          "text": "I feel persistently sad, empty or hopeless."
+        },
+        {
+          "id": "depressive_2",
+          "text": "I have lost interest or enjoyment in things that usually matter to me."
+        },
+        {
+          "id": "depressive_3",
+          "text": "Low mood is accompanied by reduced energy, strong self-criticism or difficulty keeping up with everyday life."
+        }
+      ]
+    },
+    {
+      "id": "anxiety",
+      "title": "Worry, fear and panic",
+      "path": "level2/anxiety",
+      "instructions": "Consider the past month and earlier significant episodes.",
+      "questions": [
+        {
+          "id": "anxiety_1",
+          "text": "Worry or fear is difficult for me to control."
+        },
+        {
+          "id": "anxiety_2",
+          "text": "I experience sudden episodes of intense fear or panic, with or without physical sensations."
+        },
+        {
+          "id": "anxiety_3",
+          "text": "I avoid social situations, separation, places or activities because of anxiety or fear."
+        }
+      ]
+    },
+    {
+      "id": "ocd_related",
+      "title": "Intrusive thoughts and repetitive behaviors",
+      "path": "level2/ocd",
+      "instructions": "An unwanted thought does not mean that you want to act on it.",
+      "questions": [
+        {
+          "id": "ocd_related_1",
+          "text": "Unwanted thoughts, images or urges repeatedly intrude and are difficult to set aside."
+        },
+        {
+          "id": "ocd_related_2",
+          "text": "I feel driven to repeat actions or mental routines, such as checking, washing, counting or seeking reassurance."
+        },
+        {
+          "id": "ocd_related_3",
+          "text": "Collecting or difficulty discarding, appearance checking, skin picking or hair pulling causes distress or problems."
+        }
+      ]
+    },
+    {
+      "id": "trauma",
+      "title": "Reactions to trauma and major stress",
+      "path": "level2/trauma",
+      "instructions": "You do not need to describe an event. Exposure alone does not establish a disorder.",
+      "questions": [
+        {
+          "id": "trauma_1",
+          "text": "Following a frightening or overwhelming experience, I have unwanted memories, nightmares or a sense that it is happening again."
+        },
+        {
+          "id": "trauma_2",
+          "text": "After a difficult experience, I avoid reminders, feel emotionally cut off or remain unusually watchful or easily startled."
+        },
+        {
+          "id": "trauma_3",
+          "text": "After a major stressor or loss, emotional or behavioral changes are making it difficult to manage daily life."
+        }
+      ]
+    },
+    {
+      "id": "dissociative",
+      "title": "Detachment and gaps in awareness",
+      "path": "level2/dissociative",
+      "instructions": "Consider experiences beyond ordinary distraction or forgetting.",
+      "questions": [
+        {
+          "id": "dissociative_1",
+          "text": "I feel detached from my body or emotions, or my surroundings seem unreal."
+        },
+        {
+          "id": "dissociative_2",
+          "text": "I have gaps in memory for important events or periods of time beyond ordinary forgetting."
+        },
+        {
+          "id": "dissociative_3",
+          "text": "Changes in my sense of self or awareness cause confusion, distress or difficulty functioning."
+        }
+      ]
+    },
+    {
+      "id": "somatic",
+      "title": "Physical symptoms and health-related distress",
+      "path": "level2/somatic",
+      "instructions": "Physical symptoms deserve medical attention. A medical explanation does not exclude emotional support.",
+      "questions": [
+        {
+          "id": "somatic_1",
+          "text": "Physical symptoms cause substantial distress or interfere with daily activities."
+        },
+        {
+          "id": "somatic_2",
+          "text": "Worry about health or bodily sensations takes up a large part of my time."
+        },
+        {
+          "id": "somatic_3",
+          "text": "Repeated checking, reassurance seeking or avoidance related to health is difficult to manage."
+        }
+      ]
+    },
+    {
+      "id": "eating",
+      "title": "Eating and body-related concerns",
+      "path": "level2/eating",
+      "instructions": "Include restrictive intake for sensory or fear-related reasons, with or without weight concerns.",
+      "questions": [
+        {
+          "id": "eating_1",
+          "text": "I restrict food or avoid eating in ways that may affect my nutrition, health or daily life."
+        },
+        {
+          "id": "eating_2",
+          "text": "I have episodes of eating that feel out of control, or try to compensate through vomiting, medication misuse or excessive exercise."
+        },
+        {
+          "id": "eating_3",
+          "text": "Concerns about eating, body size or shape, or eating nonfood substances cause distress or problems."
+        }
+      ]
+    },
+    {
+      "id": "elimination",
+      "title": "Bladder and bowel concerns",
+      "path": "level2/elimination",
+      "instructions": "Include new or longstanding concerns; medical causes need separate evaluation.",
+      "questions": [
+        {
+          "id": "elimination_1",
+          "text": "I have repeated difficulty controlling urination, including during sleep."
+        },
+        {
+          "id": "elimination_2",
+          "text": "I have repeated difficulty controlling bowel movements or soiling."
+        },
+        {
+          "id": "elimination_3",
+          "text": "Bladder or bowel difficulties cause embarrassment, avoidance or disruption for which I want help."
+        }
+      ]
+    },
+    {
+      "id": "sleep",
+      "title": "Sleep and daytime alertness",
+      "path": "level2/sleep",
+      "instructions": "Consider the past month and recurrent earlier problems.",
+      "questions": [
+        {
+          "id": "sleep_1",
+          "text": "I have trouble falling asleep, staying asleep or waking at the time I intend."
+        },
+        {
+          "id": "sleep_2",
+          "text": "I am excessively sleepy during the day, have sudden sleep episodes or do not feel rested despite enough time in bed."
+        },
+        {
+          "id": "sleep_3",
+          "text": "Breathing interruptions, unusual movements or behaviors during sleep, or a disrupted sleep schedule cause concern."
+        }
+      ]
+    },
+    {
+      "id": "sexual_dysfunction",
+      "title": "Sexual well-being",
+      "path": "level2/sexual-dysfunction",
+      "instructions": "Answer only about difficulties that concern you; differences in desire alone are not a disorder.",
+      "questions": [
+        {
+          "id": "sexual_dysfunction_1",
+          "text": "Difficulty with sexual interest, arousal or orgasm concerns me."
+        },
+        {
+          "id": "sexual_dysfunction_2",
+          "text": "Pain or physical difficulty during sexual activity concerns me."
+        },
+        {
+          "id": "sexual_dysfunction_3",
+          "text": "Sexual-function changes or avoidance cause personal distress or relationship difficulties for which I want support."
+        }
+      ]
+    },
+    {
+      "id": "gender_dysphoria",
+      "title": "Gender-related distress and support",
+      "path": "level2/gender-dysphoria",
+      "instructions": "Gender identity or expression is not itself a symptom. These questions concern distress and requested support.",
+      "questions": [
+        {
+          "id": "gender_dysphoria_1",
+          "text": "I experience distress about a mismatch between my experienced gender and aspects of my body or assigned sex."
+        },
+        {
+          "id": "gender_dysphoria_2",
+          "text": "Being treated as a gender that does not fit my experience causes distress."
+        },
+        {
+          "id": "gender_dysphoria_3",
+          "text": "I would like support with gender-related distress, social pressure or discrimination."
+        }
+      ]
+    },
+    {
+      "id": "impulse_conduct",
+      "title": "Anger and impulse control",
+      "path": "level2/impulse-conduct",
+      "instructions": "Consider patterns that cause harm, distress or consequences, rather than ordinary disagreement.",
+      "questions": [
+        {
+          "id": "impulse_conduct_1",
+          "text": "I have anger outbursts or aggressive actions that feel difficult to control."
+        },
+        {
+          "id": "impulse_conduct_2",
+          "text": "I repeatedly act on urges in ways that harm myself, other people, property or important responsibilities."
+        },
+        {
+          "id": "impulse_conduct_3",
+          "text": "Repeated conflicts, deception or serious rule violations have led to relationship, work or legal problems."
+        }
+      ]
+    },
+    {
+      "id": "substance",
+      "title": "Alcohol, drugs and gambling",
+      "path": "level2/substance",
+      "instructions": "Include prescribed medications taken differently from instructions and nonprescribed substances.",
+      "questions": [
+        {
+          "id": "substance_1",
+          "text": "I use alcohol, drugs or medications more than intended, or find cutting down difficult."
+        },
+        {
+          "id": "substance_2",
+          "text": "Substance use, cravings or withdrawal symptoms affect my health, relationships, safety or responsibilities."
+        },
+        {
+          "id": "substance_3",
+          "text": "Gambling or betting feels difficult to control or has caused financial or other problems."
+        }
+      ]
+    },
+    {
+      "id": "neurocognitive",
+      "title": "Changes in memory and thinking",
+      "path": "level2/neurocognitive",
+      "instructions": "Consider a change from your earlier level of functioning, rather than a lifelong learning difference.",
+      "questions": [
+        {
+          "id": "neurocognitive_1",
+          "text": "My memory, attention or ability to think clearly has declined from my usual level."
+        },
+        {
+          "id": "neurocognitive_2",
+          "text": "Changes in language, judgment, navigation or problem solving affect everyday tasks."
+        },
+        {
+          "id": "neurocognitive_3",
+          "text": "I or someone close to me has noticed confusion or difficulty managing things I previously handled."
+        }
+      ]
+    },
+    {
+      "id": "personality_screen",
+      "title": "Longstanding coping and relationship patterns",
+      "path": "level2/personality",
+      "instructions": "Consider persistent patterns across situations. This screen does not assign a personality diagnosis.",
+      "questions": [
+        {
+          "id": "personality_screen_1",
+          "text": "Longstanding patterns of conflict, mistrust or withdrawal repeatedly disrupt my relationships."
+        },
+        {
+          "id": "personality_screen_2",
+          "text": "Persistent difficulty managing emotions, impulses or my sense of self creates problems in several areas of life."
+        },
+        {
+          "id": "personality_screen_3",
+          "text": "I repeatedly cope in ways that harm important relationships or responsibilities and would like help changing the pattern."
+        }
+      ]
+    },
+    {
+      "id": "paraphilic_screen",
+      "title": "Sexual interests, distress and safety",
+      "path": "level2/paraphilic",
+      "instructions": "Consensual adult interests are not, by themselves, a disorder. You may choose a private discussion.",
+      "questions": [
+        {
+          "id": "paraphilic_screen_1",
+          "text": "Sexual interests or urges cause personal distress beyond fear of social judgment, or interfere with daily life."
+        },
+        {
+          "id": "paraphilic_screen_2",
+          "text": "I am concerned that a sexual interest or urge could involve a person unable or unwilling to consent, or cause harm."
+        },
+        {
+          "id": "paraphilic_screen_3",
+          "text": "I would like a private clinical discussion about controlling sexual urges or preventing harmful behavior."
+        }
+      ]
+    }
+  ]
+}

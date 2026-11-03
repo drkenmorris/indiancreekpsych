@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { patientAccess } from "@/lib/patient/access";
-import { clinicalDevScreenList } from "@/lib/clinical-tests/catalog";
 import { clinicalTestSuites } from "@/lib/clinical-tests/menu-catalog";
 
 const categories = [
@@ -43,14 +42,11 @@ export default async function ClinicalTestsPage() {
       ))}
       <section className="clinicalSuiteSection" aria-labelledby="dsm-modules-heading">
         <h2 id="dsm-modules-heading">DSM screening modules</h2>
-        <details className="clinicalDsmModulePicker">
-          <summary>Browse all {clinicalDevScreenList.length} Level 1 and Level 2 modules</summary>
-          <ul className="clinicalDsmList">
-            {clinicalDevScreenList.map(([key, label]) => (
-              <li key={key}><Link href={`/clinical-tests/dev/${key}`}>{label} →</Link></li>
-            ))}
-          </ul>
-        </details>
+        <div className="clinicalDsmModulePicker">
+          <h3>Tier 1 → targeted Tier 2 → clinician evaluation</h3>
+          <p>Begin with the adult 19-domain screen. Its completed review selects follow-up modules for reported concerns and identifies uncertain or private responses for clinician review.</p>
+          <Link href="/clinical-tests/dev/level1">Start or resume Tier 1 screening →</Link>
+        </div>
       </section>
       <p className="clinicalQaBanner" role="note">
         Additional autism/ADHD registry assessment prototypes remain in dependency review.

@@ -1,4 +1,6 @@
 'use client';
+import IntakeCommunicationPreferences from '@/app/components/IntakeCommunicationPreferences';
+import {communicationFieldKeys} from '@/lib/patient/intake';
 import IntakeTraumaHistory from '@/app/components/IntakeTraumaHistory';
 import {FormEvent,useEffect,useMemo,useRef,useState} from 'react';
 import {createClient} from '@/lib/supabase/client';
@@ -22,6 +24,7 @@ export default function IntakeForm({userId,initial,defaults,preview=false}:{user
  const submitted=!preview&&record?.status==='submitted';
  const sections=submitted?intakeSectionsForVersion(record?.answers.legal_packet_version||''):intakeSections;
  const section=sections[sectionIndex];
+ const showCommunication=sectionIndex===1&&section.fields.some(field=>field[0]==='comm_phone_calls');
 
  useEffect(()=>{if(!dirty)return;const warn=(event:BeforeUnloadEvent)=>{event.preventDefault();event.returnValue='';};window.addEventListener('beforeunload',warn);return()=>window.removeEventListener('beforeunload',warn);},[dirty]);
  useEffect(()=>{
@@ -76,8 +79,8 @@ export default function IntakeForm({userId,initial,defaults,preview=false}:{user
    {sectionIndex>=10&&answers[LEGAL_ROUTING_KEY]&&<p className="intakeHelp"><strong>Page 10 guide:</strong> {legalRoutingResults(answers[LEGAL_ROUTING_KEY])?.find(f=>f.section===section.title)?.status||'Office review needed'}. <button type="button" onClick={()=>setSectionIndex(9)}>Return to the form directory</button></p>}
    <LegalSectionDocument sectionTitle={section.title} version={submitted?(record?.answers.legal_packet_version||'legacy-unversioned'):LEGAL_PACKET_VERSION}/>
    <div className="intakeFields">{section.fields.map(field=>{
-    const [key,label,type]=field;const required=field.length>3&&field[3];const options=(field.length>4?field[4]:[])??[];const cost=costFields.includes(key);
-    if(type==='legal-routing')return <div key={key} className="intakeWide"><IntakeLegalDirectory value={answers[key]??''} onChange={v=>update(key,v)} onOpen={page=>setSectionIndex(page-1)} readOnly={submitted} preview={preview}/><h3>Communication and confidential-contact preferences</h3><p>Choose safe contact methods below. These preferences do not authorize a records release.</p></div>;
+    const [key,label,type]=field;if(showCommunication&&communicationFieldKeys.includes(key))return null;const required=field.length>3&&field[3];const options=(field.length>4?field[4]:[])??[];const cost=costFields.includes(key);
+    if(type==='legal-routing')return <div key={key} className="intakeWide"><IntakeLegalDirectory value={answers[key]??''} onChange={v=>update(key,v)} onOpen={page=>setSectionIndex(page-1)} readOnly={submitted} preview={preview}/></div>;
     if(type==='trauma-history')return <div key={key} className="intakeWide"><IntakeTraumaHistory value={answers[key]??''} onChange={v=>update(key,v)} legacyAnswers={answers} readOnly={submitted}/></div>;
     if(type==='medical-substance')return <div key={key} className="intakeWide"><IntakeMedicalSubstance value={answers[key]??''} onChange={v=>update(key,v)} legacyAnswers={answers} readOnly={submitted}/></div>;
     if(type==='medications')return <div key={key} className="intakeWide"><IntakeMedications value={answers[key]??''} onChange={v=>update(key,v)} readOnly={submitted}/></div>;
@@ -91,6 +94,7 @@ export default function IntakeForm({userId,initial,defaults,preview=false}:{user
   </fieldset>
   {sectionIndex>=10&&<LegalFormCopy sectionTitle={section.title} answers={answers} submitted={submitted} version={submitted?(record?.answers.legal_packet_version||'legacy-unversioned'):LEGAL_PACKET_VERSION} reference={record?`Patient account intake ${userId} / version ${record.version}`:'Draft / non-saving preview'} submittedAt={record?.submitted_at}/> }
   {sectionIndex===1&&<IntakeAssignmentDocuments patientId={userId} preview={preview} readOnly={submitted} disabled={busy} onBusy={setBusy}/>}
+  {showCommunication&&<IntakeCommunicationPreferences answers={answers} onChange={update} disabled={busy||submitted}/>}
 
   {!submitted&&<section className="intakeWizardActions">
    <p>* Required to submit. Drafts may be incomplete. {dirty?'You have unsaved changes.':''}</p>

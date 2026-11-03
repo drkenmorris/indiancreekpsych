@@ -1,4 +1,6 @@
 'use client';
+import IntakeCommunicationPreferences from '@/app/components/IntakeCommunicationPreferences';
+import {communicationFieldKeys} from '@/lib/patient/intake';
 import IntakeTraumaHistory from '@/app/components/IntakeTraumaHistory';
 
 import {FormEvent,useEffect,useMemo,useRef,useState} from 'react';
@@ -53,6 +55,7 @@ export default function KioskIntake({token}:{token:string}){
  const baseline=useRef<IntakeAnswers>({});
  const pageRef=useRef<HTMLElement|null>(null);
  const section=intakeSections[sectionIndex];
+ const showCommunication=sectionIndex===1;
 
  useEffect(()=>{
   let active=true;
@@ -148,11 +151,11 @@ export default function KioskIntake({token}:{token:string}){
     {sectionIndex>=10&&answers[LEGAL_ROUTING_KEY]&&<p className="intakeHelp"><strong>Page 10 guide:</strong> {legalRoutingResults(answers[LEGAL_ROUTING_KEY])?.find(f=>f.section===section.title)?.status||'Office review needed'}. <button type="button" onClick={()=>setSectionIndex(9)}>Return to the form directory</button></p>}
    <LegalSectionDocument sectionTitle={section.title}/>
     <div className={styles.fields}>{section.fields.map(field=>{
-     const [key,label,type]=field;
+     const [key,label,type]=field;if(showCommunication&&communicationFieldKeys.includes(key))return null;
      const required=field.length>3&&field[3];
      const options=(field.length>4?field[4]:[])??[];
      const cost=costFields.includes(key);
-     if(type==='legal-routing')return <div key={key} className={styles.wide}><IntakeLegalDirectory value={answers[key]??''} onChange={v=>update(key,v)} onOpen={page=>setSectionIndex(page-1)} readOnly={busy}/><h3>Communication and confidential-contact preferences</h3><p>Choose safe contact methods below; these are not records-release permissions.</p></div>;
+     if(type==='legal-routing')return <div key={key} className={styles.wide}><IntakeLegalDirectory value={answers[key]??''} onChange={v=>update(key,v)} onOpen={page=>setSectionIndex(page-1)} readOnly={busy}/></div>;
     if(type==='trauma-history')return <div key={key} className={styles.wide}><IntakeTraumaHistory value={answers[key]??''} onChange={v=>update(key,v)} legacyAnswers={answers} disabled={busy}/></div>;
     if(type==='medical-substance')return <div key={key} className={styles.wide}><IntakeMedicalSubstance value={answers[key]??''} onChange={v=>update(key,v)} legacyAnswers={answers} disabled={busy}/></div>;
      if(type==='medications')return <div key={key} className={styles.wide}><IntakeMedications value={answers[key]??''} onChange={v=>update(key,v)} disabled={busy}/></div>;
@@ -172,6 +175,7 @@ export default function KioskIntake({token}:{token:string}){
 
    {sectionIndex>=10&&<LegalFormCopy sectionTitle={section.title} answers={answers} reference="Office intake draft — finalized copies available in staff review after submission"/>}
    {sectionIndex===1&&<IntakeAssignmentDocuments token={token} disabled={busy} onBusy={setBusy}/>}
+   {showCommunication&&<IntakeCommunicationPreferences answers={answers} onChange={update} disabled={busy}/>}
 
    <footer className={styles.actions}>
     <p><span aria-hidden="true">*</span> Required to submit. {dirty?'You have unsaved changes.':'Saved answers will reload if this page is refreshed.'}</p>

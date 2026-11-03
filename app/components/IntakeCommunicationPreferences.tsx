@@ -1,0 +1,7 @@
+'use client';
+import {useId} from 'react';
+import {communicationFields} from '@/lib/patient/intake';
+export default function IntakeCommunicationPreferences({answers,onChange,disabled=false}:{answers:Record<string,string>;onChange:(key:string,value:string)=>void;disabled?:boolean}){
+ const id=useId();
+ return <fieldset className="intakeCommunicationPreferences" disabled={disabled}><legend>Communication and confidential-contact preferences</legend><p>Tell us how we may communicate with you. You may request reasonable alternative means or locations for confidential communications. These choices do not authorize a records release.</p><div className="intakeCommunicationFields">{communicationFields.map(([key,label,type,required,options])=><label key={key} className={type==='textarea'?'intakeCommunicationWide':undefined} htmlFor={id+'-'+key}>{label}{required?' *':''}{type==='select'?<select id={id+'-'+key} name={key} aria-required={required||undefined} value={answers[key]??''} onChange={e=>onChange(key,e.target.value)}><option value="">Select…</option>{options?.map(o=><option key={o} value={o}>{o}</option>)}</select>:type==='textarea'?<textarea id={id+'-'+key} name={key} aria-required={required||undefined} rows={4} maxLength={8000} value={answers[key]??''} onChange={e=>onChange(key,e.target.value)}/>:<input id={id+'-'+key} name={key} aria-required={required||undefined} type={type} maxLength={8000} value={answers[key]??''} onChange={e=>onChange(key,e.target.value)}/>}</label>)}</div></fieldset>;
+}

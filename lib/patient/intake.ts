@@ -175,7 +175,9 @@ const originalIntakeSections:{title:string;description?:string;fields:readonly I
  ]}
 ];
 
-export const intakeSections=[...originalIntakeSections.slice(0,9),{...originalIntakeSections[9],title:'Legal forms directory and questionnaire',description:'Answer the questions to see which forms apply. Required practice steps come first, followed by conditional and optional forms. Communication preferences are included below.',fields:[[LEGAL_ROUTING_KEY,'Legal forms questionnaire','legal-routing',true] as const,...originalIntakeSections[9].fields]},...[10,11,15,20,12,13,14,16,17,18,19].map(i=>originalIntakeSections[i])];
+export const communicationFields=originalIntakeSections[9].fields;
+export const communicationFieldKeys=communicationFields.map(field=>field[0]);
+export const intakeSections=[originalIntakeSections[0],{...originalIntakeSections[1],fields:[...originalIntakeSections[1].fields,...communicationFields]},...originalIntakeSections.slice(2,9),{...originalIntakeSections[9],title:'Legal forms directory and questionnaire',description:'Answer the questions to see which forms apply. Required practice steps come first, followed by conditional and optional forms.',fields:[[LEGAL_ROUTING_KEY,'Legal forms questionnaire','legal-routing',true] as const]},...[10,11,15,20,12,13,14,16,17,18,19].map(i=>originalIntakeSections[i])];
 export function intakeSectionsForVersion(version:string){return version==='2026-11-02-directory-1'?intakeSections:originalIntakeSections;}
 
 export type IntakeAnswers=Record<string,string>;

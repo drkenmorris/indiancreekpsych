@@ -1,0 +1,659 @@
+{
+  "id": "icps-original-differential-followup",
+  "version": "0.1.0",
+  "population": "adult18plus",
+  "status": "UNVALIDATED_PROTOTYPE",
+  "scope": "Original candidate-area interview prompts, not a complete DSM criteria assessment or an APA instrument. Candidate labels are discussion areas, not diagnoses. No diagnostic scoring or probability.",
+  "domains": [
+    {
+      "id": "neurodev",
+      "candidates": [
+        {
+          "id": "neurodev-1",
+          "label": "ADHD",
+          "tier3": "Have distractibility, disorganization, or acting before thinking repeatedly caused difficulty in everyday tasks?",
+          "tier4": "Were similar difficulties already present in childhood and noticeable in more than one setting?",
+          "tier5": "Do attention problems continue during times when sleep, mood, and anxiety are relatively settled?"
+        },
+        {
+          "id": "neurodev-2",
+          "label": "Autism spectrum disorder",
+          "tier3": "Have differences in social communication together with strong routines, focused interests, or sensory needs been a recurring part of your life?",
+          "tier4": "Do these experiences trace back to early development, even if they became more apparent as demands increased?",
+          "tier5": "Have social and sensory differences been present beyond periods of anxiety or isolation?"
+        },
+        {
+          "id": "neurodev-3",
+          "label": "Specific learning disorder",
+          "tier3": "Has one area such as reading, written work, or mathematics remained unusually difficult despite opportunities to learn?",
+          "tier4": "Has that difficulty persisted despite targeted help, rather than occurring only when concentration or mood is worse?",
+          "tier5": "Is the difficulty concentrated in a particular academic skill rather than broad learning across areas?"
+        },
+        {
+          "id": "neurodev-4",
+          "label": "Intellectual developmental disorder / communication or motor-development concerns",
+          "tier3": "Have learning, communication, movement, or everyday independence required sustained extra support since development?",
+          "tier4": "Are developmental assessments or school records available to clarify which abilities and support needs are involved?",
+          "tier5": "Have practical daily skills and communication been assessed alongside formal learning abilities?"
+        }
+      ]
+    },
+    {
+      "id": "psychotic",
+      "candidates": [
+        {
+          "id": "psychotic-1",
+          "label": "Schizophrenia spectrum disorders",
+          "tier3": "Have unusual perceptions, strongly held experiences others do not share, or disorganized thinking occurred outside sleep transitions?",
+          "tier4": "Have these experiences continued outside major mood changes and affected usual functioning over time?",
+          "tier5": "Have reduced motivation or organization also been observed when intense unusual perceptions or beliefs are less prominent?"
+        },
+        {
+          "id": "psychotic-2",
+          "label": "Mood disorder with psychotic features / schizoaffective differential",
+          "tier3": "Have unusual perceptions or beliefs occurred during pronounced periods of depression or unusually elevated energy?",
+          "tier4": "Have unusual perceptions or beliefs also occurred when your mood and energy were close to your usual baseline?",
+          "tier5": "Can you identify separate periods of mood disturbance and unusual perceptions or beliefs on a timeline?"
+        },
+        {
+          "id": "psychotic-3",
+          "label": "Delusional disorder / circumscribed belief concerns",
+          "tier3": "Has one persistent belief or closely related set of beliefs been the main concern while other thinking and daily abilities remained relatively organized?",
+          "tier4": "Is the concern fairly circumscribed rather than part of broad disorganization or multiple unusual perceptions?",
+          "tier5": "Do other people from your cultural or spiritual community understand the belief in a similar way?"
+        },
+        {
+          "id": "psychotic-4",
+          "label": "Brief or evolving psychotic presentation",
+          "tier3": "Did these changes begin relatively abruptly after a period of usual functioning?",
+          "tier4": "Has there been a clear return toward your usual functioning, or is the course still developing?",
+          "tier5": "Was the change linked to a major stressor, childbirth, sleep loss, or a medication or substance change?"
+        }
+      ]
+    },
+    {
+      "id": "bipolar",
+      "candidates": [
+        {
+          "id": "bipolar-1",
+          "label": "Bipolar I disorder",
+          "tier3": "Have there been distinct periods of unusually elevated or irritable energy with behavior markedly different from your usual self?",
+          "tier4": "During any such period, was functioning severely disrupted, hospital care needed, or reality testing affected?",
+          "tier5": "Did the high-energy change continue across settings rather than only during an exciting event or conflict?"
+        },
+        {
+          "id": "bipolar-2",
+          "label": "Bipolar II disorder",
+          "tier3": "Have noticeable periods of increased energy alternated with substantial depressive periods?",
+          "tier4": "Were the higher-energy periods a clear change others noticed, even when they did not cause severe disruption?",
+          "tier5": "Have there also been substantial depressive episodes and no known period of severely disruptive elevated energy?"
+        },
+        {
+          "id": "bipolar-3",
+          "label": "Cyclothymic disorder / other bipolar-spectrum presentation",
+          "tier3": "Have milder upward and downward mood shifts recurred across a long stretch of your life?",
+          "tier4": "Has this fluctuating pattern been more persistent than a few isolated mood episodes?",
+          "tier5": "Have more intense, clearly bounded mood episodes also occurred within the longer fluctuating pattern?"
+        }
+      ]
+    },
+    {
+      "id": "depressive",
+      "candidates": [
+        {
+          "id": "depressive-1",
+          "label": "Major depressive disorder",
+          "tier3": "Have there been distinct stretches of depressed mood or loss of interest with several other changes from your usual functioning?",
+          "tier4": "Do these stretches have recognizable starts and ends rather than being your nearly constant baseline?",
+          "tier5": "Have any periods of unusually increased energy or reduced need for sleep occurred separately from the low periods?"
+        },
+        {
+          "id": "depressive-2",
+          "label": "Persistent depressive disorder",
+          "tier3": "Has a low or discouraged mood been a longstanding baseline rather than only a recent episode?",
+          "tier4": "Have there been relatively few sustained periods of feeling back to your usual well baseline?",
+          "tier5": "Were sustained low-mood patterns already present before the most recent worsening?"
+        },
+        {
+          "id": "depressive-3",
+          "label": "Premenstrual dysphoric disorder",
+          "tier3": "If relevant, do marked mood symptoms repeatedly track the time before menstrual periods?",
+          "tier4": "Do symptoms ease after the period begins, with a comparatively better interval in the cycle?",
+          "tier5": "Have daily observations across more than one cycle confirmed the timing rather than relying on memory alone?"
+        },
+        {
+          "id": "depressive-4",
+          "label": "Adjustment-related depressive presentation",
+          "tier3": "Did depressed mood begin in connection with a recognizable life stress or change?",
+          "tier4": "Does the mood pattern closely follow that stress and its consequences rather than occurring independently?",
+          "tier5": "Has the depressive pattern also occurred when the major stressor and its consequences were absent?"
+        }
+      ]
+    },
+    {
+      "id": "anxiety",
+      "candidates": [
+        {
+          "id": "anxiety-1",
+          "label": "Generalized anxiety disorder",
+          "tier3": "Does hard-to-control worry move across several everyday topics rather than one main trigger?",
+          "tier4": "Does this broad worry persist even when a particular feared event has passed?",
+          "tier5": "Is the worry broad even when there is no trauma reminder, intrusive ritual-related thought, or specific social threat?"
+        },
+        {
+          "id": "anxiety-2",
+          "label": "Panic disorder",
+          "tier3": "Have sudden surges of fear occurred unexpectedly, rather than only in a predictable feared situation?",
+          "tier4": "Afterward, have you worried about another surge or changed your activities because of it?",
+          "tier5": "Have medical causes or substance effects for the sudden physical surges been evaluated?"
+        },
+        {
+          "id": "anxiety-3",
+          "label": "Social anxiety disorder",
+          "tier3": "Is the central fear being judged, embarrassed, or rejected in social or performance situations?",
+          "tier4": "Would the situation be substantially easier if being observed or evaluated were removed?",
+          "tier5": "Is fear of negative judgment central even when leaving the situation or obtaining help would be easy?"
+        },
+        {
+          "id": "anxiety-4",
+          "label": "Specific phobia / agoraphobia",
+          "tier3": "Does fear focus on a specific object or situation, or on places where leaving or obtaining help feels difficult?",
+          "tier4": "Is avoidance tied mainly to that trigger or to difficulty escaping, rather than to social evaluation?",
+          "tier5": "Can you distinguish fear of the object itself from fear of panic, embarrassment, or being unable to leave?"
+        },
+        {
+          "id": "anxiety-5",
+          "label": "Separation anxiety disorder",
+          "tier3": "Is being away from an important attachment figure a main source of anxiety?",
+          "tier4": "Does that concern drive repeated avoidance or difficulty functioning apart from that person?",
+          "tier5": "Does the separation fear exceed concerns explained by current danger, caregiving needs, or actual instability?"
+        }
+      ]
+    },
+    {
+      "id": "ocd_related",
+      "candidates": [
+        {
+          "id": "ocd_related-1",
+          "label": "Obsessive-compulsive disorder",
+          "tier3": "Do unwanted recurring thoughts or urges lead you to repeat actions or mental rituals for relief?",
+          "tier4": "Are these repetitions driven by reducing distress or preventing a feared outcome rather than by enjoyment?",
+          "tier5": "Are the thoughts unwanted and intrusive, rather than beliefs you accept as accurate or ordinary everyday worries?"
+        },
+        {
+          "id": "ocd_related-2",
+          "label": "Body dysmorphic disorder",
+          "tier3": "Does concern about a perceived appearance flaw lead to repeated checking, comparison, concealment, or reassurance seeking?",
+          "tier4": "Is the main concern a perceived flaw beyond concerns limited to body weight or eating?",
+          "tier5": "Have appearance concerns affected activities without being explained mainly by eating or weight concerns?"
+        },
+        {
+          "id": "ocd_related-3",
+          "label": "Hoarding disorder",
+          "tier3": "Is letting go of possessions very distressing, allowing clutter to interfere with the use of living spaces?",
+          "tier4": "Is difficulty discarding central, rather than clutter being mainly due to low energy, physical limits, or lack of resources?",
+          "tier5": "Has clutter created difficulty using spaces for their intended purpose, rather than simply reflecting a collecting interest?"
+        },
+        {
+          "id": "ocd_related-4",
+          "label": "Trichotillomania / excoriation disorder",
+          "tier3": "Do repeated hair pulling or skin picking cause visible effects or distress?",
+          "tier4": "Have you repeatedly tried to reduce the behavior, with difficulty stopping it?",
+          "tier5": "Does the pulling or picking occur outside a dermatologic problem or a deliberate effort to injure yourself?"
+        }
+      ]
+    },
+    {
+      "id": "trauma",
+      "candidates": [
+        {
+          "id": "trauma-1",
+          "label": "Posttraumatic stress disorder",
+          "tier3": "Following a frightening or harmful experience, have unwanted reminders, avoidance, and changes in mood or alertness occurred together?",
+          "tier4": "Have these changes persisted beyond the immediate aftermath and remained linked to reminders of the experience?",
+          "tier5": "Are the unwanted experiences linked to an event rather than primarily to generalized worry or a mood episode?"
+        },
+        {
+          "id": "trauma-2",
+          "label": "Acute stress presentation",
+          "tier3": "Have distressing trauma-related changes begun in the recent aftermath of a frightening or harmful experience?",
+          "tier4": "Is the pattern still in its early course, with its longer-term persistence not yet known?",
+          "tier5": "Can the event date and the dates of symptom onset and persistence be clarified?"
+        },
+        {
+          "id": "trauma-3",
+          "label": "Adjustment disorder",
+          "tier3": "Have emotional or behavioral difficulties followed a major stressor or life transition?",
+          "tier4": "Is the stress-linked reaction a closer description than reliving a traumatic event?",
+          "tier5": "Would another longstanding or independent condition better explain some of the difficulties?"
+        },
+        {
+          "id": "trauma-4",
+          "label": "Prolonged grief disorder",
+          "tier3": "After a death, has persistent longing or preoccupation with the person been central to your difficulty?",
+          "tier4": "Has grief remained deeply disruptive beyond what you and your cultural or community context would expect?",
+          "tier5": "Can the clinician consider time since the loss, cultural expectations, and whether trauma or depression is also present?"
+        }
+      ]
+    },
+    {
+      "id": "dissociative",
+      "candidates": [
+        {
+          "id": "dissociative-1",
+          "label": "Depersonalization/derealization disorder",
+          "tier3": "Have you repeatedly felt detached from yourself or as if surroundings were unreal?",
+          "tier4": "During these experiences, did you still recognize that the feeling of unreality was an experience rather than literal reality?",
+          "tier5": "Do these experiences occur when fully awake and outside intoxication, migraine, or seizure-like events?"
+        },
+        {
+          "id": "dissociative-2",
+          "label": "Dissociative amnesia",
+          "tier3": "Are there gaps for important personal experiences that seem different from ordinary forgetting?",
+          "tier4": "Are these gaps especially linked to stressful experiences rather than a general decline in everyday memory?",
+          "tier5": "Have head injury, seizures, sleep-related events, or substance effects been considered for the memory gaps?"
+        },
+        {
+          "id": "dissociative-3",
+          "label": "Dissociative identity presentation",
+          "tier3": "Have substantial shifts in your sense of self occurred along with gaps in recall for everyday actions?",
+          "tier4": "Have others described actions or conversations you cannot recall, outside ordinary forgetfulness or intoxication?",
+          "tier5": "Are the shifts and memory gaps involuntary and disruptive, rather than an accepted cultural or spiritual practice?"
+        }
+      ]
+    },
+    {
+      "id": "somatic",
+      "candidates": [
+        {
+          "id": "somatic-1",
+          "label": "Somatic symptom disorder",
+          "tier3": "Do physical symptoms come with persistent health-related distress, attention, or behavior that disrupts daily life?",
+          "tier4": "Does the distress remain a major difficulty even while medical evaluation or treatment is taking place?",
+          "tier5": "Can you distinguish distress about physical symptoms from distress mainly about having an undetected illness?"
+        },
+        {
+          "id": "somatic-2",
+          "label": "Illness anxiety disorder",
+          "tier3": "Is fear of having a serious illness a main problem even when physical symptoms are limited?",
+          "tier4": "Does health fear persist through reassurance, repeated checking, or avoidance of medical information?",
+          "tier5": "Is the central problem fear of illness rather than the physical symptoms themselves?"
+        },
+        {
+          "id": "somatic-3",
+          "label": "Functional neurological symptom disorder",
+          "tier3": "Have movement, sensory, or seizure-like symptoms been identified for neurological assessment?",
+          "tier4": "Has a qualified clinician evaluated these symptoms and discussed a functional explanation with you?",
+          "tier5": "Has the evaluating clinician explained the examination findings, rather than concluding this only because tests were normal?"
+        }
+      ]
+    },
+    {
+      "id": "eating",
+      "candidates": [
+        {
+          "id": "eating-1",
+          "label": "Anorexia nervosa",
+          "tier3": "Have restriction and fear of weight gain or difficulty recognizing nutritional risk been central concerns?",
+          "tier4": "Have these concerns continued despite significant weight loss or a clinician raising concern about low weight or malnutrition?",
+          "tier5": "Have eating and weight patterns been reviewed medically alongside your own account of body image and nutritional needs?"
+        },
+        {
+          "id": "eating-2",
+          "label": "Bulimia nervosa",
+          "tier3": "Have episodes of feeling unable to stop eating been followed by attempts to compensate such as vomiting, fasting, or excessive exercise?",
+          "tier4": "Do loss-of-control eating and compensatory actions form a recurring connected cycle?",
+          "tier5": "Does the compensatory cycle occur outside periods of significantly low weight or marked restriction?"
+        },
+        {
+          "id": "eating-3",
+          "label": "Binge-eating disorder",
+          "tier3": "Have episodes of eating with a sense of lost control caused distress?",
+          "tier4": "Do these episodes generally occur without a recurring pattern of compensatory behavior afterward?",
+          "tier5": "Is lost control a central feature, rather than simply eating more than planned without distress?"
+        },
+        {
+          "id": "eating-4",
+          "label": "Avoidant/restrictive food intake disorder",
+          "tier3": "Has eating been restricted because of sensory reactions, low interest, or fear of consequences such as choking?",
+          "tier4": "Is that restriction mainly unrelated to wanting to change body shape or weight?",
+          "tier5": "Have limited food access, cultural eating practices, gastrointestinal illness, and body-image concerns been considered?"
+        },
+        {
+          "id": "eating-5",
+          "label": "Pica / rumination disorder",
+          "tier3": "Have repeated eating of nonfood substances or returning food to the mouth been concerns?",
+          "tier4": "Has the behavior occurred outside an expected developmental or cultural practice and been discussed medically?",
+          "tier5": "Can the clinician clarify which behavior occurs, its frequency, and whether gastrointestinal or nutritional evaluation is needed?"
+        }
+      ]
+    },
+    {
+      "id": "elimination",
+      "candidates": [
+        {
+          "id": "elimination-1",
+          "label": "Enuresis",
+          "tier3": "Have repeated episodes of unintended urine release been a concern?",
+          "tier4": "Does the pattern occur during sleep, waking hours, or both, and has a medical cause been assessed?",
+          "tier5": "Did the problem follow an established period of continence, and is its onset or recurrence medically unexplained?"
+        },
+        {
+          "id": "elimination-2",
+          "label": "Encopresis",
+          "tier3": "Have repeated bowel accidents or soiling been a concern?",
+          "tier4": "Has constipation, overflow, medication effect, or another medical explanation been assessed?",
+          "tier5": "Did the pattern begin after prior bowel control, and is constipation or overflow still a possible contributor?"
+        }
+      ]
+    },
+    {
+      "id": "sleep",
+      "candidates": [
+        {
+          "id": "sleep-1",
+          "label": "Insomnia disorder",
+          "tier3": "Is difficulty falling asleep, staying asleep, or waking too early a recurring concern?",
+          "tier4": "Does this occur even when you have adequate opportunity and circumstances for sleep?",
+          "tier5": "Do daytime effects persist after accounting for restricted sleep opportunity or an irregular schedule?"
+        },
+        {
+          "id": "sleep-2",
+          "label": "Hypersomnolence / narcolepsy",
+          "tier3": "Is excessive sleepiness or unexpected falling asleep a recurring problem despite time available for sleep?",
+          "tier4": "Have irresistible sleep episodes, unusual loss of muscle strength, or other sleep-wake events prompted specialist assessment?",
+          "tier5": "Does daytime sleepiness remain after adequate sleep and after possible sleep-related breathing problems are considered?"
+        },
+        {
+          "id": "sleep-3",
+          "label": "Sleep-related breathing disorder",
+          "tier3": "Have loud snoring, pauses in breathing, or gasping during sleep been noticed?",
+          "tier4": "Has a sleep study or medical assessment been obtained for breathing during sleep?",
+          "tier5": "Does the breathing concern occur independently of general worry about sleep, with observations from a sleep partner or study?"
+        },
+        {
+          "id": "sleep-4",
+          "label": "Circadian rhythm sleep-wake disorder",
+          "tier3": "Does your natural sleep timing regularly conflict with the timing required by work or daily life?",
+          "tier4": "Is sleep substantially easier or more restorative when you can follow your preferred schedule?",
+          "tier5": "Do symptoms track work shifts, travel, or a delayed or advanced sleep schedule?"
+        },
+        {
+          "id": "sleep-5",
+          "label": "Parasomnia / restless legs presentation",
+          "tier3": "Have distressing dreams, unusual sleep behaviors, or an urge to move the legs disrupted sleep?",
+          "tier4": "Is the main problem a recognizable event or physical sensation around sleep rather than difficulty sleeping in general?",
+          "tier5": "Can the clinician distinguish dream recall, confused awakenings, dream enactment, and waking leg discomfort?"
+        }
+      ]
+    },
+    {
+      "id": "sexual_dysfunction",
+      "candidates": [
+        {
+          "id": "sexual_dysfunction-1",
+          "label": "Sexual interest/arousal concerns",
+          "tier3": "Has an unwanted change in sexual interest or arousal caused personal distress?",
+          "tier4": "Is this concern present in circumstances you otherwise experience as safe, wanted, and comfortable?",
+          "tier5": "Did the concern begin before or after changes in medications, hormones, health, relationships, or safety?"
+        },
+        {
+          "id": "sexual_dysfunction-2",
+          "label": "Orgasmic / ejaculation concerns",
+          "tier3": "Has an unwanted change in orgasm or ejaculation caused personal distress?",
+          "tier4": "Is the pattern longstanding, newly acquired, or limited to certain situations or partners?",
+          "tier5": "Does the concern differ between solitary and partnered activity, without pressure to engage in unwanted activity?"
+        },
+        {
+          "id": "sexual_dysfunction-3",
+          "label": "Genito-pelvic pain/penetration concerns",
+          "tier3": "Has pain, fear of pain, or difficulty with penetration been a distressing concern?",
+          "tier4": "Has a medical assessment addressed pain or other physical contributors without assuming the cause is psychological?",
+          "tier5": "Does pain occur in other circumstances, and has a pelvic or other relevant physical assessment been offered?"
+        }
+      ]
+    },
+    {
+      "id": "gender_dysphoria",
+      "candidates": [
+        {
+          "id": "gender_dysphoria-1",
+          "label": "Gender dysphoria evaluation",
+          "tier3": "Has a mismatch between experienced gender and aspects of the body or assigned gender caused personal distress?",
+          "tier4": "Does the distress concern that mismatch, rather than gender diversity itself being viewed as a problem?",
+          "tier5": "Can personal goals for care be clarified without assuming that any particular identity or medical treatment is required?"
+        },
+        {
+          "id": "gender_dysphoria-2",
+          "label": "Minority stress / support needs",
+          "tier3": "Have rejection, discrimination, safety concerns, or lack of support related to gender been a main source of distress?",
+          "tier4": "Would improving acceptance, safety, or access to support address an important part of the distress?",
+          "tier5": "Can distress from social conditions be distinguished from distress related to the body, while allowing both to coexist?"
+        }
+      ]
+    },
+    {
+      "id": "impulse_conduct",
+      "candidates": [
+        {
+          "id": "impulse_conduct-1",
+          "label": "Intermittent explosive disorder",
+          "tier3": "Have impulsive anger outbursts been much stronger than the immediate situation called for?",
+          "tier4": "Are the outbursts reactive rather than planned to obtain something or intimidate someone?",
+          "tier5": "Do the outbursts also occur outside intoxication, trauma reminders, or distinct high-energy mood episodes?"
+        },
+        {
+          "id": "impulse_conduct-2",
+          "label": "Conduct / oppositional history",
+          "tier3": "Have recurring serious rule violations, aggression, or persistent conflict with authority been part of your developmental history?",
+          "tier4": "Was this pattern already present before adulthood, rather than beginning only recently?",
+          "tier5": "Can school, family, or other developmental accounts clarify when the behavior began and the settings involved?"
+        },
+        {
+          "id": "impulse_conduct-3",
+          "label": "Kleptomania / pyromania differential",
+          "tier3": "Have repeated urges to steal unneeded items or set fires been followed by a sense of tension release?",
+          "tier4": "Were these actions driven by the urge itself rather than money, revenge, coercion, or another goal?",
+          "tier5": "Can a specialist distinguish an urge-related pattern from substance effects, elevated mood, or deliberate goal-directed behavior?"
+        }
+      ]
+    },
+    {
+      "id": "substance",
+      "candidates": [
+        {
+          "id": "substance-1",
+          "label": "Substance use disorder",
+          "tier3": "Has use of alcohol, drugs, or medications become hard to control or continued despite unwanted consequences?",
+          "tier4": "Have attempts to cut down, obligations, relationships, or health repeatedly been affected by the pattern?",
+          "tier5": "Can each substance or medication be reviewed separately, including prescribed use, pattern of use, and consequences?"
+        },
+        {
+          "id": "substance-2",
+          "label": "Intoxication / withdrawal-related presentation",
+          "tier3": "Do important symptoms occur around using, reducing, or stopping a substance or medication?",
+          "tier4": "Does the timing repeatedly track those changes more closely than periods of stable nonuse?",
+          "tier5": "Have the symptoms also occurred during a sustained stable period without intoxication, withdrawal, or medication changes?"
+        },
+        {
+          "id": "substance-3",
+          "label": "Gambling disorder",
+          "tier3": "Has gambling become difficult to control and continued despite financial or personal harm?",
+          "tier4": "Have chasing losses, concealment, or repeated unsuccessful efforts to stop become part of the pattern?",
+          "tier5": "Does gambling become problematic outside periods of unusually elevated mood or medication-related impulsivity?"
+        }
+      ]
+    },
+    {
+      "id": "neurocognitive",
+      "candidates": [
+        {
+          "id": "neurocognitive-1",
+          "label": "Delirium / acute cognitive change",
+          "tier3": "Has attention, awareness, or thinking changed suddenly or fluctuated markedly over a short period?",
+          "tier4": "Is this a new change from baseline that has not yet received prompt medical assessment?",
+          "tier5": "Has someone who knows the person confirmed an abrupt change from their usual attention or awareness?"
+        },
+        {
+          "id": "neurocognitive-2",
+          "label": "Mild / major neurocognitive disorder",
+          "tier3": "Has there been a gradual decline in memory, language, reasoning, or other thinking abilities from a prior level?",
+          "tier4": "Has that decline affected independent management of daily tasks, beyond needing extra effort or reminders?",
+          "tier5": "Can prior abilities and current independence be compared using collateral history and objective cognitive assessment?"
+        },
+        {
+          "id": "neurocognitive-3",
+          "label": "Cognitive symptoms secondary to other factors",
+          "tier3": "Do thinking or memory difficulties vary closely with mood, sleep, pain, medication, or substance changes?",
+          "tier4": "Does thinking improve when those associated factors improve?",
+          "tier5": "Have symptoms persisted after the associated mood, sleep, pain, or medication problem improved?"
+        }
+      ]
+    },
+    {
+      "id": "personality_screen",
+      "candidates": [
+        {
+          "id": "personality_screen-1",
+          "label": "Longstanding interpersonal / emotion-regulation pattern",
+          "tier3": "Have intense relationship difficulties or emotional shifts been a repeated pattern across different parts of adult life?",
+          "tier4": "Has the pattern persisted outside discrete mood episodes or a recent crisis?",
+          "tier5": "Can longstanding emotion and relationship patterns be distinguished from trauma responses and discrete mood episodes?"
+        },
+        {
+          "id": "personality_screen-2",
+          "label": "Longstanding detachment / mistrust pattern",
+          "tier3": "Have persistent distance from others, mistrust, or unusual interpersonal experiences limited relationships?",
+          "tier4": "Does this pattern occur across settings rather than only with unsafe people or in an unsupported environment?",
+          "tier5": "Can mistrust or distance be understood in the context of actual threat, discrimination, neurodevelopment, and cultural norms?"
+        },
+        {
+          "id": "personality_screen-3",
+          "label": "Longstanding inhibition / dependency / rigidity pattern",
+          "tier3": "Have fear of rejection, dependence on others, or rigid control repeatedly limited your choices?",
+          "tier4": "Has this been a stable pattern over time rather than only a response to current stress?",
+          "tier5": "Can longstanding rigidity, inhibition, or dependency be distinguished from anxiety, compulsive rituals, and current support needs?"
+        }
+      ]
+    },
+    {
+      "id": "paraphilic_screen",
+      "candidates": [
+        {
+          "id": "paraphilic_screen-1",
+          "label": "Consenting sexual-interest distress evaluation",
+          "tier3": "Has a recurring sexual interest caused significant personal distress or interference that you want help understanding?",
+          "tier4": "Is distress present beyond discomfort caused only by others disapproving of consensual adult interests?",
+          "tier5": "Can a qualified clinician review the concern without treating consensual adult interests alone as a disorder?"
+        },
+        {
+          "id": "paraphilic_screen-2",
+          "label": "Nonconsent / harm-related specialized evaluation",
+          "tier3": "Are there sexual urges or behaviors involving lack of consent, inability to consent, or risk of harm that need professional attention?",
+          "tier4": "Is there a current concern about acting in a way that could harm someone or violate consent?",
+          "tier5": "Can a clinician promptly review current safety, consent, access to potential victims, and protective steps directly?"
+        }
+      ]
+    }
+  ],
+  "context": [
+    {
+      "id": "course",
+      "text": "Which description best fits the timing of these concerns?",
+      "choices": [
+        "Recent or abrupt change",
+        "Distinct recurring episodes",
+        "Longstanding or persistent pattern",
+        "Only in a particular situation",
+        "Unsure",
+        "Prefer to discuss privately"
+      ]
+    },
+    {
+      "id": "duration",
+      "text": "For the pattern you are describing, how long has a typical uninterrupted period lasted?",
+      "choices": [
+        "Hours or less",
+        "Several days",
+        "Several weeks",
+        "Several months",
+        "A year or longer",
+        "Varies between different patterns",
+        "Unsure",
+        "Prefer to discuss privately"
+      ]
+    },
+    {
+      "id": "onset",
+      "text": "When did you first notice this pattern?",
+      "choices": [
+        "In early development or childhood",
+        "During adolescence",
+        "During adulthood",
+        "Recently, after a change in health or circumstances",
+        "Unsure",
+        "Prefer to discuss privately"
+      ]
+    },
+    {
+      "id": "impact",
+      "text": "Have these concerns caused personal distress or interfered with everyday functioning?",
+      "choices": [
+        "Yes",
+        "No",
+        "Unsure",
+        "Prefer to discuss privately"
+      ]
+    },
+    {
+      "id": "medical",
+      "text": "Could a medical condition, injury, pain, or sleep problem be contributing?",
+      "choices": [
+        "Yes",
+        "No",
+        "Unsure",
+        "Prefer to discuss privately"
+      ]
+    },
+    {
+      "id": "substance",
+      "text": "Could medications, alcohol, other substances, or changes in their use be contributing?",
+      "choices": [
+        "Yes",
+        "No",
+        "Unsure",
+        "Prefer to discuss privately"
+      ]
+    },
+    {
+      "id": "overlap",
+      "text": "Could these concerns be part of another emotional, developmental, cultural, or situational pattern already discussed?",
+      "choices": [
+        "Yes",
+        "No",
+        "Unsure",
+        "Prefer to discuss privately"
+      ]
+    }
+  ],
+  "clarification": [
+    {
+      "id": "timeline",
+      "text": "Can you distinguish when each concern began and whether the patterns occurred together or separately?"
+    },
+    {
+      "id": "context",
+      "text": "Have possible medical, medication, substance, developmental, and situational explanations been reviewed with a qualified clinician?"
+    },
+    {
+      "id": "evidence",
+      "text": "Are prior records or observations available, with your permission, to help clarify the pattern?"
+    }
+  ],
+  "sources": [
+    "https://www.psychiatry.org/psychiatrists/practice/dsm/educational-resources/assessment-measures",
+    "https://www.nimh.nih.gov/health/topics",
+    "https://medlineplus.gov/mentaldisorders.html"
+  ],
+  "sourceNote": "Sources support general assessment boundaries only; they do not validate these original prompts, candidate coverage, routing, or diagnostic accuracy."
+}

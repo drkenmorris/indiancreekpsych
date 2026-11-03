@@ -337,6 +337,7 @@ export default function GenericLevel2Module({ config }: { config: GenericLevel2C
             <button type="button" disabled={remaining>0} onClick={()=>completeModule({...evaluation,safetyFlag:!!evaluation.safetyBox})}>Complete module</button>
             {message&&<p role="status">{message}</p>}
             {remaining>0&&<p>Screening findings are provisional while responses are incomplete.</p>}
+            {remaining===0&&<>
             <div style={{ fontSize: 13, lineHeight: 1.4, marginBottom: 10 }}>{remaining===0?evaluation.summary:'Complete the rating questions to review the screening finding.'}</div>
 
             <div style={{ fontSize: 12, opacity: 0.85, marginBottom: 10 }}>
@@ -357,6 +358,8 @@ export default function GenericLevel2Module({ config }: { config: GenericLevel2C
                 </ul>
               </div>
             ) : null}
+
+            </>}
 
             <div style={{ marginTop: 12, fontSize: 12, opacity: 0.75 }}>
               {level1Info ? (

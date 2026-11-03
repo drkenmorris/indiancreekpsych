@@ -365,6 +365,7 @@ export default function Level2DepressionModule() {
             {message&&<p role="status">{message}</p>}
             {remaining>0&&<p>Screening findings are provisional while responses are incomplete.</p>}
 
+            {remaining===0&&<>
             <div style={{ fontSize: 13, lineHeight: 1.4, marginBottom: 10 }}>{remaining===0?results.summary:'Complete the rating questions to review the screening finding.'}</div>
 
             <div style={{ fontSize: 12, opacity: 0.85, marginBottom: 10 }}>
@@ -395,6 +396,8 @@ export default function Level2DepressionModule() {
                 </ul>
               </div>
             ) : null}
+
+            </>}
 
             <div style={{ marginTop: 12, fontSize: 12, opacity: 0.75 }}>
               {level1Info ? (

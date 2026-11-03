@@ -1,6 +1,6 @@
 {
   "id": "icps-original-differential-followup",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "population": "adult18plus",
   "status": "UNVALIDATED_PROTOTYPE",
   "scope": "Original candidate-area interview prompts, not a complete DSM criteria assessment or an APA instrument. Candidate labels are discussion areas, not diagnoses. No diagnostic scoring or probability.",
@@ -103,8 +103,8 @@
         {
           "id": "depressive-1",
           "label": "Major depressive disorder",
-          "tier3": "Have there been distinct stretches of depressed mood or loss of interest with several other changes from your usual functioning?",
-          "tier4": "Do these stretches have recognizable starts and ends rather than being your nearly constant baseline?",
+          "tier3": "Have low mood or loss of interest occurred together with other changes from your usual functioning?",
+          "tier4": "During the same stretch of low mood or lost interest, did the other changes occur together rather than at unrelated times?",
           "tier5": "Have any periods of unusually increased energy or reduced need for sleep occurred separately from the low periods?"
         },
         {

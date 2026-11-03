@@ -1,3 +1,4 @@
+import {reconcileCandidate} from './formulation';
 import bank from './differential-definition.json';
 import version from './differential-version.json';
 import {clinicalSessionStore as store} from '../clinicalSessionStore';
@@ -27,7 +28,7 @@ export function differentialState(plan=activePlan(),records=progressRecords(plan
  const source=JSON.stringify([version.sha256,version.routingSha256,plan.key,plan.handoff.routedDomains.map(id=>[id,records[id]])]),saved=stored(source);
  for(const d of bank.domains.filter(d=>plan.handoff.routedDomains.includes(d.id))){
   const title=plan.handoff.domains.find(x=>x.id===d.id)?.title??d.id;
-  const evidence=records[d.id].definition.items.filter(q=>typeof records[d.id].answers[q.id]==='number'&&Number(records[d.id].answers[q.id])>0).map(q=>q.text);
+  const evidence=records[d.id].definition.items.filter(q=>!q.id.startsWith('evidence:')&&typeof records[d.id].answers[q.id]==='number'&&(q.responseLabels?.[0]==='0 — No'?records[d.id].answers[q.id]===1:Number(records[d.id].answers[q.id])>0&&Number(records[d.id].answers[q.id])<5)).map(q=>q.text);
   stages[3].push(unit(3,d.id,title,d.candidates.map(c=>candidateQuestion(c.id,c.tier3)),[evidence.length?`Tier 2 recorded nonzero responses for ${evidence.length} items. Exact answers remain in the report.`:'Tier 1 selected this area; Tier 2 did not record a nonzero rating. Clarify the difference rather than assume the area is excluded.'],JSON.stringify([3,d.id]),saved));
  }
  if(stages[3].every(u=>u.complete))for(const u of stages[3]){
@@ -63,5 +64,5 @@ export function saveFollowup(stage:Stage,id:string,answers:Record<string,string>
 export function differentialReport(plan=activePlan(),records=progressRecords(plan)){
  const state=differentialState(plan,records);
  return {definition:bank,definitionHash:version.sha256,routingHash:version.routingSha256,status:!state.ready?'Awaiting completed adult Tier 2':state.complete?'Follow-up completed; clinician review required':'Follow-up in progress',diagnosesConfirmed:false,clinicalReviewRequired:true,
-  stages:state.stages,candidates:state.stages[3].flatMap(u=>bank.domains.find(d=>d.id===u.id)!.candidates.map(c=>({domain:u.id,id:c.id,label:c.label,tier3Question:c.tier3,tier3Answer:u.record.answers[c.id]??'Not answered',tier5Question:c.tier5,tier5Answer:state.stages[5].find(x=>x.id===u.id)?.record.answers[c.id]??'Not asked / not answered',tier4Question:c.tier4,tier4Answer:state.stages[4].find(x=>x.id===u.id)?.record.answers[c.id]??'Not asked / not answered',status:u.record.answers[c.id]==='Yes'?(!u.complete?'Draft endorsement; follow-up incomplete':state.stages[4].find(x=>x.id===u.id)?.record.answers[c.id]==='No'?'Mixed evidence; distinguishing follow-up not endorsed':'Candidate area for clinician evaluation'):u.record.answers[c.id]==='No'?'Not endorsed in this prompt; not ruled out':'Unresolved / not assessed'})))};
+  stages:state.stages,candidates:state.stages[3].flatMap(u=>bank.domains.find(d=>d.id===u.id)!.candidates.map(c=>({domain:u.id,id:c.id,label:c.label,tier3Question:c.tier3,tier3Answer:u.record.answers[c.id]??'Not answered',tier5Question:c.tier5,tier5Answer:state.stages[5].find(x=>x.id===u.id)?.record.answers[c.id]??'Not asked / not answered',tier4Question:c.tier4,tier4Answer:state.stages[4].find(x=>x.id===u.id)?.record.answers[c.id]??'Not asked / not answered',status:u.record.answers[c.id]==='Yes'?(!u.complete?'Draft endorsement; follow-up incomplete':state.stages[4].find(x=>x.id===u.id)?.record.answers[c.id]==='No'?'Mixed evidence; distinguishing follow-up not endorsed':'Candidate area for clinician evaluation'):u.record.answers[c.id]==='No'?'Not endorsed in this prompt; not ruled out':'Unresolved / not assessed'}))).map(reconcileCandidate)};
 }

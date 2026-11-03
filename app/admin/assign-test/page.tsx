@@ -7,7 +7,7 @@ export const metadata={title:"Assign Psychological Test | Indian Creek"};
 export default async function AssignTestPage(){
   await patientAccess(true,"/admin/assign-test");
   return <main className="authPage assignmentPage emrAssignmentPage">
-    <div className="assignmentWrap"><div className="emrAssignmentBanner"><span>Indian Creek Psychological Services · Clinical workspace</span><a href="https://emr-workflow-demo.vercel.app/?module=questionnaires" target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">Open EMR</a></div>
+    <div className="assignmentWrap"><div className="emrAssignmentBanner"><span>Indian Creek Psychological Services · Clinical workspace</span><a href="/emr" target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">Open EMR</a></div>
       <div className="assignmentTop">
         <Link href="/admin/questionnaires">← Questionnaire Center</Link> <Link href="/admin/paubox-test">Paubox Email Diagnostic</Link>
         <p className="eyebrow">Administrator · MFA required</p>

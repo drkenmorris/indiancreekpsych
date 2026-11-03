@@ -31,7 +31,7 @@ These are transparent descriptive review rules, not validated diagnostic decisio
 
 The bank is broad and original, not exhaustive: several branches combine related diagnoses, personality patterns do not differentiate every individual disorder, and full criterion-level requirements, subtypes, specifiers and exclusion logic are not implemented. A clinician must complete appropriate assessment and determine diagnoses. No sensitivity, specificity, probability, calibrated confidence, or diagnostic validity is asserted. More tiers alone do not establish accuracy.
 
-The adolescent and parent/guardian Tier 1 versions remain selectable, but deeper youth assessments require separate development and validation. Adult questions are not reused for youth. Existing auth/MFA and administrator-only access remain unchanged. All records stay in the current browser session's memory; a full refresh clears them. No PHI, production clinical storage, patient/provider identity mapping, automatic provider delivery or EMR write is authorized or implemented. User/provider/EMR report copies are independently cloned fictional preparations.
+The adolescent and parent/guardian Tier 1 versions remain selectable, but deeper youth assessments require separate development and validation. Adult questions are not reused for youth. Existing auth/MFA and administrator-only access remain unchanged. Unlinked previews remain transient. The owner has since authorized the central patient and DSM record connection described in DSM-CENTRAL-RECORDS.md. Automatic provider email delivery and patient self-administration remain disabled. User/provider/EMR report copies are independently cloned fictional preparations.
 
 ## Evidence and validation
 

@@ -99,9 +99,7 @@ export default function AccountClient({
           <>
             <Link className="accountPrimaryLink" href="/clinical-tests">Psychological Tests and Questionnaires</Link>
             <Link className="accountPrimaryLink" href="/admin/assign-test">Assign Psychological Test</Link>
-            <a className="accountPrimaryLink" href="https://emr-workflow-demo.vercel.app" target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">
-              Open EMR Demo (opens in new tab)
-            </a>
+            <Link className="accountPrimaryLink" href="/emr">Open EMR — Central patient records</Link>
           </>
         )}
         {(accountType === "admin" || accountType === "staff") && (

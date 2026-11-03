@@ -1,6 +1,6 @@
 import bank from './review-definition.json';
 import provenance from './review-version.json';
-import {clinicalSessionStore as store} from '../clinicalSessionStore';
+import {clinicalSessionStore as store,type ClinicalSessionStore} from '../clinicalSessionStore';
 import {activePlan,progressRecords,type ModuleRecord} from './tier-two-progress';
 import {differentialReport} from './differential';
 import {answerLabel} from './evidence';
@@ -11,11 +11,11 @@ type ReviewRecord={answers:Record<string,string>;example:string;notes:string;com
 type Disposition={status:string;rationale:string};
 type Saved={source:string;domains:Record<string,ReviewRecord>;dispositions:Record<string,Disposition>};
 function validDate(value:string){return value===''||/^\d{4}-\d{2}-\d{2}$/.test(value)&&!Number.isNaN(Date.parse(value))&&new Date(value).toISOString().slice(0,10)===value&&value<=new Date().toISOString().slice(0,10);}
-function saved(source:string):Saved{try{const d=JSON.parse(store.getItem(REVIEW_KEY)||'null');if(d?.source===source&&d.domains&&d.dispositions)return d;}catch{}return {source,domains:{},dispositions:{}};}
-export function reviewState(plan=activePlan(),records:Record<string,ModuleRecord>=progressRecords(plan)){
- const report=differentialReport(plan,records),candidates=report.candidates.map(reconcileCandidate);
+function saved(source:string,storage:ClinicalSessionStore=store):Saved{try{const d=JSON.parse(storage.getItem(REVIEW_KEY)||'null');if(d?.source===source&&d.domains&&d.dispositions)return d;}catch{}return {source,domains:{},dispositions:{}};}
+export function reviewState(plan=activePlan(),records:Record<string,ModuleRecord>=progressRecords(plan),storage:ClinicalSessionStore=store){
+ const report=differentialReport(plan,records,storage),candidates=report.candidates.map(reconcileCandidate);
  const ready=plan?.profile.id==='adult'&&report.status==='Follow-up completed; clinician review required';
- const source=JSON.stringify([provenance,plan?.key,report.stages,records]),data=saved(source);
+ const source=JSON.stringify([provenance,plan?.key,report.stages,records]),data=saved(source,storage);
  const domains=ready?bank.domains.filter(d=>plan!.handoff.routedDomains.includes(d.id)).map(d=>{
   const questions=[...d.questions,...bank.common];const raw=data.domains[d.id];const answers:Record<string,string>={};
   for(const q of questions)if(raw?.answers&&q.choices.includes(raw.answers[q.id]))answers[q.id]=raw.answers[q.id];
@@ -58,4 +58,4 @@ export function reviewState(plan=activePlan(),records:Record<string,ModuleRecord
 }
 export function saveReview(id:string,record:ReviewRecord,complete=false){const state=reviewState(),d=state.domains.find(d=>d.id===id);if(!d||!validDate(record.onsetDate??'')||!validDate(record.eventDate??'')||typeof record.example!=='string'||typeof record.notes!=='string'||record.example.length>2000||record.notes.length>2000||Object.entries(record.answers).some(([id,v])=>!d.questions.some(q=>q.id===id&&q.choices.includes(v)))||complete&&d.questions.some(q=>!(q.id in record.answers)))return false;const data=saved(state.source);data.domains[id]={...record,completedAt:complete?new Date().toISOString():null};data.dispositions={};store.setItem(REVIEW_KEY,JSON.stringify(data));return true;}
 export function saveDisposition(id:string,status:string,rationale:string){const s=reviewState();if(!s.complete||!s.candidates.some(c=>c.id===id)||!dispositions.includes(status)||!rationale.trim()||rationale.length>2000)return false;const data=saved(s.source);data.dispositions[id]={status,rationale};store.setItem(REVIEW_KEY,JSON.stringify(data));return true;}
-export function preparedReview(plan=activePlan(),records:Record<string,ModuleRecord>=progressRecords(plan)){const s=reviewState(plan,records);const directReviewFlags:string[]=[];if(s.domains.some(d=>d.id==='neurocognitive'&&d.record.answers['branch-1']==='Sudden onset or marked short-term fluctuation'))directReviewFlags.push('A sudden or fluctuating change in thinking/awareness was reported; direct medical assessment is needed.');if(s.candidates.some(c=>c.id==='paraphilic_screen-2'&&c.tier5Answer==='Yes'))directReviewFlags.push('A current consent/harm concern was reported; direct professional safety assessment is needed.');return {directReviewFlags,version:bank.version,provenance:s.provenance,status:!s.ready?'Awaiting adult follow-up':s.complete?'Clarification completed; clinician disposition remains separate':'Clarification in progress',candidates:s.candidates,domains:s.domains,clinicianDrafts:s.reviews,diagnosesConfirmed:false,liveTransferEnabled:false};}
+export function preparedReview(plan=activePlan(),records:Record<string,ModuleRecord>=progressRecords(plan),storage:ClinicalSessionStore=store){const s=reviewState(plan,records,storage);const directReviewFlags:string[]=[];if(s.domains.some(d=>d.id==='neurocognitive'&&d.record.answers['branch-1']==='Sudden onset or marked short-term fluctuation'))directReviewFlags.push('A sudden or fluctuating change in thinking/awareness was reported; direct medical assessment is needed.');if(s.candidates.some(c=>c.id==='paraphilic_screen-2'&&c.tier5Answer==='Yes'))directReviewFlags.push('A current consent/harm concern was reported; direct professional safety assessment is needed.');return {directReviewFlags,version:bank.version,provenance:s.provenance,status:!s.ready?'Awaiting adult follow-up':s.complete?'Clarification completed; clinician disposition remains separate':'Clarification in progress',candidates:s.candidates,domains:s.domains,clinicianDrafts:s.reviews,diagnosesConfirmed:false,liveTransferEnabled:false};}

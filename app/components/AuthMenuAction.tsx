@@ -82,9 +82,7 @@ export default function AuthMenuAction({ compact = false }: { compact?: boolean 
       {!compact && accountRole === "admin" && <Link href="/clinical-tests">Psychological Tests</Link>}
       {accountRole === "admin" && <AdministratorSections />}
       {!compact && accountRole === "admin" && (
-        <a href="https://emr-workflow-demo.vercel.app" target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">
-          EMR Demo (opens in new tab)
-        </a>
+        <Link href="/emr">EMR — Central patient records</Link>
       )}
       {((!compact && accountRole === "admin") || accountRole === "staff") && (
         <Link href="/admin/questionnaires">Patient Questionnaires</Link>

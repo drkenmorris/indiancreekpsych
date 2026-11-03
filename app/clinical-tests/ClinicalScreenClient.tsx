@@ -1,6 +1,10 @@
 "use client";
-import type { ComponentType } from "react";
-import Level1ScreenerPlayground from "@/lib/clinical-tests/legacy/dev/Level1ScreenerPlayground";
+import {useEffect,useState,type ComponentType} from "react";
+import Link from "next/link";
+import TierOneScreen from "./TierOneScreen";
+import {clinicalSessionStore} from "@/lib/clinical-tests/clinicalSessionStore";
+import {HANDOFF_KEY,readHandoff} from "@/lib/clinical-tests/dsm/tier-one";
+import {MODULE_ORDER} from "@/lib/clinical-tests/legacy/dev/Level2Shared";
 import Level2NeurodevelopmentalModule from "@/lib/clinical-tests/legacy/dev/Level2NeurodevelopmentalModule";
 import Level2PsychoticModule from "@/lib/clinical-tests/legacy/dev/Level2PsychoticModule";
 import Level2BipolarModule from "@/lib/clinical-tests/legacy/dev/Level2BipolarModule";
@@ -22,7 +26,7 @@ import Level2PersonalityScreenModule from "@/lib/clinical-tests/legacy/dev/Level
 import Level2ParaphilicScreenModule from "@/lib/clinical-tests/legacy/dev/Level2ParaphilicScreenModule";
 
 const modules: Record<string, ComponentType> = {
-  "level1": Level1ScreenerPlayground,
+  "level1": TierOneScreen,
   "level2/neurodevelopmental": Level2NeurodevelopmentalModule,
   "level2/psychotic": Level2PsychoticModule,
   "level2/bipolar": Level2BipolarModule,
@@ -45,6 +49,13 @@ const modules: Record<string, ComponentType> = {
 };
 
 export default function ClinicalScreenClient({ screenKey }: { screenKey: string }) {
+  const [allowedKey,setAllowedKey]=useState('');
+  useEffect(()=>{
+    const payload=readHandoff(clinicalSessionStore.getItem(HANDOFF_KEY));
+    const domain=MODULE_ORDER.find(m=>m.path==='/dev/'+screenKey);
+    setAllowedKey(payload&&domain&&payload.routedDomains.includes(domain.domainId)?screenKey:'');
+  },[screenKey]);
+  if(screenKey!=='level1'&&allowedKey!==screenKey)return <section><h2>Start with Tier 1</h2><p>Complete Tier 1 and prepare its follow-up plan to open a selected Tier 2 domain. An unselected or unanswered domain is not ruled out; a clinician may decide on further assessment.</p><Link href="/clinical-tests/dev/level1">Open Tier 1 screening</Link></section>;
   const Component = modules[screenKey];
   if (!Component) return <p>That module is unavailable.</p>;
   return <Component />;

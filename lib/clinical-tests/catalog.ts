@@ -1,6 +1,6 @@
 /** Stable, server-safe routes for the DSM-aligned clinical prototype migration. */
 export const clinicalDevScreenList = [
-  ["level1", "DSM Level 1 — Domain Screener"],
+  ["level1", "Tier 1 — Adult 19-domain Screener"],
   ["level2/neurodevelopmental", "DSM Level 2 — Neurodevelopmental"],
   ["level2/psychotic", "DSM Level 2 — Psychotic"],
   ["level2/bipolar", "DSM Level 2 — Bipolar"],

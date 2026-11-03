@@ -1,4 +1,5 @@
 import {LEGAL_ROUTING_KEY,validateLegalRouting,parseLegalRouting} from './legal-routing';
+import {TRAUMA_CHECKLIST_KEY,validateTraumaHistory} from './trauma-history';
 import {validateLegalDates} from './legal-documents';
 import {MEDICAL_SUBSTANCE_KEY,validateMedicalSubstance} from './medical-substance';
 import {MEDICATION_ENTRIES_KEY,validateMedications,validateMedicationAllergies,allergyStatuses} from './medications';
@@ -10,6 +11,13 @@ export const retiredMentalHealthFields:readonly IntakeField[]=[
  ['psychiatric_hospitalizations','Psychiatric hospitalizations, crisis stabilization, or emergency evaluations','textarea'],
  ['prior_psychiatric_medications','Past psychiatric medications and response / side effects','textarea'],
  ['family_mental_health_history','Family history of mental health conditions, suicide, or substance-use problems','textarea']
+];
+
+export const retiredContextFields:readonly IntakeField[]=[
+  ['family_household','Current household, family, and important relationships','textarea'],['social_supports','Friends, family, community, faith, or other supports','textarea'],
+  ['education_history','Education, learning difficulties, or school concerns','textarea'],['employment_history','Employment / occupation and current work concerns','textarea'],
+  ['military_history','Military service / veteran status, if applicable','textarea'],['legal_history','Current or past legal involvement that may affect treatment','textarea'],
+  ['cultural_spiritual_factors','Cultural, spiritual, religious, identity, or community factors important to your care','textarea'],['strengths_interests','Personal strengths, interests, and coping resources','textarea']
 ];
 
 const yesNo=['No','Yes'] as const;
@@ -77,10 +85,7 @@ const originalIntakeSections:{title:string;description?:string;fields:readonly I
  ]},
  {title:'Trauma, family, social, educational, and occupational history',description:'Social context and life experiences can affect symptoms, coping, and treatment goals.',fields:[
   ['trauma_history','Significant trauma, abuse, loss, violence, or other adverse experiences you want your clinician to know about','textarea'],
-  ['family_household','Current household, family, and important relationships','textarea'],['social_supports','Friends, family, community, faith, or other supports','textarea'],
-  ['education_history','Education, learning difficulties, or school concerns','textarea'],['employment_history','Employment / occupation and current work concerns','textarea'],
-  ['military_history','Military service / veteran status, if applicable','textarea'],['legal_history','Current or past legal involvement that may affect treatment','textarea'],
-  ['cultural_spiritual_factors','Cultural, spiritual, religious, identity, or community factors important to your care','textarea'],['strengths_interests','Personal strengths, interests, and coping resources','textarea']
+  [TRAUMA_CHECKLIST_KEY,'Trauma History','trauma-history']
  ]},
  {title:'Communication and confidential-contact preferences',description:'Tell us how we may communicate with you. You may request reasonable alternative means or locations for confidential communications.',fields:[
   ['comm_phone_calls','May we call your primary phone?','select',true,yesNo],['comm_voicemail','May we leave voicemail?','select',true,yesNo],
@@ -182,10 +187,11 @@ export const requiredIntakeKeys=intakeSections.flatMap(section=>section.fields.f
 export function validateIntake(answers:IntakeAnswers,submit:boolean){
  for(const section of intakeSections)for(const f of section.fields){
   const value=answers[f[0]]??'';
-  if(f[0]!==TREATMENT_HISTORY_KEY&&f[0]!==MEDICATION_ENTRIES_KEY&&f[0]!==MEDICAL_SUBSTANCE_KEY&&value.length>8000)return `${f[1]} is too long.`;
+  if(f[0]!==TRAUMA_CHECKLIST_KEY&&f[0]!==TREATMENT_HISTORY_KEY&&f[0]!==MEDICATION_ENTRIES_KEY&&f[0]!==MEDICAL_SUBSTANCE_KEY&&value.length>8000)return `${f[1]} is too long.`;
   if(submit&&f[3]&&!(f[0]===LEGAL_ROUTING_KEY&&answers.legal_packet_version!=='2026-11-02-directory-1')&&!value.trim())return `Please complete: ${f[1]}.`;
  }
  const routingError=validateLegalRouting(answers[LEGAL_ROUTING_KEY]??'',submit&&answers.legal_packet_version==='2026-11-02-directory-1');if(routingError)return routingError;
+ const traumaError=validateTraumaHistory(answers[TRAUMA_CHECKLIST_KEY]??'');if(traumaError)return traumaError;
  const signatureDateError=validateLegalDates(answers);if(signatureDateError)return signatureDateError;
  const medicalError=validateMedicalSubstance(answers[MEDICAL_SUBSTANCE_KEY]??'');if(medicalError)return medicalError;
  const medicationError=validateMedications(answers[MEDICATION_ENTRIES_KEY]??'',submit)||validateMedicationAllergies(answers.medication_allergy_status??'',answers.medication_allergy_notes??'');if(medicationError)return medicationError;

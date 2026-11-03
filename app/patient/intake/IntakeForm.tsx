@@ -1,4 +1,5 @@
 'use client';
+import IntakeTraumaHistory from '@/app/components/IntakeTraumaHistory';
 import {FormEvent,useEffect,useMemo,useRef,useState} from 'react';
 import {createClient} from '@/lib/supabase/client';
 import IntakeLegalDirectory from '@/app/components/IntakeLegalDirectory';
@@ -77,6 +78,7 @@ export default function IntakeForm({userId,initial,defaults,preview=false}:{user
    <div className="intakeFields">{section.fields.map(field=>{
     const [key,label,type]=field;const required=field.length>3&&field[3];const options=(field.length>4?field[4]:[])??[];const cost=costFields.includes(key);
     if(type==='legal-routing')return <div key={key} className="intakeWide"><IntakeLegalDirectory value={answers[key]??''} onChange={v=>update(key,v)} onOpen={page=>setSectionIndex(page-1)} readOnly={submitted} preview={preview}/><h3>Communication and confidential-contact preferences</h3><p>Choose safe contact methods below. These preferences do not authorize a records release.</p></div>;
+    if(type==='trauma-history')return <div key={key} className="intakeWide"><IntakeTraumaHistory value={answers[key]??''} onChange={v=>update(key,v)} legacyAnswers={answers} readOnly={submitted}/></div>;
     if(type==='medical-substance')return <div key={key} className="intakeWide"><IntakeMedicalSubstance value={answers[key]??''} onChange={v=>update(key,v)} legacyAnswers={answers} readOnly={submitted}/></div>;
     if(type==='medications')return <div key={key} className="intakeWide"><IntakeMedications value={answers[key]??''} onChange={v=>update(key,v)} readOnly={submitted}/></div>;
     if(type==='treatment-history')return <div key={key} className="intakeWide"><IntakeTreatmentHistory value={answers[key]??''} onChange={v=>update(key,v)} readOnly={submitted}/></div>;

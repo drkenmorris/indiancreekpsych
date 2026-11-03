@@ -1,0 +1,110 @@
+{
+  "version": "1.1.0",
+  "title": "Trauma History",
+  "groups": [
+    {
+      "key": "experiences",
+      "label": "Experiences Reported",
+      "choices": [
+        "Physical assault or abuse",
+        "Sexual assault or abuse",
+        "Emotional or psychological abuse",
+        "Childhood neglect",
+        "Intimate-partner or domestic violence",
+        "Witnessed violence",
+        "Community violence or crime",
+        "Bullying or harassment",
+        "Serious accident or injury",
+        "Life-threatening illness or medical experience",
+        "Disaster or fire",
+        "War, combat or forced displacement",
+        "Traumatic or sudden loss",
+        "Discrimination or targeted violence",
+        "Exploitation or trafficking",
+        "Other distressing experience"
+      ]
+    },
+    {
+      "key": "timing",
+      "label": "Timing / Pattern",
+      "choices": [
+        "Childhood",
+        "Adolescence",
+        "Adulthood",
+        "Recent experience",
+        "Repeated or prolonged experiences",
+        "Ongoing exposure reported"
+      ]
+    },
+    {
+      "key": "exposure",
+      "label": "How the Patient Was Affected",
+      "choices": [
+        "Directly experienced",
+        "Witnessed in person",
+        "Learned about harm to a close person",
+        "Repeated exposure through work or caregiving",
+        "Multiple experiences / contexts"
+      ]
+    },
+    {
+      "key": "effects",
+      "label": "Current Effects Attributed by the Patient",
+      "choices": [
+        "Unwanted memories or reminders",
+        "Sleep affected by reminders",
+        "Avoidance of reminders",
+        "Feeling on guard or easily startled",
+        "Emotional numbness or detachment",
+        "Feeling disconnected or losing track of the present",
+        "Trust or relationship difficulties",
+        "Daily functioning affected"
+      ]
+    },
+    {
+      "key": "safety",
+      "label": "Current Safety Concerns Reported",
+      "choices": [
+        "Ongoing threat or exposure",
+        "Unwanted contact with a person associated with harm",
+        "Safety concerns in home or relationships",
+        "Safety concerns at work, school or in community",
+        "Immediate safety concern identified for clinician follow-up"
+      ]
+    },
+    {
+      "key": "supports",
+      "label": "Supports / Coping",
+      "choices": [
+        "Supportive person available",
+        "Grounding or calming strategies helpful",
+        "Spiritual, cultural or community support",
+        "Safe place or environment identified",
+        "Prior trauma-related care helpful",
+        "Support requested",
+        "Other coping or support"
+      ]
+    },
+    {
+      "key": "preferences",
+      "label": "Discussion / Treatment Preferences",
+      "choices": [
+        "Comfortable with general questions only",
+        "Wants to discuss further with clinician",
+        "Prefers to postpone discussion",
+        "Requests breaks or slower pacing",
+        "Requests explanation before questions or procedures",
+        "Interested in coping or stabilization skills",
+        "Interested in reviewing treatment options"
+      ]
+    }
+  ],
+  "notes": {
+    "context_notes": "Optional Context / Approximate Timing / Other Information",
+    "followup_notes": "Optional Clinician Follow-up / Patient Preferences",
+    "source_notes": "Source of History / Information Limits"
+  },
+  "exclusive": [],
+  "instructions": "Record only information the patient chooses to share. Check all applicable items; selections may concern different experiences or periods. Leave unassessed groups blank. A detailed account is not required.",
+  "limitations": "Original history documentation fields, not a scored or validated trauma assessment. Selections do not establish a diagnosis, verify an event or replace a clinician\u2019s safety assessment."
+}

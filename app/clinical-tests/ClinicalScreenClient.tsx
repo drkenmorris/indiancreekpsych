@@ -1,6 +1,7 @@
 "use client";
 import {useEffect,useState,type ComponentType} from "react";
 import Link from "next/link";
+import TierTwoFinalReport from "./TierTwoFinalReport";
 import TierOneScreen from "./TierOneScreen";
 import {clinicalSessionStore} from "@/lib/clinical-tests/clinicalSessionStore";
 import {HANDOFF_KEY,readHandoff} from "@/lib/clinical-tests/dsm/tier-one";
@@ -27,6 +28,7 @@ import Level2ParaphilicScreenModule from "@/lib/clinical-tests/legacy/dev/Level2
 
 const modules: Record<string, ComponentType> = {
   "level1": TierOneScreen,
+  "summary": TierTwoFinalReport,
   "level2/neurodevelopmental": Level2NeurodevelopmentalModule,
   "level2/psychotic": Level2PsychoticModule,
   "level2/bipolar": Level2BipolarModule,
@@ -55,7 +57,7 @@ export default function ClinicalScreenClient({ screenKey }: { screenKey: string 
     const domain=MODULE_ORDER.find(m=>m.path==='/dev/'+screenKey);
     setAllowedKey(payload&&domain&&payload.routedDomains.includes(domain.domainId)?screenKey:'');
   },[screenKey]);
-  if(screenKey!=='level1'&&allowedKey!==screenKey)return <section><h2>Start with Tier 1</h2><p>Complete Tier 1 and prepare its follow-up plan to open a selected Tier 2 domain. An unselected or unanswered domain is not ruled out; a clinician may decide on further assessment.</p><Link href="/clinical-tests/dev/level1">Open Tier 1 screening</Link></section>;
+  if(screenKey!=='level1'&&screenKey!=='summary'&&allowedKey!==screenKey)return <section><h2>Start with Tier 1</h2><p>Complete Tier 1 and prepare its follow-up plan to open a selected Tier 2 domain. An unselected or unanswered domain is not ruled out; a clinician may decide on further assessment.</p><Link href="/clinical-tests/dev/level1">Open Tier 1 screening</Link></section>;
   const Component = modules[screenKey];
   if (!Component) return <p>That module is unavailable.</p>;
   return <Component />;

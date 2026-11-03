@@ -1,0 +1,14 @@
+import {runInContext} from 'node:vm';
+import {test} from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';import {execFileSync} from 'node:child_process';import {JSDOM} from 'jsdom';
+const fixture=JSON.parse(execFileSync('python3',['-c',`import importlib.util,json
+s=importlib.util.spec_from_file_location('tests','tests/emr-workflow-engine.test.py');m=importlib.util.module_from_spec(s);s.loader.exec_module(m)
+r=m.Repo();print(json.dumps({'pid':r.pid,'boot':m.m.process({'patientId':r.pid,'path':'/api/bootstrap'},r)['value'],'chart':m.m.process({'patientId':r.pid,'path':'/api/chart'},r)['value']}))`],{encoding:'utf8'}));
+await test('actual hosted forms and global navigation render against central patient transport',async()=>{
+ const html=readFileSync('public/emr-assets/index.html','utf8').replace(/<script[^>]*><\/script>/g,'');const dom=new JSDOM(html,{url:'https://www.indiancreekpsych.com/emr/workspace?patient='+fixture.pid+'&module=demographics',runScripts:'outside-only'}),w=dom.window,errors=[];
+ w.matchMedia=()=>({matches:false,addEventListener(){}});w.HTMLElement.prototype.scrollIntoView=function(){};w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;};w.confirm=()=>false;
+ w.addEventListener('error',e=>errors.push(e.message));w.fetch=async(url,options)=>{let value;if(options?.body){const p=JSON.parse(options.body);assert.equal(p.patientId,fixture.pid);assert.equal(p.state,undefined);value={value:p.path==='/api/bootstrap'?fixture.boot:p.path.startsWith('/api/chart')?fixture.chart:{group:{name:'Permission pending',roster:[]},sessions:[]},revision:0};}else value={me:{id:'fictional-provider',is_admin:true,profile:{first_name:'Fictional',last_name:'Provider'}}};return {ok:true,status:200,json:async()=>value};};
+ for(const f of ['planner.js','navigation.js','patients.js','module-menu.js','providers.js','menu-completion.js','navigation-menus.js','app.js','production.js'])runInContext(readFileSync('public/emr-assets/'+f,'utf8'),dom.getInternalVMContext());
+ await new Promise(r=>setTimeout(r,100));assert.equal(errors.length,0,errors.join(';'));assert.match(w.document.querySelector('#chart-header').textContent,/Fictional Example/);assert.match(w.document.querySelector('#main-modules').textContent,/Administration/);
+ for(const [module,key,text] of [['personal','insurance','Insurance information'],['assessment','biopsychosocial','Current Symptom Checklist'],['notes','record_history','Record history']]){runInContext(`chooseSection(${JSON.stringify(module)},${JSON.stringify(key)});render();`,dom.getInternalVMContext());await new Promise(r=>setTimeout(r,20));assert.match(w.document.querySelector('#content').textContent,new RegExp(text,'i'));}
+ assert.equal(errors.length,0,errors.join(';'));assert.equal(w.localStorage.getItem('emr-web-demo-v1'),null);dom.window.close();
+});

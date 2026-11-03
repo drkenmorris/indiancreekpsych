@@ -1,0 +1,42 @@
+{
+  "telehealth": {
+    "page": 15,
+    "form_id": "telehealth",
+    "text": "If Yes: complete page 15, Telehealth Informed Consent, before your first telehealth appointment."
+  },
+  "electronic": {
+    "page": 16,
+    "form_id": "electronic",
+    "text": "If Yes: complete page 16, Electronic Communications and Patient Portal. Your individual contact preferences are still recorded separately."
+  },
+  "minor": {
+    "page": 17,
+    "form_id": "representative",
+    "text": "If Yes: review page 17, Legal Representative and Minor Consent, with the office so it can determine who may consent and sign. Being under 18 does not by itself establish another person\u2019s authority."
+  },
+  "representative": {
+    "page": 17,
+    "form_id": "representative",
+    "text": "If Yes: complete page 17, Legal Representative and Minor Consent. The office must verify the representative\u2019s legal authority before relying on the signature."
+  },
+  "release": {
+    "page": 18,
+    "form_id": "release",
+    "text": "If Yes: complete page 18, Authorization to Share Health Information, only if you choose to authorize that specific release. This form is optional for routine therapy."
+  },
+  "part2": {
+    "page": 19,
+    "form_id": "part2",
+    "text": "If Yes: contact the office to review page 19, Optional Consent for Part 2 Substance-Use Records, and complete it if the office confirms it applies. This is not a routine Indian Creek requirement."
+  },
+  "sud_notes": {
+    "page": 20,
+    "form_id": "sud_notes",
+    "text": "If Yes: contact the office to review page 20, Separate Consent for SUD Counseling Notes, and complete it only for the applicable, specific disclosure you choose to authorize."
+  },
+  "psychotherapy_notes": {
+    "page": 21,
+    "form_id": "psychotherapy_notes",
+    "text": "If Yes: review page 21, Separate Authorization for Psychotherapy Notes. Complete it only if you choose to authorize a specific release of these specially protected notes."
+  }
+}

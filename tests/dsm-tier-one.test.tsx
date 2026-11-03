@@ -2,7 +2,7 @@ import React from 'react';
 import {afterEach,expect,test,vi} from 'vitest';
 import {cleanup,render,screen,fireEvent,within,waitFor} from '@testing-library/react';
 import {createHash} from 'node:crypto';
-import TierOneScreen from '@/app/clinical-tests/TierOneScreen';
+import {TierOneQuestionnaire as TierOneScreen} from '@/app/clinical-tests/TierOneScreen';
 import {TIER_ONE as D,DEFINITION_SHA256,HANDOFF_KEY,DRAFT_KEY,domainResults,evaluateTierOne,createHandoff,readHandoff,type Answers} from '@/lib/clinical-tests/dsm/tier-one';
 import {clinicalSessionStore as store} from '@/lib/clinical-tests/clinicalSessionStore';
 vi.mock('next/navigation',()=>({useRouter:()=>({push:vi.fn()})}));

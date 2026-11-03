@@ -1,0 +1,417 @@
+{
+  "id": "icps-parent-domain-triage",
+  "version": "1.0.0",
+  "routingVersion": "1.0.0",
+  "population": "Parent/guardian observation report, child ages 6–17",
+  "status": "ORIGINAL_UNVALIDATED_CLINICIAN_REVIEW_REQUIRED",
+  "instructions": "Choose one response for each statement. Consider the past month unless the statement asks about earlier or longstanding patterns. Current or past concerns select areas for age-appropriate follow-up. Unsure and private responses need a clinician's review and are not counted as No. This original questionnaire does not diagnose a condition. Answer only from your observations or what the child has shared; do not guess about private experiences. A caregiver report does not replace the child's own confidential conversation with a clinician.",
+  "choices": [
+    "No",
+    "Yes, currently",
+    "Yes, in the past",
+    "Not observed / do not know",
+    "Prefer to discuss privately"
+  ],
+  "safetyChoices": [
+    "No",
+    "Yes",
+    "Not observed / do not know",
+    "Prefer to discuss privately"
+  ],
+  "safety": [
+    {
+      "id": "safety_self",
+      "text": "In the past month, has the child said, shown or done anything suggesting suicide, not wanting to be alive or intentional self-harm?"
+    },
+    {
+      "id": "safety_others",
+      "text": "In the past month, has the child expressed thoughts or urges to seriously harm someone else?"
+    },
+    {
+      "id": "safety_now",
+      "text": "Right now, are you concerned that the child may act on harmful thoughts, be in danger or be unable to stay safe?"
+    }
+  ],
+  "domains": [
+    {
+      "id": "neurodev",
+      "title": "Attention, learning and social communication",
+      "path": "level2/neurodevelopmental",
+      "instructions": "Consider the child's developmental stage and behavior across home, school, play and relationships. Use Not observed / do not know when unsure.",
+      "questions": [
+        {
+          "id": "neurodev_1",
+          "text": "The child has difficulty with attention, organization or activity across everyday situations."
+        },
+        {
+          "id": "neurodev_2",
+          "text": "The child has longstanding difficulty learning reading, writing, mathematics or age-expected everyday skills."
+        },
+        {
+          "id": "neurodev_3",
+          "text": "Social communication, sensory differences or repetitive routines create difficulties for which the child may need support."
+        }
+      ]
+    },
+    {
+      "id": "psychotic",
+      "title": "Unusual perceptions and beliefs",
+      "path": "level2/psychotic",
+      "instructions": "Consider the child's developmental stage and behavior across home, school, play and relationships. Use Not observed / do not know when unsure. Consider experiences while fully awake; ordinary imaginative play and culturally shared beliefs alone do not indicate a disorder.",
+      "questions": [
+        {
+          "id": "psychotic_1",
+          "text": "While fully awake, the child reports hearing, seeing or sensing things that others do not seem to experience."
+        },
+        {
+          "id": "psychotic_2",
+          "text": "The child describes feeling watched, controlled or threatened in ways that concern me."
+        },
+        {
+          "id": "psychotic_3",
+          "text": "The child's thinking or speech sometimes becomes so hard to follow that communication or everyday activities are affected."
+        }
+      ]
+    },
+    {
+      "id": "bipolar",
+      "title": "Periods of unusually high energy",
+      "path": "level2/bipolar",
+      "instructions": "Consider the child's developmental stage and behavior across home, school, play and relationships. Use Not observed / do not know when unsure.",
+      "questions": [
+        {
+          "id": "bipolar_1",
+          "text": "The child has had a distinct period of unusually elevated or irritable mood together with much more energy or activity than usual."
+        },
+        {
+          "id": "bipolar_2",
+          "text": "During a high-energy period, the child slept much less than usual without appearing tired."
+        },
+        {
+          "id": "bipolar_3",
+          "text": "During a high-energy period, unusually fast speech, thoughts or risky actions caused concern or consequences."
+        }
+      ]
+    },
+    {
+      "id": "depressive",
+      "title": "Low mood and loss of interest",
+      "path": "level2/depression",
+      "instructions": "Consider the child's developmental stage and behavior across home, school, play and relationships. Use Not observed / do not know when unsure.",
+      "questions": [
+        {
+          "id": "depressive_1",
+          "text": "The child seems persistently sad, withdrawn, hopeless or unusually irritable."
+        },
+        {
+          "id": "depressive_2",
+          "text": "The child has lost interest in friends, play or activities they usually enjoy."
+        },
+        {
+          "id": "depressive_3",
+          "text": "Low mood, low energy or strong self-criticism interferes with the child's everyday life."
+        }
+      ]
+    },
+    {
+      "id": "anxiety",
+      "title": "Worry, fear and panic",
+      "path": "level2/anxiety",
+      "instructions": "Consider the child's developmental stage and behavior across home, school, play and relationships. Use Not observed / do not know when unsure.",
+      "questions": [
+        {
+          "id": "anxiety_1",
+          "text": "The child shows worry or fear that is hard to settle."
+        },
+        {
+          "id": "anxiety_2",
+          "text": "The child has sudden episodes of intense fear or panic, sometimes with strong physical sensations."
+        },
+        {
+          "id": "anxiety_3",
+          "text": "Fear leads the child to avoid school, activities, other people or separation from caregivers."
+        }
+      ]
+    },
+    {
+      "id": "ocd_related",
+      "title": "Intrusive thoughts and repetitive behaviors",
+      "path": "level2/ocd",
+      "instructions": "Consider the child's developmental stage and behavior across home, school, play and relationships. Use Not observed / do not know when unsure.",
+      "questions": [
+        {
+          "id": "ocd_related_1",
+          "text": "The child reports repeated unwanted thoughts or seems troubled by thoughts they cannot set aside."
+        },
+        {
+          "id": "ocd_related_2",
+          "text": "The child feels driven to repeat actions or mental routines such as checking, washing, counting or asking for reassurance."
+        },
+        {
+          "id": "ocd_related_3",
+          "text": "Difficulty discarding, appearance worries, skin picking or hair pulling causes distress or problems for the child."
+        }
+      ]
+    },
+    {
+      "id": "trauma",
+      "title": "Reactions to trauma and major stress",
+      "path": "level2/trauma",
+      "instructions": "Consider the child's developmental stage and behavior across home, school, play and relationships. Use Not observed / do not know when unsure.",
+      "questions": [
+        {
+          "id": "trauma_1",
+          "text": "Following a frightening or overwhelming experience, the child has unwanted memories, nightmares or repeated distress linked to it."
+        },
+        {
+          "id": "trauma_2",
+          "text": "After a difficult experience, the child avoids reminders, seems emotionally cut off or stays unusually watchful or easily startled."
+        },
+        {
+          "id": "trauma_3",
+          "text": "After major stress, change or loss, changes in the child's feelings or behavior interfere with everyday life."
+        }
+      ]
+    },
+    {
+      "id": "dissociative",
+      "title": "Detachment and gaps in awareness",
+      "path": "level2/dissociative",
+      "instructions": "Consider the child's developmental stage and behavior across home, school, play and relationships. Use Not observed / do not know when unsure.",
+      "questions": [
+        {
+          "id": "dissociative_1",
+          "text": "The child describes feeling detached from their body or surroundings, or things seeming unreal."
+        },
+        {
+          "id": "dissociative_2",
+          "text": "The child has unexplained gaps in memory for important events beyond ordinary forgetting."
+        },
+        {
+          "id": "dissociative_3",
+          "text": "Changes in the child's awareness or sense of self cause confusion or distress."
+        }
+      ]
+    },
+    {
+      "id": "somatic",
+      "title": "Physical symptoms and health-related distress",
+      "path": "level2/somatic",
+      "instructions": "Consider the child's developmental stage and behavior across home, school, play and relationships. Use Not observed / do not know when unsure. Physical symptoms need appropriate medical attention; do not assume they are psychological.",
+      "questions": [
+        {
+          "id": "somatic_1",
+          "text": "Physical symptoms cause substantial distress or interfere with the child's activities."
+        },
+        {
+          "id": "somatic_2",
+          "text": "The child spends substantial time worrying about health or bodily sensations."
+        },
+        {
+          "id": "somatic_3",
+          "text": "Repeated symptom checking, reassurance seeking or health-related avoidance is difficult for the child to manage."
+        }
+      ]
+    },
+    {
+      "id": "eating",
+      "title": "Eating and body-related concerns",
+      "path": "level2/eating",
+      "instructions": "Consider the child's developmental stage and behavior across home, school, play and relationships. Use Not observed / do not know when unsure.",
+      "questions": [
+        {
+          "id": "eating_1",
+          "text": "Restricted eating or food avoidance may affect the child's growth, nutrition, health or daily life."
+        },
+        {
+          "id": "eating_2",
+          "text": "The child has out-of-control eating or tries to compensate through vomiting, medication misuse or excessive exercise."
+        },
+        {
+          "id": "eating_3",
+          "text": "Concerns about food or body size, or eating nonfood substances, cause problems for the child."
+        }
+      ]
+    },
+    {
+      "id": "elimination",
+      "title": "Bladder and bowel concerns",
+      "path": "level2/elimination",
+      "instructions": "Consider the child's developmental stage and behavior across home, school, play and relationships. Use Not observed / do not know when unsure.",
+      "questions": [
+        {
+          "id": "elimination_1",
+          "text": "The child has repeated wetting or urinary-control difficulties beyond what is expected for their developmental stage."
+        },
+        {
+          "id": "elimination_2",
+          "text": "The child has repeated soiling or bowel-control difficulties beyond what is expected for their developmental stage."
+        },
+        {
+          "id": "elimination_3",
+          "text": "Bladder or bowel difficulties cause the child distress, avoidance or disruption."
+        }
+      ]
+    },
+    {
+      "id": "sleep",
+      "title": "Sleep and daytime alertness",
+      "path": "level2/sleep",
+      "instructions": "Consider the child's developmental stage and behavior across home, school, play and relationships. Use Not observed / do not know when unsure.",
+      "questions": [
+        {
+          "id": "sleep_1",
+          "text": "The child has trouble falling asleep, staying asleep or waking at intended times."
+        },
+        {
+          "id": "sleep_2",
+          "text": "The child is very sleepy during the day or not rested despite enough opportunity to sleep."
+        },
+        {
+          "id": "sleep_3",
+          "text": "Breathing interruptions, unusual movements or behaviors during sleep, or a disrupted schedule affect the child."
+        }
+      ]
+    },
+    {
+      "id": "sexual_dysfunction",
+      "title": "Body development and private well-being",
+      "path": "level2/sexual-dysfunction",
+      "instructions": "Consider the child's developmental stage and behavior across home, school, play and relationships. Use Not observed / do not know when unsure. Do not record explicit details. This is a support screen, not an adult sexual-function assessment.",
+      "questions": [
+        {
+          "id": "sexual_dysfunction_1",
+          "text": "The child has concerns about body development or private-body well-being that may benefit from a clinician's support."
+        },
+        {
+          "id": "sexual_dysfunction_2",
+          "text": "The child has reported or shown pain or physical discomfort involving private parts of the body."
+        },
+        {
+          "id": "sexual_dysfunction_3",
+          "text": "Body-related worries or discomfort interfere with the child's everyday life."
+        }
+      ]
+    },
+    {
+      "id": "gender_dysphoria",
+      "title": "Gender-related distress and support",
+      "path": "level2/gender-dysphoria",
+      "instructions": "Consider the child's developmental stage and behavior across home, school, play and relationships. Use Not observed / do not know when unsure. Gender identity or expression is not itself a symptom; these questions concern distress and requested support.",
+      "questions": [
+        {
+          "id": "gender_dysphoria_1",
+          "text": "The child has expressed distress about a mismatch between their experienced gender and aspects of their body or assigned sex."
+        },
+        {
+          "id": "gender_dysphoria_2",
+          "text": "Being treated as a gender that does not fit the child's experience causes distress."
+        },
+        {
+          "id": "gender_dysphoria_3",
+          "text": "The child may need support with gender-related stress, social pressure, bullying or discrimination."
+        }
+      ]
+    },
+    {
+      "id": "impulse_conduct",
+      "title": "Anger and impulse control",
+      "path": "level2/impulse-conduct",
+      "instructions": "Consider the child's developmental stage and behavior across home, school, play and relationships. Use Not observed / do not know when unsure.",
+      "questions": [
+        {
+          "id": "impulse_conduct_1",
+          "text": "The child has anger outbursts or aggressive actions that are hard to control."
+        },
+        {
+          "id": "impulse_conduct_2",
+          "text": "Repeated impulsive actions harm the child, other people, property or important responsibilities."
+        },
+        {
+          "id": "impulse_conduct_3",
+          "text": "Repeated serious conflicts, deception or rule violations create problems across home, school or other settings."
+        }
+      ]
+    },
+    {
+      "id": "substance",
+      "title": "Alcohol, drugs and gambling",
+      "path": "level2/substance",
+      "instructions": "Consider the child's developmental stage and behavior across home, school, play and relationships. Use Not observed / do not know when unsure.",
+      "questions": [
+        {
+          "id": "substance_1",
+          "text": "I am concerned about the child's use of alcohol, nicotine, drugs or medications outside their intended use."
+        },
+        {
+          "id": "substance_2",
+          "text": "Substance use, cravings or possible withdrawal affects the child's health, safety, relationships or responsibilities."
+        },
+        {
+          "id": "substance_3",
+          "text": "Gambling or betting seems difficult for the child to control or has caused problems."
+        }
+      ]
+    },
+    {
+      "id": "neurocognitive",
+      "title": "Changes in thinking and previously learned skills",
+      "path": "level2/neurocognitive",
+      "instructions": "Consider the child's developmental stage and behavior across home, school, play and relationships. Use Not observed / do not know when unsure.",
+      "questions": [
+        {
+          "id": "neurocognitive_1",
+          "text": "The child's memory, attention or thinking has declined from their earlier level of functioning."
+        },
+        {
+          "id": "neurocognitive_2",
+          "text": "Changes in language, judgment, navigation or problem solving interfere with the child's everyday tasks."
+        },
+        {
+          "id": "neurocognitive_3",
+          "text": "The child shows confusion or has lost abilities they previously had."
+        }
+      ]
+    },
+    {
+      "id": "personality_screen",
+      "title": "Developing coping and relationship patterns",
+      "path": "level2/personality",
+      "instructions": "Consider the child's developmental stage and behavior across home, school, play and relationships. Use Not observed / do not know when unsure. This does not assign a personality disorder; developmental context and clinical review are essential.",
+      "questions": [
+        {
+          "id": "personality_screen_1",
+          "text": "Persistent patterns of conflict, mistrust or withdrawal disrupt the child's relationships across situations."
+        },
+        {
+          "id": "personality_screen_2",
+          "text": "Ongoing difficulty managing emotions, impulses or sense of self creates problems beyond what seems expected for the child's development."
+        },
+        {
+          "id": "personality_screen_3",
+          "text": "Repeated coping patterns interfere with relationships, school or home life and may need support."
+        }
+      ]
+    },
+    {
+      "id": "paraphilic_screen",
+      "title": "Body boundaries and sexual safety",
+      "path": "level2/paraphilic",
+      "instructions": "Consider the child's developmental stage and behavior across home, school, play and relationships. Use Not observed / do not know when unsure. Do not record explicit details. This does not assign a paraphilic diagnosis or infer abuse; discuss concerns directly with a qualified clinician.",
+      "questions": [
+        {
+          "id": "paraphilic_screen_1",
+          "text": "The child has shown or reported distress about sexual thoughts, experiences or boundary-related behavior that needs a private clinical discussion."
+        },
+        {
+          "id": "paraphilic_screen_2",
+          "text": "I am concerned about sexual behavior involving pressure, force, harm or another person unable or unwilling to agree."
+        },
+        {
+          "id": "paraphilic_screen_3",
+          "text": "The child may need support with body boundaries, sexual safety or controlling behavior that could harm someone."
+        }
+      ]
+    }
+  ]
+}

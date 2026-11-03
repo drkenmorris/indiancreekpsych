@@ -1,0 +1,417 @@
+{
+  "id": "icps-adolescent-domain-triage",
+  "version": "1.0.0",
+  "routingVersion": "1.0.0",
+  "population": "Adolescent self-report, ages 11–17",
+  "status": "ORIGINAL_UNVALIDATED_CLINICIAN_REVIEW_REQUIRED",
+  "instructions": "Choose one response for each statement. Consider the past month unless the statement asks about earlier or longstanding patterns. Current or past concerns select areas for age-appropriate follow-up. Unsure and private responses need a clinician's review and are not counted as No. This original questionnaire does not diagnose a condition.",
+  "choices": [
+    "No",
+    "Yes, currently",
+    "Yes, in the past",
+    "Unsure",
+    "Prefer to discuss privately"
+  ],
+  "safetyChoices": [
+    "No",
+    "Yes",
+    "Unsure",
+    "Prefer to discuss privately"
+  ],
+  "safety": [
+    {
+      "id": "safety_self",
+      "text": "In the past month, have you thought about ending your life, not wanting to be alive or hurting yourself on purpose?"
+    },
+    {
+      "id": "safety_others",
+      "text": "In the past month, have you thought about or wanted to seriously hurt someone else?"
+    },
+    {
+      "id": "safety_now",
+      "text": "Right now, are you worried that you might act on harmful thoughts or cannot keep yourself or someone else safe?"
+    }
+  ],
+  "domains": [
+    {
+      "id": "neurodev",
+      "title": "Attention, learning and social communication",
+      "path": "level2/neurodevelopmental",
+      "instructions": "Think about school, home, friendships and activities. You may choose a private discussion instead of giving details.",
+      "questions": [
+        {
+          "id": "neurodev_1",
+          "text": "I have trouble paying attention, staying organized or managing my activity at school or at home."
+        },
+        {
+          "id": "neurodev_2",
+          "text": "Reading, writing, mathematics or learning everyday skills has been difficult for me for a long time."
+        },
+        {
+          "id": "neurodev_3",
+          "text": "Social communication, sensory experiences or repeated routines are difficult for me and I would like support."
+        }
+      ]
+    },
+    {
+      "id": "psychotic",
+      "title": "Unusual perceptions and beliefs",
+      "path": "level2/psychotic",
+      "instructions": "Think about school, home, friendships and activities. You may choose a private discussion instead of giving details. Consider experiences while fully awake; ordinary imaginative play and culturally shared beliefs alone do not indicate a disorder.",
+      "questions": [
+        {
+          "id": "psychotic_1",
+          "text": "When I am fully awake, I hear, see or sense things that other people do not seem to notice."
+        },
+        {
+          "id": "psychotic_2",
+          "text": "I feel watched, controlled or threatened in a way that is hard to explain to people I trust."
+        },
+        {
+          "id": "psychotic_3",
+          "text": "My thoughts get so mixed up that I have trouble talking clearly or getting everyday things done."
+        }
+      ]
+    },
+    {
+      "id": "bipolar",
+      "title": "Periods of unusually high energy",
+      "path": "level2/bipolar",
+      "instructions": "Think about school, home, friendships and activities. You may choose a private discussion instead of giving details.",
+      "questions": [
+        {
+          "id": "bipolar_1",
+          "text": "I have had a period when my mood and energy were much higher or more irritable than usual for me."
+        },
+        {
+          "id": "bipolar_2",
+          "text": "During a high-energy period, I slept much less than usual without feeling tired."
+        },
+        {
+          "id": "bipolar_3",
+          "text": "During a high-energy period, my fast thoughts, talking or risky choices worried me or other people."
+        }
+      ]
+    },
+    {
+      "id": "depressive",
+      "title": "Low mood and loss of interest",
+      "path": "level2/depression",
+      "instructions": "Think about school, home, friendships and activities. You may choose a private discussion instead of giving details.",
+      "questions": [
+        {
+          "id": "depressive_1",
+          "text": "I feel sad, empty, hopeless or unusually irritable much of the time."
+        },
+        {
+          "id": "depressive_2",
+          "text": "I am less interested in friends, hobbies or other things I usually enjoy."
+        },
+        {
+          "id": "depressive_3",
+          "text": "Low mood or strong self-criticism makes school, home life or everyday tasks harder."
+        }
+      ]
+    },
+    {
+      "id": "anxiety",
+      "title": "Worry, fear and panic",
+      "path": "level2/anxiety",
+      "instructions": "Think about school, home, friendships and activities. You may choose a private discussion instead of giving details.",
+      "questions": [
+        {
+          "id": "anxiety_1",
+          "text": "Worry or fear is hard for me to control."
+        },
+        {
+          "id": "anxiety_2",
+          "text": "I have sudden spells of strong fear or panic, sometimes with a racing heart or trouble catching my breath."
+        },
+        {
+          "id": "anxiety_3",
+          "text": "Fear makes me avoid school, friends, activities or being away from people I depend on."
+        }
+      ]
+    },
+    {
+      "id": "ocd_related",
+      "title": "Intrusive thoughts and repetitive behaviors",
+      "path": "level2/ocd",
+      "instructions": "Think about school, home, friendships and activities. You may choose a private discussion instead of giving details.",
+      "questions": [
+        {
+          "id": "ocd_related_1",
+          "text": "Unwanted thoughts, pictures or urges keep coming into my mind and are hard to set aside."
+        },
+        {
+          "id": "ocd_related_2",
+          "text": "I feel I must repeat actions or mental routines, such as checking, washing, counting or asking for reassurance."
+        },
+        {
+          "id": "ocd_related_3",
+          "text": "Saving things, worries about appearance, skin picking or hair pulling causes problems or distress for me."
+        }
+      ]
+    },
+    {
+      "id": "trauma",
+      "title": "Reactions to trauma and major stress",
+      "path": "level2/trauma",
+      "instructions": "Think about school, home, friendships and activities. You may choose a private discussion instead of giving details.",
+      "questions": [
+        {
+          "id": "trauma_1",
+          "text": "After something frightening or overwhelming, upsetting memories or nightmares come back when I do not want them."
+        },
+        {
+          "id": "trauma_2",
+          "text": "After a difficult experience, I avoid reminders, feel cut off or stay very watchful or easily startled."
+        },
+        {
+          "id": "trauma_3",
+          "text": "After a major change, stress or loss, my feelings or behavior make everyday life harder."
+        }
+      ]
+    },
+    {
+      "id": "dissociative",
+      "title": "Detachment and gaps in awareness",
+      "path": "level2/dissociative",
+      "instructions": "Think about school, home, friendships and activities. You may choose a private discussion instead of giving details.",
+      "questions": [
+        {
+          "id": "dissociative_1",
+          "text": "I sometimes feel disconnected from my body or feelings, or things around me seem unreal."
+        },
+        {
+          "id": "dissociative_2",
+          "text": "I cannot remember important events or chunks of time beyond ordinary forgetting."
+        },
+        {
+          "id": "dissociative_3",
+          "text": "Changes in my sense of who I am or what is happening leave me confused or distressed."
+        }
+      ]
+    },
+    {
+      "id": "somatic",
+      "title": "Physical symptoms and health-related distress",
+      "path": "level2/somatic",
+      "instructions": "Think about school, home, friendships and activities. You may choose a private discussion instead of giving details. Physical symptoms need appropriate medical attention; do not assume they are psychological.",
+      "questions": [
+        {
+          "id": "somatic_1",
+          "text": "Physical symptoms make school, activities or daily life difficult."
+        },
+        {
+          "id": "somatic_2",
+          "text": "I spend a lot of time worrying about my health or sensations in my body."
+        },
+        {
+          "id": "somatic_3",
+          "text": "Checking symptoms, asking for reassurance or avoiding things because of health worries is hard to manage."
+        }
+      ]
+    },
+    {
+      "id": "eating",
+      "title": "Eating and body-related concerns",
+      "path": "level2/eating",
+      "instructions": "Think about school, home, friendships and activities. You may choose a private discussion instead of giving details.",
+      "questions": [
+        {
+          "id": "eating_1",
+          "text": "I eat too little or avoid foods in a way that could affect my growth, health or daily life."
+        },
+        {
+          "id": "eating_2",
+          "text": "Eating feels out of control, or I try to undo eating by vomiting, misusing medicine or exercising too much."
+        },
+        {
+          "id": "eating_3",
+          "text": "Worries about food or body size, or eating things that are not food, cause problems for me."
+        }
+      ]
+    },
+    {
+      "id": "elimination",
+      "title": "Bladder and bowel concerns",
+      "path": "level2/elimination",
+      "instructions": "Think about school, home, friendships and activities. You may choose a private discussion instead of giving details.",
+      "questions": [
+        {
+          "id": "elimination_1",
+          "text": "I have repeated wetting or trouble controlling urine, including while asleep."
+        },
+        {
+          "id": "elimination_2",
+          "text": "I have repeated soiling or trouble controlling bowel movements."
+        },
+        {
+          "id": "elimination_3",
+          "text": "Bladder or bowel difficulties make me avoid activities or feel worried or embarrassed."
+        }
+      ]
+    },
+    {
+      "id": "sleep",
+      "title": "Sleep and daytime alertness",
+      "path": "level2/sleep",
+      "instructions": "Think about school, home, friendships and activities. You may choose a private discussion instead of giving details.",
+      "questions": [
+        {
+          "id": "sleep_1",
+          "text": "I have trouble falling asleep, staying asleep or waking when I need to."
+        },
+        {
+          "id": "sleep_2",
+          "text": "I am very sleepy during the day or still feel tired after enough time in bed."
+        },
+        {
+          "id": "sleep_3",
+          "text": "Breathing problems, unusual movements or behaviors in sleep, or my sleep schedule worry me or affect my day."
+        }
+      ]
+    },
+    {
+      "id": "sexual_dysfunction",
+      "title": "Body development and private well-being",
+      "path": "level2/sexual-dysfunction",
+      "instructions": "Think about school, home, friendships and activities. You may choose a private discussion instead of giving details. Do not record explicit details. This is a support screen, not an adult sexual-function assessment.",
+      "questions": [
+        {
+          "id": "sexual_dysfunction_1",
+          "text": "I have private questions or worries about puberty, changes in my body or sexual well-being that I want to discuss with a clinician."
+        },
+        {
+          "id": "sexual_dysfunction_2",
+          "text": "Pain or physical discomfort involving private parts of my body concerns me."
+        },
+        {
+          "id": "sexual_dysfunction_3",
+          "text": "Worries about my body or sexual well-being interfere with everyday life or make me want help."
+        }
+      ]
+    },
+    {
+      "id": "gender_dysphoria",
+      "title": "Gender-related distress and support",
+      "path": "level2/gender-dysphoria",
+      "instructions": "Think about school, home, friendships and activities. You may choose a private discussion instead of giving details. Gender identity or expression is not itself a symptom; these questions concern distress and requested support.",
+      "questions": [
+        {
+          "id": "gender_dysphoria_1",
+          "text": "I feel distressed because aspects of my body or assigned sex do not fit my experience of my gender."
+        },
+        {
+          "id": "gender_dysphoria_2",
+          "text": "Being treated as a gender that does not fit my experience upsets me."
+        },
+        {
+          "id": "gender_dysphoria_3",
+          "text": "I want support with gender-related stress, pressure, bullying or discrimination."
+        }
+      ]
+    },
+    {
+      "id": "impulse_conduct",
+      "title": "Anger and impulse control",
+      "path": "level2/impulse-conduct",
+      "instructions": "Think about school, home, friendships and activities. You may choose a private discussion instead of giving details.",
+      "questions": [
+        {
+          "id": "impulse_conduct_1",
+          "text": "I have anger outbursts or aggressive actions that feel hard to control."
+        },
+        {
+          "id": "impulse_conduct_2",
+          "text": "I act on urges in ways that hurt myself, other people, property or things I need to do."
+        },
+        {
+          "id": "impulse_conduct_3",
+          "text": "Repeated serious conflicts, lying or rule breaking cause problems at home, school or elsewhere."
+        }
+      ]
+    },
+    {
+      "id": "substance",
+      "title": "Alcohol, drugs and gambling",
+      "path": "level2/substance",
+      "instructions": "Think about school, home, friendships and activities. You may choose a private discussion instead of giving details.",
+      "questions": [
+        {
+          "id": "substance_1",
+          "text": "I use alcohol, nicotine, cannabis, other drugs or medicine in a way that is hard to control."
+        },
+        {
+          "id": "substance_2",
+          "text": "Using substances, wanting to use them or feeling unwell without them affects my health, safety, school or relationships."
+        },
+        {
+          "id": "substance_3",
+          "text": "Gambling or betting feels hard to control or has caused problems."
+        }
+      ]
+    },
+    {
+      "id": "neurocognitive",
+      "title": "Changes in thinking and previously learned skills",
+      "path": "level2/neurocognitive",
+      "instructions": "Think about school, home, friendships and activities. You may choose a private discussion instead of giving details.",
+      "questions": [
+        {
+          "id": "neurocognitive_1",
+          "text": "My memory, attention or thinking has become worse than it used to be."
+        },
+        {
+          "id": "neurocognitive_2",
+          "text": "Changes in speaking, understanding, judgment or finding my way make everyday tasks harder."
+        },
+        {
+          "id": "neurocognitive_3",
+          "text": "I or someone who knows me well has noticed confusion or trouble doing things I could do before."
+        }
+      ]
+    },
+    {
+      "id": "personality_screen",
+      "title": "Developing coping and relationship patterns",
+      "path": "level2/personality",
+      "instructions": "Think about school, home, friendships and activities. You may choose a private discussion instead of giving details. This does not assign a personality disorder; developmental context and clinical review are essential.",
+      "questions": [
+        {
+          "id": "personality_screen_1",
+          "text": "Patterns of conflict, mistrust or pulling away keep causing problems in my relationships."
+        },
+        {
+          "id": "personality_screen_2",
+          "text": "Managing strong feelings, impulses or my sense of who I am is difficult across situations."
+        },
+        {
+          "id": "personality_screen_3",
+          "text": "I keep coping in ways that hurt relationships or school or home responsibilities, and I want help changing them."
+        }
+      ]
+    },
+    {
+      "id": "paraphilic_screen",
+      "title": "Body boundaries and sexual safety",
+      "path": "level2/paraphilic",
+      "instructions": "Think about school, home, friendships and activities. You may choose a private discussion instead of giving details. Do not record explicit details. This does not assign a paraphilic diagnosis or infer abuse; discuss concerns directly with a qualified clinician.",
+      "questions": [
+        {
+          "id": "paraphilic_screen_1",
+          "text": "Sexual thoughts, urges or experiences cause distress or make daily life difficult, and I want a private discussion."
+        },
+        {
+          "id": "paraphilic_screen_2",
+          "text": "I worry that I might cross another person's sexual boundaries or do something without their agreement."
+        },
+        {
+          "id": "paraphilic_screen_3",
+          "text": "I want help staying safe, respecting boundaries or managing sexual thoughts or urges."
+        }
+      ]
+    }
+  ]
+}

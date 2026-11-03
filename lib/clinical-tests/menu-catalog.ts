@@ -1,6 +1,6 @@
 /** Routes verified against the administrator-only migrated test workspace. */
 export const clinicalTestSuites = [
-  { key: "dsm", label: "DSM Screeners", short: "DSM", href: "/clinical-tests/dev/level1", area: "Screening", description: "Adult 19-domain Tier 1 screening with a targeted Tier 2 follow-up plan.", stages: "Tier 1 · selected Tier 2 · clinician review" },
+  { key: "dsm", label: "DSM Screeners", short: "DSM", href: "/clinical-tests/dev/level1", area: "Screening", description: "Adult, adolescent and parent/guardian Tier 1 versions with separate follow-up plans.", stages: "Tier 1 · selected Tier 2 · clinician review" },
   { key: "cseq", label: "CSEQ Self-Esteem", short: "CSEQ", href: "/clinical-tests/cseq", area: "Self-esteem", description: "Comprehensive Self-Esteem Quotient questionnaire and narrative results.", stages: "Questionnaire · Results" },
   { key: "asq", label: "ASQ / ASEQ Autism", short: "ASQ / ASEQ", href: "/clinical-tests/asq", area: "Autism", description: "Student, parent and teacher forms, combined results, records and support.", stages: "Seven sections" },
   { key: "srrci", label: "SRRCI-X Relationship", short: "SRRCI-X", href: "/clinical-tests/srrci", area: "Relationships", description: "Relationship registration, questionnaire, scoring and results.", stages: "Registration · Assessment · Results" },

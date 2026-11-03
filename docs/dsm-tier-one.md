@@ -24,3 +24,16 @@ The existing server-side patientAccess(true,...) gate remains intact. Synthetic-
 ## Validation
 
 Tests cover all19 current/past routes, all-No, missing, unsure/private, safety independence, invalid answers, hash consistency, forged/stale handoffs, actual60-response wizard completion, selected-only links, SPA return, edit invalidation and direct unselected-route rejection. Typecheck and production build are release requirements. Real patient testing and EMR/intake transfer remain deferred.
+
+
+## Youth versions and initial appropriateness selection — November 2, 2026
+
+The entry page now asks the age group and who is answering. Adult self-report remains18+; adolescent self-report covers11–17; parent/guardian report covers children6–17, with separate6–10/11–17 session metadata. Unsupported under6,6–10 self-report and adult caregiver combinations show a clinician-led assessment message rather than opening an unsuitable version. Age ranges are design choices informed by the APA's corresponding public age groupings, not validation of these original questions. No APA item text is used.
+
+Each original youth definition contains57domain questions plus3safety questions. School, home, play and developmental framing replace adult-only work and adult sexual-function/personality labels. Private-body well-being, body boundaries and developing coping patterns are support domains; they do not assign adult sexual or personality diagnoses or infer abuse. Caregivers answer only observations/what the child shared. “Not observed / do not know” is review-needed, never negative. A caregiver report cannot replace direct confidential clinical discussion with the child. No privacy/access-rights or mandatory-reporting conclusions are automated.
+
+All current/past concerns still prepare domain-specific follow-up and unknown/private responses still require review. Youth handoffs identify the original instrument ID/version/hash, respondent, patient age band, population confirmation and exact questions/answers. Adolescent and parent definitions have distinct immutable hashes. Adult definition/hash remains unchanged. Existing adult drafts remain readable.
+
+Draft and completed session keys are separated by version/respondent/age band. Changing version clears the active adult compatibility bridge and unmounts the previous questionnaire. Returning restores only that version's own draft/result. Adult selected Tier2 links restore the adult-only bridge; youth handoffs never enter it, and default adult handoff readers reject youth IDs/hashes. These in-memory separations are workflow controls in one fictional administrator session, not authenticated respondent confidentiality or multi-patient isolation.
+
+Youth completed reviews retain selected areas but do not open the adult Tier2 instruments. Developing and reviewing age-appropriate youth Tier2 questionnaires is the next phase. No patient intake embedding, authenticated clinical persistence or EMR transfer is introduced. Full refresh/tab close clears state.

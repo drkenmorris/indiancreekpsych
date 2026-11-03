@@ -1,0 +1,1062 @@
+{
+  "id": "icps-adult-structured-evidence",
+  "version": "2.0.0",
+  "status": "UNVALIDATED_ORIGINAL_PROTOTYPE",
+  "domains": [
+    {
+      "id": "anxiety",
+      "items": [
+        {
+          "id": "excessive_worry",
+          "title": "Persistent worry",
+          "text": "During the past several months, I have worried excessively about multiple areas of life more days than not.",
+          "kind": "frequency"
+        },
+        {
+          "id": "can_not_shut_off",
+          "title": "Hard to turn off",
+          "text": "Once I start worrying or feeling afraid, it is hard for me to shut it off or calm my mind.",
+          "kind": "frequency"
+        },
+        {
+          "id": "restless_keyed_up",
+          "title": "Restless or keyed up",
+          "text": "I often feel keyed up, restless, on edge, or unable to fully relax.",
+          "kind": "frequency"
+        },
+        {
+          "id": "muscle_tension",
+          "title": "Physical tension",
+          "text": "Anxiety often shows up in my body through tension, tight muscles, shakiness, stomach upset, or similar symptoms.",
+          "kind": "frequency"
+        },
+        {
+          "id": "panic_surges",
+          "title": "Sudden surges",
+          "text": "I have episodes where fear or discomfort suddenly rises quickly and feels overwhelming.",
+          "kind": "frequency"
+        },
+        {
+          "id": "physical_alarm",
+          "title": "Body alarm reaction",
+          "text": "During anxious moments, I may have a racing heart, shortness of breath, dizziness, sweating, or a feeling that something is very wrong.",
+          "kind": "frequency"
+        },
+        {
+          "id": "avoidance",
+          "title": "Avoiding because of fear",
+          "text": "I avoid places, situations, conversations, travel, or responsibilities because of fear, worry, or panic-like feelings.",
+          "kind": "frequency"
+        },
+        {
+          "id": "reassurance",
+          "title": "Repeated checking or reassurance",
+          "text": "I repeatedly seek reassurance, check things, or mentally review situations because I am afraid something bad will happen.",
+          "kind": "frequency"
+        },
+        {
+          "id": "sleep_disruption",
+          "title": "Sleep affected",
+          "text": "My anxiety has noticeably disrupted my sleep or made it hard to rest deeply.",
+          "kind": "frequency"
+        }
+      ]
+    },
+    {
+      "id": "bipolar",
+      "items": [
+        {
+          "id": "elevated_or_irritable",
+          "title": "Unusually up or irritable",
+          "text": "I have had clear periods where I felt unusually energized, intensely driven, unusually upbeat, or much more irritable than normal for me.",
+          "kind": "frequency"
+        },
+        {
+          "id": "less_sleep",
+          "title": "Needed much less sleep",
+          "text": "During those periods, I needed much less sleep than usual and still felt energized rather than tired.",
+          "kind": "frequency"
+        },
+        {
+          "id": "racing_thoughts",
+          "title": "Racing thoughts",
+          "text": "During those periods, my thoughts moved unusually fast or jumped rapidly from one thing to another.",
+          "kind": "frequency"
+        },
+        {
+          "id": "more_talkative",
+          "title": "More talkative",
+          "text": "During those periods, I talked much more than usual, felt pressure to keep talking, or found it hard to slow down.",
+          "kind": "frequency"
+        },
+        {
+          "id": "more_goal_directed",
+          "title": "Unusually driven or active",
+          "text": "During those periods, I became unusually productive, busy, restless, ambitious, or driven to start many things.",
+          "kind": "frequency"
+        },
+        {
+          "id": "restless_agitated",
+          "title": "Agitated or wound up",
+          "text": "During those periods, I felt internally revved up, physically agitated, or unable to settle.",
+          "kind": "frequency"
+        },
+        {
+          "id": "inflated_confidence",
+          "title": "Unusually confident",
+          "text": "During those periods, I felt unusually powerful, confident, important, gifted, or certain in ways that were noticeably above my baseline.",
+          "kind": "frequency"
+        },
+        {
+          "id": "impulsive_risky",
+          "title": "Risky or impulsive behavior",
+          "text": "During those periods, I made unusually impulsive or risky choices involving spending, sex, driving, business, substances, conflict, or major decisions.",
+          "kind": "frequency"
+        },
+        {
+          "id": "others_noticed_change",
+          "title": "Others noticed a change",
+          "text": "Other people noticed that I was acting very different from my usual self during these periods.",
+          "kind": "frequency"
+        }
+      ]
+    },
+    {
+      "id": "depressive",
+      "items": [
+        {
+          "id": "dep_mood",
+          "title": "Low mood",
+          "text": "During the past 2 weeks, I have felt down, sad, empty, or hopeless for much of the day.",
+          "kind": "frequency"
+        },
+        {
+          "id": "anhedonia",
+          "title": "Loss of interest",
+          "text": "During the past 2 weeks, I have lost interest or pleasure in activities I usually enjoy.",
+          "kind": "frequency"
+        },
+        {
+          "id": "sleep",
+          "title": "Sleep change",
+          "text": "During the past 2 weeks, my sleep has been noticeably different than usual (trouble falling asleep, waking often, waking too early, or sleeping much more).",
+          "kind": "frequency"
+        },
+        {
+          "id": "appetite",
+          "title": "Appetite or weight change",
+          "text": "During the past 2 weeks, my appetite has changed a lot (much less or much more), or my weight has noticeably changed (without trying).",
+          "kind": "frequency"
+        },
+        {
+          "id": "psychomotor",
+          "title": "Slowed down or restless",
+          "text": "During the past 2 weeks, I have felt slowed down (moving/speaking more slowly) or unusually restless/fidgety.",
+          "kind": "frequency"
+        },
+        {
+          "id": "fatigue",
+          "title": "Low energy",
+          "text": "During the past 2 weeks, I have had very low energy or fatigue most of the time.",
+          "kind": "frequency"
+        },
+        {
+          "id": "worthless_guilt",
+          "title": "Worthlessness or guilt",
+          "text": "During the past 2 weeks, I have felt worthless or excessively guilty (more than makes sense for the situation).",
+          "kind": "frequency"
+        },
+        {
+          "id": "concentration",
+          "title": "Focus or decisions",
+          "text": "During the past 2 weeks, I have had trouble concentrating, thinking clearly, or making decisions.",
+          "kind": "frequency"
+        },
+        {
+          "id": "death_thoughts",
+          "title": "Thoughts about death",
+          "text": "During the past 2 weeks, I have had frequent thoughts about death, wishing I wouldn’t wake up, or thoughts of harming myself.",
+          "kind": "frequency"
+        }
+      ]
+    },
+    {
+      "id": "dissociative",
+      "items": [
+        {
+          "id": "depersonalization",
+          "title": "Detached from self",
+          "text": "At times I feel detached from myself, as if I am observing myself from outside.",
+          "kind": "frequency"
+        },
+        {
+          "id": "derealization",
+          "title": "World feels unreal",
+          "text": "At times the world around me feels unreal, dreamlike, foggy, or distant.",
+          "kind": "frequency"
+        },
+        {
+          "id": "memory_gaps",
+          "title": "Memory gaps",
+          "text": "I have gaps in memory for things I should likely remember.",
+          "kind": "frequency"
+        },
+        {
+          "id": "lost_time",
+          "title": "Lost time",
+          "text": "I sometimes lose track of time or realize more time passed than I can account for.",
+          "kind": "frequency"
+        },
+        {
+          "id": "identity_shift",
+          "title": "Identity discontinuity",
+          "text": "At times I feel like different parts of me take over in ways that affect memory, behavior, or continuity.",
+          "kind": "frequency"
+        },
+        {
+          "id": "numbing_shutdown",
+          "title": "Numbing or shutdown",
+          "text": "When overwhelmed, I can go numb, blank, or mentally shut down.",
+          "kind": "frequency"
+        },
+        {
+          "id": "stress_triggered",
+          "title": "Stress-triggered",
+          "text": "These experiences tend to become stronger under stress, conflict, or trauma reminders.",
+          "kind": "frequency"
+        },
+        {
+          "id": "confusion_after",
+          "title": "Confusion afterward",
+          "text": "After these experiences, I may feel confused, disoriented, or uncertain about what happened.",
+          "kind": "frequency"
+        },
+        {
+          "id": "function_disruption",
+          "title": "Function disruption",
+          "text": "These experiences have disrupted work, relationships, safety, or daily responsibilities.",
+          "kind": "frequency"
+        }
+      ]
+    },
+    {
+      "id": "eating",
+      "items": [
+        {
+          "id": "restriction",
+          "title": "Restriction",
+          "text": "I restrict food, calories, or eating in ways that feel hard to control or increasingly rigid.",
+          "kind": "frequency"
+        },
+        {
+          "id": "fear_weight_gain",
+          "title": "Fear of weight gain",
+          "text": "Fear of gaining weight strongly influences my eating or behavior.",
+          "kind": "frequency"
+        },
+        {
+          "id": "body_preoccupation",
+          "title": "Body image preoccupation",
+          "text": "My self-worth is strongly affected by weight, shape, or body image.",
+          "kind": "frequency"
+        },
+        {
+          "id": "bingeing",
+          "title": "Binge-like eating",
+          "text": "I sometimes eat a large amount in a way that feels out of control.",
+          "kind": "frequency"
+        },
+        {
+          "id": "compensation",
+          "title": "Compensatory behavior",
+          "text": "I use unhealthy strategies to compensate for eating, such as purging, over-exercise, or strict correction afterward.",
+          "kind": "frequency"
+        },
+        {
+          "id": "guilt_after_eating",
+          "title": "Guilt or shame after eating",
+          "text": "After eating, I often feel intense guilt, shame, disgust, or panic.",
+          "kind": "frequency"
+        },
+        {
+          "id": "ritualized_eating",
+          "title": "Food rituals",
+          "text": "My eating has become unusually ritualized, rigid, rule-bound, or fear-driven.",
+          "kind": "frequency"
+        },
+        {
+          "id": "avoid_social_eating",
+          "title": "Avoiding eating with others",
+          "text": "I avoid meals, restaurants, or social eating situations because of anxiety, shame, or control concerns.",
+          "kind": "frequency"
+        },
+        {
+          "id": "health_consequence",
+          "title": "Physical consequences",
+          "text": "This pattern has affected my energy, mood, body functioning, or health.",
+          "kind": "frequency"
+        }
+      ]
+    },
+    {
+      "id": "elimination",
+      "items": [
+        {
+          "id": "urine_accidents",
+          "title": "Urine accidents",
+          "text": "I have repeated problems with bladder control when control would normally be expected.",
+          "kind": "frequency"
+        },
+        {
+          "id": "bowel_accidents",
+          "title": "Bowel accidents",
+          "text": "I have repeated problems with bowel control when control would normally be expected.",
+          "kind": "frequency"
+        },
+        {
+          "id": "urgency",
+          "title": "Urgency",
+          "text": "I feel strong urgency that is hard to control before accidents or near-accidents.",
+          "kind": "frequency"
+        },
+        {
+          "id": "avoidance",
+          "title": "Avoidance",
+          "text": "I avoid travel, activities, sleepovers, work, or social situations because of fear of accidents.",
+          "kind": "frequency"
+        },
+        {
+          "id": "embarrassment",
+          "title": "Embarrassment",
+          "text": "This pattern causes strong embarrassment, shame, or secrecy.",
+          "kind": "frequency"
+        },
+        {
+          "id": "planning_around_bathroom",
+          "title": "Planning around bathrooms",
+          "text": "My routines are heavily shaped by needing immediate access to bathrooms or extra precautions.",
+          "kind": "frequency"
+        },
+        {
+          "id": "sleep_disruption",
+          "title": "Sleep disruption",
+          "text": "This pattern disrupts sleep, bedding, or overnight comfort.",
+          "kind": "frequency"
+        }
+      ]
+    },
+    {
+      "id": "gender_dysphoria",
+      "items": [
+        {
+          "id": "incongruence",
+          "title": "Internal mismatch",
+          "text": "I experience a significant mismatch between my internal sense of gender and my body or assigned/socially expected gender.",
+          "kind": "frequency"
+        },
+        {
+          "id": "body_distress",
+          "title": "Body-related distress",
+          "text": "Parts of my body or physical sex characteristics cause significant distress or discomfort.",
+          "kind": "frequency"
+        },
+        {
+          "id": "social_role_distress",
+          "title": "Social-role distress",
+          "text": "Being treated as a gender that does not fit me causes strong distress or discomfort.",
+          "kind": "frequency"
+        },
+        {
+          "id": "wish_other_gender",
+          "title": "Wish for different embodiment",
+          "text": "I strongly wish aspects of my body or social gendered experience were different.",
+          "kind": "frequency"
+        },
+        {
+          "id": "identity_consistency",
+          "title": "Persistent identity concern",
+          "text": "This is not just occasional questioning; it has felt meaningful and persistent.",
+          "kind": "frequency"
+        },
+        {
+          "id": "avoidance",
+          "title": "Avoidance",
+          "text": "I avoid mirrors, clothing, social roles, intimacy, or settings that intensify this discomfort.",
+          "kind": "frequency"
+        },
+        {
+          "id": "mood_impact",
+          "title": "Mood impact",
+          "text": "This pattern contributes to sadness, anxiety, shame, or emotional distress.",
+          "kind": "frequency"
+        }
+      ]
+    },
+    {
+      "id": "impulse_conduct",
+      "items": [
+        {
+          "id": "anger_outbursts",
+          "title": "Anger outbursts",
+          "text": "I have repeated anger outbursts that feel excessive for the situation.",
+          "kind": "frequency"
+        },
+        {
+          "id": "aggression",
+          "title": "Aggression",
+          "text": "I become verbally or physically aggressive in ways I later regret.",
+          "kind": "frequency"
+        },
+        {
+          "id": "property_damage",
+          "title": "Damaging things",
+          "text": "I have damaged property, thrown things, or become physically destructive during anger or impulse states.",
+          "kind": "frequency"
+        },
+        {
+          "id": "rule_breaking",
+          "title": "Rule-breaking",
+          "text": "I knowingly break important rules, boundaries, or expectations despite consequences.",
+          "kind": "frequency"
+        },
+        {
+          "id": "deceit_manipulation",
+          "title": "Deceit or manipulation",
+          "text": "I use deception, concealment, or manipulation in ways that create problems.",
+          "kind": "frequency"
+        },
+        {
+          "id": "low_frustration_tolerance",
+          "title": "Low frustration tolerance",
+          "text": "I become intensely frustrated or reactive more quickly than seems typical.",
+          "kind": "frequency"
+        },
+        {
+          "id": "remorse_after",
+          "title": "Regret afterward",
+          "text": "Afterward I often feel regret, shame, or recognize I reacted badly.",
+          "kind": "frequency"
+        },
+        {
+          "id": "risk_impulses",
+          "title": "Risky impulses",
+          "text": "I act impulsively in ways that create conflict, danger, or serious consequences.",
+          "kind": "frequency"
+        }
+      ]
+    },
+    {
+      "id": "neurocognitive",
+      "items": [
+        {
+          "id": "memory_decline",
+          "title": "Memory decline",
+          "text": "My memory feels noticeably worse than it used to be.",
+          "kind": "frequency"
+        },
+        {
+          "id": "attention_decline",
+          "title": "Attention decline",
+          "text": "I am less able to sustain attention or keep track of tasks than before.",
+          "kind": "frequency"
+        },
+        {
+          "id": "word_finding",
+          "title": "Word-finding difficulty",
+          "text": "I more often struggle to find words or keep language clear.",
+          "kind": "frequency"
+        },
+        {
+          "id": "executive_decline",
+          "title": "Planning/executive difficulty",
+          "text": "Planning, judgment, sequencing, or problem-solving feels harder than before.",
+          "kind": "frequency"
+        },
+        {
+          "id": "orientation_confusion",
+          "title": "Disorientation",
+          "text": "I sometimes feel more confused about time, place, or what I was doing.",
+          "kind": "frequency"
+        },
+        {
+          "id": "slowed_thinking",
+          "title": "Slowed thinking",
+          "text": "My thinking feels slower or less efficient than it used to be.",
+          "kind": "frequency"
+        },
+        {
+          "id": "daily_task_errors",
+          "title": "Errors in daily tasks",
+          "text": "I make more mistakes in normal daily tasks than I used to.",
+          "kind": "frequency"
+        },
+        {
+          "id": "function_drop",
+          "title": "Drop in functioning",
+          "text": "My independence or overall functioning has dropped because of these changes.",
+          "kind": "frequency"
+        }
+      ]
+    },
+    {
+      "id": "neurodev",
+      "items": [
+        {
+          "id": "inattention",
+          "title": "Distractibility",
+          "text": "Since childhood, I have had persistent difficulty sustaining attention or staying on task.",
+          "kind": "occurrence"
+        },
+        {
+          "id": "organization",
+          "title": "Organization",
+          "text": "Planning, organizing, prioritizing, and following multi-step tasks has been persistently difficult for me.",
+          "kind": "occurrence"
+        },
+        {
+          "id": "forgetfulness",
+          "title": "Forgetfulness",
+          "text": "I frequently lose track of items, instructions, appointments, or responsibilities.",
+          "kind": "occurrence"
+        },
+        {
+          "id": "restlessness",
+          "title": "Restlessness",
+          "text": "I have often felt unusually restless, fidgety, or unable to stay still when expected.",
+          "kind": "occurrence"
+        },
+        {
+          "id": "impulsivity",
+          "title": "Impulsivity",
+          "text": "I often interrupt, act before thinking, or struggle to wait my turn.",
+          "kind": "occurrence"
+        },
+        {
+          "id": "social_cues",
+          "title": "Social cues",
+          "text": "Understanding social cues, tone, timing, or unspoken rules has often been harder for me than for peers.",
+          "kind": "occurrence"
+        },
+        {
+          "id": "rigidity",
+          "title": "Rigidity or sameness",
+          "text": "Changes in routine, unexpected transitions, or not knowing what to expect can be unusually stressful for me.",
+          "kind": "occurrence"
+        },
+        {
+          "id": "sensory",
+          "title": "Sensory sensitivity",
+          "text": "Noise, textures, lights, touch, or other sensory input can feel overwhelming or unusually intense for me.",
+          "kind": "occurrence"
+        },
+        {
+          "id": "learning_pattern",
+          "title": "Learning differences",
+          "text": "I have had longstanding unevenness in learning, processing speed, reading, writing, math, or communication.",
+          "kind": "occurrence"
+        }
+      ]
+    },
+    {
+      "id": "ocd_related",
+      "items": [
+        {
+          "id": "intrusive_thoughts",
+          "title": "Intrusive thoughts/images/urges",
+          "text": "I have unwanted thoughts, images, doubts, or urges that enter my mind repeatedly and feel disturbing or difficult to ignore.",
+          "kind": "frequency"
+        },
+        {
+          "id": "hard_to_dismiss",
+          "title": "Hard to dismiss",
+          "text": "When these intrusions show up, it feels hard to simply let them pass without reacting to them.",
+          "kind": "frequency"
+        },
+        {
+          "id": "checking",
+          "title": "Checking",
+          "text": "I repeatedly check things such as locks, appliances, messages, mistakes, safety, health, or whether I may have caused harm.",
+          "kind": "frequency"
+        },
+        {
+          "id": "cleaning_ordering",
+          "title": "Cleaning or arranging",
+          "text": "I feel driven to clean, wash, organize, or arrange things in a particular way to reduce discomfort or make things feel right.",
+          "kind": "frequency"
+        },
+        {
+          "id": "counting_repeating",
+          "title": "Counting or repeating",
+          "text": "I repeat actions, words, numbers, or routines until they feel complete, safe, or correct.",
+          "kind": "frequency"
+        },
+        {
+          "id": "mental_rituals",
+          "title": "Mental rituals",
+          "text": "I silently review, pray, cancel out thoughts, replay events, or mentally neutralize things to reduce anxiety.",
+          "kind": "frequency"
+        },
+        {
+          "id": "reassurance_seeking",
+          "title": "Reassurance",
+          "text": "I repeatedly ask others for reassurance, confirmation, or certainty because the doubt won’t settle.",
+          "kind": "frequency"
+        },
+        {
+          "id": "time_consuming",
+          "title": "Consumes time",
+          "text": "These thoughts or habits take a lot of time, energy, or mental space during the day.",
+          "kind": "frequency"
+        },
+        {
+          "id": "anxiety_if_resisted",
+          "title": "Anxiety if resisted",
+          "text": "If I try not to do the routine or not respond to the thought, my anxiety or discomfort rises noticeably.",
+          "kind": "frequency"
+        }
+      ]
+    },
+    {
+      "id": "paraphilic_screen",
+      "items": [
+        {
+          "id": "distressing_interest",
+          "title": "Distressing sexual interests",
+          "text": "Some sexual thoughts, fantasies, or urges feel distressing, unwanted, or hard to reconcile with my values.",
+          "kind": "frequency"
+        },
+        {
+          "id": "repetitive_preoccupation",
+          "title": "Preoccupation",
+          "text": "These thoughts or urges take up a lot of mental space or return repeatedly.",
+          "kind": "frequency"
+        },
+        {
+          "id": "loss_of_control",
+          "title": "Loss of control",
+          "text": "I feel I may not always have full control over these urges or behaviors.",
+          "kind": "frequency"
+        },
+        {
+          "id": "secrecy_shame",
+          "title": "Secrecy or shame",
+          "text": "This area is associated with significant secrecy, shame, or fear of exposure.",
+          "kind": "frequency"
+        },
+        {
+          "id": "relationship_impact",
+          "title": "Relationship impact",
+          "text": "This pattern has affected trust, intimacy, or relationship stability.",
+          "kind": "frequency"
+        },
+        {
+          "id": "functional_impact",
+          "title": "Functional impact",
+          "text": "This pattern affects work, concentration, daily life, or emotional stability.",
+          "kind": "frequency"
+        },
+        {
+          "id": "boundary_risk",
+          "title": "Boundary risk",
+          "text": "I worry this pattern could lead to crossing boundaries, acting unsafely, or causing harm.",
+          "kind": "frequency"
+        }
+      ]
+    },
+    {
+      "id": "personality_screen",
+      "items": [
+        {
+          "id": "relationship_instability",
+          "title": "Relationship instability",
+          "text": "My relationships have often been intense, unstable, conflictual, or repeatedly disrupted.",
+          "kind": "occurrence"
+        },
+        {
+          "id": "identity_instability",
+          "title": "Identity instability",
+          "text": "My sense of self, values, or direction can feel unstable or difficult to maintain.",
+          "kind": "occurrence"
+        },
+        {
+          "id": "rigidity",
+          "title": "Rigidity",
+          "text": "I tend to be unusually rigid, controlling, inflexible, or unable to adapt compared with others.",
+          "kind": "occurrence"
+        },
+        {
+          "id": "suspiciousness",
+          "title": "Suspiciousness",
+          "text": "I often feel guarded, mistrustful, or unsure of others’ motives.",
+          "kind": "occurrence"
+        },
+        {
+          "id": "emotional_instability",
+          "title": "Emotional instability",
+          "text": "My emotions can shift intensely or feel difficult to regulate.",
+          "kind": "occurrence"
+        },
+        {
+          "id": "avoidant_detached",
+          "title": "Detached or avoidant style",
+          "text": "I often keep distance, withdraw, or avoid closeness in ways that affect relationships.",
+          "kind": "occurrence"
+        },
+        {
+          "id": "attention_validation",
+          "title": "Attention or validation seeking",
+          "text": "I may strongly seek reassurance, admiration, attention, or emotional confirmation from others.",
+          "kind": "occurrence"
+        },
+        {
+          "id": "impulsivity",
+          "title": "Impulsivity",
+          "text": "I make impulsive choices that repeatedly create problems.",
+          "kind": "occurrence"
+        },
+        {
+          "id": "interpersonal_reactivity",
+          "title": "Strong interpersonal reactivity",
+          "text": "How others respond to me strongly affects my mood, self-image, or behavior.",
+          "kind": "occurrence"
+        }
+      ]
+    },
+    {
+      "id": "psychotic",
+      "items": [
+        {
+          "id": "voices",
+          "title": "Hearing things",
+          "text": "I have heard voices or sounds that others around me did not seem to hear.",
+          "kind": "frequency"
+        },
+        {
+          "id": "visions",
+          "title": "Seeing things",
+          "text": "I have seen things, shadows, figures, or visual events that others around me did not seem to see.",
+          "kind": "frequency"
+        },
+        {
+          "id": "strong_beliefs",
+          "title": "Fixed beliefs",
+          "text": "I have had beliefs that felt completely certain even when others strongly disagreed or said they were unlikely.",
+          "kind": "frequency"
+        },
+        {
+          "id": "suspiciousness",
+          "title": "Suspiciousness",
+          "text": "I have felt strongly that people were watching me, talking about me, or trying to harm me.",
+          "kind": "frequency"
+        },
+        {
+          "id": "thought_confusion",
+          "title": "Thought confusion",
+          "text": "My thoughts have at times felt jumbled, hard to organize, or hard to communicate clearly.",
+          "kind": "frequency"
+        },
+        {
+          "id": "thought_influence",
+          "title": "Thought influence",
+          "text": "I have felt as if thoughts were being inserted, removed, read, or influenced in unusual ways.",
+          "kind": "frequency"
+        },
+        {
+          "id": "flatness_withdrawal",
+          "title": "Withdrawal or flatness",
+          "text": "I have become markedly withdrawn, emotionally flat, or disconnected from normal life compared to my earlier self.",
+          "kind": "frequency"
+        },
+        {
+          "id": "disorganized_behavior",
+          "title": "Disorganized behavior",
+          "text": "Others may have seen me as acting very oddly, disorganized, or hard to follow.",
+          "kind": "frequency"
+        },
+        {
+          "id": "function_drop",
+          "title": "Drop in functioning",
+          "text": "My overall functioning has noticeably dropped during periods when these experiences were stronger.",
+          "kind": "frequency"
+        }
+      ]
+    },
+    {
+      "id": "sexual_dysfunction",
+      "items": [
+        {
+          "id": "low_desire",
+          "title": "Low desire",
+          "text": "I have persistent difficulty with sexual desire or interest compared with what feels normal for me.",
+          "kind": "frequency"
+        },
+        {
+          "id": "arousal_difficulty",
+          "title": "Arousal difficulty",
+          "text": "I have persistent difficulty becoming mentally or physically aroused.",
+          "kind": "frequency"
+        },
+        {
+          "id": "orgasm_difficulty",
+          "title": "Orgasm difficulty",
+          "text": "I have persistent difficulty reaching orgasm or climax.",
+          "kind": "frequency"
+        },
+        {
+          "id": "pain_discomfort",
+          "title": "Pain or discomfort",
+          "text": "Sexual activity is affected by pain, discomfort, or strong physical difficulty.",
+          "kind": "frequency"
+        },
+        {
+          "id": "avoidance",
+          "title": "Avoidance",
+          "text": "I avoid sexual contact or intimacy because of these concerns.",
+          "kind": "frequency"
+        },
+        {
+          "id": "distress",
+          "title": "Distress",
+          "text": "These concerns cause me meaningful frustration, sadness, shame, or distress.",
+          "kind": "frequency"
+        },
+        {
+          "id": "relationship_strain",
+          "title": "Relationship strain",
+          "text": "These concerns have created strain, misunderstanding, or conflict in my relationship(s).",
+          "kind": "frequency"
+        }
+      ]
+    },
+    {
+      "id": "sleep",
+      "items": [
+        {
+          "id": "falling_asleep",
+          "title": "Trouble falling asleep",
+          "text": "I often have significant trouble falling asleep.",
+          "kind": "frequency"
+        },
+        {
+          "id": "staying_asleep",
+          "title": "Trouble staying asleep",
+          "text": "I often wake during the night and struggle to return to sleep.",
+          "kind": "frequency"
+        },
+        {
+          "id": "early_waking",
+          "title": "Waking too early",
+          "text": "I often wake too early and cannot return to sleep.",
+          "kind": "frequency"
+        },
+        {
+          "id": "too_much_sleep",
+          "title": "Sleeping too much",
+          "text": "I may sleep far more than expected and still not feel restored.",
+          "kind": "frequency"
+        },
+        {
+          "id": "unrefreshing",
+          "title": "Unrefreshing sleep",
+          "text": "Even when I sleep enough hours, the sleep often does not feel refreshing.",
+          "kind": "frequency"
+        },
+        {
+          "id": "daytime_sleepiness",
+          "title": "Daytime sleepiness",
+          "text": "I struggle with sleepiness, fatigue, or nodding off during the day.",
+          "kind": "frequency"
+        },
+        {
+          "id": "sleep_anxiety",
+          "title": "Anxiety about sleep",
+          "text": "Worry about sleep itself has become part of the problem.",
+          "kind": "frequency"
+        },
+        {
+          "id": "safety_risk",
+          "title": "Safety or functioning risk",
+          "text": "Sleep problems have affected driving, concentration, work, or safety.",
+          "kind": "frequency"
+        }
+      ]
+    },
+    {
+      "id": "somatic",
+      "items": [
+        {
+          "id": "body_preoccupation",
+          "title": "Body preoccupation",
+          "text": "Physical symptoms or body sensations become a major focus of my attention.",
+          "kind": "frequency"
+        },
+        {
+          "id": "health_worry",
+          "title": "Health worry",
+          "text": "I often worry that normal sensations or minor symptoms could mean something serious.",
+          "kind": "frequency"
+        },
+        {
+          "id": "checking",
+          "title": "Checking",
+          "text": "I repeatedly monitor, inspect, or check my body for signs of illness.",
+          "kind": "frequency"
+        },
+        {
+          "id": "internet_research",
+          "title": "Searching for answers",
+          "text": "I spend significant time researching symptoms or illnesses online.",
+          "kind": "frequency"
+        },
+        {
+          "id": "reassurance",
+          "title": "Reassurance-seeking",
+          "text": "I repeatedly seek reassurance from others or providers about my health.",
+          "kind": "frequency"
+        },
+        {
+          "id": "catastrophic_interpretation",
+          "title": "Catastrophic interpretation",
+          "text": "I tend to quickly assume bodily symptoms could mean something severe or dangerous.",
+          "kind": "frequency"
+        },
+        {
+          "id": "avoidance",
+          "title": "Avoidance",
+          "text": "I avoid activities, foods, exercise, travel, or responsibilities because I fear symptoms or illness.",
+          "kind": "frequency"
+        },
+        {
+          "id": "distress_about_symptoms",
+          "title": "Distress",
+          "text": "Even when others are not alarmed, my symptoms cause me intense distress or fear.",
+          "kind": "frequency"
+        },
+        {
+          "id": "time_cost",
+          "title": "Time cost",
+          "text": "Health-related worry or checking takes a large amount of time or mental energy.",
+          "kind": "frequency"
+        }
+      ]
+    },
+    {
+      "id": "substance",
+      "items": [
+        {
+          "id": "more_than_intended",
+          "title": "More than intended",
+          "text": "I use more than I mean to, or for longer than I plan to.",
+          "kind": "frequency"
+        },
+        {
+          "id": "cut_down_failed",
+          "title": "Trouble cutting down",
+          "text": "I have tried to cut down or stop and found it difficult.",
+          "kind": "frequency"
+        },
+        {
+          "id": "craving",
+          "title": "Craving",
+          "text": "I experience strong urges or cravings to use.",
+          "kind": "frequency"
+        },
+        {
+          "id": "time_spent",
+          "title": "Time spent",
+          "text": "A significant amount of time goes into getting, using, recovering, or thinking about use.",
+          "kind": "frequency"
+        },
+        {
+          "id": "role_failure",
+          "title": "Responsibilities affected",
+          "text": "Use has caused problems in responsibilities or normal roles.",
+          "kind": "frequency"
+        },
+        {
+          "id": "continued_despite_harm",
+          "title": "Continued despite harm",
+          "text": "I continue despite physical, emotional, or relationship harm.",
+          "kind": "frequency"
+        },
+        {
+          "id": "tolerance",
+          "title": "Tolerance",
+          "text": "I need more than before to get the same effect, or the same amount affects me less.",
+          "kind": "frequency"
+        },
+        {
+          "id": "withdrawal",
+          "title": "Withdrawal or rebound",
+          "text": "When I cut down, I have uncomfortable rebound symptoms or feel driven to use again.",
+          "kind": "frequency"
+        },
+        {
+          "id": "unsafe_use",
+          "title": "Unsafe use",
+          "text": "Use has happened in dangerous, risky, or unsafe situations.",
+          "kind": "frequency"
+        }
+      ]
+    },
+    {
+      "id": "trauma",
+      "items": [
+        {
+          "id": "exposure",
+          "title": "Overwhelming event",
+          "text": "I have experienced one or more events that felt terrifying, violating, life-threatening, or deeply overwhelming.",
+          "kind": "occurrence"
+        },
+        {
+          "id": "intrusive_memories",
+          "title": "Unwanted memories",
+          "text": "The event comes back into my mind even when I do not want it to.",
+          "kind": "frequency"
+        },
+        {
+          "id": "nightmares",
+          "title": "Nightmares",
+          "text": "I have distressing dreams or sleep disruption connected to what happened.",
+          "kind": "frequency"
+        },
+        {
+          "id": "flashback_like",
+          "title": "Reliving or body reactivation",
+          "text": "At times it feels as if I am reliving part of it, or my body reacts as though the danger is happening again.",
+          "kind": "frequency"
+        },
+        {
+          "id": "avoidance",
+          "title": "Avoidance",
+          "text": "I avoid people, places, conversations, thoughts, or reminders connected to what happened.",
+          "kind": "frequency"
+        },
+        {
+          "id": "numbing_detachment",
+          "title": "Numb or detached",
+          "text": "I feel emotionally numb, disconnected, or less able to feel close to others than before.",
+          "kind": "frequency"
+        },
+        {
+          "id": "negative_beliefs",
+          "title": "Negative beliefs or shame",
+          "text": "Since what happened, I have carried strong blame, shame, or negative beliefs about myself, others, or the world.",
+          "kind": "frequency"
+        },
+        {
+          "id": "hypervigilance",
+          "title": "On guard",
+          "text": "I stay on guard, watchful, or tense as if danger could return at any time.",
+          "kind": "frequency"
+        },
+        {
+          "id": "startle_sleep_irritable",
+          "title": "Startle, sleep, or irritability",
+          "text": "I am more jumpy, irritable, or easily startled, and my sleep has often been affected.",
+          "kind": "frequency"
+        }
+      ]
+    }
+  ]
+}

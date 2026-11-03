@@ -21,4 +21,4 @@ export const clinicalDevScreenList = [
   ["level2/personality", "DSM Level 2 — Personality"],
   ["level2/paraphilic", "DSM Level 2 — Paraphilic"]
 ] as const;
-export const allowedScreenKeys: string[] = [...clinicalDevScreenList.map(([key]) => key),'summary','tier3','tier4','tier5'];
+export const allowedScreenKeys: string[] = [...clinicalDevScreenList.map(([key]) => key),'summary','tier3','tier4','tier5','tier6'];

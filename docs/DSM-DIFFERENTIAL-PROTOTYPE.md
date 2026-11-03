@@ -1,34 +1,44 @@
-# Adult differential follow-up prototype
+# Original adult assessment and formulation prototype
 
-Original Indian Creek question bank v0.1.0. Administrator-only, fictional validation. This is not an APA assessment measure, licensed DSM criteria implementation, exhaustive diagnostic interview, validated diagnostic model, or patient-facing clinical release.
+Release identity: structured adult evidence v2.0.0; follow-up bank v0.2.0; clarification/review v1.0.0. Administrator-only fictional preview. This is not an APA instrument, a complete DSM diagnostic interview, or a validated diagnostic system.
 
-## Coverage and sequence
+## Rebuilt adult workflow
 
-- All 19 adult Tier 1 domains retain their selected Tier 2 modules. All selected Tier 2 modules must be completed before deeper follow-up.
-- Tier 3: 65 original candidate-area prompts distributed across the 19 selected domains. Tier 2 exact answers remain available; nonzero item counts are routing context, not diagnostic scores. A Tier 1-selected domain with all-zero Tier 2 answers still gets reconciliation rather than silent exclusion.
-- Tier 4: one branch-specific distinguishing prompt for each Yes, Unsure, or private Tier 3 response, plus domain-level course, duration, onset, impairment, medical, substance/medication, and overlap questions. No is not an exclusion.
-- Tier 5: branch-specific further differentiation plus timeline, professional-context review, and collateral-information availability. Selected for multiple endorsed possibilities, uncertainty/private answers, lack of an endorsed Tier 3 pattern, conflicting follow-up, possible contributors/overlap, or no reported impairment. A simple coherent response pattern can skip this tier. Completion never means that clinical uncertainty is resolved.
-- Maximum all-positive path: 65 Tier 3 prompts, 198 Tier 4 prompts, 122 Tier 5 prompts. Typical paths show only the selected domains and branches.
-- The final page prepares identical independent user/provider/EMR copies of the recorded evidence. No identity mapping, delivery, or EMR write is enabled.
+1. Tier 1 retains the original 19-domain triage and separate youth respondent selection. Unknown/private information remains distinct from No.
+2. Tier 2 uses 160 original symptom/experience items across all 19 domains. Experience/occurrence questions use explicit No/Yes/Unsure/Private choices. Symptom frequency has its own scale; developmental and longstanding personality-pattern descriptions use occurrence choices. Each selected domain separately records onset, continuous duration, course, distress/interference, possible health contributors, medication/substance contributors, prior contributor review and current threat. No arbitrary symptom-count threshold, diagnostic likelihood or strong/not-strong classification is generated. Legacy scoring modules remain in source history but are not routed or imported by the client.
+3. Tier 3 covers 65 candidate areas. The depressive prompt no longer requires the person to identify distinct episode boundaries.
+4. Tier 4 follows endorsed/uncertain/private areas with distinguishing prompts and context. The depressive follow-up now asks about co-occurring symptoms rather than recognizable starts/ends.
+5. Tier 5 adds original branch-specific differentiation and clarification where overlap, uncertainty, conflicting descriptions or possible contributors remain.
+6. Tier 6 follows selected adult areas with tailored clarification, factual/categorical response formats, frequency/time burden, functioning, overlap, contributor review, collateral-information availability, optional event/onset dates, optional examples and notes. Unknown dates are permitted; future/invalid dates rejected. Onset before an attributed event remains recorded and flagged for review rather than being silently corrected.
+7. The integrated report separates completion from interpretation and shows priority review items, direct safety-review concerns, candidate evidence from Tiers 2–6, conflicting descriptions, missing information, next assessment, negative initial responses without exclusion, clarification details, raw source answers and immutable manifests. Candidate rows are expandable rather than a long undifferentiated list of apparent diagnoses.
+8. A separate fictional clinician workspace records a working disposition and rationale. It never labels an algorithm-generated answer as a clinician diagnosis. Earlier edits invalidate dependent clarification and clinician drafts.
 
-## Interpretation limits
+## Explicit reconciliation examples
 
-Candidate labels identify areas to discuss; they do not mean diagnostic criteria have been met. More questions do not establish sensitivity, specificity, calibration, validity, or diagnostic certainty. No probability, diagnostic code, criterion count, or automated final diagnosis is generated. Negative prompts never establish absence. Uncertain/private responses are preserved. Mixed Tier 3/Tier 4 evidence is labeled.
+- Later affirmative GAD follow-up is acknowledged when the initial answer was uncertain.
+- A separation concern that does not exceed actual danger/caregiving/instability is marked for contextual review.
+- No medical evaluation of panic-like symptoms is missing evaluation, not evidence against panic disorder.
+- Combined specific-phobia/agoraphobia prompts remain explicitly limited; Tier 6 asks what drives avoidance.
+- Conflicting appearance answers are identified and followed by categorical clarification about weight/eating and other concerns.
+- Missing trauma dates remain missing until clarified; date information entered later is identified with its source.
+- Stress linkage alone does not settle an adjustment-related formulation.
+- No major depression exclusion is inferred from difficulty identifying episode boundaries.
+- Medical/contributor uncertainty and cross-domain overlap remain visible. No response polarity is treated as universal diagnostic proof.
 
-Coverage is deliberately broad rather than exhaustive: several branches combine related conditions, and personality patterns do not yet differentiate every named personality disorder. Subtypes, specifiers, criterion-level thresholds and exclusions require a separate clinician-reviewed and appropriately permitted implementation. Any clinical use requires question/rule review, permissions review where applicable, age-appropriate development, validation, and the separately deferred authenticated clinical infrastructure. The adult questions must not be reused as youth questions.
+These are transparent descriptive review rules, not validated diagnostic decision rules. Their source and question hashes are generated by scripts/version-dsm-evidence.mjs and verified in regression tests. A manifest change invalidates the relevant session records; old answers are never silently reinterpreted under new question definitions.
 
-Tier 1 and Tier 2 legacy clinical scoring is unchanged. New routing uses response patterns only to choose interview prompts, not to establish diagnoses. All work remains session-memory-only; full refresh clears answers. Source attempt, full Tier 2 records, original follow-up bank version/hash, and upstream answers bind follow-up completion. Editing earlier evidence invalidates dependent completion.
+## Boundaries and remaining work
 
-## Reference boundaries
+The bank is broad and original, not exhaustive: several branches combine related diagnoses, personality patterns do not differentiate every individual disorder, and full criterion-level requirements, subtypes, specifiers and exclusion logic are not implemented. A clinician must complete appropriate assessment and determine diagnoses. No sensitivity, specificity, probability, calibrated confidence, or diagnostic validity is asserted. More tiers alone do not establish accuracy.
 
-APA's public assessment guidance says screening measures support clinical decision-making and should not be the sole basis of diagnosis. Its official adult cross-cutting measure has a different domain structure; this original 19-domain workflow must not be represented as that official instrument.
+The adolescent and parent/guardian Tier 1 versions remain selectable, but deeper youth assessments require separate development and validation. Adult questions are not reused for youth. Existing auth/MFA and administrator-only access remain unchanged. All records stay in the current browser session's memory; a full refresh clears them. No PHI, production clinical storage, patient/provider identity mapping, automatic provider delivery or EMR write is authorized or implemented. User/provider/EMR report copies are independently cloned fictional preparations.
+
+## Evidence and validation
+
+Public APA guidance supports assessment measures as aids to clinical decisions, not a sole diagnostic basis. VA guidance distinguishes screening from structured professional assessment. These sources do not validate the original bank, rules or coverage, and proprietary instruments/criteria are not reproduced.
 
 - https://www.psychiatry.org/psychiatrists/practice/dsm/educational-resources/assessment-measures
-- https://www.nimh.nih.gov/health/topics
-- https://medlineplus.gov/mentaldisorders.html
+- https://www.ptsd.va.gov/understand/isitptsd/measured_how.asp
+- https://www.healthquality.va.gov/HEALTHQUALITY/guidelines/MH/ptsd/PTSD-Assessment_508.pdf
 
-These sources support assessment context and review boundaries; they do not validate this question bank or routing. No proprietary DSM criteria text or differential-diagnosis decision trees are reproduced.
-
-## Verification
-
-Dedicated tests exercise every candidate on an all-positive path, single-branch Tier 5 skipping, uncertain/private/negative responses, conflicting evidence, source-edit invalidation, malformed data, direct-URL prerequisites, identical isolated report copies, and actual rendered Tier 3→4→5→summary transitions. Native browser QA also verified the Next.js transitions using a temporary localhost-only fictional access fixture, removed before release. Production auth and MFA files are unchanged.
+See DSM-VALIDATION-PLAN.md for the staged clinical evaluation needed beyond software verification.

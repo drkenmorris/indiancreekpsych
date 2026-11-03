@@ -1,0 +1,810 @@
+{
+  "id": "icps-adult-clarification-review",
+  "version": "1.0.0",
+  "domains": [
+    {
+      "id": "neurodev",
+      "questions": [
+        {
+          "id": "branch-1",
+          "text": "Which onset pattern best describes the developmental concerns?",
+          "choices": [
+            "Mainly present since childhood",
+            "Some began in childhood and others later",
+            "Mainly began during adolescence",
+            "Mainly began during adulthood",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        },
+        {
+          "id": "branch-2",
+          "text": "Are the differences present across settings when supports and environmental demands are considered?",
+          "choices": [
+            "Yes",
+            "No",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        },
+        {
+          "id": "branch-3",
+          "text": "Are developmental, school, or prior assessment records available with permission?",
+          "choices": [
+            "Yes",
+            "No",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "psychotic",
+      "questions": [
+        {
+          "id": "branch-1",
+          "text": "Do unusual perceptions or beliefs occur outside sleep transitions and substance effects?",
+          "choices": [
+            "Yes",
+            "No",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        },
+        {
+          "id": "branch-2",
+          "text": "When do unusual perceptions or beliefs occur relative to major mood changes?",
+          "choices": [
+            "Only during marked mood changes",
+            "Also when mood is close to baseline",
+            "No marked mood changes reported",
+            "The sequence is not yet clear",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        },
+        {
+          "id": "branch-3",
+          "text": "Has a clinician assessed cultural context, reality testing, functioning and medical causes?",
+          "choices": [
+            "Yes",
+            "No",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bipolar",
+      "questions": [
+        {
+          "id": "branch-1",
+          "text": "Were increased energy, reduced need for sleep and behavior changes present in the same distinct period?",
+          "choices": [
+            "Yes",
+            "No",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        },
+        {
+          "id": "branch-2",
+          "text": "Did another person observe a clear change from the usual baseline?",
+          "choices": [
+            "Yes",
+            "No",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        },
+        {
+          "id": "branch-3",
+          "text": "Did the change occur outside medication/substance exposure and persist across settings?",
+          "choices": [
+            "Yes",
+            "No",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "depressive",
+      "questions": [
+        {
+          "id": "branch-1",
+          "text": "Did low mood or loss of interest and the other symptoms occur together during the same period?",
+          "choices": [
+            "Yes",
+            "No",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        },
+        {
+          "id": "branch-2",
+          "text": "Have similar symptoms occurred before the current stressor or during times when its effects were absent?",
+          "choices": [
+            "Yes",
+            "No",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        },
+        {
+          "id": "branch-3",
+          "text": "Is there a history of distinctly increased energy with reduced need for sleep, beyond ordinary good days?",
+          "choices": [
+            "Yes",
+            "No",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "anxiety",
+      "questions": [
+        {
+          "id": "branch-1",
+          "text": "Do fear surges occur unexpectedly outside the situations otherwise feared?",
+          "choices": [
+            "Yes",
+            "No",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        },
+        {
+          "id": "branch-2",
+          "text": "Does broad difficult-to-control worry continue outside panic, social evaluation, trauma reminders and intrusive thoughts?",
+          "choices": [
+            "Yes",
+            "No",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        },
+        {
+          "id": "branch-3",
+          "text": "Do separation fears reflect an actual current danger, caregiving need or unstable situation?",
+          "choices": [
+            "Yes",
+            "No",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        },
+        {
+          "id": "branch-4",
+          "text": "What primarily drives the avoidance being described?",
+          "choices": [
+            "Fear of negative judgment",
+            "Fear of an unexpected fear surge",
+            "Difficulty escaping or obtaining help",
+            "A particular object or situation",
+            "Separation from an attachment figure",
+            "Trauma reminders",
+            "Several of these fears",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ocd_related",
+      "questions": [
+        {
+          "id": "branch-1",
+          "text": "Do unwanted intrusions lead to repetitive overt actions or mental rituals rather than only ordinary worry?",
+          "choices": [
+            "Yes",
+            "No",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        },
+        {
+          "id": "branch-2",
+          "text": "What do the appearance concerns focus on?",
+          "choices": [
+            "Only body weight, shape or eating",
+            "Other perceived appearance flaws",
+            "Both weight/eating and other appearance concerns",
+            "No current appearance concern",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        },
+        {
+          "id": "branch-3",
+          "text": "Does difficulty discarding prevent the intended use of spaces independently of low energy, physical limits or resources?",
+          "choices": [
+            "Yes",
+            "No",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "trauma",
+      "questions": [
+        {
+          "id": "branch-1",
+          "text": "Can the exposure and approximate event date be established without requiring a detailed trauma narrative?",
+          "choices": [
+            "Yes",
+            "No",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        },
+        {
+          "id": "branch-2",
+          "text": "Can symptom onset and continuous duration be established relative to that event?",
+          "choices": [
+            "Yes",
+            "No",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        },
+        {
+          "id": "branch-3",
+          "text": "Is a current danger or unsafe environment contributing to the reported reactions?",
+          "choices": [
+            "Yes",
+            "No",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "dissociative",
+      "questions": [
+        {
+          "id": "branch-1",
+          "text": "What type of memory difficulty is being described?",
+          "choices": [
+            "Gaps for particular personal events",
+            "General difficulty learning or remembering",
+            "Both",
+            "Neither description fits",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        },
+        {
+          "id": "branch-2",
+          "text": "Do feelings of unreality occur while recognizing them as experiences rather than literal changes in reality?",
+          "choices": [
+            "Yes",
+            "No",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        },
+        {
+          "id": "branch-3",
+          "text": "Have seizure, injury, substance, sleep and cultural explanations been considered?",
+          "choices": [
+            "Yes",
+            "No",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "somatic",
+      "questions": [
+        {
+          "id": "branch-1",
+          "text": "What is the main source of health-related distress?",
+          "choices": [
+            "The physical symptoms themselves",
+            "Fear of a serious illness with few physical symptoms",
+            "Both",
+            "Neither description fits",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        },
+        {
+          "id": "branch-2",
+          "text": "Has relevant medical assessment been completed, with its findings reviewed?",
+          "choices": [
+            "Yes",
+            "No",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        },
+        {
+          "id": "branch-3",
+          "text": "For neurological symptoms, has a clinician explained positive findings supporting a functional interpretation?",
+          "choices": [
+            "Yes",
+            "No",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "eating",
+      "questions": [
+        {
+          "id": "branch-1",
+          "text": "What is the main driver of restricted or difficult eating?",
+          "choices": [
+            "Body weight or shape concerns",
+            "Sensory reactions or low interest",
+            "Fear of choking, vomiting or other consequences",
+            "Limited food availability or physical illness",
+            "Several factors",
+            "Another factor",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        },
+        {
+          "id": "branch-2",
+          "text": "When lost-control eating occurs, are compensatory behaviors part of a recurring connected cycle?",
+          "choices": [
+            "Yes",
+            "No",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        },
+        {
+          "id": "branch-3",
+          "text": "Have nutritional status, medical stability and non-psychological causes been assessed?",
+          "choices": [
+            "Yes",
+            "No",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "elimination",
+      "questions": [
+        {
+          "id": "branch-1",
+          "text": "Did the pattern begin after a sustained period of bladder/bowel control?",
+          "choices": [
+            "Yes",
+            "No",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        },
+        {
+          "id": "branch-2",
+          "text": "Has constipation, infection, neurological illness, medication or another physical explanation been considered?",
+          "choices": [
+            "Yes",
+            "No",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        },
+        {
+          "id": "branch-3",
+          "text": "When do bladder or bowel accidents occur?",
+          "choices": [
+            "While awake",
+            "During sleep",
+            "Both",
+            "No current accidents",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sleep",
+      "questions": [
+        {
+          "id": "branch-1",
+          "text": "Is adequate opportunity for sleep present when the difficulty occurs?",
+          "choices": [
+            "Yes",
+            "No",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        },
+        {
+          "id": "branch-2",
+          "text": "Does sleep improve when the preferred schedule can be followed?",
+          "choices": [
+            "Yes",
+            "No",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        },
+        {
+          "id": "branch-3",
+          "text": "Have breathing symptoms, unusual sleep events or irresistible daytime sleep been medically assessed?",
+          "choices": [
+            "Yes",
+            "No",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sexual_dysfunction",
+      "questions": [
+        {
+          "id": "branch-1",
+          "text": "Is there personal distress apart from pressure or expectations from others?",
+          "choices": [
+            "Yes",
+            "No",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        },
+        {
+          "id": "branch-2",
+          "text": "When did the sexual-function concern begin?",
+          "choices": [
+            "Present since the beginning of relevant sexual experiences",
+            "Acquired after a period without the concern",
+            "Course varies",
+            "No current concern",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        },
+        {
+          "id": "branch-3",
+          "text": "Have pain, medications, hormones, health and relationship safety been considered?",
+          "choices": [
+            "Yes",
+            "No",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        },
+        {
+          "id": "branch-4",
+          "text": "In which circumstances does the sexual-function concern occur?",
+          "choices": [
+            "Across wanted, safe circumstances",
+            "Only in particular contexts or with particular partners",
+            "Not yet clear",
+            "Prefer to discuss privately"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "gender_dysphoria",
+      "questions": [
+        {
+          "id": "branch-1",
+          "text": "Can distress related to body incongruence be distinguished from distress related to discrimination or lack of support?",
+          "choices": [
+            "Yes",
+            "No",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        },
+        {
+          "id": "branch-2",
+          "text": "Which current goal is most important to the person?",
+          "choices": [
+            "Explore feelings and personal preferences",
+            "Improve acceptance, support or safety",
+            "Discuss body-related or gender-affirming care",
+            "Address other emotional symptoms",
+            "Several of these goals",
+            "Another goal",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        },
+        {
+          "id": "branch-3",
+          "text": "Can privacy and current safety be addressed directly with the person?",
+          "choices": [
+            "Yes",
+            "No",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "impulse_conduct",
+      "questions": [
+        {
+          "id": "branch-1",
+          "text": "Which description best fits the outbursts or actions?",
+          "choices": [
+            "Mainly reactive or unplanned",
+            "Mainly planned to obtain a goal",
+            "Both patterns",
+            "No current outbursts",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        },
+        {
+          "id": "branch-2",
+          "text": "When did serious conduct difficulties begin?",
+          "choices": [
+            "Before adulthood",
+            "During adulthood",
+            "No serious conduct difficulties reported",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        },
+        {
+          "id": "branch-3",
+          "text": "Do the behaviors occur outside elevated mood, intoxication or immediate threat?",
+          "choices": [
+            "Yes",
+            "No",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "substance",
+      "questions": [
+        {
+          "id": "branch-1",
+          "text": "Can each substance and prescribed medication be reviewed separately?",
+          "choices": [
+            "Yes",
+            "No",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        },
+        {
+          "id": "branch-2",
+          "text": "Do control problems or consequences persist beyond a single episode of use?",
+          "choices": [
+            "Yes",
+            "No",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        },
+        {
+          "id": "branch-3",
+          "text": "Do other symptoms also occur during stable periods without intoxication, withdrawal or medication changes?",
+          "choices": [
+            "Yes",
+            "No",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "neurocognitive",
+      "questions": [
+        {
+          "id": "branch-1",
+          "text": "What course best describes the change in thinking or awareness?",
+          "choices": [
+            "Sudden onset or marked short-term fluctuation",
+            "Gradual decline from previous abilities",
+            "Longstanding stable differences",
+            "No clear change from baseline",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        },
+        {
+          "id": "branch-2",
+          "text": "Has a knowledgeable informant described the change with permission?",
+          "choices": [
+            "Yes",
+            "No",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        },
+        {
+          "id": "branch-3",
+          "text": "Have independence, objective cognitive performance and medical contributors been assessed?",
+          "choices": [
+            "Yes",
+            "No",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "personality_screen",
+      "questions": [
+        {
+          "id": "branch-1",
+          "text": "Does the pattern extend across relationships and settings over time?",
+          "choices": [
+            "Yes",
+            "No",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        },
+        {
+          "id": "branch-2",
+          "text": "Is it present outside discrete mood episodes, intoxication and recent crises?",
+          "choices": [
+            "Yes",
+            "No",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        },
+        {
+          "id": "branch-3",
+          "text": "Can trauma, neurodevelopment, cultural context and actual environmental threat explain some of it?",
+          "choices": [
+            "Yes",
+            "No",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "paraphilic_screen",
+      "questions": [
+        {
+          "id": "branch-1",
+          "text": "Is personal distress present beyond disapproval of consensual adult interests?",
+          "choices": [
+            "Yes",
+            "No",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        },
+        {
+          "id": "branch-2",
+          "text": "Is there any concern about nonconsent, inability to consent or risk of harm requiring direct assessment?",
+          "choices": [
+            "Yes",
+            "No",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        },
+        {
+          "id": "branch-3",
+          "text": "Has a qualified specialist assessed context and current safety without assuming an interest alone is a disorder?",
+          "choices": [
+            "Yes",
+            "No",
+            "Unsure",
+            "Prefer to discuss privately"
+          ]
+        }
+      ]
+    }
+  ],
+  "common": [
+    {
+      "id": "timeline",
+      "text": "How well can the onset and sequence of these concerns be established?",
+      "choices": [
+        "Approximate dates and sequence are available",
+        "Some dates or sequence remain unclear",
+        "Unable to establish yet",
+        "Prefer to discuss privately"
+      ]
+    },
+    {
+      "id": "frequency",
+      "text": "How often does the main experience in this area occur?",
+      "choices": [
+        "Less than monthly",
+        "Monthly",
+        "Weekly",
+        "Several days a week",
+        "Daily or nearly daily",
+        "Varies substantially",
+        "Unsure",
+        "Prefer to discuss privately"
+      ]
+    },
+    {
+      "id": "time",
+      "text": "On an affected day, how much time does the main concern occupy?",
+      "choices": [
+        "Less than 15 minutes",
+        "15–59 minutes",
+        "1–3 hours",
+        "More than 3 hours",
+        "Not meaningfully measured in time",
+        "Unsure",
+        "Prefer to discuss privately"
+      ]
+    },
+    {
+      "id": "function",
+      "text": "Which description best fits its effect on daily life?",
+      "choices": [
+        "No distress or interference reported",
+        "Distress without clear interference",
+        "Interference in one important area",
+        "Interference across several important areas",
+        "Unsure",
+        "Prefer to discuss privately"
+      ]
+    },
+    {
+      "id": "overlap",
+      "text": "How are these concerns related to the other areas reported?",
+      "choices": [
+        "Appear to be separate experiences",
+        "Seem to describe the same experiences in different words",
+        "Some overlap and some separate experiences",
+        "No other area reported",
+        "Unsure",
+        "Prefer to discuss privately"
+      ]
+    },
+    {
+      "id": "contributors",
+      "text": "What is the status of medical, sleep, medication and substance-contributor review?",
+      "choices": [
+        "Reviewed; no contributor identified so far",
+        "Reviewed; possible contributors remain",
+        "Review not completed",
+        "Unsure",
+        "Prefer to discuss privately"
+      ]
+    },
+    {
+      "id": "collateral",
+      "text": "What supporting information is available, with permission where needed?",
+      "choices": [
+        "Prior records available",
+        "Other-person observations available",
+        "Both records and observations available",
+        "Not available",
+        "Not requested yet",
+        "Prefer to discuss privately"
+      ]
+    }
+  ],
+  "status": "UNVALIDATED_ORIGINAL_PROTOTYPE"
+}

@@ -6,11 +6,15 @@
  * is connected until reviewed Supabase tables and access policies exist.
  */
 const memory = new Map<string, string>();
+const listeners=new Set<()=>void>();let revision=0;
+const changed=()=>{revision++;listeners.forEach(fn=>fn());};
 export const clinicalSessionStore = {
+  subscribe(listener:()=>void){listeners.add(listener);return ()=>{listeners.delete(listener);};},
+  revision(){return revision;},
   getItem(key: string): string | null { return memory.get(key) ?? null; },
-  setItem(key: string, value: string): void { memory.set(key, String(value)); },
-  removeItem(key: string): void { memory.delete(key); },
-  clear(): void { memory.clear(); },
+  setItem(key: string, value: string): void { if(memory.get(key)!==String(value)){memory.set(key,String(value));changed();} },
+  removeItem(key: string): void { if(memory.delete(key))changed(); },
+  clear(): void { if(memory.size){memory.clear();changed();} },
   /** Isolated ASQ/ASEQ QA state: never include another assessment suite. */
   exportAsq(): Record<string,string> {
     return Object.fromEntries([...memory.entries()].filter(([key]) =>
@@ -26,5 +30,6 @@ export const clinicalSessionStore = {
       if ((key.startsWith("asq_") || key.startsWith("sentinel_student_demo_")) &&
           typeof value === "string" && value.length < 1000000) memory.set(key,value);
     }
+    changed();
   },
 };

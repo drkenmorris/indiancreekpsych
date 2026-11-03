@@ -1,7 +1,8 @@
 "use client";
+import {useTierTwoModule} from "@/lib/clinical-tests/dsm/use-tier-two-module";
 import { clinicalSessionStore } from "@/lib/clinical-tests/clinicalSessionStore";
 // src/dev/Level2DepressionModule.tsx
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useNavigate } from "@/lib/clinical-tests/navigation";
 import {
   MODULE_ORDER,
@@ -162,12 +163,12 @@ function LikertCard(props: {
   id: string;
   title?: string;
   text: string;
-  value: Likert0to4;
+  value: Likert0to4 | undefined;
   onChange: (id: string, v: Likert0to4) => void;
 }) {
   const { id, title, text, value, onChange } = props;
   return (
-    <div style={{ border: "1px solid #eee", borderRadius: 12, padding: 12, marginBottom: 10 }}>
+    <div role="group" aria-label={text} style={{ border: "1px solid #eee", borderRadius: 12, padding: 12, marginBottom: 10 }}>
       {title ? <div style={{ fontWeight: 800, marginBottom: 6 }}>{title}</div> : null}
       <div style={{ marginBottom: 10 }}>{text}</div>
 
@@ -186,7 +187,7 @@ function LikertCard(props: {
 export default function Level2DepressionModule() {
   const navigate = useNavigate();
 
-  const [answers, setAnswers] = useState<Answers>(() => {
+  const {answers,setAnswer,answered,saveDraft,completeModule,resetModule,message,remaining} = useTierTwoModule<Answers>(CURRENT_DOMAIN,() => {
     const init: Answers = {};
     for (const s of SYMPTOMS) init[s.id] = 0;
     init["duration_2w"] = 0;
@@ -194,10 +195,10 @@ export default function Level2DepressionModule() {
     init["mania_ruleout"] = false;
     init["substance_medical"] = false;
     return init;
-  });
+  },{items:[...SYMPTOMS,...[{"id": "duration_2w", "title": "Duration", "text": "These symptoms have been present most days for at least 2 weeks."}, {"id": "impairment", "title": "Impact", "text": "These symptoms have made it harder for me to function (work/school, relationships, self-care, or responsibilities)."}, {"id": "mania_ruleout", "title": "Optional context", "text": "History of unusually high-energy periods (optional context)"}, {"id": "substance_medical", "title": "Optional context", "text": "Possible substance, medication, sleep or medical contribution (optional context)"}]],responseLabels:LIKERT_LABELS});
 
-  const setLikert = (id: string, v: Likert0to4) => setAnswers((p) => ({ ...p, [id]: v }));
-  const setBool = (id: string, v: boolean) => setAnswers((p) => ({ ...p, [id]: v }));
+  const setLikert = (id: string, v: Likert0to4) => setAnswer(id,v);
+  const setBool = (id: string, v: boolean) => setAnswer(id,v);
 
   const level1Raw =
     typeof window !== "undefined" ? clinicalSessionStore.getItem("asq_level1_payload") : null;
@@ -300,7 +301,7 @@ export default function Level2DepressionModule() {
               id={s.id}
               title={s.title}
               text={s.text}
-              value={answers[s.id] as Likert0to4}
+              value={typeof answered[s.id]==='number'?answers[s.id] as Likert0to4:undefined}
               onChange={setLikert}
             />
           ))}
@@ -310,7 +311,7 @@ export default function Level2DepressionModule() {
             id="duration_2w"
             title="Duration"
             text="These symptoms have been present most days for at least 2 weeks."
-            value={answers["duration_2w"] as Likert0to4}
+            value={typeof answered["duration_2w"]==='number'?answers["duration_2w"] as Likert0to4:undefined}
             onChange={setLikert}
           />
 
@@ -318,7 +319,7 @@ export default function Level2DepressionModule() {
             id="impairment"
             title="Impact"
             text="These symptoms have made it harder for me to function (work/school, relationships, self-care, or responsibilities)."
-            value={answers["impairment"] as Likert0to4}
+            value={typeof answered["impairment"]==='number'?answers["impairment"] as Likert0to4:undefined}
             onChange={setLikert}
           />
 
@@ -359,8 +360,12 @@ export default function Level2DepressionModule() {
         <div>
           <div style={{ border: "1px solid #e5e5e5", borderRadius: 12, padding: 12, position: "sticky", top: 12 }}>
             <h3 style={{ marginTop: 0 }}>Summary</h3>
+            <p>{remaining} rating questions still need a response. Optional context checkboxes may be left unspecified.</p>
+            <button type="button" disabled={remaining>0} onClick={()=>completeModule({...results,safetyFlag:safetyFlag})}>Complete module</button>
+            {message&&<p role="status">{message}</p>}
+            {remaining>0&&<p>Screening findings are provisional while responses are incomplete.</p>}
 
-            <div style={{ fontSize: 13, lineHeight: 1.4, marginBottom: 10 }}>{results.summary}</div>
+            <div style={{ fontSize: 13, lineHeight: 1.4, marginBottom: 10 }}>{remaining===0?results.summary:'Complete the rating questions to review the screening finding.'}</div>
 
             <div style={{ fontSize: 12, opacity: 0.85, marginBottom: 10 }}>
               <div>
@@ -394,7 +399,7 @@ export default function Level2DepressionModule() {
             <div style={{ marginTop: 12, fontSize: 12, opacity: 0.75 }}>
               {level1Info ? (
                 <div>
-                  Level-1 context found in local storage (key: <code>asq_level1_payload</code>).
+                  Level-1 context found in this open screening session (key: <code>asq_level1_payload</code>).
                 </div>
               ) : (
                 <div>
@@ -435,8 +440,7 @@ export default function Level2DepressionModule() {
               <button
                 type="button"
                 onClick={() => {
-                  clinicalSessionStore.setItem("asq_level2_depression_answers", JSON.stringify(answers));
-                  alert("Saved Level-2 answers to local storage (asq_level2_depression_answers).");
+                  saveDraft();
                 }}
                 style={{ padding: "8px 10px", borderRadius: 10, border: "1px solid #ccc" }}
               >
@@ -446,9 +450,7 @@ export default function Level2DepressionModule() {
               <button
                 type="button"
                 onClick={() => {
-                  clinicalSessionStore.removeItem("asq_level2_depression_answers");
-                  clinicalSessionStore.removeItem("asq_level1_payload");
-                  window.location.reload();
+                  resetModule();
                 }}
                 style={{ padding: "8px 10px", borderRadius: 10, border: "1px solid #ccc" }}
               >

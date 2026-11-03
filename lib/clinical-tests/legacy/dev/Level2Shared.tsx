@@ -1,6 +1,7 @@
 "use client";
+import {useTierTwoModule} from "@/lib/clinical-tests/dsm/use-tier-two-module";
 import { clinicalSessionStore } from "@/lib/clinical-tests/clinicalSessionStore";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useNavigate } from "@/lib/clinical-tests/navigation";
 
 export type Likert0to4 = 0 | 1 | 2 | 3 | 4;
@@ -182,12 +183,12 @@ function LikertCard(props: {
   id: string;
   title?: string;
   text: string;
-  value: Likert0to4;
+  value: Likert0to4 | undefined;
   onChange: (id: string, v: Likert0to4) => void;
 }) {
   const { id, title, text, value, onChange } = props;
   return (
-    <div style={{ border: "1px solid #eee", borderRadius: 12, padding: 12, marginBottom: 10 }}>
+    <div role="group" aria-label={text} style={{ border: "1px solid #eee", borderRadius: 12, padding: 12, marginBottom: 10 }}>
       {title ? <div style={{ fontWeight: 800, marginBottom: 6 }}>{title}</div> : null}
       <div style={{ marginBottom: 10 }}>{text}</div>
       <div style={{ display: "grid", gap: 6 }}>
@@ -226,17 +227,17 @@ function CheckboxCard(props: {
 export default function GenericLevel2Module({ config }: { config: GenericLevel2Config }) {
   const navigate = useNavigate();
 
-  const [answers, setAnswers] = useState<Record<string, Likert0to4 | boolean>>(() => {
+  const {answers,setAnswer,answered,saveDraft,completeModule,resetModule,message,remaining} = useTierTwoModule<Record<string, Likert0to4 | boolean>>(config.currentDomain,() => {
     const init: Record<string, Likert0to4 | boolean> = {};
     for (const s of config.symptoms) init[s.id] = 0;
     init[config.durationField.id] = 0;
     init[config.impactField.id] = 0;
     for (const card of config.contextCards ?? []) init[card.id] = false;
     return init;
-  });
+  },{items:[...config.symptoms,config.durationField,config.impactField,...(config.contextCards??[])],responseLabels:LIKERT_LABELS});
 
-  const setLikert = (id: string, v: Likert0to4) => setAnswers((p) => ({ ...p, [id]: v }));
-  const setBool = (id: string, v: boolean) => setAnswers((p) => ({ ...p, [id]: v }));
+  const setLikert = (id: string, v: Likert0to4) => setAnswer(id,v);
+  const setBool = (id: string, v: boolean) => setAnswer(id,v);
 
   const level1Info = useMemo(() => getLevel1Payload(), []);
   const nextEligibleModule = useMemo(
@@ -290,7 +291,7 @@ export default function GenericLevel2Module({ config }: { config: GenericLevel2C
               id={s.id}
               title={s.title}
               text={s.text}
-              value={answers[s.id] as Likert0to4}
+              value={typeof answered[s.id]==='number'?answers[s.id] as Likert0to4:undefined}
               onChange={setLikert}
             />
           ))}
@@ -300,14 +301,14 @@ export default function GenericLevel2Module({ config }: { config: GenericLevel2C
             id={config.durationField.id}
             title={config.durationField.title}
             text={config.durationField.text}
-            value={answers[config.durationField.id] as Likert0to4}
+            value={typeof answered[config.durationField.id]==='number'?answers[config.durationField.id] as Likert0to4:undefined}
             onChange={setLikert}
           />
           <LikertCard
             id={config.impactField.id}
             title={config.impactField.title}
             text={config.impactField.text}
-            value={answers[config.impactField.id] as Likert0to4}
+            value={typeof answered[config.impactField.id]==='number'?answers[config.impactField.id] as Likert0to4:undefined}
             onChange={setLikert}
           />
 
@@ -332,7 +333,11 @@ export default function GenericLevel2Module({ config }: { config: GenericLevel2C
         <div>
           <div style={{ border: "1px solid #e5e5e5", borderRadius: 12, padding: 12, position: "sticky", top: 12 }}>
             <h3 style={{ marginTop: 0 }}>Summary</h3>
-            <div style={{ fontSize: 13, lineHeight: 1.4, marginBottom: 10 }}>{evaluation.summary}</div>
+            <p>{remaining} rating questions still need a response. Optional context checkboxes may be left unspecified.</p>
+            <button type="button" disabled={remaining>0} onClick={()=>completeModule({...evaluation,safetyFlag:!!evaluation.safetyBox})}>Complete module</button>
+            {message&&<p role="status">{message}</p>}
+            {remaining>0&&<p>Screening findings are provisional while responses are incomplete.</p>}
+            <div style={{ fontSize: 13, lineHeight: 1.4, marginBottom: 10 }}>{remaining===0?evaluation.summary:'Complete the rating questions to review the screening finding.'}</div>
 
             <div style={{ fontSize: 12, opacity: 0.85, marginBottom: 10 }}>
               {evaluation.scoreRows.map((row) => (
@@ -355,7 +360,7 @@ export default function GenericLevel2Module({ config }: { config: GenericLevel2C
 
             <div style={{ marginTop: 12, fontSize: 12, opacity: 0.75 }}>
               {level1Info ? (
-                <div>{config.level1FoundText ?? <>Level-1 context found in local storage (key: <code>asq_level1_payload</code>).</>}</div>
+                <div>{config.level1FoundText ?? <>Level-1 context found in this open screening session (key: <code>asq_level1_payload</code>).</>}</div>
               ) : (
                 <div>{config.level1MissingText ?? "No Level-1 context found. The Level-1 screener can store payload for continuity."}</div>
               )}
@@ -392,8 +397,7 @@ export default function GenericLevel2Module({ config }: { config: GenericLevel2C
               <button
                 type="button"
                 onClick={() => {
-                  clinicalSessionStore.setItem(config.storageKey, JSON.stringify(answers));
-                  alert(`Saved Level-2 answers to local storage (${config.storageKey}).`);
+                  saveDraft();
                 }}
                 style={{ padding: "8px 10px", borderRadius: 10, border: "1px solid #ccc" }}
               >
@@ -403,9 +407,7 @@ export default function GenericLevel2Module({ config }: { config: GenericLevel2C
               <button
                 type="button"
                 onClick={() => {
-                  clinicalSessionStore.removeItem(config.storageKey);
-                  clinicalSessionStore.removeItem("asq_level1_payload");
-                  window.location.reload();
+                  resetModule();
                 }}
                 style={{ padding: "8px 10px", borderRadius: 10, border: "1px solid #ccc" }}
               >

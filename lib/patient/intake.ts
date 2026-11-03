@@ -1,3 +1,4 @@
+import {DSM_INTAKE_VERSION_KEY,validateDsmVersion} from '../clinical-tests/dsm/entry-choice';
 import {LEGAL_ROUTING_KEY,validateLegalRouting,parseLegalRouting} from './legal-routing';
 import {TRAUMA_CHECKLIST_KEY,validateTraumaHistory} from './trauma-history';
 import {validateLegalDates} from './legal-documents';
@@ -177,7 +178,7 @@ const originalIntakeSections:{title:string;description?:string;fields:readonly I
 
 export const communicationFields=originalIntakeSections[9].fields;
 export const communicationFieldKeys=communicationFields.map(field=>field[0]);
-export const intakeSections=[originalIntakeSections[0],{...originalIntakeSections[1],fields:[...originalIntakeSections[1].fields,...communicationFields]},...originalIntakeSections.slice(2,9),{...originalIntakeSections[9],title:'Legal forms directory and questionnaire',description:'Answer the questions to see which forms apply. Required practice steps come first, followed by conditional and optional forms.',fields:[[LEGAL_ROUTING_KEY,'Legal forms questionnaire','legal-routing',true] as const]},...[10,11,15,20,12,13,14,16,17,18,19].map(i=>originalIntakeSections[i])];
+export const intakeSections=[originalIntakeSections[0],{...originalIntakeSections[1],fields:[...originalIntakeSections[1].fields,...communicationFields]},...originalIntakeSections.slice(2,9),{...originalIntakeSections[9],title:'Legal forms directory and questionnaire',description:'Answer the questions to see which forms apply. Required practice steps come first, followed by conditional and optional forms.',fields:[[LEGAL_ROUTING_KEY,'Legal forms questionnaire','legal-routing',true] as const]},...[10,11,15,20,12,13,14,16,17,18,19].map((i,index)=>index===10?{...originalIntakeSections[i],fields:[...originalIntakeSections[i].fields,[DSM_INTAKE_VERSION_KEY,'DSM questionnaire version','dsm-version',false] as const]}:originalIntakeSections[i])];
 export function intakeSectionsForVersion(version:string){return version==='2026-11-02-directory-1'?intakeSections:originalIntakeSections;}
 
 export type IntakeAnswers=Record<string,string>;
@@ -187,6 +188,7 @@ export const intakeKeys=intakeSections.flatMap(section=>section.fields.map(field
 export const requiredIntakeKeys=intakeSections.flatMap(section=>section.fields.filter(field=>field[3]).map(field=>field[0]));
 
 export function validateIntake(answers:IntakeAnswers,submit:boolean){
+ const dsmError=validateDsmVersion(answers[DSM_INTAKE_VERSION_KEY],answers.date_of_birth);if(dsmError)return dsmError;
  for(const section of intakeSections)for(const f of section.fields){
   const value=answers[f[0]]??'';
   if(f[0]!==TRAUMA_CHECKLIST_KEY&&f[0]!==TREATMENT_HISTORY_KEY&&f[0]!==MEDICATION_ENTRIES_KEY&&f[0]!==MEDICAL_SUBSTANCE_KEY&&value.length>8000)return `${f[1]} is too long.`;

@@ -1,13 +1,15 @@
 "use client";
 import {useEffect,useState,type FormEvent} from "react";
 
+import DsmVersionChoice from '@/app/components/DsmVersionChoice';
+import {dsmVersionLabel} from '@/lib/clinical-tests/dsm/entry-choice';
 type Test={value:string;label:string;patientReady:boolean};
 type Assignment={
   id:string;recipient_first_name:string;recipient_last_name:string;
-  recipient_email:string;test_key:string;status:string;created_at:string;
+  recipient_email:string;test_key:string;dsm_version:string|null;status:string;created_at:string;
   expires_at:string;sent_at:string|null;
 };
-const defaults={firstName:"",lastName:"",email:"",dob:"",testKey:""};
+const defaults={firstName:"",lastName:"",email:"",dob:"",testKey:"",dsmVersion:""};
 export default function TestAssignmentClient(){
  const [form,setForm]=useState(defaults);
  const [tests,setTests]=useState<Test[]>([]);
@@ -79,11 +81,12 @@ export default function TestAssignmentClient(){
     <label>Date of birth<input type="date" required min="1900-01-01" max={new Date().toISOString().slice(0,10)}
       value={form.dob} onChange={e=>setForm(f=>({...f,dob:e.target.value}))}/></label>
     <label>Psychological test
-     <select required value={form.testKey} onChange={e=>setForm(f=>({...f,testKey:e.target.value}))}>
+     <select required value={form.testKey} onChange={e=>setForm(f=>({...f,testKey:e.target.value,dsmVersion:""}))}>
       <option value="">Select a test</option>
       {tests.map(t=><option key={t.value} value={t.value}>{t.label} — {t.patientReady?"Available":"Patient release pending"}</option>)}
      </select>
     </label>
+    {form.testKey==='dsm'&&<DsmVersionChoice value={form.dsmVersion} onChange={v=>setForm(f=>({...f,dsmVersion:v}))} dob={form.dob} disabled={busy} required/>}
     <p className="assignmentCaution"><strong>Clinical release notice:</strong> The relocated psychological tests are still administrator-only prototypes. Creating an assignment does not allow a patient to complete an unapproved test. An invitation provides access to a secure assignment page only.</p>
     <button type="submit" disabled={busy||loading}>{busy?"Saving…":"Save Assignment Draft"}</button>
    </form>
@@ -98,7 +101,7 @@ export default function TestAssignmentClient(){
      <thead><tr><th>Recipient</th><th>Test</th><th>Status</th><th>Action</th></tr></thead>
      <tbody>{assignments.map(a=><tr key={a.id}>
       <td><strong>{a.recipient_first_name} {a.recipient_last_name}</strong><small>{a.recipient_email}</small></td>
-      <td>{tests.find(t=>t.value===a.test_key)?.label??a.test_key}</td>
+      <td>{tests.find(t=>t.value===a.test_key)?.label??a.test_key}{a.test_key==='dsm'&&<small>{dsmVersionLabel(a.dsm_version)}</small>}</td>
       <td><span className="assignmentPill">{a.status==="sent"?"Email accepted":"Draft — not sent"}</span></td>
       <td>{a.status==="draft"?<button disabled={busy||!emailReady||Date.parse(a.expires_at)<=Date.now()}
        onClick={()=>void send(a)}>Send Invitation</button>:<span>Sent</span>}</td>

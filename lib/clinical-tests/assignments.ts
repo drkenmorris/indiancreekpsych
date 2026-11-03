@@ -1,3 +1,4 @@
+import {validateDsmVersion,type DsmVersion} from './dsm/entry-choice';
 import { clinicalTestSuites } from "@/lib/clinical-tests/menu-catalog";
 
 export type AssignedTestKey = (typeof clinicalTestSuites)[number]["key"];
@@ -15,7 +16,7 @@ export function validAssignedTest(key: unknown): key is AssignedTestKey {
 }
 
 export function normalizeAssignmentData(value: unknown):
- { ok: true; data: { recipient_first_name:string; recipient_last_name:string; recipient_email:string; recipient_dob:string; test_key:AssignedTestKey } } | {ok:false;message:string} {
+ { ok: true; data: { recipient_first_name:string; recipient_last_name:string; recipient_email:string; recipient_dob:string; test_key:AssignedTestKey; dsm_version:DsmVersion|null } } | {ok:false;message:string} {
  if (!value || typeof value !== "object") return {ok:false,message:"Invalid request."};
  const v=value as Record<string,unknown>;
  const first=typeof v.firstName==="string"?v.firstName.trim():"";
@@ -32,6 +33,8 @@ export function normalizeAssignmentData(value: unknown):
      date>new Date() || dob<"1900-01-01")
   return {ok:false,message:"Enter a real date of birth in the past."};
  if (!validAssignedTest(v.testKey)) return {ok:false,message:"Select a psychological test."};
+ const dsmError=v.testKey==='dsm'?validateDsmVersion(v.dsmVersion,dob,true):v.dsmVersion?'DSM version applies only to DSM assignments.':null;
+ if(dsmError)return {ok:false,message:dsmError};
  return {ok:true,data:{recipient_first_name:first,recipient_last_name:last,
-   recipient_email:email,recipient_dob:dob,test_key:v.testKey}};
+   recipient_email:email,recipient_dob:dob,test_key:v.testKey,dsm_version:v.testKey==='dsm'?v.dsmVersion as DsmVersion:null}};
 }

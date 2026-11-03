@@ -1,4 +1,6 @@
 'use client';
+import DsmVersionChoice from '@/app/components/DsmVersionChoice';
+import {DSM_INTAKE_VERSION_KEY} from '@/lib/clinical-tests/dsm/entry-choice';
 import IntakeCommunicationPreferences from '@/app/components/IntakeCommunicationPreferences';
 import {communicationFieldKeys} from '@/lib/patient/intake';
 import IntakeTraumaHistory from '@/app/components/IntakeTraumaHistory';
@@ -151,7 +153,7 @@ export default function KioskIntake({token}:{token:string}){
     {sectionIndex>=10&&answers[LEGAL_ROUTING_KEY]&&<p className="intakeHelp"><strong>Page 10 guide:</strong> {legalRoutingResults(answers[LEGAL_ROUTING_KEY])?.find(f=>f.section===section.title)?.status||'Office review needed'}. <button type="button" onClick={()=>setSectionIndex(9)}>Return to the form directory</button></p>}
    <LegalSectionDocument sectionTitle={section.title}/>
     <div className={styles.fields}>{section.fields.map(field=>{
-     const [key,label,type]=field;if(showCommunication&&communicationFieldKeys.includes(key))return null;
+     const [key,label,type]=field;if(type==='dsm-version')return null;if(showCommunication&&communicationFieldKeys.includes(key))return null;
      const required=field.length>3&&field[3];
      const options=(field.length>4?field[4]:[])??[];
      const cost=costFields.includes(key);
@@ -176,6 +178,8 @@ export default function KioskIntake({token}:{token:string}){
    {sectionIndex>=10&&<LegalFormCopy sectionTitle={section.title} answers={answers} reference="Office intake draft — finalized copies available in staff review after submission"/>}
    {sectionIndex===1&&<IntakeAssignmentDocuments token={token} disabled={busy} onBusy={setBusy}/>}
    {showCommunication&&<IntakeCommunicationPreferences answers={answers} onChange={update} disabled={busy}/>}
+
+  {sectionIndex===intakeSections.length-1&&<DsmVersionChoice value={answers[DSM_INTAKE_VERSION_KEY]??''} onChange={v=>update(DSM_INTAKE_VERSION_KEY,v)} dob={answers.date_of_birth} disabled={busy}/>}
 
    <footer className={styles.actions}>
     <p><span aria-hidden="true">*</span> Required to submit. {dirty?'You have unsaved changes.':'Saved answers will reload if this page is refreshed.'}</p>

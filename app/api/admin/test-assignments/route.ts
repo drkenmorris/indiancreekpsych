@@ -26,7 +26,7 @@ export async function GET(){
   const ctx=await authorize();
   if(!ctx)return NextResponse.json({error:"Administrator sign-in with MFA is required."},{status:403});
   const {data,error}=await ctx.supabase.from("psych_test_assignments")
-   .select("id,recipient_first_name,recipient_last_name,recipient_email,test_key,status,created_at,expires_at,sent_at")
+   .select("id,recipient_first_name,recipient_last_name,recipient_email,test_key,dsm_version,status,created_at,expires_at,sent_at")
    .order("created_at",{ascending:false}).limit(60);
   if(error)return NextResponse.json({error:"Assignments cannot be loaded."},{status:503});
   return NextResponse.json({assignments:data??[],deliveryReady:EMAIL_READY(),
@@ -66,7 +66,7 @@ export async function POST(request:NextRequest) {
     if(!/^[a-f\d]{8}(-[a-f\d]{4}){3}-[a-f\d]{12}$/i.test(id))
       return NextResponse.json({error:"Invalid assignment."},{status:400});
     const {data:record,error}=await ctx.supabase.from("psych_test_assignments")
-      .select("id,recipient_email,test_key,status,expires_at").eq("id",id).maybeSingle();
+      .select("id,recipient_email,test_key,dsm_version,status,expires_at").eq("id",id).maybeSingle();
     if(error||!record)return NextResponse.json({error:"Assignment not found."},{status:404});
     if(record.status!=="draft")return NextResponse.json({error:"This assignment has already been sent or revoked."},{status:409});
     if(Date.parse(record.expires_at)<=Date.now())return NextResponse.json({error:"This invitation expired. Create a new assignment."},{status:409});

@@ -8,15 +8,17 @@ import {clinicalSessionStore as store} from '@/lib/clinical-tests/clinicalSessio
 import {TIER_ONE as D,ADULT_PROFILE,HANDOFF_KEY,createHandoff,type Answers} from '@/lib/clinical-tests/dsm/tier-one';
 import {activePlan,progressRecords,moduleStatus,TRACKER_KEY} from '@/lib/clinical-tests/dsm/tier-two-progress';
 import {SELECTION_KEY,ADOLESCENT_PROFILE} from '@/lib/clinical-tests/dsm/profiles';
-vi.mock('next/navigation',()=>({useRouter:()=>({push:vi.fn(),back:vi.fn()})}));
-afterEach(()=>{cleanup();store.clear();vi.restoreAllMocks();});
+const router=vi.hoisted(()=>({push:vi.fn(),back:vi.fn()}));
+vi.mock('next/navigation',()=>({useRouter:()=>router}));
+afterEach(()=>{cleanup();store.clear();vi.restoreAllMocks();router.push.mockClear();router.back.mockClear();});
 function seed(ids:string[]){const a:Answers=Object.fromEntries([...D.safety,...D.domains.flatMap(d=>d.questions)].map(q=>[q.id,'No']));ids.forEach(id=>a[D.domains.find(d=>d.id===id)!.questions[0].id]='Yes, currently');const p=createHandoff(a,true);store.setItem(HANDOFF_KEY,JSON.stringify(p));return p;}
 async function ratings(){await screen.findByRole('button',{name:'Complete module'});const radios=screen.getAllByRole('radio',{name:/^0 /});expect(radios.length).toBeGreaterThan(2);expect(radios.every(r=>!(r as HTMLInputElement).checked)).toBe(true);for(const r of radios)fireEvent.click(r);return radios.length;}
 test('all19 actual modules require explicit ratings, retain labeled answers/findings and produce final completion',async()=>{
  seed(D.domains.map(d=>d.id));for(const [i,d] of D.domains.entries()){
-  render(<Client screenKey={d.path}/>);const button=await screen.findByRole('button',{name:'Complete module'});expect((button as HTMLButtonElement).disabled).toBe(true);expect(screen.queryByText(/Why the screener/)).toBeNull();const total=await ratings();expect(moduleStatus(progressRecords()[d.id])).toBe('Ready to complete');fireEvent.click(button);const record=progressRecords()[d.id];expect(moduleStatus(record)).toBe('Completed');expect(record.requiredIds).toHaveLength(total);expect(record.findings?.summary).toBeTruthy();expect(record.definition.items.every(q=>!!q.text)).toBe(true);expect(Object.values(progressRecords()).filter(r=>moduleStatus(r)==='Completed')).toHaveLength(i+1);cleanup();
+  render(<Client screenKey={d.path}/>);const button=await screen.findByRole('button',{name:'Complete module'});expect((button as HTMLButtonElement).disabled).toBe(true);expect(screen.queryByText(/Why the screener/)).toBeNull();const total=await ratings();expect(moduleStatus(progressRecords()[d.id])).toBe('Ready to complete');fireEvent.click(button);const record=progressRecords()[d.id];expect(moduleStatus(record)).toBe('Completed');expect(record.requiredIds).toHaveLength(total);expect(record.findings?.summary).toBeTruthy();expect(record.definition.items.every(q=>!!q.text)).toBe(true);expect(Object.values(progressRecords()).filter(r=>moduleStatus(r)==='Completed')).toHaveLength(i+1);expect(router.push).toHaveBeenCalledTimes(i===18?1:0);cleanup();
  }
- render(<><Tracker/><Report/></>);expect(screen.getByText('19 of 19 selected modules completed')).toBeTruthy();expect(screen.getByText('All 19 selected Tier 2 modules completed.')).toBeTruthy();expect(screen.getAllByRole('heading',{name:'Screening finding'})).toHaveLength(19);expect(screen.getAllByRole('table')).toHaveLength(19);
+ expect(router.push).toHaveBeenCalledWith('/clinical-tests/dev/summary');
+ render(<><Tracker/><Report/></>);expect(document.activeElement).toBe(screen.getByRole('heading',{name:'Final screening report'}));expect(screen.getByText('19 of 19 selected modules completed')).toBeTruthy();expect(screen.getByText('All 19 selected Tier 2 modules completed.')).toBeTruthy();expect(screen.getAllByRole('heading',{name:'Screening finding'})).toHaveLength(19);expect(screen.getAllByRole('table')).toHaveLength(19);
 },90000);
 test('partial answers restore on return; editing completed module invalidates only its finding',async()=>{
  seed(['depressive','anxiety']);render(<Client screenKey="level2/depression"/>);await screen.findByRole('button',{name:'Complete module'});const first=screen.getAllByRole('radio',{name:/^0 /})[0];fireEvent.click(first);expect(moduleStatus(progressRecords().depressive)).toBe('In progress');cleanup();
@@ -33,3 +35,9 @@ test('new Tier1 attempt and different respondent cannot inherit completion; yout
 test('corrupt or old tracker data does not count as completion, and no selected domains remain explicit',()=>{
  seed([]);store.setItem(TRACKER_KEY,'bad');expect(progressRecords()).toEqual({});render(<Report/>);expect(screen.getByText('No automatic Tier 2 modules selected.')).toBeTruthy();expect(screen.queryByRole('heading',{name:'Screening finding'})).toBeNull();
 });
+
+
+test('summary opens only when the last unfinished selected module completes, regardless of order',async()=>{
+ seed(['depressive','anxiety']);render(<Client screenKey="level2/anxiety"/>);await ratings();expect(router.push).not.toHaveBeenCalled();fireEvent.click(screen.getByRole('button',{name:'Complete module'}));expect(router.push).not.toHaveBeenCalled();cleanup();
+ render(<Client screenKey="level2/depression"/>);await ratings();expect(router.push).not.toHaveBeenCalled();fireEvent.click(screen.getByRole('button',{name:'Complete module'}));expect(router.push).toHaveBeenCalledTimes(1);expect(router.push).toHaveBeenCalledWith('/clinical-tests/dev/summary');expect(Object.values(progressRecords()).every(r=>moduleStatus(r)==='Completed')).toBe(true);
+},20000);

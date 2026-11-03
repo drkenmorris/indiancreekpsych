@@ -1,7 +1,9 @@
 'use client';
 import {useEffect,useState} from 'react';
-import {progressRecords,saveModule,clearModule,moduleSourceHash,type ModuleDefinition,type ModuleRecord,type Findings} from './tier-two-progress';
+import {useNavigate} from '../navigation';
+import {activePlan,moduleStatus,progressRecords,saveModule,clearModule,moduleSourceHash,type ModuleDefinition,type ModuleRecord,type Findings} from './tier-two-progress';
 export function useTierTwoModule<T extends Record<string,number|boolean>>(id:string,initialize:()=>T,definition:ModuleDefinition){
+ const navigate=useNavigate();
  const [defaults]=useState(initialize);
  const requiredIds=Object.keys(defaults).filter(k=>typeof defaults[k]==='number');
  const [record,setRecord]=useState<ModuleRecord>(()=>{
@@ -16,7 +18,11 @@ export function useTierTwoModule<T extends Record<string,number|boolean>>(id:str
  function saveDraft(){saveModule(id,record);setMessage('Draft kept in this open screening session.');}
  function completeModule(findings:Findings){if(!requiredIds.every(k=>typeof record.answers[k]==='number')){setMessage('Answer every rating question, including Duration and Impact, before completing this module.');return;}
   const next={...record,completedAt:new Date().toISOString(),updatedAt:new Date().toISOString(),findings};
-  if(saveModule(id,next)){setRecord(next);setMessage('Module completed. The tracker and final report are updated.');}else setMessage('Prepare the selected Tier 1 follow-up plan before completing this module.');
+  if(saveModule(id,next)){
+   setRecord(next);setMessage('Module completed. The tracker and final report are updated.');
+   const plan=activePlan(),records=progressRecords(plan);
+   if(plan&&plan.handoff.routedDomains.length>0&&plan.handoff.routedDomains.every(domain=>moduleStatus(records[domain])==='Completed'))navigate('/dev/summary');
+  }else setMessage('Prepare the selected Tier 1 follow-up plan before completing this module.');
  }
  function resetModule(){if(!window.confirm('Clear only this module’s fictional answers and completion status?'))return;clearModule(id);setRecord({...record,answers:{},completedAt:null,findings:null});setMessage('This module was cleared. Other modules are retained.');}
  return {answers,setAnswer,answered:record.answers,saveDraft,completeModule,resetModule,message,remaining:requiredIds.filter(k=>typeof record.answers[k]!=='number').length};

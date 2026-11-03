@@ -13,3 +13,8 @@ Progress is bound to instrument/hash/respondent/age band/exact Tier1 answers/com
 The active adult/adolescent/parent context is resolved from the existing selector metadata. Youth selected domains remain explicitly Awaiting youth Tier2 development; adult modules never fill youth results. Adult state can be resumed after viewing another respondent context. No patient assignment access, auth/MFA, Supabase schema, release/email gates or EMR transfer is changed. No downloads, external destination or server storage are added. This remains one fictional administrator application session: a full reload/tab close clears state. No real respondent confidentiality or multi-patient isolation is claimed.
 
 Automated UI tests complete every actual adult module with explicit zero responses and verify19/19 and final findings/answer tables; also cover partial return, edit invalidation, live tracker counts, scoped reset, new-plan/other-respondent isolation, youth pending and corrupt tracker data. Prior Tier1/youth tests remain release checks. Build/typecheck and full clinic CI are required before publication.
+
+
+## Automatic final-summary opening — November 3, 2026
+
+After Complete module successfully records the final unfinished module, the shared hook re-reads the current plan and progress and navigates within the application to /clinical-tests/dev/summary. It checks every currently selected module, rather than the current module's position in the catalog, so out-of-order completion works. Merely answering the last rating, saving a draft or completing an earlier module does not navigate. The final report focuses its heading on mount for keyboard/screen-reader users. Session-only state and existing clinical/auth boundaries are unchanged.

@@ -1,4 +1,5 @@
 'use client';
+import IntakeTraumaHistory from '@/app/components/IntakeTraumaHistory';
 
 import {FormEvent,useEffect,useMemo,useRef,useState} from 'react';
 import {createClient} from '@/lib/supabase/client';
@@ -152,6 +153,7 @@ export default function KioskIntake({token}:{token:string}){
      const options=(field.length>4?field[4]:[])??[];
      const cost=costFields.includes(key);
      if(type==='legal-routing')return <div key={key} className={styles.wide}><IntakeLegalDirectory value={answers[key]??''} onChange={v=>update(key,v)} onOpen={page=>setSectionIndex(page-1)} readOnly={busy}/><h3>Communication and confidential-contact preferences</h3><p>Choose safe contact methods below; these are not records-release permissions.</p></div>;
+    if(type==='trauma-history')return <div key={key} className={styles.wide}><IntakeTraumaHistory value={answers[key]??''} onChange={v=>update(key,v)} legacyAnswers={answers} disabled={busy}/></div>;
     if(type==='medical-substance')return <div key={key} className={styles.wide}><IntakeMedicalSubstance value={answers[key]??''} onChange={v=>update(key,v)} legacyAnswers={answers} disabled={busy}/></div>;
      if(type==='medications')return <div key={key} className={styles.wide}><IntakeMedications value={answers[key]??''} onChange={v=>update(key,v)} disabled={busy}/></div>;
      if(type==='treatment-history')return <div key={key} className={styles.wide}><IntakeTreatmentHistory value={answers[key]??''} onChange={v=>update(key,v)} disabled={busy}/></div>;

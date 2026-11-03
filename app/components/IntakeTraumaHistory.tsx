@@ -1,0 +1,11 @@
+'use client';
+import {useId} from 'react';
+import {parseTraumaHistory,traumaHistoryDefinition as definition,TraumaChecklist} from '@/lib/patient/trauma-history';
+import {retiredContextFields} from '@/lib/patient/intake';
+export default function IntakeTraumaHistory({value,onChange,readOnly=false,disabled=false,legacyAnswers={}}:{value:string;onChange?:(value:string)=>void;readOnly?:boolean;disabled?:boolean;legacyAnswers?:Record<string,string>}){
+ const id=useId();let data:TraumaChecklist;try{data=parseTraumaHistory(value);}catch{return <p role="alert">Saved trauma history could not be displayed. Contact the office; no saved answers were changed.</p>;}
+ const legacy=retiredContextFields.filter(([key])=>legacyAnswers[key]?.trim());
+ const previous=legacy.length>0&&<details><summary>Previously recorded context answers</summary><dl>{legacy.map(([key,label])=><div key={key}><dt>{label}</dt><dd style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>{legacyAnswers[key]}</dd></div>)}</dl></details>;
+ if(readOnly)return <section><h3>Trauma History</h3><dl>{definition.groups.map(g=><div key={g.key}><dt><strong>{g.label}</strong></dt><dd>{data.selections[g.key].join('; ')||'Not answered'}</dd></div>)}</dl>{previous}</section>;
+ return <section><h3>Trauma History</h3><p id={id+'-help'}>Check only the items you choose to share. You may leave any section blank. A detailed description is not required. If you have an immediate safety concern, contact emergency services or seek immediate assistance; this questionnaire is not continuously monitored.</p><div className="intakeMedicalGrid">{definition.groups.map(g=><fieldset key={g.key} disabled={disabled} className="intakeMedicalGroup" aria-describedby={id+'-help'}><legend>{g.label}</legend>{g.choices.map((choice,i)=><label key={choice} className="intakeMedicalChoice" htmlFor={`${id}-${g.key}-${i}`}><input id={`${id}-${g.key}-${i}`} type="checkbox" name={'trauma-checklist-'+g.key} value={choice} checked={data.selections[g.key].includes(choice)} onChange={e=>{const selected=e.target.checked?[...data.selections[g.key],choice]:data.selections[g.key].filter(v=>v!==choice);onChange?.(JSON.stringify({...data,selections:{...data.selections,[g.key]:selected}}));}}/>{choice}</label>)}</fieldset>)}</div>{previous}</section>;
+}

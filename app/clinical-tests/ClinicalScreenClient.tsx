@@ -1,11 +1,10 @@
 "use client";
-import {useEffect,useState,type ComponentType} from "react";
+import {useEffect,useState,useSyncExternalStore,type ComponentType} from "react";
 import Link from "next/link";
 import TierTwoFinalReport from "./TierTwoFinalReport";
 import TierOneScreen from "./TierOneScreen";
 import {clinicalSessionStore} from "@/lib/clinical-tests/clinicalSessionStore";
-import {HANDOFF_KEY,readHandoff} from "@/lib/clinical-tests/dsm/tier-one";
-import {MODULE_ORDER} from "@/lib/clinical-tests/legacy/dev/Level2Shared";
+import {activePlan} from "@/lib/clinical-tests/dsm/tier-two-progress";
 import Level2NeurodevelopmentalModule from "@/lib/clinical-tests/legacy/dev/Level2NeurodevelopmentalModule";
 import Level2PsychoticModule from "@/lib/clinical-tests/legacy/dev/Level2PsychoticModule";
 import Level2BipolarModule from "@/lib/clinical-tests/legacy/dev/Level2BipolarModule";
@@ -51,13 +50,12 @@ const modules: Record<string, ComponentType> = {
 };
 
 export default function ClinicalScreenClient({ screenKey }: { screenKey: string }) {
-  const [allowedKey,setAllowedKey]=useState('');
-  useEffect(()=>{
-    const payload=readHandoff(clinicalSessionStore.getItem(HANDOFF_KEY));
-    const domain=MODULE_ORDER.find(m=>m.path==='/dev/'+screenKey);
-    setAllowedKey(payload&&domain&&payload.routedDomains.includes(domain.domainId)?screenKey:'');
-  },[screenKey]);
-  if(screenKey!=='level1'&&screenKey!=='summary'&&allowedKey!==screenKey)return <section><h2>Start with Tier 1</h2><p>Complete Tier 1 and prepare its follow-up plan to open a selected Tier 2 domain. An unselected or unanswered domain is not ruled out; a clinician may decide on further assessment.</p><Link href="/clinical-tests/dev/level1">Open Tier 1 screening</Link></section>;
+  const [ready,setReady]=useState(false);
+  useEffect(()=>{setReady(true);},[]);
+  useSyncExternalStore(clinicalSessionStore.subscribe,clinicalSessionStore.revision,()=>0);
+  const plan=activePlan();
+  const allowed=ready&&plan?.profile.id==='adult'&&plan.handoff.domains.some(d=>d.path===screenKey&&plan.handoff.routedDomains.includes(d.id));
+  if(screenKey!=='level1'&&screenKey!=='summary'&&!allowed)return <section><h2>Start with Tier 1</h2><p>This domain is not selected by the current completed Tier 1 plan. Complete or review Tier 1 to continue with the appropriate domains. Unselected domains are not ruled out.</p><Link href="/clinical-tests/dev/level1">Open Tier 1 screening</Link></section>;
   const Component = modules[screenKey];
   if (!Component) return <p>That module is unavailable.</p>;
   return <Component />;

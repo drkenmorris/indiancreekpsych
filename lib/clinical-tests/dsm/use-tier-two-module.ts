@@ -21,7 +21,7 @@ export function useTierTwoModule<T extends Record<string,number|boolean>>(id:str
   if(saveModule(id,next)){
    setRecord(next);setMessage('Module completed. The tracker and final report are updated.');
    const plan=activePlan(),records=progressRecords(plan);
-   if(plan&&plan.handoff.routedDomains.length>0&&plan.handoff.routedDomains.every(domain=>moduleStatus(records[domain])==='Completed'))navigate('/dev/summary');
+   if(plan){const nextDomain=plan.handoff.domains.find(d=>plan.handoff.routedDomains.includes(d.id)&&moduleStatus(records[d.id])!=='Completed');navigate(nextDomain?'/dev/'+nextDomain.path:'/dev/summary');}
   }else setMessage('Prepare the selected Tier 1 follow-up plan before completing this module.');
  }
  function resetModule(){if(!window.confirm('Clear only this module’s fictional answers and completion status?'))return;clearModule(id);setRecord({...record,answers:{},completedAt:null,findings:null});setMessage('This module was cleared. Other modules are retained.');}

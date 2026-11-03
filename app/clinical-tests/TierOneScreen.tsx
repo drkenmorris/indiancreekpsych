@@ -1,15 +1,17 @@
 "use client";
 import {useEffect,useRef,useState} from 'react';
 import Link from 'next/link';
+import {useNavigate} from '@/lib/clinical-tests/navigation';
 import {clinicalSessionStore as store} from '@/lib/clinical-tests/clinicalSessionStore';
 import {ADULT_PROFILE,HANDOFF_KEY,validAnswers,evaluateTierOne,createHandoff,readHandoff,type Answers,type ScreenProfile} from '@/lib/clinical-tests/dsm/tier-one';
 import {SELECTION_KEY,appropriateProfile} from '@/lib/clinical-tests/dsm/profiles';
 import './tier-one.css';
 
 export function TierOneQuestionnaire({profile=ADULT_PROFILE,onChangeVersion}:{profile?:ScreenProfile;onChangeVersion?:()=>void}){
+ const navigate=useNavigate();
  const D=profile.definition,DRAFT_KEY=profile.draftKey,DEFINITION_SHA256=profile.hash;
  function clearHandoff(){store.removeItem(profile.handoffKey);store.removeItem(HANDOFF_KEY);}
- function writeHandoff(){const raw=JSON.stringify(createHandoff(answers,adult,profile));store.setItem(profile.handoffKey,raw);if(profile.id==='adult')store.setItem(HANDOFF_KEY,raw);}
+ function writeHandoff(){const handoff=createHandoff(answers,adult,profile);const raw=JSON.stringify(handoff);store.setItem(profile.handoffKey,raw);if(profile.id==='adult')store.setItem(HANDOFF_KEY,raw);return handoff;}
 
  const [answers,setAnswers]=useState<Answers>({});
  const [adult,setAdult]=useState(false),[step,setStep]=useState(0),[completed,setCompleted]=useState(false),[ready,setReady]=useState(false),[error,setError]=useState('');
@@ -33,7 +35,7 @@ export function TierOneQuestionnaire({profile=ADULT_PROFILE,onChangeVersion}:{pr
  const domain=step>0&&step<20?D.domains[step-1]:null;
  const stepComplete=step===0?adult&&D.safety.every(q=>answers[q.id]):domain?.questions.every(q=>answers[q.id]);
  function next(){if(!stepComplete){setError(step===0?'Confirm the selected respondent and age scope and select a response for each safety question.':'Select one response for each statement. Unsure or a private discussion are available.');return;}move(step+1);}
- function finish(){if(!result.complete){setError('Some responses are missing. Use the section list to finish them before preparing Tier 2.');return;}writeHandoff();setCompleted(true);setError('');}
+ function finish(){if(!result.complete){setError('Some responses are missing. Use the section list to finish them before preparing Tier 2.');return;}const handoff=writeHandoff();setCompleted(true);setError('');const first=handoff.domains.find(d=>handoff.routedDomains.includes(d.id));navigate(profile.id==='adult'&&first?'/dev/'+first.path:'/dev/summary');}
  function reset(){if(!window.confirm('Clear this fictional screening session and its Tier 2 routing?'))return;store.removeItem(DRAFT_KEY);clearHandoff();setAnswers({});setAdult(false);setCompleted(false);setError('');setStep(0);}
  function question(q:{id:string;text:string},safety=false){return <fieldset key={q.id} className="tierOneQuestion"><legend>{q.text}</legend><div className="tierOneChoices">{(safety?D.safetyChoices:D.choices).map(choice=><label key={choice}><input type="radio" name={q.id} value={choice} checked={answers[q.id]===choice} onChange={()=>edit(q.id,choice)}/><span>{choice}</span></label>)}</div></fieldset>;}
  if(!ready)return <p role="status">Opening Tier 1…</p>;

@@ -18,16 +18,6 @@ test("ASQ student bank contains 179 distinct, nonblank numbered questions", () =
   }
 });
 
-test("ASQ student questionnaire actually renders all 179 prompts and answer choices", () => {
-  const { container } = render(<SelfForm />);
-  expect(screen.getByText("Answered 0 of 179 items.")).toBeTruthy();
-  const output = container.textContent ?? "";
-  for (const item of AUTISM_ITEMS_SELF) {
-    expect(output).toContain(item.text);
-  }
-  expect(container.querySelectorAll('input[type="radio"]')).toHaveLength(179 * 5);
-  const answer = container.querySelector('input[name="item-S001"][value="3"]');
-  expect(answer).not.toBeNull();
-  fireEvent.click(answer as HTMLInputElement);
-  expect(screen.getByText("Answered 1 of 179 items.")).toBeTruthy();
+test("ASQ student questionnaire renders only the first seven prompts with no default answers", () => {
+ const {container}=render(<SelfForm/>);expect(screen.getByText("Answered 0 of 179 items.")).toBeTruthy();const output=container.textContent??'';for(const item of AUTISM_ITEMS_SELF.slice(0,7))expect(output).toContain(item.text);expect(output).not.toContain(AUTISM_ITEMS_SELF[7].text);expect(container.querySelectorAll('input[type="radio"]')).toHaveLength(35);expect(container.querySelectorAll('input:checked')).toHaveLength(0);const answer=container.querySelector('input[name="asq-S001"][value="3"]');fireEvent.click(answer as HTMLInputElement);expect(screen.getByText("Answered 1 of 179 items.")).toBeTruthy();
 });

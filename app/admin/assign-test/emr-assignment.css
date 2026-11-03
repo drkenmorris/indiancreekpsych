@@ -13,3 +13,4 @@
 .emrAssignmentPage .assignmentCard button{background:#166455;min-height:44px;border-radius:7px}
 .emrAssignmentPage :focus-visible{outline:3px solid #a85a1d;outline-offset:3px}
 .emrAssignmentPage .assignmentCaution{background:#f8f2e3;border-color:#dfcc9f;color:#654817}
+.assignmentForm fieldset{border:1px solid #b9cec4;border-radius:9px;padding:15px;display:flex;gap:12px 24px;flex-wrap:wrap}.assignmentForm fieldset legend{font-weight:700;padding:0 6px}.assignmentForm fieldset label{display:flex;align-items:center;gap:8px;min-height:44px}.assignmentForm fieldset input[type=radio]{width:20px;min-height:20px;height:20px;margin:0}.assignmentTable small{display:block;margin-top:5px}.assignmentTable a{color:#205d4a;font-weight:600}

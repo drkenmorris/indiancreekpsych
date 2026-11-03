@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useState } from "react";
 import ClinicalStageMenu from "../ClinicalStageMenu";
 import AsqPersistencePanel from "./AsqPersistencePanel";
@@ -37,6 +38,7 @@ export default function AsqWorkspace() {
       <p style={{margin:0,maxWidth:700,lineHeight:1.55}}>Organized student, family, and teacher assessment workspace with secure synthetic case management and clinician-facing review sections.</p>
       <p style={{margin:"12px 0 0",fontWeight:700,fontSize:13}}>Administrator QA only · Not approved for diagnosis or patient release</p>
     </section>
+    <p><Link href="/admin/assign-test?test=asq">Assign Student / Self, Parent or Teacher questionnaire</Link> · <Link href="/admin/assign-test/asq-preview">Preview the recipient interface</Link></p>
     <AsqPersistencePanel onRestored={()=>{setSection("student");setRestoredKey(k=>k+1);}}/>
     <div key={restoredKey}>
     <section id="asq-active-section" style={{background:"#fff",border:"1px solid #cde2d8",borderRadius:18,padding:"18px 20px",boxShadow:"0 8px 30px rgba(14,60,45,.06)"}}>

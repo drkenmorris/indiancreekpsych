@@ -2,16 +2,20 @@
 import {useEffect,useState,type FormEvent} from "react";
 
 import DsmVersionChoice from '@/app/components/DsmVersionChoice';
+import Link from 'next/link';
+import {asqRoleLabels,asqRoles,type AsqRole} from '@/lib/clinical-tests/asq-forms';
 import {dsmVersionLabel} from '@/lib/clinical-tests/dsm/entry-choice';
 type Test={value:string;label:string;patientReady:boolean};
 type Assignment={
   id:string;recipient_first_name:string;recipient_last_name:string;
-  recipient_email:string;test_key:string;dsm_version:string|null;status:string;created_at:string;
+  recipient_email:string;test_key:string;dsm_version:string|null;asq_role:AsqRole|null;patient_id:string|null;asq_progress:{status:string;answered_count:number;revision:number}|null;status:string;created_at:string;
   expires_at:string;sent_at:string|null;
 };
-const defaults={firstName:"",lastName:"",email:"",dob:"",testKey:"",dsmVersion:""};
-export default function TestAssignmentClient(){
- const [form,setForm]=useState(defaults);
+const defaults={firstName:"",lastName:"",email:"",dob:"",testKey:"",dsmVersion:"",asqRole:"",patientId:""};
+export default function TestAssignmentClient({initialTestKey="",initialPatientId=""}:{initialTestKey?:string;initialPatientId?:string}={}){
+ const [patients,setPatients]=useState<{id:string;demographics:Record<string,string>;profiles:{full_name?:string}|{full_name?:string}[]|null}[]>([]);
+ const [asqReleaseReady,setAsqReleaseReady]=useState(false);
+ const [form,setForm]=useState({...defaults,testKey:initialTestKey,patientId:initialPatientId});
  const [tests,setTests]=useState<Test[]>([]);
  const [assignments,setAssignments]=useState<Assignment[]>([]);
  const [emailReady,setEmailReady]=useState(false);
@@ -26,7 +30,8 @@ export default function TestAssignmentClient(){
   if(!response.ok)throw Error(json.error??"Unable to load assignments.");
   setTests(json.tests);
   setAssignments(json.assignments);
-  setEmailReady(Boolean(json.deliveryReady));
+  setEmailReady(Boolean(json.deliveryReady));setAsqReleaseReady(Boolean(json.asqReleaseReady));
+  const roster=await fetch('/api/emr/patients',{cache:'no-store'});const patientData=await roster.json();if(!roster.ok)throw Error(patientData.error||'Central patient list unavailable.');setPatients(patientData.patients);
   setLoading(false);
  }
  useEffect(()=>{void load().catch(e=>{setError(e instanceof Error?e.message:"Unable to load.");setLoading(false);});},[]);
@@ -50,7 +55,7 @@ export default function TestAssignmentClient(){
  async function send(item:Assignment){
   if(busy)return;
   if(!window.confirm("Send a secure invitation to "+item.recipient_email+
-    "? The patient will be able to view the assignment after verified sign-in, but the migrated testing forms are not yet released for patient completion."))return;
+    "? Only the named recipient signing in with that email can open the assigned version."))return;
   setBusy(true);setError("");setMessage("");
   try{
    const response=await fetch("/api/admin/test-assignments",{
@@ -67,27 +72,30 @@ export default function TestAssignmentClient(){
  return <div className="assignmentPanels">
   <section className="assignmentCard">
    <h2>New assignment</h2>
-   <p>Enter the intended recipient's details. The date of birth is stored securely for patient matching and is never included in the invitation email.</p>
+   <p>Enter the name and email of the person who will answer. For ASQ/ASEQ, select the patient/student separately from the respondent.</p>
    <form className="assignmentForm" onSubmit={create}>
     <div className="assignmentTwoFields">
-     <label>First name<input required autoComplete="off" maxLength={100} value={form.firstName}
+     <label>Recipient first name<input required autoComplete="off" maxLength={100} value={form.firstName}
        onChange={e=>setForm(f=>({...f,firstName:e.target.value}))}/></label>
-     <label>Last name<input required autoComplete="off" maxLength={100} value={form.lastName}
+     <label>Recipient last name<input required autoComplete="off" maxLength={100} value={form.lastName}
        onChange={e=>setForm(f=>({...f,lastName:e.target.value}))}/></label>
     </div>
-    <label>Patient email address<input type="email" required maxLength={254} autoComplete="off"
-      value={form.email} onChange={e=>setForm(f=>({...f,email:e.target.value}))}
-      placeholder="patient@example.com"/></label>
-    <label>Date of birth<input type="date" required min="1900-01-01" max={new Date().toISOString().slice(0,10)}
-      value={form.dob} onChange={e=>setForm(f=>({...f,dob:e.target.value}))}/></label>
+    <label>Recipient email address<input type="email" required maxLength={254} autoComplete="off" value={form.email} onChange={e=>setForm(f=>({...f,email:e.target.value}))} placeholder="recipient@example.com"/></label>
+    {form.testKey!=='asq'&&<label>Patient date of birth<input type="date" required min="1900-01-01" max={new Date().toISOString().slice(0,10)} value={form.dob} onChange={e=>setForm(f=>({...f,dob:e.target.value}))}/></label>}
     <label>Psychological test
-     <select required value={form.testKey} onChange={e=>setForm(f=>({...f,testKey:e.target.value,dsmVersion:""}))}>
+     <select required value={form.testKey} onChange={e=>setForm(f=>({...f,testKey:e.target.value,dsmVersion:"",asqRole:"",patientId:""}))}>
       <option value="">Select a test</option>
       {tests.map(t=><option key={t.value} value={t.value}>{t.label} — {t.patientReady?"Available":"Patient release pending"}</option>)}
      </select>
     </label>
+    {form.testKey==='asq'&&<>
+     <label>Patient / student this questionnaire concerns<select required value={form.patientId} onChange={e=>setForm(f=>({...f,patientId:e.target.value}))}><option value="">Select central patient record</option>{patients.map(p=><option key={p.id} value={p.id}>{[p.demographics.first_name,p.demographics.last_name].filter(Boolean).join(' ')||(Array.isArray(p.profiles)?p.profiles[0]?.full_name:p.profiles?.full_name)||'Patient demographics pending'} · {p.id.slice(0,8)}</option>)}</select></label>
+     <fieldset><legend>Who will answer the ASQ / ASEQ?</legend>{asqRoles.map(role=><label key={role}><input type="radio" name="asqRespondent" required value={role} checked={form.asqRole===role} onChange={()=>setForm(f=>({...f,asqRole:role}))}/>{asqRoleLabels[role]}</label>)}</fieldset>
+     <p>The name and email above belong to this respondent. Assign Parent and Teacher questionnaires separately, even when they concern the same patient. They will see only their assigned version.</p>
+     <p><Link href="/admin/assign-test/asq-preview">Preview the simplified seven-question recipient interface</Link></p>
+    </>}
     {form.testKey==='dsm'&&<DsmVersionChoice value={form.dsmVersion} onChange={v=>setForm(f=>({...f,dsmVersion:v}))} dob={form.dob} disabled={busy} required/>}
-    <p className="assignmentCaution"><strong>Clinical release notice:</strong> The relocated psychological tests are still administrator-only prototypes. Creating an assignment does not allow a patient to complete an unapproved test. An invitation provides access to a secure assignment page only.</p>
+    <p className="assignmentCaution"><strong>Clinical release notice:</strong> {form.testKey==='asq'&&asqReleaseReady?'The ASQ/ASEQ recipient workflow is enabled. It records respondent answers for clinician review; it does not establish a diagnosis.':"Recipient release is pending for this questionnaire. Draft assignments and interface previews are available; invitations remain gated."}</p>
     <button type="submit" disabled={busy||loading}>{busy?"Saving…":"Save Assignment Draft"}</button>
    </form>
   </section>
@@ -101,10 +109,10 @@ export default function TestAssignmentClient(){
      <thead><tr><th>Recipient</th><th>Test</th><th>Status</th><th>Action</th></tr></thead>
      <tbody>{assignments.map(a=><tr key={a.id}>
       <td><strong>{a.recipient_first_name} {a.recipient_last_name}</strong><small>{a.recipient_email}</small></td>
-      <td>{tests.find(t=>t.value===a.test_key)?.label??a.test_key}{a.test_key==='dsm'&&<small>{dsmVersionLabel(a.dsm_version)}</small>}</td>
-      <td><span className="assignmentPill">{a.status==="sent"?"Email accepted":"Draft — not sent"}</span></td>
-      <td>{a.status==="draft"?<button disabled={busy||!emailReady||Date.parse(a.expires_at)<=Date.now()}
-       onClick={()=>void send(a)}>Send Invitation</button>:<span>Sent</span>}</td>
+      <td>{tests.find(t=>t.value===a.test_key)?.label??a.test_key}{a.test_key==='asq'&&<><small>{a.asq_role?asqRoleLabels[a.asq_role]:'Legacy assignment — version not specified'}</small>{a.patient_id&&<small><Link href={'/emr?patient='+a.patient_id}>Patient record</Link></small>}</>}{a.test_key==='dsm'&&<small>{dsmVersionLabel(a.dsm_version)}</small>}</td>
+      <td>{a.asq_progress&&<small>{a.asq_progress.status==='submitted'?'Questionnaire submitted':'In progress'} · {a.asq_progress.answered_count} answers saved · revision {a.asq_progress.revision}</small>}<span className="assignmentPill">{a.status==="sent"?"Email accepted":"Draft — not sent"}</span></td>
+      <td>{a.status==="draft"?<button disabled={busy||!emailReady||!tests.find(t=>t.value===a.test_key)?.patientReady||(a.test_key==='asq'&&!a.asq_role)||Date.parse(a.expires_at)<=Date.now()}
+       onClick={()=>void send(a)}>Send Invitation</button>:<span>Sent</span>}{a.test_key==='asq'&&a.asq_role&&<p><Link href={'/admin/assign-test/asq-responses/'+a.id}>View recorded responses</Link></p>}</td>
      </tr>)}</tbody>
     </table></div>}
    <p className="assignmentHelp">Patients must sign in using the invited email address and complete required security verification. An invitation is not proof of identity and never overrides access rules.</p>

@@ -1,4 +1,6 @@
 "use client";
+import SevenQuestionForm from "@/app/components/asq/SevenQuestionForm";
+import {asqDefinition} from "@/lib/clinical-tests/asq-forms";
 import { clinicalSessionStore } from "@/lib/clinical-tests/clinicalSessionStore";
 // src/asq/SelfForm.tsx
 
@@ -125,15 +127,7 @@ export const SelfForm = () => {
         Answered {answeredCount} of {totalCount} items.
       </div>
 
-      {selfItems.map((item) => (
-        <LikertQuestion
-          key={item.id}
-          id={item.id}
-          text={item.text ?? item.prompt ?? ""}
-          value={responses[item.id] ?? null}
-          onChange={handleChange}
-        />
-      ))}
+      <SevenQuestionForm definition={asqDefinition('student')} initialAnswers={responses as Record<string,number>} preview onAnswersChange={answers=>setResponses(answers as SelfResponses)} onSave={async request=>{clinicalSessionStore.setItem(LS_SELF_RESPONSES,JSON.stringify(request.answers));}}/>
 
       <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem", flexWrap: "wrap" }}>
         <button type="button" onClick={handleScore} disabled={answeredCount === 0}>

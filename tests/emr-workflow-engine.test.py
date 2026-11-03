@@ -9,7 +9,9 @@ class Repo:
   if path=='rpc/save_emr_workspace':
    rev=self.saved[0]['revision'] if self.saved else 0
    if body['p_expected']!=rev:raise m.Conflict()
-   self.saved=[{'revision':rev+1,'state':body['p_state']}];return rev+1
+   self.saved=[{'revision':rev+1,'state':body['p_state']}]
+   if body.get('p_demographics') is not None:self.row['demographics'].update(body['p_demographics']);self.row['revision']+=1
+   return rev+1
   raise AssertionError(path)
 class WorkflowTests(unittest.TestCase):
  def setUp(self):self.repo=Repo()
@@ -22,6 +24,16 @@ class WorkflowTests(unittest.TestCase):
   result=self.run_action('/api/save',{'action':'biopsychosocial_medication','patient_id':self.repo.pid,'data':{'medication':'Fictional medication','status':'Current','dosage':'Fictional dose','frequency':'Fictional frequency','start_date':'','end_date':'','prescribing_physician':'Fictional prescriber','beneficial':''}},1)
   self.assertEqual(result['revision'],2)
   c=self.run_action('/api/chart?patient='+self.repo.pid)['value'];self.assertEqual(len(c['records']),2);self.assertEqual(c['records'][0]['insured_last_name'],'Subscriber')
+ def test_demographic_views_preserve_canonical_address_and_extended_fields(self):
+  self.repo.row['demographics']['address1']='Fictional canonical address'
+  self.assertEqual(self.run_action('/api/chart')['value']['patient']['street_address_1'],'Fictional canonical address')
+  data={'schema':'demographics/2','first_name':'Fictional','last_name':'Example','dob':'1990-01-02','active':False,'previous_treatment':False,'street_address_1':'Fictional updated address','military_rank':'Fictional rank'}
+  self.run_action('/api/save',{'action':'demographics','data':data})
+  self.assertEqual(self.repo.row['demographics']['address1'],'Fictional updated address')
+  self.assertNotIn('military_rank',self.repo.row['demographics'])
+  self.repo.row['demographics']['address1']='Fictional directory edit'
+  patient=self.run_action('/api/chart')['value']['patient']
+  self.assertEqual(patient['street_address_1'],'Fictional directory edit');self.assertEqual(patient['military_rank'],'Fictional rank');self.assertEqual(patient['status'],'archived')
  def test_patient_binding_rejected(self):
   with self.assertRaises(ValueError):self.run_action('/api/chart?patient='+str(uuid.uuid4()))
   with self.assertRaises(PermissionError):self.run_action('/api/chart',pid=str(uuid.uuid4()))

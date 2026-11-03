@@ -30,17 +30,22 @@ class Repository:
    if detail.get('code')=='40001':raise Conflict(detail.get('message','Revision conflict')) from None
    raise PermissionError('Repository access was not confirmed.') from None
  def rest(self,path,body=None):return self.call('/rest/v1/'+path,body)
-def central_patient(row):
- d=row['demographics'];profile=row.get('profiles') or {};full=profile.get('full_name','') if isinstance(profile,dict) else ''
+def central_patient(row,records=()):
+ prior=next((json.loads(r['body']) for r in reversed(records) if r['kind']=='demographics' and json.loads(r['body']).get('schema')=='demographics/2'),{})
+ d=dict(prior);d.update(row['demographics'])
+ for source,target in [('address1','street_address_1'),('address2','street_address_2'),('state','state_province')]:
+  if source in row['demographics']:d[target]=row['demographics'][source]
+ profile=row.get('profiles') or {};full=profile.get('full_name','') if isinstance(profile,dict) else ''
  first=d.get('first_name') or full.split(' ')[0] or 'Patient';last=d.get('last_name') or (' '.join(full.split(' ')[1:])) or 'Demographics pending';dob=d.get('dob','')
- return dict(d,id=row['id'],first_name=first,last_name=last,name=first+' '+last,dob=dob,assigned_id=first[0].upper()+last[0].upper()+dob[5:7]+dob[8:10]+dob[:4] if dob else 'DOB pending',status=d.get('status','active'),concern=d.get('concern','Not yet documented'),medications='See medication history',allergies='See medication allergy record',synthetic=False)
+ return dict(d,id=row['id'],first_name=first,last_name=last,name=first+' '+last,dob=dob,assigned_id=first[0].upper()+last[0].upper()+dob[5:7]+dob[8:10]+dob[:4] if dob else 'DOB pending',status='active' if d.get('active',True) else 'archived',concern=d.get('concern','Not yet documented'),medications='See medication history',allergies='See medication allergy record',synthetic=False)
 def process(payload,repo):
  pid=payload.get('patientId');uuid.UUID(pid)
  rows=repo.rest('clinical_patients?select=id,demographics,revision,profiles!clinical_patients_account_id_fkey(full_name)&id=eq.'+pid)
  if not rows:raise PermissionError('Patient record unavailable.')
- person=rows[0];patient=central_patient(person)
+ person=rows[0]
  saved=repo.rest('emr_workspaces?select=revision,state&patient_id=eq.'+pid+'&owner_id=eq.'+repo.user)
  revision=saved[0]['revision'] if saved else 0;state=saved[0]['state'] if saved else {'records':[]}
+ patient=central_patient(person,state['records'])
  path=urlsplit(payload.get('path',''));query=parse_qs(path.query);method=payload.get('method','GET');body=payload.get('body') or {}
  if method not in ['GET','POST']:raise ValueError('Unsupported method.')
  if query.get('patient',[pid])[0]!=pid or body.get('patient_id',pid)!=pid:raise ValueError('Patient binding mismatch.')
@@ -62,8 +67,9 @@ def process(payload,repo):
    with store.connect() as db:updated={'records':[dict(r) for r in db.execute('SELECT * FROM records ORDER BY seq')]}
    demographics=None
    if body.get('action')=='demographics':
-    demographics={k:v for k,v in value.items() if k not in ['id','kind','created','hash','synthetic']}
-    for source,target in [('street_address_1','address1'),('street_address_2','address2'),('state_province','state')]:demographics[target]=demographics.get(source,'')
+    keys=['first_name','middle_name','last_name','dob','city','postal_code','county','country','home_phone','cell_phone','email']
+    demographics={k:value.get(k,'') for k in keys}
+    for source,target in [('street_address_1','address1'),('street_address_2','address2'),('state_province','state')]:demographics[target]=value.get(source,'')
    revision=repo.rest('rpc/save_emr_workspace',{'p_patient':pid,'p_expected':revision,'p_state':updated,'p_demographics':demographics,'p_patient_revision':person['revision'] if demographics is not None else None})
   else:raise ValueError('Choose a patient through the central directory. This workflow action is unavailable.')
  return {'value':value,'revision':revision}

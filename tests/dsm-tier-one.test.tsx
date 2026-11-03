@@ -40,11 +40,10 @@ test('complete the actual wizard, prepare selected Tier 2 only, resume, then edi
  fireEvent.click(screen.getByRole('button',{name:'Next section'}));
  for(const [i,d] of D.domains.entries()){
   for(const [j,q] of d.questions.entries())fireEvent.click(within(screen.getByRole('group',{name:q.text})).getByRole('radio',{name:i===3&&j===0?'Yes, currently':i===4&&j===0?'Prefer to discuss privately':'No'}));
-  fireEvent.click(screen.getByRole('button',{name:i===18?'Review Tier 1':'Next section'}));
+  fireEvent.click(screen.getByRole('button',{name:i===18?'Continue to selected Tier 2 questions':'Next section'}));
  }
  expect(screen.getByText('60 of 60 responses recorded')).toBeTruthy();
- expect(screen.queryByRole('link',{name:/Open Tier 2/})).toBeNull();
- fireEvent.click(screen.getByRole('button',{name:'Complete Tier 1 and prepare Tier 2'}));
+ expect(screen.getByRole('button',{name:'Tier 2 plan prepared'})).toBeTruthy();
  expect(screen.getAllByRole('link',{name:/Open Tier 2/})).toHaveLength(1);
  expect(screen.getByRole('link',{name:/Open Tier 2/}).getAttribute('href')).toBe('/clinical-tests/dev/level2/depression');
  expect(readHandoff(store.getItem(HANDOFF_KEY))?.reviewDomains).toEqual(['anxiety']);
@@ -58,7 +57,7 @@ test('safety message appears immediately and routing cannot be prepared while in
  fireEvent.click(within(screen.getByRole('group',{name:D.safety[0].text})).getByRole('radio',{name:'Yes'}));
  expect(screen.getByRole('alert').textContent).toContain('direct clinical review');
  fireEvent.click(screen.getByRole('button',{name:'Review and Tier 2 plan'}));
- expect((screen.getByRole('button',{name:'Complete Tier 1 and prepare Tier 2'}) as HTMLButtonElement).disabled).toBe(true);
+ fireEvent.click(screen.getByRole('button',{name:'Continue to selected Tier 2 questions'}));expect(screen.getByRole('heading',{name:'Start and safety check'})).toBeTruthy();expect(screen.getAllByRole('alert').some(a=>a.textContent?.includes('Confirm'))).toBe(true);
 });
 test('direct Tier 2 navigation is gated by recomputed completed Tier 1 selection',async()=>{
  const {default:Client}=await import('@/app/clinical-tests/ClinicalScreenClient');

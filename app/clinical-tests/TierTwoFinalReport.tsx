@@ -1,14 +1,16 @@
 'use client';
-import {useSyncExternalStore} from 'react';
+import {useEffect,useRef,useSyncExternalStore} from 'react';
 import Link from 'next/link';
 import {clinicalSessionStore as store} from '@/lib/clinical-tests/clinicalSessionStore';
 import {activePlan,progressRecords,moduleStatus} from '@/lib/clinical-tests/dsm/tier-two-progress';
 import './tier-two-progress.css';
 export default function TierTwoFinalReport(){
+ const heading=useRef<HTMLHeadingElement>(null);
+ useEffect(()=>{heading.current?.focus();},[]);
  useSyncExternalStore(store.subscribe,store.revision,()=>0);
- const plan=activePlan();if(!plan)return <section><h2>Final screening report</h2><p>Complete Tier 1 and prepare its follow-up plan to begin this report.</p><Link href="/clinical-tests/dev/level1">Open Tier 1</Link></section>;
+ const plan=activePlan();if(!plan)return <section><h2 ref={heading} tabIndex={-1}>Final screening report</h2><p>Complete Tier 1 and prepare its follow-up plan to begin this report.</p><Link href="/clinical-tests/dev/level1">Open Tier 1</Link></section>;
  const selected=plan.handoff.domains.filter(d=>plan.handoff.routedDomains.includes(d.id)),records=progressRecords(plan);const done=selected.filter(d=>moduleStatus(records[d.id])==='Completed').length;
- return <section className="tierTwoReport" aria-label="Final screening report"><h2>Final screening report</h2><p><strong>{plan.profile.title}</strong> · {plan.profile.populationLabel}</p>
+ return <section className="tierTwoReport" aria-label="Final screening report"><h2 ref={heading} tabIndex={-1}>Final screening report</h2><p><strong>{plan.profile.title}</strong> · {plan.profile.populationLabel}</p>
  <p role="status">{selected.length===0?'No automatic Tier 2 modules selected.':done===selected.length?(selected.length===1?'The selected Tier 2 module is completed.':`All ${selected.length} selected Tier 2 modules completed.`):`Partial report: ${done} of ${selected.length} selected modules completed.`}</p>
  <p>These are original prototype screening findings for clinician review, not diagnoses or confirmation that a condition is absent. No answers are sent outside this application or automatically saved to the EMR.</p>
  {(plan.handoff.safetyFlag||plan.handoff.safetyReview)&&<aside className="tierTwoReview">Tier 1 safety responses require direct clinical review. Completing the questionnaire does not establish safety or notify a clinician.</aside>}

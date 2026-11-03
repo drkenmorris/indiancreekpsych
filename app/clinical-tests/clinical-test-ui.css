@@ -16,11 +16,11 @@
 .clinicalLabSuiteLink[aria-current=page]{background:#fff;color:#0a3554;border-color:#fff}
 .clinicalLabShell :focus-visible{outline:3px solid #f8bb56!important;outline-offset:2px}
 .clinicalLabContent{padding:0 clamp(10px,2.2vw,28px) 55px}
-.clinicalLabContent > main.authPage{display:block;min-height:auto;width:100%;max-width:1200px!important;margin:0 auto!important;padding:clamp(20px,3vw,40px)!important;background:transparent}
-.clinicalLabContent > main.authPage > h1{font:500 clamp(30px,3.5vw,44px)/1.12 Georgia,'Times New Roman',serif;margin:10px 0 14px;color:#0d3b5e}
-.clinicalLabContent > main.authPage > p[role=alert]{max-width:1050px;padding:13px 17px!important;border:1px solid #e7c58e!important;border-left:5px solid #aa762c!important;border-radius:9px;background:#fff7ea!important;color:#714810!important;font:13px/1.5 Arial,sans-serif}
-.clinicalLabContent > main.authPage > a:first-child{display:inline-block;font-weight:700;color:#145478;margin:0 0 8px;text-decoration:none}
-.clinicalLabContent > main.authPage > a:first-child:hover{text-decoration:underline}
+.clinicalLabContent main.authPage{display:block;min-height:auto;width:100%;max-width:1200px!important;margin:0 auto!important;padding:clamp(20px,3vw,40px)!important;background:transparent}
+.clinicalLabContent main.authPage > h1{font:500 clamp(30px,3.5vw,44px)/1.12 Georgia,'Times New Roman',serif;margin:10px 0 14px;color:#0d3b5e}
+.clinicalLabContent main.authPage > p[role=alert]{max-width:1050px;padding:13px 17px!important;border:1px solid #e7c58e!important;border-left:5px solid #aa762c!important;border-radius:9px;background:#fff7ea!important;color:#714810!important;font:13px/1.5 Arial,sans-serif}
+.clinicalLabContent main.authPage > a:first-child{display:inline-block;font-weight:700;color:#145478;margin:0 0 8px;text-decoration:none}
+.clinicalLabContent main.authPage > a:first-child:hover{text-decoration:underline}
 /* The overview is its own page; all links point to implemented routes only. */
 .clinicalTestDashboard{max-width:1220px;margin:0 auto;padding:clamp(23px,3.5vw,45px)}
 .clinicalDashboardIntro .eyebrow{color:#246786;font-size:11px;margin:0 0 8px}

@@ -1,4 +1,6 @@
 "use client";
+import SevenQuestionForm from "@/app/components/asq/SevenQuestionForm";
+import {asqDefinition} from "@/lib/clinical-tests/asq-forms";
 import { clinicalSessionStore } from "@/lib/clinical-tests/clinicalSessionStore";
 // src/asq/ParentForm.tsx
 
@@ -212,15 +214,7 @@ export const ParentForm: React.FC = () => {
         Answered {answeredCount} of {totalCount} items.
       </div>
 
-      {items.map((item: any) => (
-        <LikertQuestion
-          key={item.id}
-          id={item.id}
-          text={item.text ?? item.prompt ?? ""}
-          value={responses[item.id] ?? null}
-          onChange={handleChange}
-        />
-      ))}
+      <SevenQuestionForm definition={asqDefinition('parent')} initialAnswers={responses as Record<string,number>} preview onAnswersChange={answers=>setResponses(answers as ParentResponses)} onSave={async request=>{clinicalSessionStore.setItem(responseKey,JSON.stringify(request.answers));}}/>
 
       <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem", flexWrap: "wrap" }}>
         <button type="button" onClick={handleScore} disabled={answeredCount === 0}>

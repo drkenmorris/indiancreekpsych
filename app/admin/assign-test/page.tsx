@@ -4,7 +4,8 @@ import {patientAccess} from "@/lib/patient/access";
 import TestAssignmentClient from "./TestAssignmentClient";
 
 export const metadata={title:"Assign Psychological Test | Indian Creek"};
-export default async function AssignTestPage(){
+export default async function AssignTestPage({searchParams}:{searchParams:Promise<{test?:string;patient?:string}>}){
+  const params=await searchParams;
   await patientAccess(true,"/admin/assign-test");
   return <main className="authPage assignmentPage emrAssignmentPage">
     <div className="assignmentWrap"><div className="emrAssignmentBanner"><span>Indian Creek Psychological Services · Clinical workspace</span><a href="/emr" target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">Open EMR</a></div>
@@ -12,9 +13,9 @@ export default async function AssignTestPage(){
         <Link href="/admin/questionnaires">← Questionnaire Center</Link> <Link href="/admin/paubox-test">Paubox Email Diagnostic</Link>
         <p className="eyebrow">Administrator · MFA required</p>
         <h1>Patient Questionnaire Assignment</h1>
-        <p>Create a secure assignment using a patient's first and last name, email address, date of birth, and an assessment from the practice's library.</p>
+        <p>Assign a questionnaire to a named individual and email. For ASQ/ASEQ, choose Student / Self, Parent or Teacher and the central patient record it concerns.</p>
       </div>
-      <TestAssignmentClient/>
+      <TestAssignmentClient initialTestKey={params.test==='asq'?'asq':''} initialPatientId={params.test==='asq'?params.patient??'':''}/>
     </div>
   </main>;
 }

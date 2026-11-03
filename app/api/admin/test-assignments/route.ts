@@ -3,6 +3,10 @@ import { sendPauboxPatientInvitation } from "@/lib/paubox/patient-invitation";
 import { createClient } from "@/lib/supabase/server";
 import { normalizeAssignmentData, assignedTestOptions } from "@/lib/clinical-tests/assignments";
 
+import {assignmentDefinition} from '@/lib/clinical-tests/asq/assignment-source';
+import {asqRecipientReleaseApproved} from '@/lib/clinical-tests/asq/recipient-access';
+import {sameOrigin} from '@/lib/emr/access';
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 const EMAIL_READY = () => Boolean(process.env.PAUBOX_API_KEY
@@ -26,16 +30,20 @@ export async function GET(){
   const ctx=await authorize();
   if(!ctx)return NextResponse.json({error:"Administrator sign-in with MFA is required."},{status:403});
   const {data,error}=await ctx.supabase.from("psych_test_assignments")
-   .select("id,recipient_first_name,recipient_last_name,recipient_email,test_key,dsm_version,status,created_at,expires_at,sent_at")
+   .select("id,recipient_first_name,recipient_last_name,recipient_email,test_key,dsm_version,asq_role,patient_id,status,created_at,expires_at,sent_at")
    .order("created_at",{ascending:false}).limit(60);
   if(error)return NextResponse.json({error:"Assignments cannot be loaded."},{status:503});
-  return NextResponse.json({assignments:data??[],deliveryReady:EMAIL_READY(),
-    tests:assignedTestOptions},{headers:{"Cache-Control":"no-store"}});
+  const ids=(data??[]).map(a=>a.id);
+  const progress=ids.length?await ctx.supabase.from('asq_assignment_responses').select('assignment_id,status,page,revision,answered_count').in('assignment_id',ids):{data:[],error:null};
+  if(progress.error)return NextResponse.json({error:'Assignment progress cannot be loaded.'},{status:503});
+  return NextResponse.json({assignments:(data??[]).map(a=>({...a,asq_progress:progress.data?.find(p=>p.assignment_id===a.id)??null})),deliveryReady:EMAIL_READY(),asqReleaseReady:asqRecipientReleaseApproved(),
+    tests:assignedTestOptions.map(t=>({...t,patientReady:t.value==='asq'?asqRecipientReleaseApproved():t.patientReady}))},{headers:{"Cache-Control":"no-store"}});
 }
 
 export async function POST(request:NextRequest) {
   const ctx=await authorize();
   if(!ctx)return NextResponse.json({error:"Administrator sign-in with MFA is required."},{status:403});
+  if(!sameOrigin(request))return NextResponse.json({error:'Same-origin request required.'},{status:403});
   let body:Record<string,unknown>;
   try {
     if (Number(request.headers.get("content-length")??0)>8192)throw Error("large");
@@ -53,8 +61,14 @@ export async function POST(request:NextRequest) {
       .select("id",{count:"exact",head:true}).eq("assigned_by",ctx.user.id).gte("created_at",since);
     if(limitError)return NextResponse.json({error:"Unable to check assignment limits."},{status:503});
     if((count??0)>=25)return NextResponse.json({error:"Hourly assignment limit reached."},{status:429});
+    let insertData:Record<string,unknown>={...verified.data};
+    if(verified.data.test_key==='asq'&&verified.data.asq_role){
+      const {data:patient,error:patientError}=await ctx.supabase.from('clinical_patients').select('id').eq('id',verified.data.patient_id!).maybeSingle();
+      if(patientError||!patient)return NextResponse.json({error:'Selected patient is unavailable.'},{status:400});
+      const source=assignmentDefinition(verified.data.asq_role);insertData={...insertData,asq_definition:source.definition,asq_definition_hash:source.hash};
+    }
     const {data,error}=await ctx.supabase.from("psych_test_assignments")
-       .insert(verified.data).select("id").single();
+       .insert(insertData).select("id").single();
     if(error||!data)return NextResponse.json({error:"Unable to save assignment. Verify your MFA session."},{status:503});
     return NextResponse.json({id:data.id,created:true,emailed:false},{status:201});
   }
@@ -66,13 +80,14 @@ export async function POST(request:NextRequest) {
     if(!/^[a-f\d]{8}(-[a-f\d]{4}){3}-[a-f\d]{12}$/i.test(id))
       return NextResponse.json({error:"Invalid assignment."},{status:400});
     const {data:record,error}=await ctx.supabase.from("psych_test_assignments")
-      .select("id,recipient_email,test_key,dsm_version,status,expires_at").eq("id",id).maybeSingle();
+      .select("id,recipient_email,test_key,dsm_version,asq_role,asq_definition_hash,patient_id,status,expires_at").eq("id",id).maybeSingle();
     if(error||!record)return NextResponse.json({error:"Assignment not found."},{status:404});
     if(record.status!=="draft")return NextResponse.json({error:"This assignment has already been sent or revoked."},{status:409});
     if(Date.parse(record.expires_at)<=Date.now())return NextResponse.json({error:"This invitation expired. Create a new assignment."},{status:409});
+    if(record.test_key==='asq'&&(!record.asq_role||!record.asq_definition_hash||!record.patient_id))return NextResponse.json({error:'This legacy ASQ assignment has no fixed respondent version and patient link. Create a new Student / Self, Parent or Teacher assignment.'},{status:409});
     // A test invitation is never an authorization to access unreleased questionnaires.
     const approvedTest = assignedTestOptions.find(t=>t.value===record.test_key);
-    if(!approvedTest?.patientReady)
+    if(!(record.test_key==='asq'?asqRecipientReleaseApproved():approvedTest?.patientReady))
       return NextResponse.json({error:"This questionnaire has not yet been approved for patient administration. Invitation not sent."},{status:409});
     const link="https://www.indiancreekpsych.com/patient/assigned-tests/"+encodeURIComponent(id);
     let acceptedId: string;

@@ -1,4 +1,6 @@
 "use client";
+import SevenQuestionForm from "@/app/components/asq/SevenQuestionForm";
+import {asqDefinition} from "@/lib/clinical-tests/asq-forms";
 import { clinicalSessionStore } from "@/lib/clinical-tests/clinicalSessionStore";
 // src/asq/TeacherForm.tsx
 
@@ -229,15 +231,7 @@ export const TeacherForm: React.FC = () => {
         Answered {answeredCount} of {totalCount} items.
       </div>
 
-      {teacherItems.map((it: AutismTeacherItem) => (
-        <LikertQuestion
-          key={it.id}
-          id={it.id}
-          text={it.prompt ?? ""}
-          value={responses[it.id] ?? null}
-          onChange={handleChange}
-        />
-      ))}
+      <SevenQuestionForm definition={asqDefinition('teacher')} initialAnswers={responses as Record<string,number>} preview onAnswersChange={answers=>setResponses(answers as TeacherResponses)} onSave={async request=>{clinicalSessionStore.setItem(LS_TEACHER_RESPONSES,JSON.stringify(request.answers));}}/>
 
       <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem", flexWrap: "wrap" }}>
         <button type="button" onClick={handleScore} disabled={answeredCount === 0}>

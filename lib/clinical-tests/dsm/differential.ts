@@ -1,7 +1,7 @@
 import {reconcileCandidate} from './formulation';
 import bank from './differential-definition.json';
 import version from './differential-version.json';
-import {clinicalSessionStore as store} from '../clinicalSessionStore';
+import {clinicalSessionStore as store,type ClinicalSessionStore} from '../clinicalSessionStore';
 import {activePlan,progressRecords,moduleStatus,type ModuleRecord} from './tier-two-progress';
 export {bank as differentialDefinition};
 export const DIFFERENTIAL_KEY='icps_differential_v1';
@@ -13,7 +13,7 @@ export type Unit={id:string;title:string;questions:Question[];reasons:string[];r
 type Plan=NonNullable<ReturnType<typeof activePlan>>;
 type Saved=Record<string,FollowupRecord>;
 export function tierTwoReady(plan:Plan,records:Record<string,ModuleRecord>){return plan.profile.id==='adult'&&plan.handoff.routedDomains.length>0&&plan.handoff.routedDomains.every(id=>moduleStatus(records[id])==='Completed');}
-function stored(source:string):Saved{try{const data=JSON.parse(store.getItem(DIFFERENTIAL_KEY)||'null');return data?.version===version.sha256&&data.source===source&&data.units&&typeof data.units==='object'?data.units:{};}catch{return {};}}
+function stored(source:string,storage:ClinicalSessionStore=store):Saved{try{const data=JSON.parse(storage.getItem(DIFFERENTIAL_KEY)||'null');return data?.version===version.sha256&&data.source===source&&data.units&&typeof data.units==='object'?data.units:{};}catch{return {};}}
 function candidateQuestion(id:string,text:string):Question{return {id,text,choices:responseChoices};}
 function unit(stage:Stage,id:string,title:string,questions:Question[],reasons:string[],binding:string,saved:Saved):Unit{
  const raw=saved[`${stage}:${id}`];
@@ -22,10 +22,10 @@ function unit(stage:Stage,id:string,title:string,questions:Question[],reasons:st
  const complete=!!raw?.completedAt&&raw.binding===binding&&questions.every(q=>q.id in answers);
  return {id,title,questions,reasons,complete,record:{answers,binding,completedAt:complete?raw.completedAt:null}};
 }
-export function differentialState(plan=activePlan(),records=progressRecords(plan)){
+export function differentialState(plan=activePlan(),records=progressRecords(plan),storage:ClinicalSessionStore=store){
  const stages:Record<Stage,Unit[]>={3:[],4:[],5:[]};
  if(!plan||!tierTwoReady(plan,records))return {ready:false,stages,complete:false,nextStage:3 as Stage,version,source:''};
- const source=JSON.stringify([version.sha256,version.routingSha256,plan.key,plan.handoff.routedDomains.map(id=>[id,records[id]])]),saved=stored(source);
+ const source=JSON.stringify([version.sha256,version.routingSha256,plan.key,plan.handoff.routedDomains.map(id=>[id,records[id]])]),saved=stored(source,storage);
  for(const d of bank.domains.filter(d=>plan.handoff.routedDomains.includes(d.id))){
   const title=plan.handoff.domains.find(x=>x.id===d.id)?.title??d.id;
   const evidence=records[d.id].definition.items.filter(q=>!q.id.startsWith('evidence:')&&typeof records[d.id].answers[q.id]==='number'&&(q.responseLabels?.[0]==='0 — No'?records[d.id].answers[q.id]===1:Number(records[d.id].answers[q.id])>0&&Number(records[d.id].answers[q.id])<5)).map(q=>q.text);
@@ -61,8 +61,8 @@ export function saveFollowup(stage:Stage,id:string,answers:Record<string,string>
  const units=stored(state.source);units[`${stage}:${id}`]={binding:u.record.binding,answers,completedAt:complete?new Date().toISOString():null};
  store.setItem(DIFFERENTIAL_KEY,JSON.stringify({version:version.sha256,source:state.source,units}));return true;
 }
-export function differentialReport(plan=activePlan(),records=progressRecords(plan)){
- const state=differentialState(plan,records);
+export function differentialReport(plan=activePlan(),records=progressRecords(plan),storage:ClinicalSessionStore=store){
+ const state=differentialState(plan,records,storage);
  return {definition:bank,definitionHash:version.sha256,routingHash:version.routingSha256,status:!state.ready?'Awaiting completed adult Tier 2':state.complete?'Follow-up completed; clinician review required':'Follow-up in progress',diagnosesConfirmed:false,clinicalReviewRequired:true,
   stages:state.stages,candidates:state.stages[3].flatMap(u=>bank.domains.find(d=>d.id===u.id)!.candidates.map(c=>({domain:u.id,id:c.id,label:c.label,tier3Question:c.tier3,tier3Answer:u.record.answers[c.id]??'Not answered',tier5Question:c.tier5,tier5Answer:state.stages[5].find(x=>x.id===u.id)?.record.answers[c.id]??'Not asked / not answered',tier4Question:c.tier4,tier4Answer:state.stages[4].find(x=>x.id===u.id)?.record.answers[c.id]??'Not asked / not answered',status:u.record.answers[c.id]==='Yes'?(!u.complete?'Draft endorsement; follow-up incomplete':state.stages[4].find(x=>x.id===u.id)?.record.answers[c.id]==='No'?'Mixed evidence; distinguishing follow-up not endorsed':'Candidate area for clinician evaluation'):u.record.answers[c.id]==='No'?'Not endorsed in this prompt; not ruled out':'Unresolved / not assessed'}))).map(reconcileCandidate)};
 }

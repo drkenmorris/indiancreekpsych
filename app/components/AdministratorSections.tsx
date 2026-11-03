@@ -8,7 +8,8 @@ const sections = [
   { label: "Psychological testing", href: "/clinical-tests" },
   { label: "Billing module — demo", href: "https://emr-workflow-demo.vercel.app/?module=billing", external: true },
   { label: "Scheduling and calendar", href: "/appointments" },
-  { label: "EMR workspace — demo", href: "https://emr-workflow-demo.vercel.app/", external: true },
+  { label: "EMR — central patient records", href: "/emr" },
+  { label: "EMR workflow prototype", href: "https://emr-workflow-demo.vercel.app/", external: true },
   { label: "Patient questionnaires", href: "/admin/questionnaires" },
   { label: "Account and security", href: "/account" },
 ];

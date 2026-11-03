@@ -1,10 +1,11 @@
+import {clinicalSessionStore,type ClinicalSessionStore} from '../clinicalSessionStore';
 import {activePlan,progressRecords,moduleStatus,type ModuleRecord} from './tier-two-progress';
 import {preparedReview} from './review';
 import {differentialReport} from './differential';
 const clone=<T,>(value:T):T=>JSON.parse(JSON.stringify(value)) as T;
-/** Pure fictional report preparation. No patient/provider identity mapping or transport. */
-export function prepareReportCopies(plan:NonNullable<ReturnType<typeof activePlan>>,records:Record<string,ModuleRecord>=progressRecords(plan)){
- const report={version:'3.0.0',clarification:preparedReview(plan,records),differential:differentialReport(plan,records),source:{instrumentId:plan.handoff.instrumentId,definitionVersion:plan.handoff.version,definitionHash:plan.handoff.definitionHash,tierOneCompletedAt:plan.handoff.completedAt},respondent:{version:plan.profile.id,ageBand:plan.profile.ageBand,type:plan.profile.respondent},clinicalReviewRequired:true,
+/** Pure report preparation. Patient/owner binding is applied by the authenticated repository envelope, never inferred from response content. */
+export function prepareReportCopies(plan:NonNullable<ReturnType<typeof activePlan>>,records:Record<string,ModuleRecord>=progressRecords(plan),storage:ClinicalSessionStore=clinicalSessionStore){
+ const report={version:'3.0.0',clarification:preparedReview(plan,records,storage),differential:differentialReport(plan,records,storage),source:{instrumentId:plan.handoff.instrumentId,definitionVersion:plan.handoff.version,definitionHash:plan.handoff.definitionHash,tierOneCompletedAt:plan.handoff.completedAt},respondent:{version:plan.profile.id,ageBand:plan.profile.ageBand,type:plan.profile.respondent},clinicalReviewRequired:true,
   safety:{flag:plan.handoff.safetyFlag,review:plan.handoff.safetyReview},reviewDomains:plan.handoff.domains.filter(d=>plan.handoff.reviewDomains.includes(d.id)),
   modules:plan.handoff.domains.filter(d=>plan.handoff.routedDomains.includes(d.id)).map(d=>({...d,status:moduleStatus(records[d.id]),record:records[d.id]??null}))};
  const copy=(destination:string)=>({destination,patientId:null,assignedProviderId:null,liveTransferEnabled:false,report:clone(report)});

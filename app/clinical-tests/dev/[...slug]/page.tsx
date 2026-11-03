@@ -20,8 +20,8 @@ export default async function ClinicalDevScreenPage({
       <Link href="/clinical-tests">← Clinical testing library</Link>
       <h1>Internal clinical screening validation</h1>
       <p role="alert" style={{ padding: 12, background: "#fff7ed", color: "#7c2d12", border: "1px solid #fed7aa" }}>
-        Administrator-only synthetic QA. These original assessment prototypes are not validated diagnostic instruments.
-        Results are not sent to the patient record or saved to Supabase. Do not enter real patient information.
+        Administrator-only assessment workspace. These original prototypes are not validated diagnostic instruments.
+        Responses are saved only when this assessment is connected to a central patient record. A saved working record is not a confirmed diagnosis.
       </p>
       <DsmScreenNavigator activeKey={key} />
       <ClinicalScreenClient screenKey={key} />

@@ -93,7 +93,7 @@ export default function TestAssignmentClient({initialTestKey="",initialPatientId
     {form.testKey==='asq'&&<>
      <label>Patient / student this questionnaire concerns<select required value={form.patientId} onChange={e=>setForm(f=>({...f,patientId:e.target.value}))}><option value="">Select central patient record</option>{patients.map(p=><option key={p.id} value={p.id}>{[p.demographics.first_name,p.demographics.last_name].filter(Boolean).join(' ')||(Array.isArray(p.profiles)?p.profiles[0]?.full_name:p.profiles?.full_name)||'Patient demographics pending'} · {p.id.slice(0,8)}</option>)}</select></label>
      <p>The selected test version is assigned only to the individual named above at that email address. Create a separate assignment for each additional version or recipient, even when they concern the same patient.</p>
-     <p><Link href="/assessment-preview/asq">Preview the simplified seven-question recipient interface</Link></p>
+     {form.asqRole&&<p><Link href={'/assessment-preview/asq?version='+form.asqRole}>Preview {asqRoleLabels[form.asqRole as AsqRole]} recipient interface</Link></p>}
     </>}
     {form.testKey==='dsm'&&<DsmVersionChoice value={form.dsmVersion} onChange={v=>setForm(f=>({...f,dsmVersion:v}))} dob={form.dob} disabled={busy} required/>}
     <p className="assignmentCaution"><strong>Clinical release notice:</strong> {form.testKey==='asq'&&asqReleaseReady?'The ASQ/ASEQ recipient workflow is enabled. It records respondent answers for clinician review; it does not establish a diagnosis.':"Recipient release is pending for this questionnaire. Draft assignments and interface previews are available; invitations remain gated."}</p>
@@ -113,7 +113,7 @@ export default function TestAssignmentClient({initialTestKey="",initialPatientId
       <td>{tests.find(t=>t.value===a.test_key)?.label??a.test_key}{a.test_key==='asq'&&<><small>{a.asq_role?asqRoleLabels[a.asq_role]:'Legacy assignment — version not specified'}</small>{a.patient_id&&<small><Link href={'/emr?patient='+a.patient_id}>Patient record</Link></small>}</>}{a.test_key==='dsm'&&<small>{dsmVersionLabel(a.dsm_version)}</small>}</td>
       <td>{a.asq_progress&&<small>{a.asq_progress.status==='submitted'?'Questionnaire submitted':'In progress'} · {a.asq_progress.answered_count} answers saved · revision {a.asq_progress.revision}</small>}<span className="assignmentPill">{a.status==="sent"?"Email accepted":"Draft — not sent"}</span></td>
       <td>{a.status==="draft"?<button disabled={busy||!emailReady||!tests.find(t=>t.value===a.test_key)?.patientReady||(a.test_key==='asq'&&!a.asq_role)||Date.parse(a.expires_at)<=Date.now()}
-       onClick={()=>void send(a)}>Send Invitation</button>:<span>Sent</span>}{a.test_key==='asq'&&a.asq_role&&<p><Link href={'/admin/assign-test/asq-responses/'+a.id}>View recorded responses</Link></p>}</td>
+       onClick={()=>void send(a)}>Send Invitation</button>:<span>Sent</span>}{a.test_key==='asq'&&a.asq_role&&a.status==='sent'&&<p><Link href={'/patient/assigned-tests/'+a.id}>Assigned recipient link</Link><small>Only the invited account can open this questionnaire.</small></p>}{a.test_key==='asq'&&a.asq_role&&<p><Link href={'/admin/assign-test/asq-responses/'+a.id}>View recorded responses</Link></p>}</td>
      </tr>)}</tbody>
     </table></div>}
    <p className="assignmentHelp">Patients must sign in using the invited email address and complete required security verification. An invitation is not proof of identity and never overrides access rules.</p>

@@ -15,7 +15,7 @@ export default async function AssignTestPage({searchParams}:{searchParams:Promis
         <h1>Patient Questionnaire Assignment</h1>
         <p>Assign a questionnaire to a named individual and email. For ASQ/ASEQ, choose Student / Self, Parent or Teacher and the central patient record it concerns.</p>
       </div>
-      <TestAssignmentClient initialTestKey={params.test==='asq'?'asq':''} initialPatientId={params.test==='asq'?params.patient??'':''}/>
+      <TestAssignmentClient initialTestKey={['asq','dsm'].includes(params.test??'')?params.test:''} initialPatientId={['asq','dsm'].includes(params.test??'')?params.patient??'':''}/>
     </div>
   </main>;
 }

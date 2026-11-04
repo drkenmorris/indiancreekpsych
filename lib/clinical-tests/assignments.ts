@@ -35,7 +35,7 @@ export function normalizeAssignmentData(value: unknown):
   if(v.dsmVersion)return {ok:false,message:'DSM version applies only to DSM assignments.'};
   return {ok:true,data:{recipient_first_name:first,recipient_last_name:last,recipient_email:email,recipient_dob:null,test_key:'asq',dsm_version:null,patient_id:v.patientId,asq_role:v.asqRole}};
  }
- if(v.asqRole||v.patientId)return {ok:false,message:'ASQ respondent information applies only to ASQ/ASEQ.'};
+ if(v.asqRole||(v.patientId&&v.testKey!=='dsm'))return {ok:false,message:'ASQ respondent information applies only to ASQ/ASEQ.'};
  if (!/^\d{4}-\d{2}-\d{2}$/.test(dob)) return {ok:false,message:"Enter a valid date of birth."};
  const date=new Date(dob+"T00:00:00Z");
  if (Number.isNaN(date.valueOf())||date.toISOString().slice(0,10)!==dob||
@@ -43,7 +43,8 @@ export function normalizeAssignmentData(value: unknown):
   return {ok:false,message:"Enter a real date of birth in the past."};
  if (!validAssignedTest(v.testKey)) return {ok:false,message:"Select a psychological test."};
  const dsmError=v.testKey==='dsm'?validateDsmVersion(v.dsmVersion,dob,true):v.dsmVersion?'DSM version applies only to DSM assignments.':null;
+ if(v.testKey==='dsm'&&!uuid(v.patientId))return {ok:false,message:'Select the central patient record for this DSM assignment.'};
  if(dsmError)return {ok:false,message:dsmError};
  return {ok:true,data:{recipient_first_name:first,recipient_last_name:last,
-   recipient_email:email,recipient_dob:dob,test_key:v.testKey,dsm_version:v.testKey==='dsm'?v.dsmVersion as DsmVersion:null}};
+   recipient_email:email,recipient_dob:dob,test_key:v.testKey,...(v.testKey==='dsm'?{patient_id:v.patientId as string}:{}),dsm_version:v.testKey==='dsm'?v.dsmVersion as DsmVersion:null}};
 }

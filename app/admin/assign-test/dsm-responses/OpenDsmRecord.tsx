@@ -1,0 +1,3 @@
+'use client';
+import {useState} from 'react';
+export default function OpenDsmRecord({id}:{id:string}){const [busy,setBusy]=useState(false),[error,setError]=useState('');return <><button disabled={busy} onClick={async()=>{if(busy)return;setBusy(true);setError('');try{const r=await fetch('/api/admin/dsm-assignment-record',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})}),j=await r.json();if(!r.ok)throw Error(j.error);window.location.assign('/clinical-tests/dev/summary?record='+j.recordId);}catch(e){setError(e instanceof Error?e.message:'Record unavailable.');setBusy(false);}}}>{busy?'Opening…':'Open results in DSM evaluation workspace'}</button>{error&&<p role="alert">{error}</p>}</>;}

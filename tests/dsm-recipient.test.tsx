@@ -1,0 +1,22 @@
+import {test,expect,afterEach,vi} from 'vitest';
+import {render,screen,fireEvent,waitFor,cleanup} from '@testing-library/react';
+import {dsmAssignmentSource,assignedQuestions,validateDsmSave,dsmRecipientState} from '../lib/clinical-tests/dsm/assignment';
+import {checkedDsmSource,recipientSnapshot} from '../lib/clinical-tests/dsm/assignment-server';
+import {snapshotHash} from '../lib/emr/dsm-snapshot';
+import {createClinicalSessionStore} from '../lib/clinical-tests/clinicalSessionStore';
+import {activePlan,progressRecords} from '../lib/clinical-tests/dsm/tier-two-progress';
+import DsmRecipient from '../app/components/dsm/DsmRecipient';
+const source=dsmAssignmentSource('adult','1990-01-02','2026-11-04');
+const one=Object.fromEntries(source.questions.filter(q=>q.tier===1).map(q=>[q.id,'No']));
+const positive={...one,depression_1:'Yes, currently'};
+// Select the canonical stable domain/question rather than assume imported aliases.
+const domain=source.profile.definition.domains.find(d=>d.id==='depression')??source.profile.definition.domains[3];
+const routed={...one,[domain.questions[0].id]:'Yes, currently'};
+const completed=()=>Object.fromEntries(assignedQuestions(source,routed).map(q=>[q.id,routed[q.id]??q.choices[0]]));
+afterEach(()=>{cleanup();vi.unstubAllGlobals();});
+test('assignment source pins the original version and detects tampering',()=>{expect(checkedDsmSource(source,snapshotHash(source))).toEqual(source);expect(()=>checkedDsmSource({...source,version:'parent'},snapshotHash(source))).toThrow();expect(()=>dsmAssignmentSource('adult','2013-01-01','2026-11-04')).toThrow();});
+test('only positive adult Tier 1 domains select Tier 2; uncertain responses remain review',()=>{expect(assignedQuestions(source,one)).toHaveLength(60);const selected=assignedQuestions(source,routed).filter(q=>q.tier===2);expect(selected.length).toBeGreaterThan(0);expect(new Set(selected.map(q=>q.domain))).toEqual(new Set([domain.id]));expect(assignedQuestions(source,{...one,[domain.questions[0].id]:'Unsure'})).toHaveLength(60);});
+test.each([['adolescent','2012-01-01'],['parent','2018-01-01']] as const)('youth %s pins age-appropriate Tier 1 and never exposes adult Tier 2', (version,dob)=>{const s=dsmAssignmentSource(version,dob,'2026-11-04');expect(s.questions.every(q=>q.tier===1)).toBe(true);const a=Object.fromEntries(s.questions.map(q=>[q.id,q.choices[0]]));expect(recipientSnapshot(s,a,'2026-11-04T12:00:00Z').report).toBeTruthy();});
+test('rejects unrelated answers, invalid choices, skipped pages, missing confirmation and incomplete submit',()=>{for(const patch of [{answers:positive},{answers:{...one,forged:'Yes'}},{answers:{...one,[domain.questions[0].id]:'invalid'}},{answers:{},page:1},{confirmed:false},{answers:{},submit:true}])expect(()=>validateDsmSave({answers:one,page:0,expectedRevision:0,submit:false,confirmed:true,...patch},source)).toThrow();});
+test('completed recipient data reconstructs canonical original report and tracker for clinician continuation',()=>{const answers=completed(),state=dsmRecipientState(source,answers,'2026-11-04T12:00:00Z'),store=createClinicalSessionStore();store.importDsm(state);const plan=activePlan(store);expect(plan?.handoff.routedDomains).toEqual([domain.id]);expect(progressRecords(plan,store)[domain.id].completedAt).toBeTruthy();expect(recipientSnapshot(source,answers,'2026-11-04T12:00:00Z').contentHash).toHaveLength(64);});
+test('recipient is version-locked; seven questions save before advancing and restore on reopen',async()=>{const fetch=vi.fn().mockResolvedValueOnce({ok:true,json:async()=>({source,assignment:{id:'fixture',recipientName:'Fictional Recipient'},response:{answers:{},page:0,revision:0,status:'draft',identity_confirmed:true}})}).mockResolvedValueOnce({ok:true,json:async()=>({revision:1,status:'draft'})});vi.stubGlobal('fetch',fetch);render(<DsmRecipient id="fixture"/>);await screen.findByRole('heading',{name:/Adult self-report/});expect(screen.queryByRole('combobox')).toBeNull();const radios=screen.getAllByRole('radio');for(let i=0;i<7;i++){const name=source.questions[i].id;fireEvent.click(radios.find(r=>r.getAttribute('name')===name)!);}fireEvent.click(screen.getByRole('button',{name:'Save and next'}));await waitFor(()=>expect(fetch).toHaveBeenCalledTimes(2));const body=JSON.parse(fetch.mock.calls[1][1].body);expect(Object.keys(body.answers)).toHaveLength(7);expect(body.page).toBe(1);expect(body.expectedRevision).toBe(0);await screen.findByRole('heading',{name:'Page 2 — Tier 1 screening'});});

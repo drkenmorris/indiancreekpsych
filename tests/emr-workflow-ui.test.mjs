@@ -3,10 +3,11 @@ import {test} from 'node:test';import assert from 'node:assert/strict';import {r
 const fixture=JSON.parse(execFileSync('python3',['-c',`import importlib.util,json
 s=importlib.util.spec_from_file_location('tests','tests/emr-workflow-engine.test.py');m=importlib.util.module_from_spec(s);s.loader.exec_module(m)
 r=m.Repo();print(json.dumps({'pid':r.pid,'boot':m.m.process({'patientId':r.pid,'path':'/api/bootstrap'},r)['value'],'chart':m.m.process({'patientId':r.pid,'path':'/api/chart'},r)['value']}))`],{encoding:'utf8'}));
+const library=JSON.parse(readFileSync('public/emr-assets/strengths-library.js','utf8').split(' = ')[1].trim().slice(0,-1)).items.map(x=>({...x,active:true,kind:x.type==='strength'?'strength':'challenge'}));
 await test('actual hosted forms and global navigation render against central patient transport',async()=>{
  const html=readFileSync('public/emr-assets/index.html','utf8').replace(/<script[^>]*><\/script>/g,'');const dom=new JSDOM(html,{url:'https://www.indiancreekpsych.com/emr/workspace?patient='+fixture.pid+'&module=demographics',runScripts:'outside-only'}),w=dom.window,errors=[];
  w.matchMedia=()=>({matches:false,addEventListener(){}});w.HTMLElement.prototype.scrollIntoView=function(){};w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;};w.confirm=()=>false;
- w.addEventListener('error',e=>errors.push(e.message));w.fetch=async(url,options)=>{let value;if(options?.body){const p=JSON.parse(options.body);assert.equal(p.patientId,fixture.pid);assert.equal(p.state,undefined);value={value:p.path==='/api/bootstrap'?fixture.boot:p.path.startsWith('/api/chart')?fixture.chart:{group:{name:'Permission pending',roster:[]},sessions:[]},revision:0};}else value={me:{id:'fictional-provider',is_admin:true,profile:{first_name:'Fictional',last_name:'Provider'}}};return {ok:true,status:200,json:async()=>value};};
+ w.addEventListener('error',e=>errors.push(e.message));w.fetch=async(url,options)=>{let value;if(options?.body){const p=JSON.parse(options.body);assert.equal(p.patientId,fixture.pid);assert.equal(p.state,undefined);value={value:p.path==='/api/bootstrap'?fixture.boot:p.path.startsWith('/api/chart')?fixture.chart:{group:{name:'Permission pending',roster:[]},sessions:[]},revision:0};}else if(url==='/api/emr/descriptors')value={items:library};else value={me:{id:'fictional-provider',is_admin:true,profile:{first_name:'Fictional',last_name:'Provider'}}};return {ok:true,status:200,json:async()=>value};};
  for(const f of ['planner.js','navigation.js','patients.js','module-menu.js','providers.js','menu-completion.js','navigation-menus.js','strengths-library.js','strengths-builder.js','app.js','production.js'])runInContext(readFileSync('public/emr-assets/'+f,'utf8'),dom.getInternalVMContext());
  await new Promise(r=>setTimeout(r,100));assert.equal(errors.length,0,errors.join(';'));assert.match(w.document.querySelector('#chart-header').textContent,/Fictional Example/);assert.match(w.document.querySelector('#main-modules').textContent,/Administration/);
  for(const [module,key,text] of [['personal','insurance','Insurance information'],['assessment','biopsychosocial','Current Symptom Checklist'],['notes','record_history','Record history']]){runInContext(`chooseSection(${JSON.stringify(module)},${JSON.stringify(key)});render();`,dom.getInternalVMContext());await new Promise(r=>setTimeout(r,20));assert.match(w.document.querySelector('#content').textContent,new RegExp(text,'i'));}
@@ -51,5 +52,10 @@ await test('actual hosted forms and global navigation render against central pat
  assert.match(JSON.stringify(submitted),/Original custom item/);
  assert.match(q('[data-section-field="strengths"]').value,/Original custom item/);
  assert.match(q('#content').textContent,/Saved versions/);
+ library.push({id:'permanent-shared-item',kind:'strength',type:'strength',domain:'Shared test domain',label:'New permanently shared wording',active:true});
+ q('#descriptor-reload').click();await new Promise(r=>setTimeout(r,20));
+ assert.ok(q('input[value="permanent-shared-item"]'),'new central choices appear after refresh');
+ library.at(-1).active=false;q('#descriptor-reload').click();await new Promise(r=>setTimeout(r,20));
+ assert.equal(q('input[value="permanent-shared-item"]'),null,'inactive central choices are not offered');
  assert.equal(errors.length,0,errors.join(';'));assert.equal(w.localStorage.getItem('emr-web-demo-v1'),null);dom.window.close();
 });

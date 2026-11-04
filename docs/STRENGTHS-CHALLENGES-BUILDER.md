@@ -3,8 +3,10 @@
 Open a central patient record, choose **Open full EMR chart and modules**, then
 **Assessment → Strengths/Weaknesses**.
 
-The builder offers 120 original strengths and 120 challenges/support needs across
-24 domains. Search and domain filtering retain selections, including items hidden
+The builder loads active choices from the permanent clinic table, initially
+seeded with 120 strengths and 120 challenges/support needs across 24 domains.
+Manage these choices at `/emr/descriptor-library`; the patient form includes a
+direct link and a Refresh shared choices button. Search and domain filtering retain selections, including items hidden
 by a filter. Native checkboxes support multiple independent choices. No choices
 are preselected and no score or diagnosis is calculated.
 

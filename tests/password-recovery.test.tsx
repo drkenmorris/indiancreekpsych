@@ -8,7 +8,7 @@ import Reset from '../app/reset-password/ResetPassword';
 import {GET} from '../app/auth/confirm/route';
 import {NextRequest} from 'next/server';
 import {passwordRecoveryRedirect} from '../lib/password-recovery';
-beforeEach(()=>{vi.clearAllMocks();mocks.assurance.mockResolvedValue({data:{currentLevel:'aal2',nextLevel:'aal2'},error:null});mocks.factors.mockResolvedValue({data:{all:[{id:'synthetic-factor',factor_type:'totp',status:'verified'}]},error:null});mocks.challenge.mockResolvedValue({error:null});mocks.getUser.mockResolvedValue({data:{user:{id:'synthetic-user'}},error:null});mocks.updateUser.mockResolvedValue({error:null});mocks.signOut.mockResolvedValue({error:null});mocks.resetPasswordForEmail.mockResolvedValue({error:null});mocks.verifyOtp.mockResolvedValue({error:null});});
+beforeEach(()=>{vi.clearAllMocks();mocks.assurance.mockResolvedValue({data:{currentLevel:'aal2',nextLevel:'aal2'},error:null});mocks.factors.mockResolvedValue({data:{all:[{id:'synthetic-factor',factor_type:'totp',status:'verified'}],totp:[{id:'synthetic-factor',factor_type:'totp',status:'verified'}],phone:[]},error:null});mocks.challenge.mockResolvedValue({error:null});mocks.getUser.mockResolvedValue({data:{user:{id:'synthetic-user'}},error:null});mocks.updateUser.mockResolvedValue({error:null});mocks.signOut.mockResolvedValue({error:null});mocks.resetPasswordForEmail.mockResolvedValue({error:null});mocks.verifyOtp.mockResolvedValue({error:null});});
 afterEach(cleanup);
 test('www and apex production use allowlisted apex callback while preview stays on its own origin',()=>{
  for(const origin of ['https://www.indiancreekpsych.com','https://indiancreekpsych.com'])expect(passwordRecoveryRedirect(origin)).toBe('https://indiancreekpsych.com/auth/callback?next=/reset-password');
@@ -27,7 +27,7 @@ test('recovery token callback routes to reset regardless of supplied next; ordin
 test('MFA session displays the existing verification before any password fields',async()=>{
  mocks.assurance.mockResolvedValue({data:{currentLevel:'aal1',nextLevel:'aal2'},error:null});render(<Reset/>);
  await screen.findByRole('heading',{name:'Verify your authenticator first'});expect(screen.queryByLabelText('New password')).toBeNull();
- fireEvent.click(await screen.findByRole('button',{name:'Use authenticator app'}));await screen.findByLabelText('Authenticator code');expect(mocks.updateUser).not.toHaveBeenCalled();
+ fireEvent.click(await screen.findByRole('button',{name:'Verify with authenticator app'}));await screen.findByLabelText('Six-digit authenticator code');expect(mocks.updateUser).not.toHaveBeenCalled();
 });
 test('returning with verified AAL2 exposes the password update and permits it',async()=>{
  mocks.assurance.mockResolvedValue({data:{currentLevel:'aal1',nextLevel:'aal2'},error:null});render(<Reset/>);await screen.findByRole('heading',{name:'Verify your authenticator first'});cleanup();

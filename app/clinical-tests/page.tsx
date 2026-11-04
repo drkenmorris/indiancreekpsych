@@ -6,7 +6,6 @@ const categories = [
   { key: "Screening & self-esteem", label: "Screening and self-esteem", suiteKeys: ["dsm", "cseq"] },
   { key: "Neurodevelopmental", label: "Autism and neurodevelopmental", suiteKeys: ["asq"] },
   { key: "Relationships", label: "Relationships and attachment", suiteKeys: ["srrci", "rtafi", "rdii", "rvti"] },
-  { key: "Cognitive", label: "Cognitive-motor assessment", suiteKeys: ["cogswitch"] },
 ] as const;
 
 export default async function ClinicalTestsPage() {

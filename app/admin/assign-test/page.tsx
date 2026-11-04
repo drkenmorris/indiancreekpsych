@@ -1,3 +1,4 @@
+import {isConnectedKey} from '@/lib/clinical-tests/connected/definition';
 import "./emr-assignment.css";
 import Link from "next/link";
 import {patientAccess} from "@/lib/patient/access";
@@ -15,7 +16,7 @@ export default async function AssignTestPage({searchParams}:{searchParams:Promis
         <h1>Patient Questionnaire Assignment</h1>
         <p>Assign a questionnaire to a named individual and email. For ASQ/ASEQ, choose Student / Self, Parent or Teacher and the central patient record it concerns.</p>
       </div>
-      <TestAssignmentClient initialTestKey={['asq','dsm'].includes(params.test??'')?params.test:''} initialPatientId={['asq','dsm'].includes(params.test??'')?params.patient??'':''}/>
+      <TestAssignmentClient initialTestKey={(['asq','dsm'].includes(params.test??'')||isConnectedKey(params.test))?params.test:''} initialPatientId={(['asq','dsm'].includes(params.test??'')||isConnectedKey(params.test))?params.patient??'':''}/>
     </div>
   </main>;
 }

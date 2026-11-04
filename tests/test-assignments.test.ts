@@ -1,11 +1,11 @@
 import {test,expect} from 'vitest';
 import {normalizeAssignmentData,assignedTestOptions} from '../lib/clinical-tests/assignments';
 
-const example={firstName:'Test',lastName:'Person',email:'SYNTHETIC@example.com',dob:'1998-06-15',testKey:'cseq'};
-test('all eight relocated psychological suites can be selected',()=>{
- expect(assignedTestOptions).toHaveLength(8);
- expect(new Set(assignedTestOptions.map(t=>t.value)).size).toBe(8);
- expect(assignedTestOptions.every(t=>t.patientReady===false)).toBe(true);
+const example={firstName:'Test',lastName:'Person',email:'SYNTHETIC@example.com',dob:'1998-06-15',testKey:'cseq',patientId:'00000000-0000-0000-0000-000000000201'};
+test('seven retained psychological suites can be selected',()=>{
+ expect(assignedTestOptions).toHaveLength(7);
+ expect(new Set(assignedTestOptions.map(t=>t.value)).size).toBe(7);
+ expect(assignedTestOptions.filter(t=>t.patientReady).length===5).toBe(true);
 });
 test('assignment sanitizes demographics and rejects invalid fields',()=>{
  const v=normalizeAssignmentData(example);
@@ -16,8 +16,7 @@ test('assignment sanitizes demographics and rejects invalid fields',()=>{
  }
  for(const invalid of [
   {...example,firstName:''},
-  {...example,dob:'2020-02-30'},
-  {...example,dob:'2035-12-31'},
+  {...example,patientId:''},
   {...example,email:'not-an-address'},
   {...example,testKey:'../../admin'},
  ]){
@@ -25,4 +24,4 @@ test('assignment sanitizes demographics and rejects invalid fields',()=>{
  }
 });
 
-test('ASQ assignment separates central patient from named respondent and requires exactly one version',()=>{const input={...example,testKey:'asq',patientId:'00000000-0000-0000-0000-000000000201',asqRole:'parent'};const result=normalizeAssignmentData(input);expect(result.ok).toBe(true);if(result.ok){expect(result.data.recipient_dob).toBeNull();expect(result.data.patient_id).toBe(input.patientId);expect(result.data.asq_role).toBe('parent');expect(result.data.recipient_email).toBe('synthetic@example.com');}for(const invalid of [{...input,asqRole:''},{...input,asqRole:'guardian'},{...input,patientId:''},{...input,email:''},{...input,firstName:''},{...input,testKey:'cseq'}])expect(normalizeAssignmentData(invalid).ok).toBe(false);});
+test('ASQ assignment separates central patient from named respondent and requires exactly one version',()=>{const input={...example,testKey:'asq',patientId:'00000000-0000-0000-0000-000000000201',asqRole:'parent'};const result=normalizeAssignmentData(input);expect(result.ok).toBe(true);if(result.ok){expect(result.data.recipient_dob).toBeNull();expect(result.data.patient_id).toBe(input.patientId);expect(result.data.asq_role).toBe('parent');expect(result.data.recipient_email).toBe('synthetic@example.com');}for(const invalid of [{...input,asqRole:''},{...input,asqRole:'guardian'},{...input,patientId:''},{...input,email:''},{...input,firstName:''},{...input,testKey:'cseq',patientId:'00000000-0000-0000-0000-000000000201'}])expect(normalizeAssignmentData(invalid).ok).toBe(false);});

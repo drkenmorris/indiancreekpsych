@@ -1,3 +1,5 @@
+import {isConnectedKey,connectedDefinition} from '@/lib/clinical-tests/connected/definition';
+import {checkedSource,hash} from '@/lib/clinical-tests/connected/source';
 import { NextResponse, type NextRequest } from "next/server";
 import { sendPauboxPatientInvitation } from "@/lib/paubox/patient-invitation";
 import { createClient } from "@/lib/supabase/server";
@@ -33,15 +35,18 @@ export async function GET(){
   const ctx=await authorize();
   if(!ctx)return NextResponse.json({error:"Administrator sign-in with MFA is required."},{status:403});
   const {data,error}=await ctx.supabase.from("psych_test_assignments")
-   .select("id,recipient_first_name,recipient_last_name,recipient_email,test_key,dsm_version,asq_role,patient_id,dsm_source_hash,dsm_format:dsm_source->>format,status,created_at,expires_at,sent_at")
+   .select("id,recipient_first_name,recipient_last_name,recipient_email,test_key,dsm_version,asq_role,patient_id,connected_source_hash,dsm_source_hash,dsm_format:dsm_source->>format,status,created_at,expires_at,sent_at")
    .order("created_at",{ascending:false}).limit(60);
   if(error)return NextResponse.json({error:"Assignments cannot be loaded."},{status:503});
-  const ids=(data??[]).map(a=>a.id);
+  const visibleAssignments=(data??[]).filter(a=>assignedTestOptions.some(t=>t.value===a.test_key));
+  const ids=visibleAssignments.map(a=>a.id);
   const progress=ids.length?await ctx.supabase.from('asq_assignment_responses').select('assignment_id,status,page,revision,answered_count').in('assignment_id',ids):{data:[],error:null};
   if(progress.error)return NextResponse.json({error:'Assignment progress cannot be loaded.'},{status:503});
   const dsmProgress=ids.length?await ctx.supabase.from('dsm_assignment_responses').select('assignment_id,status,revision,answered_count').in('assignment_id',ids):{data:[],error:null};
   if(dsmProgress.error)return NextResponse.json({error:'DSM progress cannot be loaded.'},{status:503});
-  return NextResponse.json({assignments:(data??[]).map(a=>({...a,dsm_progress:dsmProgress.data?.find(p=>p.assignment_id===a.id)??null,asq_progress:progress.data?.find(p=>p.assignment_id===a.id)??null})),deliveryReady:EMAIL_READY(),asqReleaseReady:asqRecipientReleaseApproved(),
+  const connectedProgress=ids.length?await ctx.supabase.from('connected_assignment_responses').select('assignment_id,status,revision,answered_count').in('assignment_id',ids):{data:[],error:null};
+  if(connectedProgress.error)return NextResponse.json({error:'Questionnaire progress cannot be loaded.'},{status:503});
+  return NextResponse.json({assignments:visibleAssignments.map(a=>({...a,connected_progress:connectedProgress.data?.find(p=>p.assignment_id===a.id)??null,dsm_progress:dsmProgress.data?.find(p=>p.assignment_id===a.id)??null,asq_progress:progress.data?.find(p=>p.assignment_id===a.id)??null})),deliveryReady:EMAIL_READY(),asqReleaseReady:asqRecipientReleaseApproved(),
     tests:assignedTestOptions.map(t=>({...t,patientReady:t.value==='asq'?asqRecipientReleaseApproved():t.value==='dsm'?true:t.patientReady}))},{headers:{"Cache-Control":"no-store"}});
 }
 
@@ -67,6 +72,11 @@ export async function POST(request:NextRequest) {
     if(limitError)return NextResponse.json({error:"Unable to check assignment limits."},{status:503});
     if((count??0)>=25)return NextResponse.json({error:"Hourly assignment limit reached."},{status:429});
     let insertData:Record<string,unknown>={...verified.data};
+    if(isConnectedKey(verified.data.test_key)){
+      const {data:patient,error:patientError}=await ctx.supabase.from('clinical_patients').select('id').eq('id',verified.data.patient_id!).maybeSingle();
+      if(patientError||!patient)return NextResponse.json({error:'Selected patient is unavailable.'},{status:400});
+      const source=connectedDefinition(verified.data.test_key);insertData={...insertData,connected_source:source,connected_source_hash:hash(source)};
+    }
     if(verified.data.test_key==='asq'&&verified.data.asq_role){
       const {data:patient,error:patientError}=await ctx.supabase.from('clinical_patients').select('id').eq('id',verified.data.patient_id!).maybeSingle();
       if(patientError||!patient)return NextResponse.json({error:'Selected patient is unavailable.'},{status:400});
@@ -90,12 +100,13 @@ export async function POST(request:NextRequest) {
     if(!/^[a-f\d]{8}(-[a-f\d]{4}){3}-[a-f\d]{12}$/i.test(id))
       return NextResponse.json({error:"Invalid assignment."},{status:400});
     const {data:record,error}=await ctx.supabase.from("psych_test_assignments")
-      .select("id,recipient_email,test_key,dsm_version,asq_role,asq_definition_hash,patient_id,dsm_source,dsm_source_hash,status,expires_at").eq("id",id).maybeSingle();
+      .select("id,recipient_email,test_key,dsm_version,asq_role,asq_definition_hash,patient_id,connected_source,connected_source_hash,dsm_source,dsm_source_hash,status,expires_at").eq("id",id).maybeSingle();
     if(error||!record)return NextResponse.json({error:"Assignment not found."},{status:404});
     if(record.status!=="draft")return NextResponse.json({error:"This assignment has already been sent or revoked."},{status:409});
-    if(Date.parse(record.expires_at)<=Date.now())return NextResponse.json({error:"This invitation expired. Create a new assignment."},{status:409});
+    if(!isConnectedKey(record.test_key)&&Date.parse(record.expires_at)<=Date.now())return NextResponse.json({error:"This invitation expired. Create a new assignment."},{status:409});
     if(record.test_key==='asq'&&(!record.asq_role||!record.asq_definition_hash||!record.patient_id))return NextResponse.json({error:'This legacy ASQ assignment has no fixed respondent version and patient link. Create a new Student / Self, Parent or Teacher assignment.'},{status:409});
     if(record.test_key==='dsm'){try{if(!record.patient_id)throw Error();checkedDsmSource(record.dsm_source,record.dsm_source_hash);}catch{return NextResponse.json({error:'This DSM draft predates the connected recipient workflow. Create a new DSM assignment with a central patient record and fixed version.'},{status:409});}}
+    if(isConnectedKey(record.test_key)){try{if(!record.patient_id)throw Error();checkedSource(record.connected_source,record.connected_source_hash);}catch{return NextResponse.json({error:'Create a new assignment with the central patient and current questionnaire version.'},{status:409});}}
     // A test invitation is never an authorization to access unreleased questionnaires.
     const approvedTest = assignedTestOptions.find(t=>t.value===record.test_key);
     if(!(record.test_key==='asq'?asqRecipientReleaseApproved():record.test_key==='dsm'?true:approvedTest?.patientReady))

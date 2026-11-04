@@ -1,3 +1,4 @@
+import {isConnectedKey} from './connected/definition';
 import {validAsqRole,type AsqRole} from './asq-forms';
 import {uuid} from '@/lib/emr/demographics';
 import {validateDsmVersion,type DsmVersion} from './dsm/entry-choice';
@@ -7,8 +8,8 @@ export type AssignedTestKey = (typeof clinicalTestSuites)[number]["key"];
 export const assignedTestOptions = clinicalTestSuites.map(s => ({
   value: s.key,
   label: s.label,
-  // The imported test modules have not yet been released for patient use.
-  patientReady: false,
+  // ASQ and DSM readiness is resolved by their existing release workflows.
+  patientReady: isConnectedKey(s.key),
 }));
 export function assignedTestLabel(key: string): string {
   return assignedTestOptions.find(t => t.value === key)?.label ?? "Psychological assessment";
@@ -34,6 +35,11 @@ export function normalizeAssignmentData(value: unknown):
   if(!uuid(v.patientId))return {ok:false,message:'Select the patient/student this questionnaire concerns.'};
   if(v.dsmVersion)return {ok:false,message:'DSM version applies only to DSM assignments.'};
   return {ok:true,data:{recipient_first_name:first,recipient_last_name:last,recipient_email:email,recipient_dob:null,test_key:'asq',dsm_version:null,patient_id:v.patientId,asq_role:v.asqRole}};
+ }
+ if(isConnectedKey(v.testKey)){
+  if(!uuid(v.patientId))return {ok:false,message:'Select the central patient record for this questionnaire.'};
+  if(v.asqRole||v.dsmVersion)return {ok:false,message:'Respondent versions do not apply to this questionnaire.'};
+  return {ok:true,data:{recipient_first_name:first,recipient_last_name:last,recipient_email:email,recipient_dob:null,test_key:v.testKey,patient_id:v.patientId,dsm_version:null}};
  }
  if(v.asqRole||(v.patientId&&v.testKey!=='dsm'))return {ok:false,message:'ASQ respondent information applies only to ASQ/ASEQ.'};
  if (!/^\d{4}-\d{2}-\d{2}$/.test(dob)) return {ok:false,message:"Enter a valid date of birth."};

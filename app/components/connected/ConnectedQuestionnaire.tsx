@@ -1,0 +1,22 @@
+'use client';
+import {useEffect,useRef,useState} from 'react';
+import type {Definition,Answers,Answer} from '@/lib/clinical-tests/connected/definition';
+export type SaveRequest={answers:Answers;page:number;submit:boolean};
+export default function ConnectedQuestionnaire({definition:d,initialAnswers={},initialPage=0,readOnly=false,onSave,expiresAt,preview=false}:{definition:Definition;initialAnswers?:Answers;initialPage?:number;readOnly?:boolean;onSave:(v:SaveRequest)=>Promise<void>;expiresAt?:string;preview?:boolean}){
+ const [answers,setAnswers]=useState(initialAnswers),[page,setPage]=useState(initialPage),[busy,setBusy]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState(''),[complete,setComplete]=useState(readOnly),[dirty,setDirty]=useState(false),[expired,setExpired]=useState(false);
+ const heading=useRef<HTMLHeadingElement>(null),lock=useRef(false);
+ const pages=Math.ceil(d.items.length/7),visible=d.items.slice(page*7,page*7+7),count=d.items.filter(i=>answers[i.id]!==undefined).length;
+ useEffect(()=>{heading.current?.focus();},[page]);
+ useEffect(()=>{if(!expiresAt)return;const update=()=>setExpired(Date.now()>=Date.parse(expiresAt));update();const timer=setInterval(update,1000);return()=>clearInterval(timer);},[expiresAt]);
+ useEffect(()=>{if(!dirty)return;const warn=(e:BeforeUnloadEvent)=>{e.preventDefault();e.returnValue='';};window.addEventListener('beforeunload',warn);return()=>window.removeEventListener('beforeunload',warn);},[dirty]);
+ function change(id:string,v:Answer){setAnswers(a=>({...a,[id]:v}));setDirty(true);setMessage('Changes on this page have not been saved.');}
+ async function save(next:number,submit=false,requirePage=false){
+  if(lock.current||complete||expired)return;
+  if(requirePage&&visible.some(i=>answers[i.id]===undefined)){setError('Answer each question on this page before continuing, or use Save progress to return later.');return;}
+  if(submit&&count!==d.items.length){setError('Answer every question before submitting.');return;}
+  lock.current=true;setBusy(true);setError('');setMessage('Saving…');
+  try{await onSave({answers:{...answers},page:next,submit});setPage(next);setComplete(submit);setDirty(false);setMessage(submit?(preview?'Preview complete. No patient response was submitted.':'Your questionnaire has been submitted for therapist review.'):preview?'Preview progress retained in this open page.':'Your answers and place are saved.');}catch(e){setError(e instanceof Error?e.message:'Saving was not confirmed. Keep this page open.');setMessage('Your latest changes have not been confirmed saved. Keep this page open and retry.');}finally{lock.current=false;setBusy(false);}
+ }
+ return <section className="asqPagedForm" aria-label={d.title+' questionnaire'}><h2 ref={heading} tabIndex={-1}>{complete?'Questionnaire submitted':`Questions ${page*7+1}–${Math.min(page*7+7,d.items.length)} of ${d.items.length}`}</h2><p>Page {page+1} of {pages} · {count} of {d.items.length} answered</p><progress max={d.items.length} value={count} aria-label="Questions answered"/>{expiresAt&&<p>Available until {new Date(expiresAt).toLocaleString('en-US',{timeZone:'America/Chicago',dateStyle:'long',timeStyle:'short'})} Central Time.</p>}<p role="status">{message}</p>{error&&<p role="alert">{error}</p>}{expired&&<p role="alert">This assignment has expired. Further saves and submission are closed. Contact the office for a new assignment.</p>}
+ {!complete&&<form onSubmit={e=>{e.preventDefault();void save(page===pages-1?page:page+1,page===pages-1,true);}}><fieldset disabled={busy||expired}><legend className="asqSrOnly">Questionnaire page {page+1}</legend>{visible.map((i,n)=><fieldset className="asqQuestion" key={i.id}><legend><strong>{page*7+n+1}.</strong> {i.text}</legend><div className="asqResponseChoices">{i.options.map(o=><label key={String(o.value)}><input type="radio" name={'connected-'+i.id} checked={answers[i.id]===o.value} onChange={()=>change(i.id,o.value)}/>{o.label}</label>)}</div></fieldset>)}</fieldset><div className="asqPageActions"><button type="button" disabled={busy||expired||page===0} onClick={()=>void save(page-1)}>Previous</button><button type="button" disabled={busy||expired} onClick={()=>void save(page)}>Save progress</button><button type="submit" disabled={busy||expired}>{busy?'Saving…':page===pages-1?'Save and submit questionnaire':'Save and next'}</button></div></form>}{complete&&<p>Your responses are recorded. Contact the office if a correction is needed.</p>}</section>;
+}

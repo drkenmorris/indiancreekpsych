@@ -72,7 +72,7 @@ export default async function AdminQuestionnairesPage() {
           <article className="adminQuestionnaireCard adminPsychTestsCard">
             <span>Administrator-only testing</span>
             <h2>Psychological Testing Library</h2>
-            <p>Open the relocated DSM screening modules, CSEQ, ASQ/ASEQ, SRRCI-X, RTAFI, RDII, RVTI, and CogSwitch. Their internal questionnaires and reports remain synthetic QA tools.</p>
+            <p>Open the relocated DSM screening modules, CSEQ, ASQ/ASEQ, SRRCI-X, RTAFI, RDII, RVTI. Their internal questionnaires and reports remain synthetic QA tools.</p>
             <Link href="/clinical-tests">Open psychological tests →</Link>
           </article>
         )}

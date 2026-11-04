@@ -42,3 +42,9 @@ test('recipient displays and saves Tier 6 optional text and dates with all origi
  expect(JSON.parse(fetch.mock.calls[1][1].body).answers[text.id]).toBe('Fictional saved context');
 });
 
+
+test('native date blur commits a displayed date to the saved response',async()=>{
+ const a=answers(),questions=assignedQuestions(source,a),date=questions.find(q=>q.kind==='date')!,page=Math.floor(questions.indexOf(date)/7);
+ const fetch=vi.fn().mockResolvedValueOnce({ok:true,json:async()=>({source,assignment:{id:'fictional',recipientName:'Fictional Recipient'},response:{answers:a,page,revision:2,status:'draft',identity_confirmed:true}})}).mockResolvedValueOnce({ok:true,json:async()=>({revision:3,status:'draft'})});vi.stubGlobal('fetch',fetch);render(<DsmRecipient id="fictional"/>);
+ const field=await screen.findByLabelText(date.text);fireEvent.blur(field,{target:{value:'2020-01-02'}});fireEvent.click(screen.getByRole('button',{name:'Save and pause'}));await screen.findByText(/Progress saved/);expect(JSON.parse(fetch.mock.calls[1][1].body).answers[date.id]).toBe('2020-01-02');
+});

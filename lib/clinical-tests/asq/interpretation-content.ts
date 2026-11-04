@@ -12,7 +12,7 @@ export const domainGuides:Record<string,DomainGuide>={
 };
 export const domainKeys:Record<string,string>={SOCIAL_COMMUNICATION:'social',SOCIAL:'social',Social:'social',COMMUNICATION:'communication',Communication:'communication',RESTRICTED_REPETITIVE:'repetitive',RRB:'repetitive',SENSORY_PROCESSING:'sensory',SENSORY:'sensory',Sensory:'sensory',EXECUTIVE_FUNCTION:'executive',EXEC:'executive',Executive:'executive',EMOTIONAL_REGULATION:'regulation',EMO:'regulation',Regulation:'regulation',Classroom:'classroom',Strengths:'strengths'};
 export const anchors={
- student:{challenges:['S001','S005','S007','S010','S012','S015','S017','S024','S025','S027','S030','S033','S037','S039','S078','S093'],resources:['S003','S006','S009','S011','S016','S023','S026','S029','S031','S036','S038','S040','S068','S074','S081','S088','S102']},
+ student:{challenges:['S001','S005','S007','S010','S012','S015','S017','S024','S025','S027','S030','S033','S037','S039','S078','S093','S114','S125','S135','S145','S163'],resources:['S003','S006','S009','S011','S016','S023','S026','S029','S031','S036','S038','S040','S068','S074','S081','S088','S102','S051','S159']},
  parent:{challenges:['1','2','3','5','6','7','9','13','20','21','24','29','33','34','37','38','115','116','118','122','132','136','139','143','144'],resources:['114','134']},
  teacher:{challenges:['T003','T004','T005','T007','T009','T011','T013','T016','T019','T021','T022','T027','T029','T033','T034','T036','T041','T043','T048','T049','T051'],resources:['T001','T002','T055','T056','T057','T058','T059','T060']}
 } as const;

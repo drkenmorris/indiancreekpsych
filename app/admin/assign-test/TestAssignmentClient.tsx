@@ -48,7 +48,7 @@ export default function TestAssignmentClient({initialTestKey="",initialPatientId
    setForm(defaults);
    await load();
    setMessage("Assignment saved as a draft. No email has been sent. "+
-     (emailReady?"Use Send Invitation on its row to email the secure link.":"Paubox email and patient test-release approvals must be completed before invitations can be sent."));
+     (!tests.find(t=>t.value===form.testKey)?.patientReady?"This questionnaire’s recipient release is pending; Send Invitation remains disabled.":emailReady?"Use Send Invitation on its row to email the secure link.":"Secure email delivery must be activated before invitations can be sent."));
   }catch(e){setError(e instanceof Error?e.message:"Could not create assignment.");}
   finally{setBusy(false);}
  }
@@ -92,7 +92,7 @@ export default function TestAssignmentClient({initialTestKey="",initialPatientId
      <label>Patient / student this questionnaire concerns<select required value={form.patientId} onChange={e=>setForm(f=>({...f,patientId:e.target.value}))}><option value="">Select central patient record</option>{patients.map(p=><option key={p.id} value={p.id}>{[p.demographics.first_name,p.demographics.last_name].filter(Boolean).join(' ')||(Array.isArray(p.profiles)?p.profiles[0]?.full_name:p.profiles?.full_name)||'Patient demographics pending'} · {p.id.slice(0,8)}</option>)}</select></label>
      <fieldset><legend>Who will answer the ASQ / ASEQ?</legend>{asqRoles.map(role=><label key={role}><input type="radio" name="asqRespondent" required value={role} checked={form.asqRole===role} onChange={()=>setForm(f=>({...f,asqRole:role}))}/>{asqRoleLabels[role]}</label>)}</fieldset>
      <p>The name and email above belong to this respondent. Assign Parent and Teacher questionnaires separately, even when they concern the same patient. They will see only their assigned version.</p>
-     <p><Link href="/admin/assign-test/asq-preview">Preview the simplified seven-question recipient interface</Link></p>
+     <p><Link href="/assessment-preview/asq">Preview the simplified seven-question recipient interface</Link></p>
     </>}
     {form.testKey==='dsm'&&<DsmVersionChoice value={form.dsmVersion} onChange={v=>setForm(f=>({...f,dsmVersion:v}))} dob={form.dob} disabled={busy} required/>}
     <p className="assignmentCaution"><strong>Clinical release notice:</strong> {form.testKey==='asq'&&asqReleaseReady?'The ASQ/ASEQ recipient workflow is enabled. It records respondent answers for clinician review; it does not establish a diagnosis.':"Recipient release is pending for this questionnaire. Draft assignments and interface previews are available; invitations remain gated."}</p>

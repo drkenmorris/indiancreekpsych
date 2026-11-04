@@ -18,7 +18,6 @@ export default function PublicFooter({ workspace = false }: { workspace?: boolea
         </>)}
         <Link href="/account">Account</Link>
         <AuthMenuAction compact={workspace} />
-        <Link href="/privacy">HIPAA Privacy Notice</Link>
         {!workspace && <a href="https://omnicoreai.app/website-protection" aria-label="Monitored by OmniCore — learn about monitoring and security controls"><span aria-hidden="true">◉ </span>Monitored by OmniCore</a>}
       </nav>
       <div className="footerContact">

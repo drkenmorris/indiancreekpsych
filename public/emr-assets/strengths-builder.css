@@ -1,0 +1,19 @@
+#strengths-builder { margin-block: 1rem 2rem; padding: 1rem; border: 1px solid #8cafa0; border-radius: .4rem; background: #f6faf7; }
+.descriptor-filters, .descriptor-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.descriptor-filters > .check { grid-column: 1 / -1; }
+.descriptor-columns fieldset { min-inline-size: 0; padding: .75rem; border: 1px solid #8cafa0; background: #fff; }
+.descriptor-columns legend { font-weight: 700; max-inline-size: 100%; }
+.descriptor-scroll { max-block-size: 27rem; overflow-y: auto; overscroll-behavior: contain; }
+.descriptor-scroll h4 { margin: 1rem 0 .35rem; }
+.descriptor-choice { display: flex; align-items: flex-start; gap: .65rem; min-block-size: 48px; padding: .65rem .35rem; cursor: pointer; line-height: 1.45; }
+.descriptor-choice:hover, .descriptor-choice:has(:checked) { background: #e7f1ec; }
+#strengths-builder input[type="checkbox"] { flex: 0 0 auto; inline-size: 1.2rem; block-size: 1.2rem; min-height: 0; margin-block-start: .15rem; accent-color: #285c48; }
+#strengths-builder input, #strengths-builder select, #strengths-builder textarea { font-size: 1rem; }
+#strengths-builder textarea { resize: vertical; }
+#strengths-builder button { min-block-size: 48px; }
+#strengths-builder :focus-visible { outline: 3px solid #285c48; outline-offset: 3px; }
+.descriptor-custom { margin-block: 1rem; }
+.descriptor-custom summary { cursor: pointer; padding-block: .75rem; font-weight: 600; }
+#descriptor-status { min-block-size: 1.5em; }
+@media (max-width: 760px) { .descriptor-filters, .descriptor-columns { grid-template-columns: minmax(0, 1fr); } #strengths-builder { padding: .65rem; } }
+@media print { #strengths-builder { display: none; } }

@@ -6,11 +6,12 @@ structuredSectionFields = function(key, saved) {
   if (key !== 'strengths') return strengthsOriginalFields(key, saved);
   return `<section id="strengths-builder" aria-labelledby="strengths-builder-title">
     <h3 id="strengths-builder-title">Strengths and Weaknesses / Challenges form builder</h3>
+    <p><a href="/emr/descriptor-library" target="_blank" rel="noopener noreferrer">Manage shared Strengths and Challenges table</a> · <button id="descriptor-reload" type="button" class="secondary">Refresh shared choices</button></p>
     <p>Select applicable descriptors, review the preview, then insert them into the EMR fields below. You can edit the wording before saving. Nothing is selected by default.</p>
     <p class="hint">Original descriptive library; individualize with the person’s perspective, context, and supporting examples. This is not a scored assessment.</p>
     <div class="descriptor-filters">
       <label class="field" for="descriptor-search">Search descriptors<input id="descriptor-search" name="descriptor_search" type="search" autocomplete="off"></label>
-      <label class="field" for="descriptor-domain">Domain<select id="descriptor-domain" name="descriptor_domain"><option value="">All domains</option>${[...new Set(STRENGTHS_LIBRARY.items.map(x => x.domain))].map(x => `<option value="${esc(x)}">${esc(x)}</option>`).join('')}<option value="Custom descriptors">Custom descriptors</option></select></label>
+      <label class="field" for="descriptor-domain">Domain<select id="descriptor-domain" name="descriptor_domain"><option value="">All domains</option><option value="Custom descriptors">Custom descriptors</option></select></label>
       <label class="check"><input id="descriptor-selected-only" name="descriptor_selected_only" type="checkbox">Show selected only</label>
     </div>
     <p id="descriptor-count" role="status" aria-live="polite"></p>
@@ -39,7 +40,8 @@ function bindStrengthsBuilder() {
   const root = document.querySelector('#strengths-builder');
   if (!root) return;
   const form = root.closest('form');
-  const items = [...STRENGTHS_LIBRARY.items];
+  const items = [];
+  let loading = false;
   const selected = new Set();
   const types = [['strength', 'Strengths', 'strengths'], ['growth_or_support_need', 'Weaknesses / Challenges / Support Needs', 'weaknesses']];
   const status = text => root.querySelector('#descriptor-status').textContent = text;
@@ -127,5 +129,25 @@ function bindStrengthsBuilder() {
     renderOptions();
     status(`${added} custom field items added. Select the applicable items to insert or copy.`);
   });
-  renderOptions();
+  async function loadSharedChoices() {
+    if (loading) return;
+    if (selected.size) {status('Insert or clear current selections before refreshing the shared library.'); return;}
+    loading = true;
+    for (const id of ['descriptor-insert','descriptor-copy','descriptor-add-custom','descriptor-reload']) root.querySelector('#' + id).disabled = true;
+    status('Loading shared descriptor table…');
+    try {
+      const response = await fetch('/api/emr/descriptors', {cache: 'no-store'});
+      const data = await response.json();
+      if (!response.ok || !Array.isArray(data.items)) throw Error(data.error || 'Shared descriptor table is unavailable.');
+      if (!root.isConnected) return;
+      items.splice(0, items.length, ...data.items.filter(x => x.active).map(x => ({id:x.id, domain:x.domain, label:x.label, type:x.kind === 'strength' ? 'strength' : 'growth_or_support_need'})));
+      root.querySelector('#descriptor-domain').innerHTML = '<option value="">All domains</option>' + [...new Set(items.map(x => x.domain))].map(x => `<option value="${esc(x)}">${esc(x)}</option>`).join('') + '<option value="Custom descriptors">Custom descriptors</option>';
+      renderOptions();
+      status('Shared choices loaded. Manage permanent choices using the shared-table link above.');
+      for (const id of ['descriptor-insert','descriptor-copy','descriptor-add-custom']) root.querySelector('#' + id).disabled = false;
+    } catch (err) {if (root.isConnected) status(err.message + ' Use Refresh shared choices to retry. Your existing EMR text is retained.');}
+    finally {loading = false; if (root.isConnected) root.querySelector('#descriptor-reload').disabled = false;}
+  }
+  root.querySelector('#descriptor-reload').addEventListener('click', loadSharedChoices);
+  void loadSharedChoices();
 }

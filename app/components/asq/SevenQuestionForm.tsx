@@ -22,12 +22,12 @@ export default function SevenQuestionForm({definition,initialAnswers={},initialP
   if(submit&&answered!==count){setError('Answer every question before submitting. You can return to earlier pages to review.');return;}
   saving.current=true;setBusy(true);setError('');setMessage('Saving…');
   const captured={...answers};
-  try{await onSave({answers:captured,page:nextPage,submit});if(!alive.current)return;setDirty(false);setPage(nextPage);setComplete(submit);setMessage(submit?(preview?'Preview complete. Use Save Workspace to retain the QA case.':'Your questionnaire has been submitted for clinician review.'):preview?'Preview answers retained in this open workspace. Use Save Workspace for a saved QA case.':'Your answers and place in the questionnaire are saved.');}
+  try{await onSave({answers:captured,page:nextPage,submit});if(!alive.current)return;setDirty(false);setPage(nextPage);setComplete(submit);setMessage(submit?(preview?'Preview complete. No patient response was submitted.':'Your questionnaire has been submitted for clinician review.'):preview?'Preview answers retained in this open workspace. No patient response was submitted.':'Your answers and place in the questionnaire are saved.');}
   catch(e){if(alive.current){setError(e instanceof Error?e.message:'Saving was not confirmed. Your answers remain on this page.');setMessage('Saving was not confirmed. Please keep this page open and retry.');}}
   finally{saving.current=false;if(alive.current)setBusy(false);}
  }
  return <section className="asqPagedForm" aria-label="ASQ questionnaire">
-  <h2 ref={heading} tabIndex={-1}>{complete?'Questionnaire submitted':`Questions ${page*7+1}–${Math.min(page*7+7,count)} of ${count}`}</h2>
+  <h2 ref={heading} tabIndex={-1}>{complete?(preview?'Preview complete':'Questionnaire submitted'):`Questions ${page*7+1}–${Math.min(page*7+7,count)} of ${count}`}</h2>
   <p>Page {page+1} of {pages} · {answered} of {count} questions answered</p>
   <progress max={count} value={answered} aria-label="Questions answered"/>
   {preview&&<p>This preview does not submit answers for a patient.</p>}
@@ -38,6 +38,6 @@ export default function SevenQuestionForm({definition,initialAnswers={},initialP
    </fieldset>
    <div className="asqPageActions"><button type="button" disabled={busy||page===0} onClick={()=>void save(page-1)}>Previous</button><button type="button" disabled={busy} onClick={()=>void save(page)}>Save progress</button><button type="submit" disabled={busy}>{busy?'Saving…':page===pages-1?'Save and submit questionnaire':'Save and next 7 questions'}</button></div>
   </form>}
-  {complete&&<p>Your responses are recorded. Contact the office if a correction is needed.</p>}
+  {complete&&<p>{preview?'This fictional preview is complete; no patient response was submitted.':'Your responses are recorded. Contact the office if a correction is needed.'}</p>}
  </section>;
 }

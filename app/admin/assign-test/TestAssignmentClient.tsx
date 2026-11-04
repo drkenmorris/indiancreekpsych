@@ -17,6 +17,7 @@ export default function TestAssignmentClient({initialTestKey="",initialPatientId
  const [asqReleaseReady,setAsqReleaseReady]=useState(false);
  const [form,setForm]=useState({...defaults,testKey:initialTestKey,patientId:initialPatientId});
  const [tests,setTests]=useState<Test[]>([]);
+ const selectedTest=form.testKey==='asq'?(form.asqRole?`asq:${form.asqRole}`:"asq-version-required"):form.testKey;
  const [assignments,setAssignments]=useState<Assignment[]>([]);
  const [emailReady,setEmailReady]=useState(false);
  const [busy,setBusy]=useState(false);
@@ -83,20 +84,20 @@ export default function TestAssignmentClient({initialTestKey="",initialPatientId
     <label>Recipient email address<input type="email" required maxLength={254} autoComplete="off" value={form.email} onChange={e=>setForm(f=>({...f,email:e.target.value}))} placeholder="recipient@example.com"/></label>
     {form.testKey!=='asq'&&<label>Patient date of birth<input type="date" required min="1900-01-01" max={new Date().toISOString().slice(0,10)} value={form.dob} onChange={e=>setForm(f=>({...f,dob:e.target.value}))}/></label>}
     <label>Psychological test
-     <select required value={form.testKey} onChange={e=>setForm(f=>({...f,testKey:e.target.value,dsmVersion:"",asqRole:"",patientId:""}))}>
+     <select required value={selectedTest} onChange={e=>{const [testKey,asqRole=""]=e.target.value.split(":");setForm(f=>({...f,testKey,dsmVersion:"",asqRole,patientId:testKey==='asq'?f.patientId:""}));}}>
       <option value="">Select a test</option>
-      {tests.map(t=><option key={t.value} value={t.value}>{t.label} — {t.patientReady?"Available":"Patient release pending"}</option>)}
+      {form.testKey==='asq'&&!form.asqRole&&<option value="asq-version-required" disabled>Select an ASQ / ASEQ version</option>}
+      {tests.flatMap(t=>t.value==='asq'?asqRoles.map(role=><option key={`asq:${role}`} value={`asq:${role}`}>ASQ / ASEQ — {asqRoleLabels[role]} — {t.patientReady?"Available":"Patient release pending"}</option>):[<option key={t.value} value={t.value}>{t.label} — {t.patientReady?"Available":"Patient release pending"}</option>])}
      </select>
     </label>
     {form.testKey==='asq'&&<>
      <label>Patient / student this questionnaire concerns<select required value={form.patientId} onChange={e=>setForm(f=>({...f,patientId:e.target.value}))}><option value="">Select central patient record</option>{patients.map(p=><option key={p.id} value={p.id}>{[p.demographics.first_name,p.demographics.last_name].filter(Boolean).join(' ')||(Array.isArray(p.profiles)?p.profiles[0]?.full_name:p.profiles?.full_name)||'Patient demographics pending'} · {p.id.slice(0,8)}</option>)}</select></label>
-     <fieldset><legend>Who will answer the ASQ / ASEQ?</legend>{asqRoles.map(role=><label key={role}><input type="radio" name="asqRespondent" required value={role} checked={form.asqRole===role} onChange={()=>setForm(f=>({...f,asqRole:role}))}/>{asqRoleLabels[role]}</label>)}</fieldset>
-     <p>The name and email above belong to this respondent. Assign Parent and Teacher questionnaires separately, even when they concern the same patient. They will see only their assigned version.</p>
+     <p>The selected test version is assigned only to the individual named above at that email address. Create a separate assignment for each additional version or recipient, even when they concern the same patient.</p>
      <p><Link href="/assessment-preview/asq">Preview the simplified seven-question recipient interface</Link></p>
     </>}
     {form.testKey==='dsm'&&<DsmVersionChoice value={form.dsmVersion} onChange={v=>setForm(f=>({...f,dsmVersion:v}))} dob={form.dob} disabled={busy} required/>}
     <p className="assignmentCaution"><strong>Clinical release notice:</strong> {form.testKey==='asq'&&asqReleaseReady?'The ASQ/ASEQ recipient workflow is enabled. It records respondent answers for clinician review; it does not establish a diagnosis.':"Recipient release is pending for this questionnaire. Draft assignments and interface previews are available; invitations remain gated."}</p>
-    <button type="submit" disabled={busy||loading}>{busy?"Saving…":"Save Assignment Draft"}</button>
+    <button type="submit" disabled={busy||loading||(form.testKey==='asq'&&!form.asqRole)}>{busy?"Saving…":"Save Assignment Draft"}</button>
    </form>
   </section>
   <section className="assignmentCard">

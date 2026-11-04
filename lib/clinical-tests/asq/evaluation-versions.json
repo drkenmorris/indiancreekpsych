@@ -1,0 +1,7 @@
+{
+  "lib/clinical-tests/asq/evaluation.ts": "b44cfb3f265d434b63c44d58f239965c4993c215cf18ffe955cb4e3b203c4bb1",
+  "lib/clinical-tests/asq/recipient-versions.json": "974dcfba8ced6bca2dd532ce7c3932fc25e362a20bac2b3cde341208d274e2d9",
+  "lib/clinical-tests/legacy/src/assessments/autism/items/autismItemsSelf.ts": "a818fd92737c65a9cd69d01f9fb04d2fe26fb89301aa3b1739e401be8fd6a46c",
+  "lib/clinical-tests/legacy/src/assessments/autism/items/autismItemsTeacher.ts": "07fbe2b2ca0550ddea5c6900613e5d77d1c48f6ecfc26d332f894ff5bc903ac1",
+  "lib/clinical-tests/legacy/src/asq/parentItems.ts": "5ef02ac03ebc1c827788cf8f897b3f88dc58cbd8f30e7b8f8bf828433b0a9577"
+}

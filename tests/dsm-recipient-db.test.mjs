@@ -19,8 +19,9 @@ async function as(id,aal='aal2',email='spoofed@example.invalid'){await db.exec('
 await db.exec('create table dsm_records(id uuid primary key default gen_random_uuid(),patient_id uuid,owner_id uuid);');
 await db.exec(readFileSync('supabase/migrations/20261104071845_dsm_recipient_assignments.sql','utf8'));
 
+await db.exec(readFileSync('supabase/migrations/20261104074244_dsm_six_tier_recipient.sql','utf8'));
 const source={format:'icps-dsm-recipient/1',version:'adult',questions:[...Array.from({length:60},(_,i)=>({id:'q'+i,tier:1,domain:i<3?'a':'b',choices:['No','Yes, currently','Unsure']})),{id:'follow-a',tier:2,domain:'a',choices:['Never','Often']},{id:'follow-b',tier:2,domain:'b',choices:['Never','Often']}]};
-async function create(email,sent=true,expired=false){await as(admin);const r=await db.query("insert into psych_test_assignments(recipient_first_name,recipient_last_name,recipient_email,recipient_dob,test_key,dsm_version,patient_id,dsm_source,dsm_source_hash,created_at,expires_at) values('Fictional','Recipient',$1,'1990-01-01','dsm','adult',$2,$3,$4,now()-interval '2 days',now()+case when $5 then interval '-1 day' else interval '14 days' end) returning id",[email,subject,source,'b'.repeat(64),expired]);const id=r.rows[0].id;if(sent)await db.query("update psych_test_assignments set status='sent',sent_at=now() where id=$1",[id]);return id;}
+async function create(email,sent=true,expired=false,definition=source){await as(admin);const r=await db.query("insert into psych_test_assignments(recipient_first_name,recipient_last_name,recipient_email,recipient_dob,test_key,dsm_version,patient_id,dsm_source,dsm_source_hash,created_at,expires_at) values('Fictional','Recipient',$1,'1990-01-01','dsm','adult',$2,$3,$4,now()-interval '2 days',now()+case when $5 then interval '-1 day' else interval '14 days' end) returning id",[email,subject,definition,'b'.repeat(64),expired]);const id=r.rows[0].id;if(sent)await db.query("update psych_test_assignments set status='sent',sent_at=now() where id=$1",[id]);return id;}
 const id=await create('student@example.invalid'),second=await create('parent@example.invalid'),expired=await create('student@example.invalid',true,true),draft=await create('student@example.invalid',false);
 const one=Object.fromEntries(source.questions.filter(q=>q.tier===1).map(q=>[q.id,'No']));
 const save=(id,revision,answers,page=0,submit=false)=>db.query('select save_dsm_assignment($1,$2,$3,$4,$5,true) revision',[id,revision,answers,page,submit]);
@@ -30,4 +31,20 @@ await test('MFA, current verified email, invitation expiry and recipient identit
 await test('direct RPC rejects invalid choices, unrelated Tier 2 domains, skipped pages and incomplete submissions',async()=>{await as(student);for(const answers of [{...one,forged:'Yes'},{...one,q0:'Invalid'},{...one,'follow-a':'Never'},{...one,q0:'Yes, currently','follow-b':'Never'}])await assert.rejects(save(id,1,answers));await assert.rejects(save(id,1,{},2),/earlier pages/);await assert.rejects(save(id,1,{...one,q0:'Yes, currently'},0,true),/every selected/);assert.equal((await db.query('select revision from dsm_assignment_responses')).rows[0].revision,1);});
 await test('only positive domains require follow-up and final submission locks editing',async()=>{await as(student);const answers={...one,q0:'Yes, currently','follow-a':'Often'};assert.equal((await save(id,1,answers,8,true)).rows[0].revision,2);await assert.rejects(save(id,2,answers,8),/cannot be changed/);const r=(await db.query('select * from dsm_assignment_responses')).rows[0];assert.equal(r.status,'submitted');assert.equal(r.answered_count,61);});
 await test('assigning administrator sees original submission; unrelated administrator and other recipient cannot',async()=>{await as(admin);assert.equal((await db.query('select * from dsm_assignment_responses')).rows.length,1);assert.equal((await db.query('select * from dsm_assignment_response_versions')).rows.length,2);await as(other);assert.equal((await db.query('select * from dsm_assignment_responses')).rows.length,0);await as(parent);assert.equal((await db.query('select * from dsm_assignment_responses')).rows.length,0);});
+await test('six tiers persist separately across repeated patient administrations; direct RPC enforces all tiers and optional dates/text',async()=>{
+ const source2={...source,format:'icps-dsm-recipient/2',questions:[...source.questions,...[3,4,5,6].map(tier=>({id:'tier-'+tier,tier,domain:'a',choices:['Yes','No']})),{id:'example',tier:6,domain:'a',kind:'text',optional:true,choices:[]},{id:'date',tier:6,domain:'a',kind:'date',optional:true,choices:[]}]};
+ const first=await create('student@example.invalid',true,false,source2),repeat=await create('student@example.invalid',true,false,source2);
+ const full={...one,q0:'Yes, currently','follow-a':'Often',...Object.fromEntries([3,4,5,6].map(t=>['tier-'+t,'Yes'])),example:'Fictional six-tier example',date:'2020-01-01'};
+ await as(student);
+ await assert.rejects(save(first,0,{...one,q0:'Yes, currently','follow-a':'Often'},0,true),/every selected/);
+ await assert.rejects(save(first,0,{...full,date:'2026-02-30'},0,true),/invalid answer/);
+ await assert.rejects(save(first,0,{...full,example:'x'.repeat(2001)},0,true),/invalid answer/);
+ assert.equal((await save(first,0,full,0,true)).rows[0].revision,1);
+ const different={...full,'tier-6':'No',example:'Independent fictional repeat'};
+ assert.equal((await save(repeat,0,different,0,true)).rows[0].revision,1);
+ await as(admin);
+ const rows=(await db.query('select assignment_id,answers,status from dsm_assignment_responses where assignment_id in ($1,$2)',[first,repeat])).rows;
+ assert.equal(rows.length,2);assert.equal(rows.find(r=>r.assignment_id===first).answers['tier-6'],'Yes');assert.equal(rows.find(r=>r.assignment_id===repeat).answers['tier-6'],'No');
+ await as(other);assert.equal((await db.query('select * from dsm_assignment_responses where assignment_id in ($1,$2)',[first,repeat])).rows.length,0);
+});
 await db.close();

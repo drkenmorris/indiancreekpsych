@@ -1,0 +1,3194 @@
+[
+  {
+    "id": "original-p01",
+    "kind": "problem",
+    "parent": null,
+    "text": "Depression / depressive symptoms",
+    "active": true
+  },
+  {
+    "id": "original-p01-d1",
+    "kind": "definition",
+    "parent": "original-p01",
+    "text": "The patient describes reduced interest and withdrawal from valued activities; document the pattern, duration, context, and functional impact after assessment.",
+    "active": true
+  },
+  {
+    "id": "original-p01-d1-g1",
+    "kind": "goal",
+    "parent": "original-p01-d1",
+    "text": "Increase participation in personally meaningful activities.",
+    "active": true
+  },
+  {
+    "id": "original-p01-d1-g1-o1",
+    "kind": "objective",
+    "parent": "original-p01-d1-g1",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to reduced interest and withdrawal from valued activities on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p01-d1-g1-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p01-d1-g1-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing reduced interest and withdrawal from valued activities, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p01-d1-g1-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p01-d1-g1-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to reduced interest and withdrawal from valued activities, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p01-d1-g2",
+    "kind": "goal",
+    "parent": "original-p01-d1",
+    "text": "Identify barriers and supports for progress related to reduced interest and withdrawal from valued activities.",
+    "active": true
+  },
+  {
+    "id": "original-p01-d1-g2-o1",
+    "kind": "objective",
+    "parent": "original-p01-d1-g2",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to reduced interest and withdrawal from valued activities on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p01-d1-g2-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p01-d1-g2-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing reduced interest and withdrawal from valued activities, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p01-d1-g2-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p01-d1-g2-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to reduced interest and withdrawal from valued activities, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p01-d2",
+    "kind": "definition",
+    "parent": "original-p01",
+    "text": "The patient describes self-critical thoughts interfering with daily functioning; document the pattern, duration, context, and functional impact after assessment.",
+    "active": true
+  },
+  {
+    "id": "original-p01-d2-g1",
+    "kind": "goal",
+    "parent": "original-p01-d2",
+    "text": "Respond to self-critical thoughts in a more balanced and useful way.",
+    "active": true
+  },
+  {
+    "id": "original-p01-d2-g1-o1",
+    "kind": "objective",
+    "parent": "original-p01-d2-g1",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to self-critical thoughts interfering with daily functioning on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p01-d2-g1-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p01-d2-g1-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing self-critical thoughts interfering with daily functioning, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p01-d2-g1-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p01-d2-g1-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to self-critical thoughts interfering with daily functioning, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p01-d2-g2",
+    "kind": "goal",
+    "parent": "original-p01-d2",
+    "text": "Identify barriers and supports for progress related to self-critical thoughts interfering with daily functioning.",
+    "active": true
+  },
+  {
+    "id": "original-p01-d2-g2-o1",
+    "kind": "objective",
+    "parent": "original-p01-d2-g2",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to self-critical thoughts interfering with daily functioning on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p01-d2-g2-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p01-d2-g2-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing self-critical thoughts interfering with daily functioning, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p01-d2-g2-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p01-d2-g2-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to self-critical thoughts interfering with daily functioning, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p02",
+    "kind": "problem",
+    "parent": null,
+    "text": "Anxiety / persistent worry",
+    "active": true
+  },
+  {
+    "id": "original-p02-d1",
+    "kind": "definition",
+    "parent": "original-p02",
+    "text": "The patient describes worry that interrupts concentration or rest; document the pattern, duration, context, and functional impact after assessment.",
+    "active": true
+  },
+  {
+    "id": "original-p02-d1-g1",
+    "kind": "goal",
+    "parent": "original-p02-d1",
+    "text": "Improve the ability to manage worry while completing valued activities.",
+    "active": true
+  },
+  {
+    "id": "original-p02-d1-g1-o1",
+    "kind": "objective",
+    "parent": "original-p02-d1-g1",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to worry that interrupts concentration or rest on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p02-d1-g1-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p02-d1-g1-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing worry that interrupts concentration or rest, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p02-d1-g1-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p02-d1-g1-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to worry that interrupts concentration or rest, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p02-d1-g2",
+    "kind": "goal",
+    "parent": "original-p02-d1",
+    "text": "Identify barriers and supports for progress related to worry that interrupts concentration or rest.",
+    "active": true
+  },
+  {
+    "id": "original-p02-d1-g2-o1",
+    "kind": "objective",
+    "parent": "original-p02-d1-g2",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to worry that interrupts concentration or rest on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p02-d1-g2-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p02-d1-g2-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing worry that interrupts concentration or rest, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p02-d1-g2-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p02-d1-g2-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to worry that interrupts concentration or rest, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p02-d2",
+    "kind": "definition",
+    "parent": "original-p02",
+    "text": "The patient describes avoidance of situations the patient wants to approach; document the pattern, duration, context, and functional impact after assessment.",
+    "active": true
+  },
+  {
+    "id": "original-p02-d2-g1",
+    "kind": "goal",
+    "parent": "original-p02-d2",
+    "text": "Increase participation in chosen activities despite manageable anxiety.",
+    "active": true
+  },
+  {
+    "id": "original-p02-d2-g1-o1",
+    "kind": "objective",
+    "parent": "original-p02-d2-g1",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to avoidance of situations the patient wants to approach on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p02-d2-g1-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p02-d2-g1-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing avoidance of situations the patient wants to approach, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p02-d2-g1-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p02-d2-g1-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to avoidance of situations the patient wants to approach, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p02-d2-g2",
+    "kind": "goal",
+    "parent": "original-p02-d2",
+    "text": "Identify barriers and supports for progress related to avoidance of situations the patient wants to approach.",
+    "active": true
+  },
+  {
+    "id": "original-p02-d2-g2-o1",
+    "kind": "objective",
+    "parent": "original-p02-d2-g2",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to avoidance of situations the patient wants to approach on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p02-d2-g2-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p02-d2-g2-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing avoidance of situations the patient wants to approach, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p02-d2-g2-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p02-d2-g2-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to avoidance of situations the patient wants to approach, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p03",
+    "kind": "problem",
+    "parent": null,
+    "text": "Panic symptoms",
+    "active": true
+  },
+  {
+    "id": "original-p03-d1",
+    "kind": "definition",
+    "parent": "original-p03",
+    "text": "The patient describes episodes of intense fear and associated physical sensations; document the pattern, duration, context, and functional impact after assessment.",
+    "active": true
+  },
+  {
+    "id": "original-p03-d1-g1",
+    "kind": "goal",
+    "parent": "original-p03-d1",
+    "text": "Recognize and respond to panic-related experiences using an agreed plan.",
+    "active": true
+  },
+  {
+    "id": "original-p03-d1-g1-o1",
+    "kind": "objective",
+    "parent": "original-p03-d1-g1",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to episodes of intense fear and associated physical sensations on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p03-d1-g1-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p03-d1-g1-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing episodes of intense fear and associated physical sensations, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p03-d1-g1-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p03-d1-g1-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to episodes of intense fear and associated physical sensations, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p03-d1-g2",
+    "kind": "goal",
+    "parent": "original-p03-d1",
+    "text": "Identify barriers and supports for progress related to episodes of intense fear and associated physical sensations.",
+    "active": true
+  },
+  {
+    "id": "original-p03-d1-g2-o1",
+    "kind": "objective",
+    "parent": "original-p03-d1-g2",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to episodes of intense fear and associated physical sensations on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p03-d1-g2-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p03-d1-g2-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing episodes of intense fear and associated physical sensations, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p03-d1-g2-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p03-d1-g2-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to episodes of intense fear and associated physical sensations, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p03-d2",
+    "kind": "definition",
+    "parent": "original-p03",
+    "text": "The patient describes avoidance related to fear of another episode; document the pattern, duration, context, and functional impact after assessment.",
+    "active": true
+  },
+  {
+    "id": "original-p03-d2-g1",
+    "kind": "goal",
+    "parent": "original-p03-d2",
+    "text": "Reduce interference from fear of panic in chosen daily activities.",
+    "active": true
+  },
+  {
+    "id": "original-p03-d2-g1-o1",
+    "kind": "objective",
+    "parent": "original-p03-d2-g1",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to avoidance related to fear of another episode on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p03-d2-g1-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p03-d2-g1-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing avoidance related to fear of another episode, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p03-d2-g1-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p03-d2-g1-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to avoidance related to fear of another episode, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p03-d2-g2",
+    "kind": "goal",
+    "parent": "original-p03-d2",
+    "text": "Identify barriers and supports for progress related to avoidance related to fear of another episode.",
+    "active": true
+  },
+  {
+    "id": "original-p03-d2-g2-o1",
+    "kind": "objective",
+    "parent": "original-p03-d2-g2",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to avoidance related to fear of another episode on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p03-d2-g2-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p03-d2-g2-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing avoidance related to fear of another episode, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p03-d2-g2-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p03-d2-g2-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to avoidance related to fear of another episode, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p04",
+    "kind": "problem",
+    "parent": null,
+    "text": "Social anxiety concerns",
+    "active": true
+  },
+  {
+    "id": "original-p04-d1",
+    "kind": "definition",
+    "parent": "original-p04",
+    "text": "The patient describes fear of negative evaluation in social situations; document the pattern, duration, context, and functional impact after assessment.",
+    "active": true
+  },
+  {
+    "id": "original-p04-d1-g1",
+    "kind": "goal",
+    "parent": "original-p04-d1",
+    "text": "Build confidence in personally relevant social situations.",
+    "active": true
+  },
+  {
+    "id": "original-p04-d1-g1-o1",
+    "kind": "objective",
+    "parent": "original-p04-d1-g1",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to fear of negative evaluation in social situations on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p04-d1-g1-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p04-d1-g1-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing fear of negative evaluation in social situations, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p04-d1-g1-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p04-d1-g1-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to fear of negative evaluation in social situations, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p04-d1-g2",
+    "kind": "goal",
+    "parent": "original-p04-d1",
+    "text": "Identify barriers and supports for progress related to fear of negative evaluation in social situations.",
+    "active": true
+  },
+  {
+    "id": "original-p04-d1-g2-o1",
+    "kind": "objective",
+    "parent": "original-p04-d1-g2",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to fear of negative evaluation in social situations on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p04-d1-g2-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p04-d1-g2-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing fear of negative evaluation in social situations, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p04-d1-g2-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p04-d1-g2-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to fear of negative evaluation in social situations, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p04-d2",
+    "kind": "definition",
+    "parent": "original-p04",
+    "text": "The patient describes avoidance of desired social participation; document the pattern, duration, context, and functional impact after assessment.",
+    "active": true
+  },
+  {
+    "id": "original-p04-d2-g1",
+    "kind": "goal",
+    "parent": "original-p04-d2",
+    "text": "Increase desired social participation at an agreed pace.",
+    "active": true
+  },
+  {
+    "id": "original-p04-d2-g1-o1",
+    "kind": "objective",
+    "parent": "original-p04-d2-g1",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to avoidance of desired social participation on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p04-d2-g1-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p04-d2-g1-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing avoidance of desired social participation, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p04-d2-g1-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p04-d2-g1-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to avoidance of desired social participation, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p04-d2-g2",
+    "kind": "goal",
+    "parent": "original-p04-d2",
+    "text": "Identify barriers and supports for progress related to avoidance of desired social participation.",
+    "active": true
+  },
+  {
+    "id": "original-p04-d2-g2-o1",
+    "kind": "objective",
+    "parent": "original-p04-d2-g2",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to avoidance of desired social participation on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p04-d2-g2-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p04-d2-g2-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing avoidance of desired social participation, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p04-d2-g2-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p04-d2-g2-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to avoidance of desired social participation, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p05",
+    "kind": "problem",
+    "parent": null,
+    "text": "Trauma-related distress",
+    "active": true
+  },
+  {
+    "id": "original-p05-d1",
+    "kind": "definition",
+    "parent": "original-p05",
+    "text": "The patient describes distress associated with reminders of adverse experiences; document the pattern, duration, context, and functional impact after assessment.",
+    "active": true
+  },
+  {
+    "id": "original-p05-d1-g1",
+    "kind": "goal",
+    "parent": "original-p05-d1",
+    "text": "Increase present-focused coping and a sense of choice.",
+    "active": true
+  },
+  {
+    "id": "original-p05-d1-g1-o1",
+    "kind": "objective",
+    "parent": "original-p05-d1-g1",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to distress associated with reminders of adverse experiences on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p05-d1-g1-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p05-d1-g1-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing distress associated with reminders of adverse experiences, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p05-d1-g1-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p05-d1-g1-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to distress associated with reminders of adverse experiences, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p05-d1-g2",
+    "kind": "goal",
+    "parent": "original-p05-d1",
+    "text": "Identify barriers and supports for progress related to distress associated with reminders of adverse experiences.",
+    "active": true
+  },
+  {
+    "id": "original-p05-d1-g2-o1",
+    "kind": "objective",
+    "parent": "original-p05-d1-g2",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to distress associated with reminders of adverse experiences on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p05-d1-g2-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p05-d1-g2-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing distress associated with reminders of adverse experiences, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p05-d1-g2-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p05-d1-g2-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to distress associated with reminders of adverse experiences, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p05-d2",
+    "kind": "definition",
+    "parent": "original-p05",
+    "text": "The patient describes difficulty feeling settled and engaged in current activities; document the pattern, duration, context, and functional impact after assessment.",
+    "active": true
+  },
+  {
+    "id": "original-p05-d2-g1",
+    "kind": "goal",
+    "parent": "original-p05-d2",
+    "text": "Improve participation in valued activities with appropriate supports.",
+    "active": true
+  },
+  {
+    "id": "original-p05-d2-g1-o1",
+    "kind": "objective",
+    "parent": "original-p05-d2-g1",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to difficulty feeling settled and engaged in current activities on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p05-d2-g1-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p05-d2-g1-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing difficulty feeling settled and engaged in current activities, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p05-d2-g1-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p05-d2-g1-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to difficulty feeling settled and engaged in current activities, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p05-d2-g2",
+    "kind": "goal",
+    "parent": "original-p05-d2",
+    "text": "Identify barriers and supports for progress related to difficulty feeling settled and engaged in current activities.",
+    "active": true
+  },
+  {
+    "id": "original-p05-d2-g2-o1",
+    "kind": "objective",
+    "parent": "original-p05-d2-g2",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to difficulty feeling settled and engaged in current activities on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p05-d2-g2-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p05-d2-g2-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing difficulty feeling settled and engaged in current activities, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p05-d2-g2-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p05-d2-g2-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to difficulty feeling settled and engaged in current activities, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p06",
+    "kind": "problem",
+    "parent": null,
+    "text": "Grief and loss",
+    "active": true
+  },
+  {
+    "id": "original-p06-d1",
+    "kind": "definition",
+    "parent": "original-p06",
+    "text": "The patient describes distress associated with the death or loss of an important relationship; document the pattern, duration, context, and functional impact after assessment.",
+    "active": true
+  },
+  {
+    "id": "original-p06-d1-g1",
+    "kind": "goal",
+    "parent": "original-p06-d1",
+    "text": "Express and understand grief in ways consistent with personal values.",
+    "active": true
+  },
+  {
+    "id": "original-p06-d1-g1-o1",
+    "kind": "objective",
+    "parent": "original-p06-d1-g1",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to distress associated with the death or loss of an important relationship on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p06-d1-g1-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p06-d1-g1-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing distress associated with the death or loss of an important relationship, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p06-d1-g1-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p06-d1-g1-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to distress associated with the death or loss of an important relationship, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p06-d1-g2",
+    "kind": "goal",
+    "parent": "original-p06-d1",
+    "text": "Identify barriers and supports for progress related to distress associated with the death or loss of an important relationship.",
+    "active": true
+  },
+  {
+    "id": "original-p06-d1-g2-o1",
+    "kind": "objective",
+    "parent": "original-p06-d1-g2",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to distress associated with the death or loss of an important relationship on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p06-d1-g2-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p06-d1-g2-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing distress associated with the death or loss of an important relationship, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p06-d1-g2-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p06-d1-g2-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to distress associated with the death or loss of an important relationship, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p06-d2",
+    "kind": "definition",
+    "parent": "original-p06",
+    "text": "The patient describes difficulty adjusting routines or roles following a loss; document the pattern, duration, context, and functional impact after assessment.",
+    "active": true
+  },
+  {
+    "id": "original-p06-d2-g1",
+    "kind": "goal",
+    "parent": "original-p06-d2",
+    "text": "Develop manageable routines while adapting to the loss.",
+    "active": true
+  },
+  {
+    "id": "original-p06-d2-g1-o1",
+    "kind": "objective",
+    "parent": "original-p06-d2-g1",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to difficulty adjusting routines or roles following a loss on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p06-d2-g1-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p06-d2-g1-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing difficulty adjusting routines or roles following a loss, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p06-d2-g1-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p06-d2-g1-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to difficulty adjusting routines or roles following a loss, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p06-d2-g2",
+    "kind": "goal",
+    "parent": "original-p06-d2",
+    "text": "Identify barriers and supports for progress related to difficulty adjusting routines or roles following a loss.",
+    "active": true
+  },
+  {
+    "id": "original-p06-d2-g2-o1",
+    "kind": "objective",
+    "parent": "original-p06-d2-g2",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to difficulty adjusting routines or roles following a loss on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p06-d2-g2-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p06-d2-g2-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing difficulty adjusting routines or roles following a loss, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p06-d2-g2-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p06-d2-g2-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to difficulty adjusting routines or roles following a loss, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p07",
+    "kind": "problem",
+    "parent": null,
+    "text": "Adjustment and life transitions",
+    "active": true
+  },
+  {
+    "id": "original-p07-d1",
+    "kind": "definition",
+    "parent": "original-p07",
+    "text": "The patient describes distress in response to an identifiable life change; document the pattern, duration, context, and functional impact after assessment.",
+    "active": true
+  },
+  {
+    "id": "original-p07-d1-g1",
+    "kind": "goal",
+    "parent": "original-p07-d1",
+    "text": "Develop effective responses to the current transition.",
+    "active": true
+  },
+  {
+    "id": "original-p07-d1-g1-o1",
+    "kind": "objective",
+    "parent": "original-p07-d1-g1",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to distress in response to an identifiable life change on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p07-d1-g1-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p07-d1-g1-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing distress in response to an identifiable life change, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p07-d1-g1-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p07-d1-g1-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to distress in response to an identifiable life change, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p07-d1-g2",
+    "kind": "goal",
+    "parent": "original-p07-d1",
+    "text": "Identify barriers and supports for progress related to distress in response to an identifiable life change.",
+    "active": true
+  },
+  {
+    "id": "original-p07-d1-g2-o1",
+    "kind": "objective",
+    "parent": "original-p07-d1-g2",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to distress in response to an identifiable life change on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p07-d1-g2-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p07-d1-g2-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing distress in response to an identifiable life change, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p07-d1-g2-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p07-d1-g2-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to distress in response to an identifiable life change, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p07-d2",
+    "kind": "definition",
+    "parent": "original-p07",
+    "text": "The patient describes difficulty adapting responsibilities or expectations after change; document the pattern, duration, context, and functional impact after assessment.",
+    "active": true
+  },
+  {
+    "id": "original-p07-d2-g1",
+    "kind": "goal",
+    "parent": "original-p07-d2",
+    "text": "Establish practical routines aligned with current circumstances.",
+    "active": true
+  },
+  {
+    "id": "original-p07-d2-g1-o1",
+    "kind": "objective",
+    "parent": "original-p07-d2-g1",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to difficulty adapting responsibilities or expectations after change on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p07-d2-g1-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p07-d2-g1-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing difficulty adapting responsibilities or expectations after change, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p07-d2-g1-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p07-d2-g1-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to difficulty adapting responsibilities or expectations after change, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p07-d2-g2",
+    "kind": "goal",
+    "parent": "original-p07-d2",
+    "text": "Identify barriers and supports for progress related to difficulty adapting responsibilities or expectations after change.",
+    "active": true
+  },
+  {
+    "id": "original-p07-d2-g2-o1",
+    "kind": "objective",
+    "parent": "original-p07-d2-g2",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to difficulty adapting responsibilities or expectations after change on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p07-d2-g2-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p07-d2-g2-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing difficulty adapting responsibilities or expectations after change, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p07-d2-g2-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p07-d2-g2-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to difficulty adapting responsibilities or expectations after change, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p08",
+    "kind": "problem",
+    "parent": null,
+    "text": "Bipolar mood concerns",
+    "active": true
+  },
+  {
+    "id": "original-p08-d1",
+    "kind": "definition",
+    "parent": "original-p08",
+    "text": "The patient describes changes in mood or energy affecting routines; document the pattern, duration, context, and functional impact after assessment.",
+    "active": true
+  },
+  {
+    "id": "original-p08-d1-g1",
+    "kind": "goal",
+    "parent": "original-p08-d1",
+    "text": "Strengthen routines and communication with the care team.",
+    "active": true
+  },
+  {
+    "id": "original-p08-d1-g1-o1",
+    "kind": "objective",
+    "parent": "original-p08-d1-g1",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to changes in mood or energy affecting routines on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p08-d1-g1-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p08-d1-g1-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing changes in mood or energy affecting routines, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p08-d1-g1-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p08-d1-g1-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to changes in mood or energy affecting routines, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p08-d1-g2",
+    "kind": "goal",
+    "parent": "original-p08-d1",
+    "text": "Identify barriers and supports for progress related to changes in mood or energy affecting routines.",
+    "active": true
+  },
+  {
+    "id": "original-p08-d1-g2-o1",
+    "kind": "objective",
+    "parent": "original-p08-d1-g2",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to changes in mood or energy affecting routines on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p08-d1-g2-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p08-d1-g2-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing changes in mood or energy affecting routines, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p08-d1-g2-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p08-d1-g2-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to changes in mood or energy affecting routines, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p08-d2",
+    "kind": "definition",
+    "parent": "original-p08",
+    "text": "The patient describes difficulty recognizing personal early warning signs; document the pattern, duration, context, and functional impact after assessment.",
+    "active": true
+  },
+  {
+    "id": "original-p08-d2-g1",
+    "kind": "goal",
+    "parent": "original-p08-d2",
+    "text": "Recognize changes and follow an individualized clinician-reviewed response plan.",
+    "active": true
+  },
+  {
+    "id": "original-p08-d2-g1-o1",
+    "kind": "objective",
+    "parent": "original-p08-d2-g1",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to difficulty recognizing personal early warning signs on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p08-d2-g1-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p08-d2-g1-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing difficulty recognizing personal early warning signs, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p08-d2-g1-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p08-d2-g1-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to difficulty recognizing personal early warning signs, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p08-d2-g2",
+    "kind": "goal",
+    "parent": "original-p08-d2",
+    "text": "Identify barriers and supports for progress related to difficulty recognizing personal early warning signs.",
+    "active": true
+  },
+  {
+    "id": "original-p08-d2-g2-o1",
+    "kind": "objective",
+    "parent": "original-p08-d2-g2",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to difficulty recognizing personal early warning signs on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p08-d2-g2-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p08-d2-g2-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing difficulty recognizing personal early warning signs, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p08-d2-g2-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p08-d2-g2-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to difficulty recognizing personal early warning signs, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p09",
+    "kind": "problem",
+    "parent": null,
+    "text": "Obsessive-compulsive concerns",
+    "active": true
+  },
+  {
+    "id": "original-p09-d1",
+    "kind": "definition",
+    "parent": "original-p09",
+    "text": "The patient describes unwanted intrusive thoughts associated with distress; document the pattern, duration, context, and functional impact after assessment.",
+    "active": true
+  },
+  {
+    "id": "original-p09-d1-g1",
+    "kind": "goal",
+    "parent": "original-p09-d1",
+    "text": "Improve responses to intrusive experiences through an assessed treatment approach.",
+    "active": true
+  },
+  {
+    "id": "original-p09-d1-g1-o1",
+    "kind": "objective",
+    "parent": "original-p09-d1-g1",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to unwanted intrusive thoughts associated with distress on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p09-d1-g1-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p09-d1-g1-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing unwanted intrusive thoughts associated with distress, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p09-d1-g1-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p09-d1-g1-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to unwanted intrusive thoughts associated with distress, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p09-d1-g2",
+    "kind": "goal",
+    "parent": "original-p09-d1",
+    "text": "Identify barriers and supports for progress related to unwanted intrusive thoughts associated with distress.",
+    "active": true
+  },
+  {
+    "id": "original-p09-d1-g2-o1",
+    "kind": "objective",
+    "parent": "original-p09-d1-g2",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to unwanted intrusive thoughts associated with distress on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p09-d1-g2-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p09-d1-g2-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing unwanted intrusive thoughts associated with distress, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p09-d1-g2-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p09-d1-g2-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to unwanted intrusive thoughts associated with distress, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p09-d2",
+    "kind": "definition",
+    "parent": "original-p09",
+    "text": "The patient describes repetitive behaviors interfering with valued activities; document the pattern, duration, context, and functional impact after assessment.",
+    "active": true
+  },
+  {
+    "id": "original-p09-d2-g1",
+    "kind": "goal",
+    "parent": "original-p09-d2",
+    "text": "Reduce interference of repetitive behaviors with chosen activities.",
+    "active": true
+  },
+  {
+    "id": "original-p09-d2-g1-o1",
+    "kind": "objective",
+    "parent": "original-p09-d2-g1",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to repetitive behaviors interfering with valued activities on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p09-d2-g1-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p09-d2-g1-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing repetitive behaviors interfering with valued activities, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p09-d2-g1-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p09-d2-g1-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to repetitive behaviors interfering with valued activities, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p09-d2-g2",
+    "kind": "goal",
+    "parent": "original-p09-d2",
+    "text": "Identify barriers and supports for progress related to repetitive behaviors interfering with valued activities.",
+    "active": true
+  },
+  {
+    "id": "original-p09-d2-g2-o1",
+    "kind": "objective",
+    "parent": "original-p09-d2-g2",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to repetitive behaviors interfering with valued activities on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p09-d2-g2-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p09-d2-g2-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing repetitive behaviors interfering with valued activities, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p09-d2-g2-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p09-d2-g2-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to repetitive behaviors interfering with valued activities, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p10",
+    "kind": "problem",
+    "parent": null,
+    "text": "Attention and executive-function difficulties",
+    "active": true
+  },
+  {
+    "id": "original-p10-d1",
+    "kind": "definition",
+    "parent": "original-p10",
+    "text": "The patient describes difficulty initiating and organizing tasks; document the pattern, duration, context, and functional impact after assessment.",
+    "active": true
+  },
+  {
+    "id": "original-p10-d1-g1",
+    "kind": "goal",
+    "parent": "original-p10-d1",
+    "text": "Develop workable task initiation and organization strategies.",
+    "active": true
+  },
+  {
+    "id": "original-p10-d1-g1-o1",
+    "kind": "objective",
+    "parent": "original-p10-d1-g1",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to difficulty initiating and organizing tasks on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p10-d1-g1-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p10-d1-g1-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing difficulty initiating and organizing tasks, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p10-d1-g1-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p10-d1-g1-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to difficulty initiating and organizing tasks, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p10-d1-g2",
+    "kind": "goal",
+    "parent": "original-p10-d1",
+    "text": "Identify barriers and supports for progress related to difficulty initiating and organizing tasks.",
+    "active": true
+  },
+  {
+    "id": "original-p10-d1-g2-o1",
+    "kind": "objective",
+    "parent": "original-p10-d1-g2",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to difficulty initiating and organizing tasks on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p10-d1-g2-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p10-d1-g2-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing difficulty initiating and organizing tasks, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p10-d1-g2-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p10-d1-g2-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to difficulty initiating and organizing tasks, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p10-d2",
+    "kind": "definition",
+    "parent": "original-p10",
+    "text": "The patient describes difficulty sustaining attention or remembering intended actions; document the pattern, duration, context, and functional impact after assessment.",
+    "active": true
+  },
+  {
+    "id": "original-p10-d2-g1",
+    "kind": "goal",
+    "parent": "original-p10-d2",
+    "text": "Use supports that improve follow-through on chosen responsibilities.",
+    "active": true
+  },
+  {
+    "id": "original-p10-d2-g1-o1",
+    "kind": "objective",
+    "parent": "original-p10-d2-g1",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to difficulty sustaining attention or remembering intended actions on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p10-d2-g1-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p10-d2-g1-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing difficulty sustaining attention or remembering intended actions, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p10-d2-g1-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p10-d2-g1-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to difficulty sustaining attention or remembering intended actions, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p10-d2-g2",
+    "kind": "goal",
+    "parent": "original-p10-d2",
+    "text": "Identify barriers and supports for progress related to difficulty sustaining attention or remembering intended actions.",
+    "active": true
+  },
+  {
+    "id": "original-p10-d2-g2-o1",
+    "kind": "objective",
+    "parent": "original-p10-d2-g2",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to difficulty sustaining attention or remembering intended actions on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p10-d2-g2-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p10-d2-g2-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing difficulty sustaining attention or remembering intended actions, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p10-d2-g2-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p10-d2-g2-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to difficulty sustaining attention or remembering intended actions, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p11",
+    "kind": "problem",
+    "parent": null,
+    "text": "Sleep disturbance",
+    "active": true
+  },
+  {
+    "id": "original-p11-d1",
+    "kind": "definition",
+    "parent": "original-p11",
+    "text": "The patient describes difficulty maintaining a personally workable sleep routine; document the pattern, duration, context, and functional impact after assessment.",
+    "active": true
+  },
+  {
+    "id": "original-p11-d1-g1",
+    "kind": "goal",
+    "parent": "original-p11-d1",
+    "text": "Develop a sustainable sleep routine following appropriate assessment.",
+    "active": true
+  },
+  {
+    "id": "original-p11-d1-g1-o1",
+    "kind": "objective",
+    "parent": "original-p11-d1-g1",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to difficulty maintaining a personally workable sleep routine on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p11-d1-g1-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p11-d1-g1-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing difficulty maintaining a personally workable sleep routine, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p11-d1-g1-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p11-d1-g1-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to difficulty maintaining a personally workable sleep routine, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p11-d1-g2",
+    "kind": "goal",
+    "parent": "original-p11-d1",
+    "text": "Identify barriers and supports for progress related to difficulty maintaining a personally workable sleep routine.",
+    "active": true
+  },
+  {
+    "id": "original-p11-d1-g2-o1",
+    "kind": "objective",
+    "parent": "original-p11-d1-g2",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to difficulty maintaining a personally workable sleep routine on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p11-d1-g2-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p11-d1-g2-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing difficulty maintaining a personally workable sleep routine, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p11-d1-g2-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p11-d1-g2-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to difficulty maintaining a personally workable sleep routine, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p11-d2",
+    "kind": "definition",
+    "parent": "original-p11",
+    "text": "The patient describes daytime impairment associated with disrupted sleep; document the pattern, duration, context, and functional impact after assessment.",
+    "active": true
+  },
+  {
+    "id": "original-p11-d2-g1",
+    "kind": "goal",
+    "parent": "original-p11-d2",
+    "text": "Improve daytime functioning while addressing sleep-related barriers.",
+    "active": true
+  },
+  {
+    "id": "original-p11-d2-g1-o1",
+    "kind": "objective",
+    "parent": "original-p11-d2-g1",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to daytime impairment associated with disrupted sleep on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p11-d2-g1-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p11-d2-g1-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing daytime impairment associated with disrupted sleep, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p11-d2-g1-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p11-d2-g1-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to daytime impairment associated with disrupted sleep, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p11-d2-g2",
+    "kind": "goal",
+    "parent": "original-p11-d2",
+    "text": "Identify barriers and supports for progress related to daytime impairment associated with disrupted sleep.",
+    "active": true
+  },
+  {
+    "id": "original-p11-d2-g2-o1",
+    "kind": "objective",
+    "parent": "original-p11-d2-g2",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to daytime impairment associated with disrupted sleep on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p11-d2-g2-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p11-d2-g2-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing daytime impairment associated with disrupted sleep, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p11-d2-g2-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p11-d2-g2-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to daytime impairment associated with disrupted sleep, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p12",
+    "kind": "problem",
+    "parent": null,
+    "text": "Anger and conflict",
+    "active": true
+  },
+  {
+    "id": "original-p12-d1",
+    "kind": "definition",
+    "parent": "original-p12",
+    "text": "The patient describes escalation of anger during identified interactions; document the pattern, duration, context, and functional impact after assessment.",
+    "active": true
+  },
+  {
+    "id": "original-p12-d1-g1",
+    "kind": "goal",
+    "parent": "original-p12-d1",
+    "text": "Respond to anger with strategies that support chosen goals.",
+    "active": true
+  },
+  {
+    "id": "original-p12-d1-g1-o1",
+    "kind": "objective",
+    "parent": "original-p12-d1-g1",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to escalation of anger during identified interactions on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p12-d1-g1-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p12-d1-g1-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing escalation of anger during identified interactions, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p12-d1-g1-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p12-d1-g1-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to escalation of anger during identified interactions, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p12-d1-g2",
+    "kind": "goal",
+    "parent": "original-p12-d1",
+    "text": "Identify barriers and supports for progress related to escalation of anger during identified interactions.",
+    "active": true
+  },
+  {
+    "id": "original-p12-d1-g2-o1",
+    "kind": "objective",
+    "parent": "original-p12-d1-g2",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to escalation of anger during identified interactions on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p12-d1-g2-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p12-d1-g2-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing escalation of anger during identified interactions, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p12-d1-g2-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p12-d1-g2-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to escalation of anger during identified interactions, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p12-d2",
+    "kind": "definition",
+    "parent": "original-p12",
+    "text": "The patient describes difficulty expressing needs constructively during conflict; document the pattern, duration, context, and functional impact after assessment.",
+    "active": true
+  },
+  {
+    "id": "original-p12-d2-g1",
+    "kind": "goal",
+    "parent": "original-p12-d2",
+    "text": "Communicate needs and disagreements more constructively.",
+    "active": true
+  },
+  {
+    "id": "original-p12-d2-g1-o1",
+    "kind": "objective",
+    "parent": "original-p12-d2-g1",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to difficulty expressing needs constructively during conflict on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p12-d2-g1-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p12-d2-g1-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing difficulty expressing needs constructively during conflict, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p12-d2-g1-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p12-d2-g1-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to difficulty expressing needs constructively during conflict, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p12-d2-g2",
+    "kind": "goal",
+    "parent": "original-p12-d2",
+    "text": "Identify barriers and supports for progress related to difficulty expressing needs constructively during conflict.",
+    "active": true
+  },
+  {
+    "id": "original-p12-d2-g2-o1",
+    "kind": "objective",
+    "parent": "original-p12-d2-g2",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to difficulty expressing needs constructively during conflict on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p12-d2-g2-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p12-d2-g2-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing difficulty expressing needs constructively during conflict, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p12-d2-g2-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p12-d2-g2-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to difficulty expressing needs constructively during conflict, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p13",
+    "kind": "problem",
+    "parent": null,
+    "text": "Emotion regulation difficulties",
+    "active": true
+  },
+  {
+    "id": "original-p13-d1",
+    "kind": "definition",
+    "parent": "original-p13",
+    "text": "The patient describes difficulty managing intense emotional experiences; document the pattern, duration, context, and functional impact after assessment.",
+    "active": true
+  },
+  {
+    "id": "original-p13-d1-g1",
+    "kind": "goal",
+    "parent": "original-p13-d1",
+    "text": "Expand the use of effective emotion-regulation strategies.",
+    "active": true
+  },
+  {
+    "id": "original-p13-d1-g1-o1",
+    "kind": "objective",
+    "parent": "original-p13-d1-g1",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to difficulty managing intense emotional experiences on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p13-d1-g1-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p13-d1-g1-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing difficulty managing intense emotional experiences, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p13-d1-g1-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p13-d1-g1-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to difficulty managing intense emotional experiences, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p13-d1-g2",
+    "kind": "goal",
+    "parent": "original-p13-d1",
+    "text": "Identify barriers and supports for progress related to difficulty managing intense emotional experiences.",
+    "active": true
+  },
+  {
+    "id": "original-p13-d1-g2-o1",
+    "kind": "objective",
+    "parent": "original-p13-d1-g2",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to difficulty managing intense emotional experiences on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p13-d1-g2-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p13-d1-g2-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing difficulty managing intense emotional experiences, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p13-d1-g2-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p13-d1-g2-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to difficulty managing intense emotional experiences, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p13-d2",
+    "kind": "definition",
+    "parent": "original-p13",
+    "text": "The patient describes difficulty recovering after distressing situations; document the pattern, duration, context, and functional impact after assessment.",
+    "active": true
+  },
+  {
+    "id": "original-p13-d2-g1",
+    "kind": "goal",
+    "parent": "original-p13-d2",
+    "text": "Improve recovery and re-engagement after emotional distress.",
+    "active": true
+  },
+  {
+    "id": "original-p13-d2-g1-o1",
+    "kind": "objective",
+    "parent": "original-p13-d2-g1",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to difficulty recovering after distressing situations on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p13-d2-g1-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p13-d2-g1-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing difficulty recovering after distressing situations, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p13-d2-g1-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p13-d2-g1-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to difficulty recovering after distressing situations, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p13-d2-g2",
+    "kind": "goal",
+    "parent": "original-p13-d2",
+    "text": "Identify barriers and supports for progress related to difficulty recovering after distressing situations.",
+    "active": true
+  },
+  {
+    "id": "original-p13-d2-g2-o1",
+    "kind": "objective",
+    "parent": "original-p13-d2-g2",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to difficulty recovering after distressing situations on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p13-d2-g2-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p13-d2-g2-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing difficulty recovering after distressing situations, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p13-d2-g2-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p13-d2-g2-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to difficulty recovering after distressing situations, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p14",
+    "kind": "problem",
+    "parent": null,
+    "text": "Self-esteem and self-criticism",
+    "active": true
+  },
+  {
+    "id": "original-p14-d1",
+    "kind": "definition",
+    "parent": "original-p14",
+    "text": "The patient describes negative self-evaluation affecting behavior; document the pattern, duration, context, and functional impact after assessment.",
+    "active": true
+  },
+  {
+    "id": "original-p14-d1-g1",
+    "kind": "goal",
+    "parent": "original-p14-d1",
+    "text": "Develop a more balanced and compassionate self-view.",
+    "active": true
+  },
+  {
+    "id": "original-p14-d1-g1-o1",
+    "kind": "objective",
+    "parent": "original-p14-d1-g1",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to negative self-evaluation affecting behavior on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p14-d1-g1-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p14-d1-g1-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing negative self-evaluation affecting behavior, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p14-d1-g1-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p14-d1-g1-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to negative self-evaluation affecting behavior, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p14-d1-g2",
+    "kind": "goal",
+    "parent": "original-p14-d1",
+    "text": "Identify barriers and supports for progress related to negative self-evaluation affecting behavior.",
+    "active": true
+  },
+  {
+    "id": "original-p14-d1-g2-o1",
+    "kind": "objective",
+    "parent": "original-p14-d1-g2",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to negative self-evaluation affecting behavior on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p14-d1-g2-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p14-d1-g2-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing negative self-evaluation affecting behavior, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p14-d1-g2-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p14-d1-g2-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to negative self-evaluation affecting behavior, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p14-d2",
+    "kind": "definition",
+    "parent": "original-p14",
+    "text": "The patient describes difficulty acknowledging strengths or progress; document the pattern, duration, context, and functional impact after assessment.",
+    "active": true
+  },
+  {
+    "id": "original-p14-d2-g1",
+    "kind": "goal",
+    "parent": "original-p14-d2",
+    "text": "Recognize strengths and progress in daily life.",
+    "active": true
+  },
+  {
+    "id": "original-p14-d2-g1-o1",
+    "kind": "objective",
+    "parent": "original-p14-d2-g1",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to difficulty acknowledging strengths or progress on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p14-d2-g1-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p14-d2-g1-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing difficulty acknowledging strengths or progress, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p14-d2-g1-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p14-d2-g1-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to difficulty acknowledging strengths or progress, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p14-d2-g2",
+    "kind": "goal",
+    "parent": "original-p14-d2",
+    "text": "Identify barriers and supports for progress related to difficulty acknowledging strengths or progress.",
+    "active": true
+  },
+  {
+    "id": "original-p14-d2-g2-o1",
+    "kind": "objective",
+    "parent": "original-p14-d2-g2",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to difficulty acknowledging strengths or progress on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p14-d2-g2-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p14-d2-g2-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing difficulty acknowledging strengths or progress, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p14-d2-g2-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p14-d2-g2-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to difficulty acknowledging strengths or progress, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p15",
+    "kind": "problem",
+    "parent": null,
+    "text": "Relationship and communication difficulties",
+    "active": true
+  },
+  {
+    "id": "original-p15-d1",
+    "kind": "definition",
+    "parent": "original-p15",
+    "text": "The patient describes misunderstandings or recurring communication problems; document the pattern, duration, context, and functional impact after assessment.",
+    "active": true
+  },
+  {
+    "id": "original-p15-d1-g1",
+    "kind": "goal",
+    "parent": "original-p15-d1",
+    "text": "Improve mutual understanding in chosen relationships.",
+    "active": true
+  },
+  {
+    "id": "original-p15-d1-g1-o1",
+    "kind": "objective",
+    "parent": "original-p15-d1-g1",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to misunderstandings or recurring communication problems on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p15-d1-g1-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p15-d1-g1-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing misunderstandings or recurring communication problems, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p15-d1-g1-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p15-d1-g1-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to misunderstandings or recurring communication problems, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p15-d1-g2",
+    "kind": "goal",
+    "parent": "original-p15-d1",
+    "text": "Identify barriers and supports for progress related to misunderstandings or recurring communication problems.",
+    "active": true
+  },
+  {
+    "id": "original-p15-d1-g2-o1",
+    "kind": "objective",
+    "parent": "original-p15-d1-g2",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to misunderstandings or recurring communication problems on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p15-d1-g2-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p15-d1-g2-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing misunderstandings or recurring communication problems, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p15-d1-g2-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p15-d1-g2-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to misunderstandings or recurring communication problems, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p15-d2",
+    "kind": "definition",
+    "parent": "original-p15",
+    "text": "The patient describes difficulty expressing needs and maintaining agreed boundaries; document the pattern, duration, context, and functional impact after assessment.",
+    "active": true
+  },
+  {
+    "id": "original-p15-d2-g1",
+    "kind": "goal",
+    "parent": "original-p15-d2",
+    "text": "Communicate personal needs and boundaries clearly.",
+    "active": true
+  },
+  {
+    "id": "original-p15-d2-g1-o1",
+    "kind": "objective",
+    "parent": "original-p15-d2-g1",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to difficulty expressing needs and maintaining agreed boundaries on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p15-d2-g1-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p15-d2-g1-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing difficulty expressing needs and maintaining agreed boundaries, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p15-d2-g1-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p15-d2-g1-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to difficulty expressing needs and maintaining agreed boundaries, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p15-d2-g2",
+    "kind": "goal",
+    "parent": "original-p15-d2",
+    "text": "Identify barriers and supports for progress related to difficulty expressing needs and maintaining agreed boundaries.",
+    "active": true
+  },
+  {
+    "id": "original-p15-d2-g2-o1",
+    "kind": "objective",
+    "parent": "original-p15-d2-g2",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to difficulty expressing needs and maintaining agreed boundaries on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p15-d2-g2-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p15-d2-g2-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing difficulty expressing needs and maintaining agreed boundaries, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p15-d2-g2-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p15-d2-g2-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to difficulty expressing needs and maintaining agreed boundaries, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p16",
+    "kind": "problem",
+    "parent": null,
+    "text": "Family conflict",
+    "active": true
+  },
+  {
+    "id": "original-p16-d1",
+    "kind": "definition",
+    "parent": "original-p16",
+    "text": "The patient describes recurring disagreements affecting family functioning; document the pattern, duration, context, and functional impact after assessment.",
+    "active": true
+  },
+  {
+    "id": "original-p16-d1-g1",
+    "kind": "goal",
+    "parent": "original-p16-d1",
+    "text": "Develop constructive approaches to recurring family disagreements.",
+    "active": true
+  },
+  {
+    "id": "original-p16-d1-g1-o1",
+    "kind": "objective",
+    "parent": "original-p16-d1-g1",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to recurring disagreements affecting family functioning on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p16-d1-g1-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p16-d1-g1-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing recurring disagreements affecting family functioning, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p16-d1-g1-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p16-d1-g1-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to recurring disagreements affecting family functioning, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p16-d1-g2",
+    "kind": "goal",
+    "parent": "original-p16-d1",
+    "text": "Identify barriers and supports for progress related to recurring disagreements affecting family functioning.",
+    "active": true
+  },
+  {
+    "id": "original-p16-d1-g2-o1",
+    "kind": "objective",
+    "parent": "original-p16-d1-g2",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to recurring disagreements affecting family functioning on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p16-d1-g2-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p16-d1-g2-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing recurring disagreements affecting family functioning, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p16-d1-g2-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p16-d1-g2-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to recurring disagreements affecting family functioning, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p16-d2",
+    "kind": "definition",
+    "parent": "original-p16",
+    "text": "The patient describes difficulty coordinating family roles and expectations; document the pattern, duration, context, and functional impact after assessment.",
+    "active": true
+  },
+  {
+    "id": "original-p16-d2-g1",
+    "kind": "goal",
+    "parent": "original-p16-d2",
+    "text": "Clarify and negotiate workable family expectations.",
+    "active": true
+  },
+  {
+    "id": "original-p16-d2-g1-o1",
+    "kind": "objective",
+    "parent": "original-p16-d2-g1",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to difficulty coordinating family roles and expectations on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p16-d2-g1-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p16-d2-g1-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing difficulty coordinating family roles and expectations, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p16-d2-g1-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p16-d2-g1-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to difficulty coordinating family roles and expectations, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p16-d2-g2",
+    "kind": "goal",
+    "parent": "original-p16-d2",
+    "text": "Identify barriers and supports for progress related to difficulty coordinating family roles and expectations.",
+    "active": true
+  },
+  {
+    "id": "original-p16-d2-g2-o1",
+    "kind": "objective",
+    "parent": "original-p16-d2-g2",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to difficulty coordinating family roles and expectations on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p16-d2-g2-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p16-d2-g2-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing difficulty coordinating family roles and expectations, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p16-d2-g2-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p16-d2-g2-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to difficulty coordinating family roles and expectations, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p17",
+    "kind": "problem",
+    "parent": null,
+    "text": "Parenting and caregiver stress",
+    "active": true
+  },
+  {
+    "id": "original-p17-d1",
+    "kind": "definition",
+    "parent": "original-p17",
+    "text": "The patient describes strain associated with caregiving responsibilities; document the pattern, duration, context, and functional impact after assessment.",
+    "active": true
+  },
+  {
+    "id": "original-p17-d1-g1",
+    "kind": "goal",
+    "parent": "original-p17-d1",
+    "text": "Build a sustainable approach to caregiving demands.",
+    "active": true
+  },
+  {
+    "id": "original-p17-d1-g1-o1",
+    "kind": "objective",
+    "parent": "original-p17-d1-g1",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to strain associated with caregiving responsibilities on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p17-d1-g1-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p17-d1-g1-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing strain associated with caregiving responsibilities, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p17-d1-g1-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p17-d1-g1-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to strain associated with caregiving responsibilities, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p17-d1-g2",
+    "kind": "goal",
+    "parent": "original-p17-d1",
+    "text": "Identify barriers and supports for progress related to strain associated with caregiving responsibilities.",
+    "active": true
+  },
+  {
+    "id": "original-p17-d1-g2-o1",
+    "kind": "objective",
+    "parent": "original-p17-d1-g2",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to strain associated with caregiving responsibilities on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p17-d1-g2-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p17-d1-g2-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing strain associated with caregiving responsibilities, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p17-d1-g2-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p17-d1-g2-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to strain associated with caregiving responsibilities, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p17-d2",
+    "kind": "definition",
+    "parent": "original-p17",
+    "text": "The patient describes limited access to rest or practical caregiving support; document the pattern, duration, context, and functional impact after assessment.",
+    "active": true
+  },
+  {
+    "id": "original-p17-d2-g1",
+    "kind": "goal",
+    "parent": "original-p17-d2",
+    "text": "Increase access to desired support and restorative activities.",
+    "active": true
+  },
+  {
+    "id": "original-p17-d2-g1-o1",
+    "kind": "objective",
+    "parent": "original-p17-d2-g1",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to limited access to rest or practical caregiving support on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p17-d2-g1-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p17-d2-g1-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing limited access to rest or practical caregiving support, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p17-d2-g1-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p17-d2-g1-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to limited access to rest or practical caregiving support, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p17-d2-g2",
+    "kind": "goal",
+    "parent": "original-p17-d2",
+    "text": "Identify barriers and supports for progress related to limited access to rest or practical caregiving support.",
+    "active": true
+  },
+  {
+    "id": "original-p17-d2-g2-o1",
+    "kind": "objective",
+    "parent": "original-p17-d2-g2",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to limited access to rest or practical caregiving support on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p17-d2-g2-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p17-d2-g2-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing limited access to rest or practical caregiving support, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p17-d2-g2-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p17-d2-g2-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to limited access to rest or practical caregiving support, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p18",
+    "kind": "problem",
+    "parent": null,
+    "text": "Substance-use concerns",
+    "active": true
+  },
+  {
+    "id": "original-p18-d1",
+    "kind": "definition",
+    "parent": "original-p18",
+    "text": "The patient describes substance use interfering with personally identified goals; document the pattern, duration, context, and functional impact after assessment.",
+    "active": true
+  },
+  {
+    "id": "original-p18-d1-g1",
+    "kind": "goal",
+    "parent": "original-p18-d1",
+    "text": "Pursue an individually agreed substance-use or harm-reduction goal.",
+    "active": true
+  },
+  {
+    "id": "original-p18-d1-g1-o1",
+    "kind": "objective",
+    "parent": "original-p18-d1-g1",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to substance use interfering with personally identified goals on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p18-d1-g1-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p18-d1-g1-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing substance use interfering with personally identified goals, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p18-d1-g1-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p18-d1-g1-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to substance use interfering with personally identified goals, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p18-d1-g2",
+    "kind": "goal",
+    "parent": "original-p18-d1",
+    "text": "Identify barriers and supports for progress related to substance use interfering with personally identified goals.",
+    "active": true
+  },
+  {
+    "id": "original-p18-d1-g2-o1",
+    "kind": "objective",
+    "parent": "original-p18-d1-g2",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to substance use interfering with personally identified goals on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p18-d1-g2-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p18-d1-g2-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing substance use interfering with personally identified goals, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p18-d1-g2-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p18-d1-g2-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to substance use interfering with personally identified goals, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p18-d2",
+    "kind": "definition",
+    "parent": "original-p18",
+    "text": "The patient describes difficulty responding to situations associated with unwanted use; document the pattern, duration, context, and functional impact after assessment.",
+    "active": true
+  },
+  {
+    "id": "original-p18-d2-g1",
+    "kind": "goal",
+    "parent": "original-p18-d2",
+    "text": "Strengthen coping and access to preferred recovery supports.",
+    "active": true
+  },
+  {
+    "id": "original-p18-d2-g1-o1",
+    "kind": "objective",
+    "parent": "original-p18-d2-g1",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to difficulty responding to situations associated with unwanted use on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p18-d2-g1-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p18-d2-g1-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing difficulty responding to situations associated with unwanted use, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p18-d2-g1-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p18-d2-g1-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to difficulty responding to situations associated with unwanted use, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p18-d2-g2",
+    "kind": "goal",
+    "parent": "original-p18-d2",
+    "text": "Identify barriers and supports for progress related to difficulty responding to situations associated with unwanted use.",
+    "active": true
+  },
+  {
+    "id": "original-p18-d2-g2-o1",
+    "kind": "objective",
+    "parent": "original-p18-d2-g2",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to difficulty responding to situations associated with unwanted use on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p18-d2-g2-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p18-d2-g2-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing difficulty responding to situations associated with unwanted use, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p18-d2-g2-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p18-d2-g2-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to difficulty responding to situations associated with unwanted use, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p19",
+    "kind": "problem",
+    "parent": null,
+    "text": "Chronic pain and health adjustment",
+    "active": true
+  },
+  {
+    "id": "original-p19-d1",
+    "kind": "definition",
+    "parent": "original-p19",
+    "text": "The patient describes pain or health limitations interfering with valued activities; document the pattern, duration, context, and functional impact after assessment.",
+    "active": true
+  },
+  {
+    "id": "original-p19-d1-g1",
+    "kind": "goal",
+    "parent": "original-p19-d1",
+    "text": "Improve participation in valued activities using appropriate adaptations.",
+    "active": true
+  },
+  {
+    "id": "original-p19-d1-g1-o1",
+    "kind": "objective",
+    "parent": "original-p19-d1-g1",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to pain or health limitations interfering with valued activities on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p19-d1-g1-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p19-d1-g1-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing pain or health limitations interfering with valued activities, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p19-d1-g1-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p19-d1-g1-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to pain or health limitations interfering with valued activities, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p19-d1-g2",
+    "kind": "goal",
+    "parent": "original-p19-d1",
+    "text": "Identify barriers and supports for progress related to pain or health limitations interfering with valued activities.",
+    "active": true
+  },
+  {
+    "id": "original-p19-d1-g2-o1",
+    "kind": "objective",
+    "parent": "original-p19-d1-g2",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to pain or health limitations interfering with valued activities on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p19-d1-g2-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p19-d1-g2-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing pain or health limitations interfering with valued activities, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p19-d1-g2-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p19-d1-g2-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to pain or health limitations interfering with valued activities, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p19-d2",
+    "kind": "definition",
+    "parent": "original-p19",
+    "text": "The patient describes difficulty communicating health-related needs or pacing activity; document the pattern, duration, context, and functional impact after assessment.",
+    "active": true
+  },
+  {
+    "id": "original-p19-d2-g1",
+    "kind": "goal",
+    "parent": "original-p19-d2",
+    "text": "Communicate health-related needs and develop sustainable activity patterns.",
+    "active": true
+  },
+  {
+    "id": "original-p19-d2-g1-o1",
+    "kind": "objective",
+    "parent": "original-p19-d2-g1",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to difficulty communicating health-related needs or pacing activity on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p19-d2-g1-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p19-d2-g1-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing difficulty communicating health-related needs or pacing activity, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p19-d2-g1-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p19-d2-g1-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to difficulty communicating health-related needs or pacing activity, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p19-d2-g2",
+    "kind": "goal",
+    "parent": "original-p19-d2",
+    "text": "Identify barriers and supports for progress related to difficulty communicating health-related needs or pacing activity.",
+    "active": true
+  },
+  {
+    "id": "original-p19-d2-g2-o1",
+    "kind": "objective",
+    "parent": "original-p19-d2-g2",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to difficulty communicating health-related needs or pacing activity on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p19-d2-g2-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p19-d2-g2-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing difficulty communicating health-related needs or pacing activity, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p19-d2-g2-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p19-d2-g2-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to difficulty communicating health-related needs or pacing activity, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p20",
+    "kind": "problem",
+    "parent": null,
+    "text": "Work, education, and role stress",
+    "active": true
+  },
+  {
+    "id": "original-p20-d1",
+    "kind": "definition",
+    "parent": "original-p20",
+    "text": "The patient describes difficulty managing demands in work or education; document the pattern, duration, context, and functional impact after assessment.",
+    "active": true
+  },
+  {
+    "id": "original-p20-d1-g1",
+    "kind": "goal",
+    "parent": "original-p20-d1",
+    "text": "Develop practical strategies for current role demands.",
+    "active": true
+  },
+  {
+    "id": "original-p20-d1-g1-o1",
+    "kind": "objective",
+    "parent": "original-p20-d1-g1",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to difficulty managing demands in work or education on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p20-d1-g1-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p20-d1-g1-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing difficulty managing demands in work or education, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p20-d1-g1-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p20-d1-g1-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to difficulty managing demands in work or education, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p20-d1-g2",
+    "kind": "goal",
+    "parent": "original-p20-d1",
+    "text": "Identify barriers and supports for progress related to difficulty managing demands in work or education.",
+    "active": true
+  },
+  {
+    "id": "original-p20-d1-g2-o1",
+    "kind": "objective",
+    "parent": "original-p20-d1-g2",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to difficulty managing demands in work or education on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p20-d1-g2-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p20-d1-g2-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing difficulty managing demands in work or education, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p20-d1-g2-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p20-d1-g2-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to difficulty managing demands in work or education, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p20-d2",
+    "kind": "definition",
+    "parent": "original-p20",
+    "text": "The patient describes uncertainty about vocational or educational direction; document the pattern, duration, context, and functional impact after assessment.",
+    "active": true
+  },
+  {
+    "id": "original-p20-d2-g1",
+    "kind": "goal",
+    "parent": "original-p20-d2",
+    "text": "Clarify personally meaningful work or educational next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p20-d2-g1-o1",
+    "kind": "objective",
+    "parent": "original-p20-d2-g1",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to uncertainty about vocational or educational direction on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p20-d2-g1-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p20-d2-g1-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing uncertainty about vocational or educational direction, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p20-d2-g1-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p20-d2-g1-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to uncertainty about vocational or educational direction, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p20-d2-g2",
+    "kind": "goal",
+    "parent": "original-p20-d2",
+    "text": "Identify barriers and supports for progress related to uncertainty about vocational or educational direction.",
+    "active": true
+  },
+  {
+    "id": "original-p20-d2-g2-o1",
+    "kind": "objective",
+    "parent": "original-p20-d2-g2",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to uncertainty about vocational or educational direction on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p20-d2-g2-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p20-d2-g2-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing uncertainty about vocational or educational direction, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p20-d2-g2-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p20-d2-g2-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to uncertainty about vocational or educational direction, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p21",
+    "kind": "problem",
+    "parent": null,
+    "text": "Child or adolescent school difficulties",
+    "active": true
+  },
+  {
+    "id": "original-p21-d1",
+    "kind": "definition",
+    "parent": "original-p21",
+    "text": "The patient describes difficulty participating in developmentally appropriate school routines; document the pattern, duration, context, and functional impact after assessment.",
+    "active": true
+  },
+  {
+    "id": "original-p21-d1-g1",
+    "kind": "goal",
+    "parent": "original-p21-d1",
+    "text": "Improve participation in agreed school routines with appropriate supports.",
+    "active": true
+  },
+  {
+    "id": "original-p21-d1-g1-o1",
+    "kind": "objective",
+    "parent": "original-p21-d1-g1",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to difficulty participating in developmentally appropriate school routines on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p21-d1-g1-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p21-d1-g1-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing difficulty participating in developmentally appropriate school routines, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p21-d1-g1-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p21-d1-g1-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to difficulty participating in developmentally appropriate school routines, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p21-d1-g2",
+    "kind": "goal",
+    "parent": "original-p21-d1",
+    "text": "Identify barriers and supports for progress related to difficulty participating in developmentally appropriate school routines.",
+    "active": true
+  },
+  {
+    "id": "original-p21-d1-g2-o1",
+    "kind": "objective",
+    "parent": "original-p21-d1-g2",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to difficulty participating in developmentally appropriate school routines on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p21-d1-g2-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p21-d1-g2-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing difficulty participating in developmentally appropriate school routines, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p21-d1-g2-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p21-d1-g2-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to difficulty participating in developmentally appropriate school routines, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p21-d2",
+    "kind": "definition",
+    "parent": "original-p21",
+    "text": "The patient describes difficulty communicating school-related support needs; document the pattern, duration, context, and functional impact after assessment.",
+    "active": true
+  },
+  {
+    "id": "original-p21-d2-g1",
+    "kind": "goal",
+    "parent": "original-p21-d2",
+    "text": "Communicate support needs with appropriate adults.",
+    "active": true
+  },
+  {
+    "id": "original-p21-d2-g1-o1",
+    "kind": "objective",
+    "parent": "original-p21-d2-g1",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to difficulty communicating school-related support needs on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p21-d2-g1-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p21-d2-g1-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing difficulty communicating school-related support needs, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p21-d2-g1-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p21-d2-g1-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to difficulty communicating school-related support needs, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p21-d2-g2",
+    "kind": "goal",
+    "parent": "original-p21-d2",
+    "text": "Identify barriers and supports for progress related to difficulty communicating school-related support needs.",
+    "active": true
+  },
+  {
+    "id": "original-p21-d2-g2-o1",
+    "kind": "objective",
+    "parent": "original-p21-d2-g2",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to difficulty communicating school-related support needs on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p21-d2-g2-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p21-d2-g2-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing difficulty communicating school-related support needs, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p21-d2-g2-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p21-d2-g2-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to difficulty communicating school-related support needs, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p22",
+    "kind": "problem",
+    "parent": null,
+    "text": "Interpersonal pattern concerns",
+    "active": true
+  },
+  {
+    "id": "original-p22-d1",
+    "kind": "definition",
+    "parent": "original-p22",
+    "text": "The patient describes recurring interaction patterns that cause distress; document the pattern, duration, context, and functional impact after assessment.",
+    "active": true
+  },
+  {
+    "id": "original-p22-d1-g1",
+    "kind": "goal",
+    "parent": "original-p22-d1",
+    "text": "Recognize and modify selected patterns that interfere with relationships.",
+    "active": true
+  },
+  {
+    "id": "original-p22-d1-g1-o1",
+    "kind": "objective",
+    "parent": "original-p22-d1-g1",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to recurring interaction patterns that cause distress on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p22-d1-g1-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p22-d1-g1-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing recurring interaction patterns that cause distress, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p22-d1-g1-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p22-d1-g1-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to recurring interaction patterns that cause distress, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p22-d1-g2",
+    "kind": "goal",
+    "parent": "original-p22-d1",
+    "text": "Identify barriers and supports for progress related to recurring interaction patterns that cause distress.",
+    "active": true
+  },
+  {
+    "id": "original-p22-d1-g2-o1",
+    "kind": "objective",
+    "parent": "original-p22-d1-g2",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to recurring interaction patterns that cause distress on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p22-d1-g2-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p22-d1-g2-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing recurring interaction patterns that cause distress, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p22-d1-g2-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p22-d1-g2-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to recurring interaction patterns that cause distress, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p22-d2",
+    "kind": "definition",
+    "parent": "original-p22",
+    "text": "The patient describes difficulty repairing relationships after conflict; document the pattern, duration, context, and functional impact after assessment.",
+    "active": true
+  },
+  {
+    "id": "original-p22-d2-g1",
+    "kind": "goal",
+    "parent": "original-p22-d2",
+    "text": "Develop and practice constructive relationship-repair strategies.",
+    "active": true
+  },
+  {
+    "id": "original-p22-d2-g1-o1",
+    "kind": "objective",
+    "parent": "original-p22-d2-g1",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to difficulty repairing relationships after conflict on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p22-d2-g1-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p22-d2-g1-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing difficulty repairing relationships after conflict, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p22-d2-g1-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p22-d2-g1-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to difficulty repairing relationships after conflict, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p22-d2-g2",
+    "kind": "goal",
+    "parent": "original-p22-d2",
+    "text": "Identify barriers and supports for progress related to difficulty repairing relationships after conflict.",
+    "active": true
+  },
+  {
+    "id": "original-p22-d2-g2-o1",
+    "kind": "objective",
+    "parent": "original-p22-d2-g2",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to difficulty repairing relationships after conflict on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p22-d2-g2-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p22-d2-g2-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing difficulty repairing relationships after conflict, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p22-d2-g2-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p22-d2-g2-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to difficulty repairing relationships after conflict, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p23",
+    "kind": "problem",
+    "parent": null,
+    "text": "Stress overload and burnout",
+    "active": true
+  },
+  {
+    "id": "original-p23-d1",
+    "kind": "definition",
+    "parent": "original-p23",
+    "text": "The patient describes sustained demands exceeding available energy or support; document the pattern, duration, context, and functional impact after assessment.",
+    "active": true
+  },
+  {
+    "id": "original-p23-d1-g1",
+    "kind": "goal",
+    "parent": "original-p23-d1",
+    "text": "Balance demands with sustainable routines and available support.",
+    "active": true
+  },
+  {
+    "id": "original-p23-d1-g1-o1",
+    "kind": "objective",
+    "parent": "original-p23-d1-g1",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to sustained demands exceeding available energy or support on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p23-d1-g1-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p23-d1-g1-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing sustained demands exceeding available energy or support, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p23-d1-g1-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p23-d1-g1-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to sustained demands exceeding available energy or support, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p23-d1-g2",
+    "kind": "goal",
+    "parent": "original-p23-d1",
+    "text": "Identify barriers and supports for progress related to sustained demands exceeding available energy or support.",
+    "active": true
+  },
+  {
+    "id": "original-p23-d1-g2-o1",
+    "kind": "objective",
+    "parent": "original-p23-d1-g2",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to sustained demands exceeding available energy or support on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p23-d1-g2-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p23-d1-g2-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing sustained demands exceeding available energy or support, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p23-d1-g2-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p23-d1-g2-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to sustained demands exceeding available energy or support, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p23-d2",
+    "kind": "definition",
+    "parent": "original-p23",
+    "text": "The patient describes difficulty setting limits and making time for recovery; document the pattern, duration, context, and functional impact after assessment.",
+    "active": true
+  },
+  {
+    "id": "original-p23-d2-g1",
+    "kind": "goal",
+    "parent": "original-p23-d2",
+    "text": "Communicate limits and protect time for recovery.",
+    "active": true
+  },
+  {
+    "id": "original-p23-d2-g1-o1",
+    "kind": "objective",
+    "parent": "original-p23-d2-g1",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to difficulty setting limits and making time for recovery on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p23-d2-g1-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p23-d2-g1-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing difficulty setting limits and making time for recovery, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p23-d2-g1-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p23-d2-g1-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to difficulty setting limits and making time for recovery, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p23-d2-g2",
+    "kind": "goal",
+    "parent": "original-p23-d2",
+    "text": "Identify barriers and supports for progress related to difficulty setting limits and making time for recovery.",
+    "active": true
+  },
+  {
+    "id": "original-p23-d2-g2-o1",
+    "kind": "objective",
+    "parent": "original-p23-d2-g2",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to difficulty setting limits and making time for recovery on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p23-d2-g2-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p23-d2-g2-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing difficulty setting limits and making time for recovery, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p23-d2-g2-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p23-d2-g2-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to difficulty setting limits and making time for recovery, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p24",
+    "kind": "problem",
+    "parent": null,
+    "text": "Procrastination and avoidance",
+    "active": true
+  },
+  {
+    "id": "original-p24-d1",
+    "kind": "definition",
+    "parent": "original-p24",
+    "text": "The patient describes delaying tasks the patient intends to complete; document the pattern, duration, context, and functional impact after assessment.",
+    "active": true
+  },
+  {
+    "id": "original-p24-d1-g1",
+    "kind": "goal",
+    "parent": "original-p24-d1",
+    "text": "Increase initiation of manageable steps toward chosen tasks.",
+    "active": true
+  },
+  {
+    "id": "original-p24-d1-g1-o1",
+    "kind": "objective",
+    "parent": "original-p24-d1-g1",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to delaying tasks the patient intends to complete on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p24-d1-g1-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p24-d1-g1-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing delaying tasks the patient intends to complete, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p24-d1-g1-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p24-d1-g1-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to delaying tasks the patient intends to complete, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p24-d1-g2",
+    "kind": "goal",
+    "parent": "original-p24-d1",
+    "text": "Identify barriers and supports for progress related to delaying tasks the patient intends to complete.",
+    "active": true
+  },
+  {
+    "id": "original-p24-d1-g2-o1",
+    "kind": "objective",
+    "parent": "original-p24-d1-g2",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to delaying tasks the patient intends to complete on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p24-d1-g2-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p24-d1-g2-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing delaying tasks the patient intends to complete, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p24-d1-g2-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p24-d1-g2-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to delaying tasks the patient intends to complete, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p24-d2",
+    "kind": "definition",
+    "parent": "original-p24",
+    "text": "The patient describes avoiding tasks due to anticipated discomfort or perfectionism; document the pattern, duration, context, and functional impact after assessment.",
+    "active": true
+  },
+  {
+    "id": "original-p24-d2-g1",
+    "kind": "goal",
+    "parent": "original-p24-d2",
+    "text": "Respond to anticipated discomfort while pursuing realistic priorities.",
+    "active": true
+  },
+  {
+    "id": "original-p24-d2-g1-o1",
+    "kind": "objective",
+    "parent": "original-p24-d2-g1",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to avoiding tasks due to anticipated discomfort or perfectionism on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p24-d2-g1-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p24-d2-g1-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing avoiding tasks due to anticipated discomfort or perfectionism, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p24-d2-g1-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p24-d2-g1-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to avoiding tasks due to anticipated discomfort or perfectionism, then jointly adjust the next steps.",
+    "active": true
+  },
+  {
+    "id": "original-p24-d2-g2",
+    "kind": "goal",
+    "parent": "original-p24-d2",
+    "text": "Identify barriers and supports for progress related to avoiding tasks due to anticipated discomfort or perfectionism.",
+    "active": true
+  },
+  {
+    "id": "original-p24-d2-g2-o1",
+    "kind": "objective",
+    "parent": "original-p24-d2-g2",
+    "text": "Over the next two weeks, the patient will practice one mutually agreed strategy related to avoiding tasks due to anticipated discomfort or perfectionism on at least three occasions and review the results at the next session; individualize the frequency and timeframe.",
+    "active": true
+  },
+  {
+    "id": "original-p24-d2-g2-o1-i1",
+    "kind": "intervention",
+    "parent": "original-p24-d2-g2-o1",
+    "text": "The therapist will collaboratively identify one manageable strategy addressing avoiding tasks due to anticipated discomfort or perfectionism, demonstrate or rehearse it as appropriate, and adapt it to the patient’s preferences and abilities.",
+    "active": true
+  },
+  {
+    "id": "original-p24-d2-g2-o1-i2",
+    "kind": "intervention",
+    "parent": "original-p24-d2-g2-o1",
+    "text": "The therapist will review the patient’s reported practice, functional impact, and barriers related to avoiding tasks due to anticipated discomfort or perfectionism, then jointly adjust the next steps.",
+    "active": true
+  }
+]

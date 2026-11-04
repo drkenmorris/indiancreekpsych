@@ -1,0 +1,32 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';import {PGlite} from '@electric-sql/pglite';import {readFileSync} from 'node:fs';
+const db=new PGlite(),admin='00000000-0000-0000-0000-000000000101',other='00000000-0000-0000-0000-000000000102',student='00000000-0000-0000-0000-000000000103',parent='00000000-0000-0000-0000-000000000104',teacher='00000000-0000-0000-0000-000000000105',subject='00000000-0000-0000-0000-000000000201';
+await db.exec(`create role anon;create role authenticated;create schema auth;create schema private;
+create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.user',true),'')::uuid$$;
+create function auth.jwt() returns jsonb language sql stable as $$select jsonb_build_object('aal',current_setting('request.aal',true),'email',current_setting('request.email',true))$$;
+create table auth.users(id uuid primary key,email text,email_confirmed_at timestamptz);
+create table public.profiles(id uuid primary key references auth.users(id),account_type text);
+create table public.clinical_patients(id uuid primary key);
+create function private.current_user_is_admin() returns boolean language sql security definer stable set search_path='' as $$select exists(select 1 from public.profiles where id=auth.uid() and account_type='admin')$$;
+grant usage on schema public,auth,private to authenticated,anon;grant select on profiles to authenticated;`);
+for(const [id,role,email] of [[admin,'admin','admin@example.invalid'],[other,'admin','other@example.invalid'],[student,'patient','student@example.invalid'],[parent,'patient','parent@example.invalid'],[teacher,'patient','teacher@example.invalid']]){await db.query('insert into auth.users values($1,$2,now())',[id,email]);await db.query('insert into profiles values($1,$2)',[id,role]);}
+await db.query('insert into clinical_patients values($1)',[subject]);
+await db.exec(readFileSync('supabase/migrations/20261013094000_psych_test_assignments.sql','utf8'));
+await db.exec('alter table psych_test_assignments add dsm_version text;');
+await db.query("insert into psych_test_assignments(assigned_by,recipient_first_name,recipient_last_name,recipient_email,recipient_dob,test_key) values($1,'Legacy','Version','legacy@example.invalid','1990-01-01','asq')",[admin]);
+await db.exec(readFileSync('supabase/migrations/20261103234805_asq_recipient_assignments.sql','utf8'));
+await db.exec(readFileSync('supabase/migrations/20261103235256_asq_recipient_policy_compatibility.sql','utf8'));
+async function as(id,aal='aal2',email='spoofed@example.invalid'){await db.exec('reset role');await db.query("select set_config('request.user',$1,false),set_config('request.aal',$2,false),set_config('request.email',$3,false)",[id,aal,email]);await db.exec('set role authenticated');}
+const definition=role=>({version:'fixture-1',role,pageSize:7,options:[0,1,2,3,4].map(value=>({value,label:String(value)})),items:Array.from({length:8},(_,i)=>({id:role[0]+(i+1),text:'Fictional item '+(i+1)}))});
+async function create(role,email,expired=false,sent=true){await as(admin);const result=await db.query("insert into psych_test_assignments(recipient_first_name,recipient_last_name,recipient_email,test_key,patient_id,asq_role,asq_definition,asq_definition_hash,created_at,expires_at) values('Fictional','Recipient',$1,'asq',$2,$3,$4,$5,now()-interval '2 days',now()+case when $6 then interval '-1 day' else interval '14 days' end) returning id",[email,subject,role,definition(role),'a'.repeat(64),expired]);const id=result.rows[0].id;if(sent)await db.query("update psych_test_assignments set status='sent',sent_at=now() where id=$1",[id]);return id;}
+const ids={student:await create('student','student@example.invalid'),parent:await create('parent','parent@example.invalid'),teacher:await create('teacher','teacher@example.invalid'),expired:await create('student','student@example.invalid',true),draft:await create('parent','draft@example.invalid',false,false)};
+const answers=(role,n=7)=>Object.fromEntries(definition(role).items.slice(0,n).map(i=>[i.id,0]));
+const save=(id,revision,values,page=1,submit=false)=>db.query('select save_asq_assignment($1,$2,$3,$4,$5,true) revision',[id,revision,values,page,submit]);
+
+await db.exec('reset role');await db.exec(readFileSync('supabase/migrations/20261104012530_asq_assignment_evaluations.sql','utf8'));
+await as(student);await save(ids.student,0,answers('student',8),1,true);
+const report={role:'student',algorithmHash:'b'.repeat(64),answeredCount:8,totalCount:8};
+const evaluate=(id=ids.student,expected=0,response=1,r=report)=>db.query('select save_asq_evaluation($1,$2,$3,$4,$5,$6,$7) revision',[id,expected,response,'b'.repeat(64),r,'Fictional interpretation','c'.repeat(64)]);
+await test('only assigning MFA clinician can evaluate submitted responses; recipients/other clinicians/anonymous denied',async()=>{for(const who of [student,other]){await as(who);await assert.rejects(evaluate(),/access|unavailable/i);assert.equal((await db.query('select * from asq_assignment_evaluations')).rows.length,0);}await as(admin,'aal1');await assert.rejects(evaluate(),/access/i);await as(admin);await assert.rejects(evaluate(ids.parent),/submitted/i);await db.exec('reset role;set role anon');await assert.rejects(db.query('select * from asq_assignment_evaluations'),/permission/i);});
+await test('evaluation binds original source and submitted revision, saves notes and cannot be changed',async()=>{await as(admin);await assert.rejects(evaluate(ids.student,0,8),/submitted/i);await assert.rejects(evaluate(ids.student,0,1,{...report,role:'teacher'}),/source/i);assert.equal((await evaluate()).rows[0].revision,1);const r=(await db.query('select * from asq_assignment_evaluations')).rows[0];assert.equal(r.response_revision,1);assert.equal(r.definition_hash,'a'.repeat(64));assert.equal(r.notes,'Fictional interpretation');await assert.rejects(db.query("update asq_assignment_evaluations set notes='changed'"),/permission/i);await assert.rejects(db.query('delete from asq_assignment_evaluations'),/permission/i);});
+await test('competing stale evaluations fail and later revisions preserve prior interpretation history',async()=>{await as(admin);await assert.rejects(evaluate(),/Another evaluation/);assert.equal((await evaluate(ids.student,1)).rows[0].revision,2);assert.equal((await db.query('select * from asq_assignment_evaluations')).rows.length,2);await as(other);assert.equal((await db.query('select * from asq_assignment_evaluations')).rows.length,0);});
+await db.close();

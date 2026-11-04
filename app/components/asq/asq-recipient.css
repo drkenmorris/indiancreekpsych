@@ -7,3 +7,6 @@
 @media print{body:has(.asqAssignmentReview){height:auto!important;overflow:visible!important}.asqAssignmentReview{height:auto;overflow:visible;background:white;padding:0}.asqAssignmentReview nav,.asqAssignmentReview button,.asqAssignmentReview form,.asqReportPurpose{display:none!important}.asqClinicalReport header{color:#163f35;background:white;border-bottom:2px solid #163f35}.asqClinicalReport header h2{color:#163f35}.asqClinicalReport h3,.asqClinicalReport h4,.asqClinicalReport h5{break-after:avoid}.asqClinicalReport p,.asqClinicalReport li{orphans:3;widows:3}}
 
 .asqReportNav{display:flex;flex-wrap:wrap;gap:10px 18px;padding:16px 0;border-bottom:1px solid #b9cfc1}.asqReportNav a{min-height:44px;display:inline-flex;align-items:center;font-weight:700;color:#17523f}.asqClinicalReport section,.asqEvaluation form{scroll-margin-top:20px}
+
+/* Assigned DSM forms share the recipient shell and keep touch targets readable. */
+.dsmRecipientFields{border:0;padding:0;min-width:0}.dsmRecipientChoice{display:flex;gap:10px;align-items:center;min-height:44px;padding:5px 0}.dsmRecipientChoice input{width:20px;height:20px;flex-shrink:0;accent-color:#285e4d}

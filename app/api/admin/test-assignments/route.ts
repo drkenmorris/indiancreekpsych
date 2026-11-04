@@ -5,6 +5,9 @@ import { normalizeAssignmentData, assignedTestOptions } from "@/lib/clinical-tes
 
 import {assignmentDefinition} from '@/lib/clinical-tests/asq/assignment-source';
 import {asqRecipientReleaseApproved} from '@/lib/clinical-tests/asq/recipient-access';
+import {dsmAssignmentSource} from '@/lib/clinical-tests/dsm/assignment';
+import {checkedDsmSource} from '@/lib/clinical-tests/dsm/assignment-server';
+import {snapshotHash} from '@/lib/emr/dsm-snapshot';
 import {sameOrigin} from '@/lib/emr/access';
 
 export const runtime = "nodejs";
@@ -30,14 +33,16 @@ export async function GET(){
   const ctx=await authorize();
   if(!ctx)return NextResponse.json({error:"Administrator sign-in with MFA is required."},{status:403});
   const {data,error}=await ctx.supabase.from("psych_test_assignments")
-   .select("id,recipient_first_name,recipient_last_name,recipient_email,test_key,dsm_version,asq_role,patient_id,status,created_at,expires_at,sent_at")
+   .select("id,recipient_first_name,recipient_last_name,recipient_email,test_key,dsm_version,asq_role,patient_id,dsm_source_hash,status,created_at,expires_at,sent_at")
    .order("created_at",{ascending:false}).limit(60);
   if(error)return NextResponse.json({error:"Assignments cannot be loaded."},{status:503});
   const ids=(data??[]).map(a=>a.id);
   const progress=ids.length?await ctx.supabase.from('asq_assignment_responses').select('assignment_id,status,page,revision,answered_count').in('assignment_id',ids):{data:[],error:null};
   if(progress.error)return NextResponse.json({error:'Assignment progress cannot be loaded.'},{status:503});
-  return NextResponse.json({assignments:(data??[]).map(a=>({...a,asq_progress:progress.data?.find(p=>p.assignment_id===a.id)??null})),deliveryReady:EMAIL_READY(),asqReleaseReady:asqRecipientReleaseApproved(),
-    tests:assignedTestOptions.map(t=>({...t,patientReady:t.value==='asq'?asqRecipientReleaseApproved():t.patientReady}))},{headers:{"Cache-Control":"no-store"}});
+  const dsmProgress=ids.length?await ctx.supabase.from('dsm_assignment_responses').select('assignment_id,status,revision,answered_count').in('assignment_id',ids):{data:[],error:null};
+  if(dsmProgress.error)return NextResponse.json({error:'DSM progress cannot be loaded.'},{status:503});
+  return NextResponse.json({assignments:(data??[]).map(a=>({...a,dsm_progress:dsmProgress.data?.find(p=>p.assignment_id===a.id)??null,asq_progress:progress.data?.find(p=>p.assignment_id===a.id)??null})),deliveryReady:EMAIL_READY(),asqReleaseReady:asqRecipientReleaseApproved(),
+    tests:assignedTestOptions.map(t=>({...t,patientReady:t.value==='asq'?asqRecipientReleaseApproved():t.value==='dsm'?true:t.patientReady}))},{headers:{"Cache-Control":"no-store"}});
 }
 
 export async function POST(request:NextRequest) {
@@ -67,6 +72,11 @@ export async function POST(request:NextRequest) {
       if(patientError||!patient)return NextResponse.json({error:'Selected patient is unavailable.'},{status:400});
       const source=assignmentDefinition(verified.data.asq_role);insertData={...insertData,asq_definition:source.definition,asq_definition_hash:source.hash};
     }
+    if(verified.data.test_key==='dsm'&&verified.data.dsm_version){
+      const {data:patient,error:patientError}=await ctx.supabase.from('clinical_patients').select('id,demographics').eq('id',verified.data.patient_id!).maybeSingle();
+      if(patientError||!patient||patient.demographics?.dob!==verified.data.recipient_dob)return NextResponse.json({error:'Select a central patient record with a reviewed birth date matching the patient date of birth. Update central demographics first if needed.'},{status:400});
+      const source=dsmAssignmentSource(verified.data.dsm_version,verified.data.recipient_dob!);insertData={...insertData,dsm_source:source,dsm_source_hash:snapshotHash(source)};
+    }
     const {data,error}=await ctx.supabase.from("psych_test_assignments")
        .insert(insertData).select("id").single();
     if(error||!data)return NextResponse.json({error:"Unable to save assignment. Verify your MFA session."},{status:503});
@@ -80,14 +90,15 @@ export async function POST(request:NextRequest) {
     if(!/^[a-f\d]{8}(-[a-f\d]{4}){3}-[a-f\d]{12}$/i.test(id))
       return NextResponse.json({error:"Invalid assignment."},{status:400});
     const {data:record,error}=await ctx.supabase.from("psych_test_assignments")
-      .select("id,recipient_email,test_key,dsm_version,asq_role,asq_definition_hash,patient_id,status,expires_at").eq("id",id).maybeSingle();
+      .select("id,recipient_email,test_key,dsm_version,asq_role,asq_definition_hash,patient_id,dsm_source,dsm_source_hash,status,expires_at").eq("id",id).maybeSingle();
     if(error||!record)return NextResponse.json({error:"Assignment not found."},{status:404});
     if(record.status!=="draft")return NextResponse.json({error:"This assignment has already been sent or revoked."},{status:409});
     if(Date.parse(record.expires_at)<=Date.now())return NextResponse.json({error:"This invitation expired. Create a new assignment."},{status:409});
     if(record.test_key==='asq'&&(!record.asq_role||!record.asq_definition_hash||!record.patient_id))return NextResponse.json({error:'This legacy ASQ assignment has no fixed respondent version and patient link. Create a new Student / Self, Parent or Teacher assignment.'},{status:409});
+    if(record.test_key==='dsm'){try{if(!record.patient_id)throw Error();checkedDsmSource(record.dsm_source,record.dsm_source_hash);}catch{return NextResponse.json({error:'This DSM draft predates the connected recipient workflow. Create a new DSM assignment with a central patient record and fixed version.'},{status:409});}}
     // A test invitation is never an authorization to access unreleased questionnaires.
     const approvedTest = assignedTestOptions.find(t=>t.value===record.test_key);
-    if(!(record.test_key==='asq'?asqRecipientReleaseApproved():approvedTest?.patientReady))
+    if(!(record.test_key==='asq'?asqRecipientReleaseApproved():record.test_key==='dsm'?true:approvedTest?.patientReady))
       return NextResponse.json({error:"This questionnaire has not yet been approved for patient administration. Invitation not sent."},{status:409});
     const link="https://www.indiancreekpsych.com/patient/assigned-tests/"+encodeURIComponent(id);
     let acceptedId: string;

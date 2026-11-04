@@ -8,6 +8,9 @@
   min-height:0;min-width:0;overflow:auto;
   scrollbar-gutter:stable;scroll-padding-block:1rem;
 }
+.administrativeScroll > .asqAssignmentReview {
+  height:auto;min-height:100%;overflow:visible;
+}
 .administrativeScroll > .clinicalLabShell {
   height:auto;min-height:100%;overflow:visible;
 }

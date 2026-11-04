@@ -33,7 +33,7 @@ export async function GET(){
   const ctx=await authorize();
   if(!ctx)return NextResponse.json({error:"Administrator sign-in with MFA is required."},{status:403});
   const {data,error}=await ctx.supabase.from("psych_test_assignments")
-   .select("id,recipient_first_name,recipient_last_name,recipient_email,test_key,dsm_version,asq_role,patient_id,dsm_source_hash,status,created_at,expires_at,sent_at")
+   .select("id,recipient_first_name,recipient_last_name,recipient_email,test_key,dsm_version,asq_role,patient_id,dsm_source_hash,dsm_format:dsm_source->>format,status,created_at,expires_at,sent_at")
    .order("created_at",{ascending:false}).limit(60);
   if(error)return NextResponse.json({error:"Assignments cannot be loaded."},{status:503});
   const ids=(data??[]).map(a=>a.id);

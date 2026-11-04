@@ -12,7 +12,7 @@ const positive={...one,depression_1:'Yes, currently'};
 // Select the canonical stable domain/question rather than assume imported aliases.
 const domain=source.profile.definition.domains.find(d=>d.id==='depression')??source.profile.definition.domains[3];
 const routed={...one,[domain.questions[0].id]:'Yes, currently'};
-const completed=()=>Object.fromEntries(assignedQuestions(source,routed).map(q=>[q.id,routed[q.id]??q.choices[0]]));
+const completed=()=>Object.fromEntries(assignedQuestions(source,routed).map(q=>[q.id,routed[q.id]??(q.kind?'':q.choices[0])]));
 afterEach(()=>{cleanup();vi.unstubAllGlobals();});
 test('assignment source pins the original version and detects tampering',()=>{expect(checkedDsmSource(source,snapshotHash(source))).toEqual(source);expect(()=>checkedDsmSource({...source,version:'parent'},snapshotHash(source))).toThrow();expect(()=>dsmAssignmentSource('adult','2013-01-01','2026-11-04')).toThrow();});
 test('only positive adult Tier 1 domains select Tier 2; uncertain responses remain review',()=>{expect(assignedQuestions(source,one)).toHaveLength(60);const selected=assignedQuestions(source,routed).filter(q=>q.tier===2);expect(selected.length).toBeGreaterThan(0);expect(new Set(selected.map(q=>q.domain))).toEqual(new Set([domain.id]));expect(assignedQuestions(source,{...one,[domain.questions[0].id]:'Unsure'})).toHaveLength(60);});

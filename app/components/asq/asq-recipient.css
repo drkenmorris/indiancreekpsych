@@ -10,3 +10,6 @@
 
 /* Assigned DSM forms share the recipient shell and keep touch targets readable. */
 .dsmRecipientFields{border:0;padding:0;min-width:0}.dsmRecipientChoice{display:flex;gap:10px;align-items:center;min-height:44px;padding:5px 0}.dsmRecipientChoice input{width:20px;height:20px;flex-shrink:0;accent-color:#285e4d}
+
+.dsmRecipientFields textarea,.dsmRecipientFields input[type="date"]{display:block;width:100%;max-width:42rem;box-sizing:border-box;margin-top:.5rem;padding:.65rem;border:1px solid #72867c;border-radius:.35rem;font:inherit;}
+.dsmRecipientFields textarea{min-height:7rem;resize:vertical;}

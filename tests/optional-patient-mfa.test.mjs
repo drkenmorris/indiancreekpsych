@@ -26,6 +26,34 @@ create table public.psych_test_assignments(id uuid,test_key text,asq_role text,d
 `);
 await db.exec(readFileSync(new URL('../supabase/migrations/20260927024746_patient_registration_intake.sql',import.meta.url),'utf8'));
 await db.exec(readFileSync(new URL('../supabase/migrations/20261107203826_optional_patient_mfa.sql',import.meta.url),'utf8'));
+// Exercise the current nested, SECURITY INVOKER validation chain as a patient.
+function loadFunction(file,name) {
+ const text=readFileSync(new URL('../supabase/migrations/'+file,import.meta.url),'utf8');
+ const start=text.indexOf('create or replace function private.'+name+'(');
+ if(start<0)throw new Error('Missing fixture function '+name);
+ const marker=text.slice(start).match(/\bas\s+(\$[a-zA-Z_0-9]*\$)/i);
+ if(!marker)throw new Error('Missing function body '+name);
+ const end=text.indexOf(marker[1]+';',start+marker.index+marker[0].length)+marker[1].length+1;
+ return text.slice(start,end);
+}
+for(const [file,name] of [
+ ['20261103025453_intake_trauma_history.sql','validate_intake_trauma_history'],
+ ['20261102212246_legal_forms_revision.sql','validate_intake_legal_form_fields'],
+ ['20261102233010_intake_legal_directory.sql','validate_intake_legal_routing'],
+ ['20261102182635_intake_medical_substance.sql','validate_intake_medical_substance'],
+ ['20261102173531_intake_medications.sql','validate_intake_medications'],
+ ['20261102171825_intake_treatment_history.sql','validate_intake_treatment_history'],
+ ['20261103025453_intake_trauma_history.sql','validate_intake_answers'],
+]) {
+ await db.exec(loadFunction(file,name));
+}
+await db.exec(`create or replace function private.validate_patient_intake() returns trigger language plpgsql set search_path='' as $$begin
+ if tg_op='UPDATE' and (new.patient_id<>old.patient_id or old.status='submitted') then raise exception 'Submitted intake cannot be changed';end if;
+ perform private.validate_intake_answers(new.answers,new.status='submitted');
+ new.version:=case when tg_op='INSERT' then 1 else old.version+1 end;new.updated_at:=now();new.submitted_at:=case when new.status='submitted' then now() else null end;return new;end$$;`);
+await db.exec('revoke all on function private.validate_intake_answers(jsonb,boolean) from public,authenticated,anon');
+await db.exec(readFileSync(new URL('../supabase/migrations/20261107204446_patient_intake_validator_permissions.sql',import.meta.url),'utf8'));
+
 for (const [key,id] of Object.entries(ids)) {
   await db.query('insert into auth.users(id,email,email_confirmed_at,raw_app_meta_data) values($1,$2,$3,$4)',[id,key+'@example.invalid',key==='unverified'?null:new Date().toISOString(),key==='expired'?{qa_test_account:'true'}:{}]);
   await db.query('insert into public.profiles values($1,$2)',[id,['admin','guest'].includes(key)?key:'patient']);

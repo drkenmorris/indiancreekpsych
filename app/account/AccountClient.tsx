@@ -80,7 +80,7 @@ export default function AccountClient({
       <h1>Your Account</h1>
       <p className="accountEmail">{email}</p>
       <p><strong>Account type:</strong> {accountType === "patient" ? "Patient" : accountType === "guest" ? "Guest" : accountType === "staff" ? "Office Staff" : "Administrator"}</p>
-      {!emailVerified && <p className="authMessage">Please verify your email before using Patient services or adding a passkey.</p>}
+      {!emailVerified && <p className="authMessage">Please verify your email before using Patient services or adding a passkey. MFA enrollment is optional for patients.</p>}
       <form className="authForm" onSubmit={save}>
         <div className="accountNameFields">
           <label>First name<input autoComplete="given-name" required maxLength={80} value={firstName} onChange={e => setFirstName(e.target.value)} /></label>
@@ -94,7 +94,7 @@ export default function AccountClient({
       {message && <p className="authMessage" role="status">{message}</p>}
       <div className="accountEssentialActions">
         <Link className="accountPrimaryLink" href={accountType === "patient" || accountType === "admin" ? "/appointments" : "/make-an-appointment"}>Set an Appointment</Link>
-        <Link className="accountPrimaryLink" href="/account/security">MFA and passkey security settings</Link>
+        <Link className="accountPrimaryLink" href="/account/security">{accountType === "patient" ? "Optional MFA and passkey settings" : "MFA and passkey security settings"}</Link>
         {accountType === "patient" && <Link className="accountPrimaryLink" href="/patient/intake">Open Intake Questionnaire</Link>}
         {accountType === "admin" && (
           <>
@@ -107,9 +107,9 @@ export default function AccountClient({
           <Link className="accountPrimaryLink" href="/admin/questionnaires">Patient Questionnaires and Intake Tools</Link>
         )}
       </div>
-      {accountType === "guest" && <p className="accountPrivacyNote">Guest accounts receive practice information. Patient intake requires a Patient account and verified security.</p>}
+      {accountType === "guest" && <p className="accountPrivacyNote">Guest accounts receive practice information. Patient intake requires a Patient account and a verified email address.</p>}
       {(accountType === "admin" || accountType === "staff") && (
-        <p className="accountPrivacyNote">Practice administrators can test the full intake questionnaire using fictional answers, launch an office intake, and review authorized submissions. Real patient responses remain protected by MFA and clinical permissions.</p>
+        <p className="accountPrivacyNote">Practice administrators can test the full intake questionnaire using fictional answers, launch an office intake, and review authorized submissions. Clinician access requires MFA and clinical permissions.</p>
       )}
     </section>
   );

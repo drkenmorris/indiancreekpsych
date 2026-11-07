@@ -4,10 +4,11 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 type Factor = { id: string; status: string; friendly_name?: string };
-export default function SecurityClient({ next }: { next: string }) {
+export default function SecurityClient({ next, optionalMfa = false }: { next: string; optionalMfa?: boolean }) {
   const supabase = useMemo(() => createClient(), []);
   const [factors, setFactors] = useState<Factor[]>([]);
   const [verifiedSession, setVerifiedSession] = useState(false);
+  const [canContinueWithoutMfa, setCanContinueWithoutMfa] = useState(false);
   const [loading, setLoading] = useState(true);
   const [factorsLoaded, setFactorsLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -25,6 +26,7 @@ export default function SecurityClient({ next }: { next: string }) {
     if (list.error || assurance.error) throw new Error("Security settings could not be loaded.");
     setFactors(list.data.totp.filter(f => f.status === "verified"));
     setVerifiedSession(assurance.data.currentLevel === "aal2");
+    setCanContinueWithoutMfa(optionalMfa && assurance.data.currentLevel === "aal1" && assurance.data.nextLevel !== "aal2" && list.data.totp.every(f => f.status !== "verified"));
     setFactorsLoaded(true);
   }
 
@@ -90,13 +92,13 @@ export default function SecurityClient({ next }: { next: string }) {
       if (userError || !user.user?.email_confirmed_at) throw new Error("Confirm your email before enrolling a passkey.");
       const { error } = await supabase.auth.registerPasskey();
       if (error) throw new Error("Passkey enrollment is not currently available. Your browser must support passkeys and passkeys must be enabled for this site. " + error.message);
-      setMessage("Passkey saved to your account. You can use it to sign in next time; patient intake still requires an MFA-verified session.");
+      setMessage("Passkey saved to your account. You can use it to sign in next time. If you have enabled authenticator verification, that second step still applies.");
     });
   }
 
   return (
     <section className="appointmentPanel accountSecurityPanel">
-      <p><strong>Authenticator-app MFA:</strong> Verify a six-digit one-time code after signing in. Patient intake requires this second step.</p>
+      <p><strong>Authenticator-app MFA:</strong> {optionalMfa ? "Optional for patient accounts. You can use intake and appointment services after verifying your email without setting up an authenticator. If you enable MFA, you will verify a code when signing in." : "Verify a six-digit one-time code after signing in. MFA is required for clinician and administrator access."}</p>
       {loading ? <p role="status">Loading security settings…</p> : (
         <>
           {verifiedSession && <p className="authMessage">Your current session has completed MFA verification.</p>}
@@ -120,10 +122,10 @@ export default function SecurityClient({ next }: { next: string }) {
           )}
           <div className="accountPasskeyPanel">
             <strong>Passkey sign-in (experimental)</strong>
-            <p>A passkey uses your device, fingerprint, face unlock, PIN, or security key for sign-in. It is separate from the authenticator-app verification required for patient information.</p>
+            <p>A passkey uses your device, fingerprint, face unlock, PIN, or security key for sign-in. It is separate from authenticator-app verification.</p>
             <button type="button" disabled={busy || !factorsLoaded} className="secondaryAction" onClick={() => void registerPasskey()}>Add a passkey to this account</button>
           </div>
-          {verifiedSession && <a className="accountPrimaryLink" href={next}>Continue</a>}
+          {(verifiedSession || canContinueWithoutMfa) && <a className="accountPrimaryLink" href={next}>{verifiedSession ? "Continue" : "Continue without setting up MFA"}</a>}
         </>
       )}
       <p className="accountPrivacyNote">If you lose access to your authenticator, contact the office for verified recovery. A password reset does not remove the second-step requirement.</p>

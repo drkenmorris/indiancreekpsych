@@ -51,3 +51,20 @@ test('optional releases and telehealth are independent; acknowledgment may be de
  expect(validateIntake({...choices,telehealth_choice:'Yes, I consent to telehealth'},true)).toContain('telehealth');
  expect(validateIntake({...choices,representative_signer:'Parent/guardian/authorized representative'},true)).toContain('representative');
 });
+
+test('patient can continue without enrolling MFA',async()=>{
+ mock.list.mockResolvedValue({data:{totp:[]},error:null});mock.assurance.mockResolvedValue({data:{currentLevel:'aal1',nextLevel:'aal1'},error:null});
+ render(<SecurityClient next="/appointments" optionalMfa/>);
+ expect((await screen.findByRole('link',{name:'Continue without setting up MFA'})).getAttribute('href')).toBe('/appointments');
+ expect(screen.getByRole('button',{name:'Set up authenticator-app MFA'})).toBeTruthy();
+});
+test.each([false,true])('enrolled MFA cannot be skipped, optionalMfa=%s',async(optionalMfa)=>{
+ mock.list.mockResolvedValue({data:{totp:[{id:'factor',status:'verified'}]},error:null});mock.assurance.mockResolvedValue({data:{currentLevel:'aal1',nextLevel:'aal2'},error:null});
+ render(<SecurityClient next="/appointments" optionalMfa={optionalMfa}/>);
+ await screen.findByRole('button',{name:'Verify with authenticator app'});expect(screen.queryByRole('link',{name:'Continue without setting up MFA'})).toBeNull();
+});
+test('administrator without MFA cannot skip enrollment',async()=>{
+ mock.list.mockResolvedValue({data:{totp:[]},error:null});mock.assurance.mockResolvedValue({data:{currentLevel:'aal1',nextLevel:'aal1'},error:null});
+ render(<SecurityClient next="/account"/>);await screen.findByRole('button',{name:'Set up authenticator-app MFA'});
+ expect(screen.queryByRole('link',{name:'Continue without setting up MFA'})).toBeNull();
+});

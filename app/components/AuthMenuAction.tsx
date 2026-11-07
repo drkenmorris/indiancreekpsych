@@ -78,7 +78,7 @@ export default function AuthMenuAction({ compact = false }: { compact?: boolean 
 
   return (
     <>
-      {compact && <Link href={accountRole === "patient" || accountRole === "admin" ? "/appointments" : "/make-an-appointment"}>Make an Appointment</Link>}
+      {(compact || accountRole === "patient" || accountRole === "admin") && <Link href={accountRole === "patient" || accountRole === "admin" ? "/appointments" : "/make-an-appointment"}>Set an Appointment</Link>}
       {accountRole === "patient" && <Link href="/patient/psychological-tests">Psychological Tests</Link>}
       {!compact && accountRole === "admin" && <Link href="/clinical-tests">Psychological Tests</Link>}
       {accountRole === "admin" && <AdministratorSections />}

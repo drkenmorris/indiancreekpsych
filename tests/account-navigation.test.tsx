@@ -53,14 +53,14 @@ test.each(["patient", "guest"])("registration submits %s with Patient first and 
 test.each(["patient", "guest", "admin", "staff"] as const)("%s account shows an appointment action", (role) => {
   render(<AccountClient email="fictional@example.invalid" firstName="Fictional" lastName="Example"
     accountType={role} emailVerified={true} newsletterSubscribed={false} />);
-  expect(screen.getByRole("link", { name: "Make an Appointment" }).getAttribute("href"))
+  expect(screen.getByRole("link", { name: "Set an Appointment" }).getAttribute("href"))
     .toBe(role === "patient" || role === "admin" ? "/appointments" : "/make-an-appointment");
 });
 
 test.each(["patient", "guest", "admin", "staff", null])("signed-in %s navigation links to appointment access", async (role) => {
   mock.role = role;
   render(<AuthMenuAction compact />);
-  const link = await screen.findByRole("link", { name: "Make an Appointment" });
+  const link = await screen.findByRole("link", { name: "Set an Appointment" });
   expect(link.getAttribute("href")).toBe(role === "patient" || role === "admin" ? "/appointments" : "/make-an-appointment");
   if (role !== "patient") expect(screen.queryByRole("link", { name: "Psychological Tests" })).toBeNull();
 });
@@ -69,5 +69,12 @@ test("signed-out navigation still offers sign in", async () => {
   mock.user = false;
   render(<AuthMenuAction />);
   expect((await screen.findByRole("link", { name: "Login" })).getAttribute("href")).toBe("/login?next=/account");
-  expect(screen.queryByRole("link", { name: "Make an Appointment" })).toBeNull();
+  expect(screen.queryByRole("link", { name: "Set an Appointment" })).toBeNull();
+});
+
+// The patient appointment action must also appear outside compact workspace menus.
+test.each([false, true])("patient has appointment and testing links when compact=%s", async (compact) => {
+  render(<AuthMenuAction compact={compact} />);
+  expect((await screen.findByRole("link", { name: "Set an Appointment" })).getAttribute("href")).toBe("/appointments");
+  expect(screen.getByRole("link", { name: "Psychological Tests" }).getAttribute("href")).toBe("/patient/psychological-tests");
 });

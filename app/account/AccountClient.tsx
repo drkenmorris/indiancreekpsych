@@ -93,7 +93,7 @@ export default function AccountClient({
       </form>
       {message && <p className="authMessage" role="status">{message}</p>}
       <div className="accountEssentialActions">
-        <Link className="accountPrimaryLink" href={accountType === "patient" || accountType === "admin" ? "/appointments" : "/make-an-appointment"}>Make an Appointment</Link>
+        <Link className="accountPrimaryLink" href={accountType === "patient" || accountType === "admin" ? "/appointments" : "/make-an-appointment"}>Set an Appointment</Link>
         <Link className="accountPrimaryLink" href="/account/security">MFA and passkey security settings</Link>
         {accountType === "patient" && <Link className="accountPrimaryLink" href="/patient/intake">Open Intake Questionnaire</Link>}
         {accountType === "admin" && (

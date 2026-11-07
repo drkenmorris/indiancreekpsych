@@ -33,7 +33,10 @@ export default async function PatientPsychologicalTestsPage() {
           <p>Open a questionnaire assigned to your verified email below. Your therapist selects the patient record and version; you do not need to re-enter demographics.</p>
           <p>Save progress before closing. New CSEQ, SRRCI-X, RTAFI, RDII and RVTI invitations allow fourteen days from email-provider acceptance. The exact deadline appears in your assignment; inbox receipt is not confirmed. Contact the office if you need a new invitation.</p>
           {error?<p role="alert">Your assignments could not be loaded. Please retry or contact the office.</p>:assignments?.some(a=>a.test_key!=='cogswitch')?<ul>{assignments.filter(a=>a.test_key!=='cogswitch').map(a=><li key={a.id}><Link href={'/patient/assigned-tests/'+a.id}>Open {migratedSuites.find(s=>s[0].toLowerCase().startsWith(a.test_key))?.[0]??a.test_key.toUpperCase()} questionnaire</Link> · Available until {new Date(a.expires_at).toLocaleString('en-US',{timeZone:'America/Chicago'})} Central Time</li>)}</ul>:<p>No current invitations are available for this email. Contact your therapist if you expected an assignment.</p>}
-          <Link className="patientTestsIntakeLink" href="/patient/intake">Open Intake Questionnaire</Link>
+          <nav aria-label="Patient services">
+            <Link className="patientTestsIntakeLink" href="/appointments">Set an Appointment</Link>
+            <Link className="patientTestsIntakeLink" href="/patient/intake">Open Intake Questionnaire</Link>
+          </nav>
         </section>
         <section className="patientTestsLibrary" aria-labelledby="patient-tests-library">
           <h2 id="patient-tests-library">Relocated testing library</h2>

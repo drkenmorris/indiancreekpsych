@@ -8,7 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import AuthMenuAction from "../components/AuthMenuAction";
 
 export default function RegisterPage() {
-  const [registrationType, setRegistrationType] = useState<"guest" | "patient">("guest");
+  const [registrationType, setRegistrationType] = useState<"guest" | "patient">("patient");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -67,12 +67,12 @@ export default function RegisterPage() {
         <section className="authCard accountRegistrationCard">
           <p className="eyebrow">Indian Creek account</p>
           <h1>Create your account</h1>
-          <p>Choose Guest to receive practice information or Patient to access intake and patient services after email and security verification.</p>
+          <p>Choose Patient to access intake and patient services after email and security verification, or Guest to receive practice information.</p>
           <form onSubmit={handleSubmit} className="authForm">
             <label>Account type
               <select value={registrationType} onChange={e => setRegistrationType(e.target.value as "guest" | "patient")}>
-                <option value="guest">Guest account</option>
                 <option value="patient">Patient account</option>
+                <option value="guest">Guest account</option>
               </select>
             </label>
             <div className="accountNameFields">

@@ -54,7 +54,7 @@ export default function RegisterPage() {
       return;
     }
 
-    setMessage("Check your email to confirm your account. Then return to Account to sign in. Patient services require additional security verification.");
+    setMessage("Check your email to confirm your account. Then return to Account to sign in. Patient services require email verification. MFA is optional for patients.");
     setBusy(false);
   }
 
@@ -67,7 +67,7 @@ export default function RegisterPage() {
         <section className="authCard accountRegistrationCard">
           <p className="eyebrow">Indian Creek account</p>
           <h1>Create your account</h1>
-          <p>Choose Patient to access intake and patient services after email and security verification, or Guest to receive practice information.</p>
+          <p>Choose Patient to access intake and patient services after email verification, or Guest to receive practice information.</p>
           <form onSubmit={handleSubmit} className="authForm">
             <label>Account type
               <select value={registrationType} onChange={e => setRegistrationType(e.target.value as "guest" | "patient")}>

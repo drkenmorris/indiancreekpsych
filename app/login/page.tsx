@@ -70,7 +70,7 @@ export default function LoginPage() {
         <section className="authCard accountRegistrationCard">
           <p className="eyebrow">Secure account access</p>
           <h1>Sign in</h1>
-          <p>Access your Guest or Patient account. A patient questionnaire requires additional verified security.</p>
+          <p>Access your Guest or Patient account. Patient services require a verified email address. Authenticator-app MFA is optional for patients.</p>
           <form onSubmit={handleSubmit} className="authForm">
             <label>Email<input type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required /></label>
             <label>Password<input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required /></label>

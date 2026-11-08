@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import PublicHeader from "../../components/PublicHeader";
 import PublicFooter from "../../components/PublicFooter";
+import ClinicalDetailSections from "../../components/ClinicalDetailSections";
+import { serviceDetails } from "../../content/clinical-detail";
 
 const services = {
  "individual-therapy":{title:"Individual Therapy",eyebrow:"One-to-one counseling",intro:"Individual therapy provides a confidential setting to understand what is happening, clarify goals, develop practical skills, and create meaningful change.",points:["Treatment is individualized rather than reduced to a diagnosis.","Work may address mood, anxiety, trauma, recovery, relationships, stress, identity, or life transitions.","The therapeutic relationship is collaborative, with clear goals and practical application between sessions."]},
@@ -22,6 +24,7 @@ export default async function ServiceDetail({params}:{params:Promise<{slug:strin
  return <div className="publicSite compactClinicalPage"><PublicHeader/><main>
   <section className={`mockHero serviceDetailHero serviceHero-${slug}`}><div className="heroScrim compact"><p className="eyebrow">{s.eyebrow}</p><h1>{s.title}</h1><p>{s.intro}</p><div className="heroActions"><Link className="primaryButton" href="/appointments">Schedule an Appointment</Link><Link className="secondaryButton" href="/services">Back to Our Services</Link></div></div></section>
   <section className="detailTextGrid">{s.points.map((p,i)=><article key={p}><span>{String(i+1).padStart(2,"0")}</span><p>{p}</p></article>)}</section>
+  <ClinicalDetailSections detail={serviceDetails[slug]} />
   <section className="detailNote"><h2>Individualized care matters.</h2><p>Information on this page is educational and does not establish a diagnosis or treatment recommendation. Appropriate care depends on clinical assessment, goals, history, risks, strengths, and circumstances.</p></section>
  </main><PublicFooter/></div>
 }

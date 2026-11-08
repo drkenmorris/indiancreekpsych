@@ -12,6 +12,7 @@ export default function PublicFooter({ workspace = false }: { workspace?: boolea
         <Link href="/about">About</Link>
         <Link href="/services">Our Services</Link>
         <Link href="/specialties">Specialties</Link>
+        <Link href="/insights">Weekly Insights</Link>
         <Link href="/meet-the-therapist">Meet the Therapist</Link>
         <Link href="/contact">Contact</Link>
         <Link href="/make-an-appointment">Make an Appointment</Link>

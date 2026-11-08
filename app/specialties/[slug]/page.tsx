@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import PublicHeader from "../../components/PublicHeader";
 import PublicFooter from "../../components/PublicFooter";
+import ClinicalDetailSections from "../../components/ClinicalDetailSections";
+import { specialtyDetails } from "../../content/clinical-detail";
 
 const specialties = {
  anxiety:{title:"Anxiety",intro:"Anxiety can affect sleep, concentration, relationships, physical comfort, decision-making, and the ability to feel present in everyday life.",points:["Clarify triggers, avoidance patterns, physical arousal, and the beliefs that keep anxiety active.","Develop practical skills for regulation, coping, exposure, problem-solving, and more flexible responding.","Address overlapping concerns such as trauma, depression, ADHD, substance use, or chronic stress when relevant."]},
@@ -22,6 +24,7 @@ export default async function SpecialtyDetail({params}:{params:Promise<{slug:str
  return <div className="publicSite compactClinicalPage"><PublicHeader/><main>
   <section className={`mockHero specialtyDetailHero specialtyHero-${slug}`}><div className="heroScrim compact"><p className="eyebrow">Area of specialization</p><h1>{s.title}</h1><p>{s.intro}</p><div className="heroActions"><Link className="primaryButton" href="/appointments">Schedule an Appointment</Link><Link className="secondaryButton" href="/specialties">Back to Specialties</Link></div></div></section>
   <section className="detailTextGrid">{s.points.map((p,i)=><article key={p}><span>{String(i+1).padStart(2,"0")}</span><p>{p}</p></article>)}</section>
+  <ClinicalDetailSections detail={specialtyDetails[slug]} />
   <section className="detailNote"><h2>Specialization is not a substitute for assessment.</h2><p>These pages describe common concerns and treatment considerations. Individual recommendations require a clinical evaluation that considers symptoms, history, goals, strengths, risks, and circumstances.</p></section>
  </main><PublicFooter/></div>
 }

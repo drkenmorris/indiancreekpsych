@@ -38,7 +38,7 @@ test('live EMR patient repository only prefills blank contact fields into an uns
   render(<PatientRepository/>);
   fireEvent.click(await screen.findByRole('button', {name: /Fictional Patient.*Linked patient account/i}));
   const button = await screen.findByRole('button', {name: /Fill blank contact fields in unsaved demographics form/i});
-  await waitFor(() => expect(button).not.toBeDisabled());
+  await waitFor(() => expect((button as HTMLButtonElement).disabled).toBe(false));
   fireEvent.click(button);
   await screen.findByText(/Copied 3 patient-reported contact field\(s\) into this UNSAVED draft/);
 

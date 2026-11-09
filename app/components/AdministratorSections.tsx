@@ -11,6 +11,7 @@ const sections = [
   { label: "EMR — central patient records", href: "/emr" },
   { label: "EMR workflow prototype", href: "https://emr-workflow-demo.vercel.app/", external: true },
   { label: "Patient questionnaires", href: "/admin/questionnaires" },
+  { label: "Newsletter library & calendar", href: "/admin/newsletters" },
   { label: "Account and security", href: "/account" },
 ];
 

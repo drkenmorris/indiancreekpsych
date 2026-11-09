@@ -335,3 +335,11 @@
 .specialtyHero-stress-management,.specialtyHero-life-transitions{
   background-image:linear-gradient(90deg,rgba(246,251,253,.97),rgba(246,251,253,.80) 48%,rgba(246,251,253,.08) 76%),var(--gen-general);
 }
+
+/* Preserve complete photographs in clinical specialty/service hero panels. */
+.specialtyDetailHero,.serviceDetailHero{
+  background-size:cover,contain;
+  background-repeat:no-repeat;
+  background-position:center,right center;
+  background-color:#e9f3f5;
+}

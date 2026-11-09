@@ -44,11 +44,23 @@ Production already exposes a linked patient's reported intake source in the prot
 
 Files: `lib/emr/intake-contact-prefill.ts`, `app/emr/PatientRepository.tsx`, `tests/emr-intake-contact-prefill.test.ts`.
 
+## Second selectively integrated workflow: protected read-only intake medical review
+
+The production clinic intake already captures structured current/past medication entries, medication allergies, and medical/substance-use history. The separate prototype also displays these categories but relies on synthetic local chart storage. This integration retains the superior production access/storage architecture:
+
+- The **existing administrator + MFA protected** central patient GET adds only four allowlisted intake keys for a patient with an explicitly linked account: `medication_entries`, `medication_allergy_status`, `medication_allergy_notes`, `medical_substance_history`.
+- The central patient repository displays these values in a **read-only, explicitly labeled patient-reported** section, reusing the existing structured clinic intake readers and their schema validation.
+- The original clinician-reviewed demographics, central chart, medical assessment, existing medication records and patient data are **not** rewritten. This review is not a clinical reconciliation or a verified medication list.
+- Invalid historical structured payloads display a source-read error in their respective review components rather than being silently converted into clinical facts.
+- A new UI test checks the source is visible for an explicitly linked patient, that reviewed demographics are unchanged, and that opening the section issues GET requests only.
+
+**Backend module inventory:** 20 Python/JSON module filenames exist in both the deployed synthetic prototype `engine/modules` tree and production `emr_engine/modules` tree; the prototype's extra `providers.py` is intentionally **not** a candidate for replacing live Supabase/MFA. One shared engine file (`clinical.py`) was verified byte-identical using complete base64 response data. The remaining module files were **not confirmed byte-identical** because the deployment source retrieval returned truncated contents.
+
 ## Verification, limitations, and remaining work
 
 - Verified locally: the helper compiled with TypeScript strict settings and passed **three isolated behavior checks** (no-overwrite, invalid-data refusal, valid unsaved contact draft). These checks were run on a local copy of the helper, whose contents were separately confirmed against the branch file.
-- The three Vitest checks have been committed in the branch, but **the repository's full Vitest, Python and Next.js build suites have not yet been executed in this automation run**. No authenticated browser release test has been completed.
-- Unreconciled workflows include the prototype's medical/substance history and medication intake transfer demonstrations, legal routing, document management and provider/chart feature comparisons; each requires a production-vs-prototype review and safe RLS-backed adaptation where production lacks functionality.
+- **GitHub Actions CI passed** for commit `2b71d65983aff147abd91e4c9f5cb0c7c5f1f5e4`, run [42717002819](https://github.com/drkenmorris/indiancreekpsych/actions/runs/42717002819): `npm ci`, `npm run typecheck`, `npm run test:intake` (including the Python EMR checks and committed Vitest UI checks), plus standalone kiosk Vitest. An authenticated nonproduction browser release check, explicit database migration/transaction validation, and a full Next.js production build have **not** yet been independently verified in this run.
+- Unreconciled workflows include clinician-reviewed **transfer** of medical/substance and medication data into the actual central clinical record (as distinct from the completed read-only review), legal routing, document management and remaining provider/chart feature comparisons. Each requires a production-vs-prototype review and safe RLS-backed adaptation where production lacks functionality.
 - No change to production `main`, Vercel production deployment, existing patient records or live data was made by this branch.
 
 **Release gate:** rebase against the latest `main`; run all EMR workflow, intake, auth, MFA, RLS, database, UI and build checks; conduct authenticated fictional-record browser tests in a nonproduction deployment; validate changed modules and obtain a rollback path before production promotion.

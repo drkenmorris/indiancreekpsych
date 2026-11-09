@@ -45,7 +45,7 @@ test('live EMR patient repository only prefills blank contact fields into an uns
   expect((screen.getByLabelText('Street address 1') as HTMLInputElement).value).toBe('Previously reviewed address');
   expect((screen.getByLabelText('City') as HTMLInputElement).value).toBe('Olathe');
   expect((screen.getByLabelText('Postal code') as HTMLInputElement).value).toBe('66062');
-  expect((screen.getByLabelText('Email') as HTMLInputElement).value).toBe('fictional@example.com');
+  expect((screen.getByLabelText(/^Email/i) as HTMLInputElement).value).toBe('fictional@example.com');
   expect((screen.getByLabelText('First name') as HTMLInputElement).value).toBe('Fictional');
   expect((screen.getByLabelText('Birth date') as HTMLInputElement).value).toBe('');
   expect(calls.every(call => call.startsWith('GET '))).toBe(true);

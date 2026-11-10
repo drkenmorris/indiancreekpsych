@@ -90,6 +90,13 @@ await test('unselected workspace opens actual empty forms and checkboxes without
  for(const f of ['planner.js','navigation.js','patients.js','module-menu.js','providers.js','menu-completion.js','navigation-menus.js','strengths-library.js','strengths-builder.js','app.js','production.js','central-directory.js'])runInContext(readFileSync('public/emr-assets/'+f,'utf8'),dom.getInternalVMContext());
  await new Promise(resolve=>setTimeout(resolve,100));
  assert.equal(errors.length,0,errors.join(';'));assert.equal(w.document.querySelector('#patient-directory').open,false);
+ // Opening a central patient retains the original seven-page BPS context.
+ runInContext("chooseSection('assessment','biopsychosocial')",dom.getInternalVMContext());
+ w.history.replaceState(null,'','/emr/workspace?module=assessment&section=assessment%3Abiopsychosocial&bps_page=family_origin');
+ assert.equal(runInContext("selectedPatientWorkspaceUrl("+JSON.stringify(fixture.pid)+")",dom.getInternalVMContext()),'/emr/workspace?patient='+fixture.pid+'&module=assessment&section=assessment%3Abiopsychosocial&bps_page=family_origin');
+ runInContext("chooseSection('notes','planner')",dom.getInternalVMContext());
+ assert.equal(runInContext("selectedPatientWorkspaceUrl("+JSON.stringify(fixture.pid)+")",dom.getInternalVMContext()),'/emr/workspace?patient='+fixture.pid+'&module=notes&section=notes%3Aplanner','other clinical destinations remain intact');
+
  assert.ok(w.document.querySelector('input[name="first_name"]'),'demographics fields available without a patient');
  for(const [module,key] of [['assessment','biopsychosocial'],['notes','planner'],['plan','problems'],['prognosis','prognosis'],['discharge','details']]){
   runInContext(`chooseSection(${JSON.stringify(module)},${JSON.stringify(key)});render();`,dom.getInternalVMContext());

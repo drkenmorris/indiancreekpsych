@@ -16,10 +16,21 @@ refreshRegistry=async function(){const patients=await centralRegistry();boot={..
 const originalRegistryDirectory=renderDirectory;
 renderDirectory=function(){originalRegistryDirectory();document.querySelectorAll('[data-registry-action]').forEach(button=>{button.disabled=true;button.title='Record retention changes use clinic administration.';});};
 openDirectory=function(){safeNavigate(async()=>{try{await refreshRegistry();const dialog=$('#patient-directory');if(!dialog.open)dialog.showModal();}catch(error){message(error.message,true);}});};
+function selectedPatientWorkspaceUrl(id){
+ // Patient selection preserves the clinician's original clinical form/subpage.
+ // The caller checks the central UUID, never a matching name or demo account.
+ const section=activeSection?.definition?activeSection:null;
+ const query=new URLSearchParams({patient:id,module:section?.definition[2]||'assessment'});
+ query.set('section',section?section.module+':'+section.key:'assessment:biopsychosocial');
+ if(section?.module==='assessment'&&section.key==='biopsychosocial'){
+  const page=new URLSearchParams(location.search).get('bps_page');
+  if(['symptoms','treatment_history','medications','family_origin','medical_substance','developmental_personal','trauma_history'].includes(page))query.set('bps_page',page);
+ }
+ return '/emr/workspace?'+query.toString();
+}
 selectPatient=async function(id){
  if(!boot?.patient_directory.some(patient=>patient.id===id)){directoryMessage('Patient unavailable.',true);return;}
- const query=new URLSearchParams({patient:id,module:'demographics'});
- location.assign('/emr/workspace?'+query.toString());
+ location.assign(selectedPatientWorkspaceUrl(id));
 };
 registryRequest=async function(action,data={}){
  if(action!=='create')throw Error('Record retention changes use clinic administration.');

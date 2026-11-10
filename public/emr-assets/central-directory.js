@@ -124,3 +124,23 @@ initProviderUI=async function(){
   message(error instanceof Error?error.message:'Clinic administrator session could not be verified.',true);
  }
 };
+
+
+// The production clinic owns scheduling, clinician identities and patient links.
+// The prototype's sample appointment/provider views must never masquerade as
+// live clinic data or save synthetic assignments alongside the central chart.
+const clinicOriginalModuleSectionView=moduleSectionView;
+moduleSectionView=function(){
+ const section=activeSection?.module+':'+activeSection?.key;
+ if(section==='administration:weekly_schedule')return '<section class="card"><h2>Weekly Therapist Schedule</h2><p>The clinic appointment scheduler is the source of booked and recurring appointments. No separate fictional calendar is shown or edited here.</p><p><a class="button-link" href="/appointments">Open actual clinic appointments and calendar</a></p></section>';
+ if(section==='administration:assigned_patients')return '<section class="card"><h2>Assigned Patients List</h2><p>Open the protected central patient directory to find existing patient records. This page does not infer clinician assignments from prototype provider accounts.</p><p><a class="button-link" href="/emr/patients">Open central patient directory</a></p></section>';
+ if(section==='personal:assigned_provider')return '<section class="card"><h2>Assigned Provider</h2><p>Clinic provider roles and assignments must be verified through existing administrator access. Fictional provider accounts are disabled; no assignment can be made from a prototype account.</p><p><a class="button-link" href="/emr/patients">Review patient chart in central directory</a></p></section>';
+ return clinicOriginalModuleSectionView();
+};
+const clinicOriginalBindCompletedPanels=bindCompletedPanels;
+bindCompletedPanels=function(){
+ // The prototype binder reads synthetic provider charts and sample appointments.
+ // Real-service link pages have no form or sample-calendar handlers to attach.
+ if(activeSection?.module==='administration'&&['weekly_schedule','assigned_patients'].includes(activeSection.key))return;
+ return clinicOriginalBindCompletedPanels();
+};

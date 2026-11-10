@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { weeklyInsights } from "../app/content/weekly-insights";
 import { featureChapters } from "../app/content/weekly-insight-chapters";
+import { weeklyPracticeGuides } from "../app/content/weekly-practice-guides";
 import { renderInsightEmail } from "../app/content/insight-email";
 import { serviceDetails, specialtyDetails } from "../app/content/clinical-detail";
 
@@ -8,11 +9,13 @@ describe("clinical education library", () => {
   it("contains 52 unique, complete editorial editions", () => {
     expect(weeklyInsights).toHaveLength(52);
     expect(featureChapters).toHaveLength(52);
+    expect(weeklyPracticeGuides).toHaveLength(52);
     expect(new Set(weeklyInsights.map(item => item.slug)).size).toBe(52);
     weeklyInsights.forEach((item,index) => {
       expect(item.week).toBe(index+1);
       expect(item.insight.length).toBeGreaterThan(100);
-      expect(item.practice.length).toBeGreaterThan(35);
+      expect(item.practice.length).toBeGreaterThan(350);
+      expect(item.practice.split(/\s+/).length).toBeGreaterThan(65);
       expect(item.context.length).toBeGreaterThan(300);
       expect(item.clinicalPerspective.length).toBeGreaterThan(300);
       expect((item.summary+item.context+item.insight+item.clinicalPerspective+item.practice).split(/\s+/).length).toBeGreaterThan(145);

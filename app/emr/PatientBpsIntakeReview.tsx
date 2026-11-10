@@ -1,5 +1,5 @@
 'use client';
-import {useEffect,useState,type FormEvent} from 'react';
+import {useEffect,useRef,useState,type FormEvent} from 'react';
 import {bpsNoteDomains,emptyBpsNotes,mapSavedBpsReportedFields,type BpsNotes} from '@/lib/emr/intake-bps';
 type Field={key:string;label:string;type:string;value:string};
 type Section={title:string;domain:string;disposition:'clinical'|'separate-review'|'reference';fields:Field[];answered:number};
@@ -21,24 +21,32 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
  const [data,setData]=useState<ResponseData|null>(null),[error,setError]=useState(''),[status,setStatus]=useState(''),
  [loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[prepared,setPrepared]=useState(false),
  [notes,setNotes]=useState<BpsNotes>(emptyBpsNotes),[reviewed,setReviewed]=useState(false);
+ // A save may finish after the clinician switches patients. Never allow its result
+ // to update a different chart (including A → B → A navigation).
+ const chartScope=useRef({patientId,generation:0});
  async function load(id:string){
   const value=await json(await fetch('/api/emr/bps-intake?patient='+encodeURIComponent(id),{cache:'no-store'}));
   if(value.patientId!==id||!Array.isArray(value.sections)||value.sections.length!==21)throw Error('BPS source did not match the selected chart.');
   return value as ResponseData;
  }
- useEffect(()=>{let active=true;setData(null);setError('');setStatus('');setLoading(true);setPrepared(false);
+ useEffect(()=>{let active=true;
+  if(chartScope.current.patientId!==patientId)chartScope.current={patientId,generation:chartScope.current.generation+1};
+  setData(null);setError('');setStatus('');setLoading(true);setPrepared(false);setSaving(false);
   setReviewed(false);setNotes(emptyBpsNotes());
   load(patientId).then(value=>{if(active)setData(value);}).catch(e=>{if(active)setError(e instanceof Error?e.message:'BPS intake unavailable.');})
    .finally(()=>{if(active)setLoading(false);});
   return ()=>{active=false;};
  },[patientId]);
  async function save(event:FormEvent<HTMLFormElement>){
-  event.preventDefault();if(!data||!reviewed||saving||!prepared)return;
+  event.preventDefault();if(!data||data.patientId!==patientId||!reviewed||saving||!prepared)return;
+  const generation=chartScope.current.generation;
+  const stillOnChart=()=>chartScope.current.patientId===patientId&&chartScope.current.generation===generation;
   setSaving(true);setStatus('');
   try{
    const result=await json(await fetch('/api/emr/bps-intake',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({patientId,sourceVersion:data.source.version,sourceStatus:data.source.status,
      sourceUpdatedAt:data.source.updatedAt,notes,reviewed:true})}));
+   if(!stillOnChart())return;
    if(!result.saved)throw Error('The review was not confirmed.');
    // The database has acknowledged this append-only write. A subsequent read failure
    // must never be described as an unsaved review or invite a duplicate save.
@@ -46,16 +54,17 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
    setStatus('Clinician-reviewed, unsigned BPS intake snapshot saved in the protected chart. Patient statements remain patient-reported; no diagnosis, authorization, or signature was created.');
    try{
     const next=await load(patientId);
-    setData(next);
+    if(stillOnChart())setData(next);
    }catch{
-    setStatus('The clinician-reviewed BPS snapshot WAS saved, but its history could not be reloaded. Reopen this patient chart to check the saved review; do not submit it again.');
+    if(stillOnChart())setStatus('The clinician-reviewed BPS snapshot WAS saved, but its history could not be reloaded. Reopen this patient chart to check the saved review; do not submit it again.');
    }
-  }catch(e){setStatus(e instanceof Error?e.message:'BPS intake save was not confirmed.');}finally{setSaving(false);}
+  }catch(e){if(stillOnChart())setStatus(e instanceof Error?e.message:'BPS intake save was not confirmed.');}
+  finally{if(stillOnChart())setSaving(false);}
  }
  return <article className="centralCard" aria-label="Intake biopsychosocial reconciliation">
   <h2>Biopsychosocial assessment — 21-section intake reconciliation</h2>
   <p>Review the exact linked website patient's patient-reported intake. Clinical history is not an independently verified fact, diagnosis, signed assessment or risk clearance. Legal consent decisions and insurance remain in their own records. Medication, allergy, substance-use and structured trauma entries require their existing dedicated reconciliation modules.</p>
-  {loading?<p role="status">Checking protected BPS intake…</p>:error?<p role="alert">{error}</p>:data&&<>
+  {loading?<p role="status">Checking protected BPS intake…</p>:error?<p role="alert">{error}</p>:data?.patientId===patientId&&<>
    <p>Source: <strong>{data.source.status==='submitted'?'Submitted intake (immutable source)':'Draft intake (may change)'}</strong> · Version {data.source.version} · Last updated {new Date(data.source.updatedAt).toLocaleString()}</p>
    <p>Sections audited: {data.sections.length}/21 · Saved clinician reviews: {data.reviews.length}.</p>
    {data.unmappedKeys.length>0&&<p role="alert">The source contains {data.unmappedKeys.length} additional historical or unrecognized field(s): {data.unmappedKeys.join(', ')}. These are NOT silently transferred. Review the original intake and resolve their mapping.</p>}

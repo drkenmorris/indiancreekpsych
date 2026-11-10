@@ -63,7 +63,7 @@ export default function GroupSessions(){
   <button type="button" onClick={()=>setShowList(!showList)}>{showList?'Hide':'Show'} saved sessions</button>
   {showList&&(!sessions.length?<p>No group sessions have been saved through this central workflow.</p>:<ol>{sessions.map(s=><li key={s.id}><h3>{s.group_name} — {new Date(s.scheduled_start).toLocaleString()}</h3>
   <p>Facilitator(s): {s.facilitators} · {s.duration_minutes} minutes</p><p><strong>Topic:</strong> {s.shared_topic}</p><p>{s.shared_content}</p>
-  <p>Attendance: {s.participants.map(p=>(names.get(p.patient_id)||'Central patient '+p.patient_id.slice(0,8))+': '+p.attendance).join(' · ')}</p>
+  <p>Attendance and individual chart links:</p><ul>{s.participants.map(p=><li key={p.patient_id}><Link href={'/emr/workspace?patient='+encodeURIComponent(p.patient_id)}>{names.get(p.patient_id)||'Central patient '+p.patient_id.slice(0,8)}</Link> — {p.attendance}. Record person-specific clinical notes in this patient's protected chart.</li>)}</ul>
   <small>Saved: {new Date(s.created_at).toLocaleString()} · Immutable group record</small>
   </li>)}</ol>)}
  </article></div>;

@@ -1,0 +1,44 @@
+import React from 'react';
+import {afterEach,expect,test,vi} from 'vitest';
+import {cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
+import GroupSessions from '@/app/emr/groups/GroupSessions';
+afterEach(()=>{cleanup();vi.unstubAllGlobals();});
+test('reviewed group session saves central patient attendance and retains chart links without demo storage',async()=>{
+ const p1='00000000-0000-0000-0000-000000000101',p2='00000000-0000-0000-0000-000000000102';
+ const patients=[{id:p1,demographics:{first_name:'Fictional',last_name:'One'}},{id:p2,demographics:{first_name:'Fictional',last_name:'Two'}}];
+ const session={id:'00000000-0000-0000-0000-000000000201',group_name:'Skills group',facilitators:'Clinician Demo',scheduled_start:'2026-11-09T20:00:00Z',duration_minutes:60,shared_topic:'Skills practice',shared_content:'Shared session only',created_at:'2026-11-09T21:00:00Z',participants:[{patient_id:p1,attendance:'Present'},{patient_id:p2,attendance:'Excused'}]};
+ let stored=false;
+ const calls:Array<{url:string;method:string;body?:any}>=[];
+ vi.stubGlobal('fetch',vi.fn(async (url:string,init?:RequestInit)=>{
+  const method=init?.method??'GET';
+  const payload=init?.body?JSON.parse(String(init.body)):undefined;
+  calls.push({url,method,body:payload});
+  if(url==='/api/emr/patients')return {ok:true,json:async()=>({patients})};
+  if(url==='/api/emr/groups'&&method==='GET')return {ok:true,json:async()=>({sessions:stored?[session]:[]})};
+  if(url==='/api/emr/groups'&&method==='POST'){stored=true;return {ok:true,json:async()=>({saved:true,id:session.id})};}
+  throw Error('Unexpected fetch '+url);
+ }));
+ render(<GroupSessions/>);
+ const save=await screen.findByRole('button',{name:'Save reviewed group session'});
+ await screen.findByText('No group sessions have been saved through this central workflow.');
+ expect((save as HTMLButtonElement).disabled).toBe(true);
+ fireEvent.change(screen.getByLabelText('Group name'),{target:{value:'Skills group'}});
+ fireEvent.change(screen.getByLabelText('Facilitator(s)'),{target:{value:'Clinician Demo'}});
+ fireEvent.change(screen.getByLabelText(/Scheduled start/),{target:{value:'2026-11-09T14:00'}});
+ fireEvent.change(screen.getByLabelText(/Duration in minutes/),{target:{value:'60'}});
+ fireEvent.change(screen.getByLabelText('Shared topic'),{target:{value:'Skills practice'}});
+ fireEvent.change(screen.getByLabelText(/Shared content/),{target:{value:'Shared session only'}});
+ fireEvent.change(screen.getByLabelText('Fictional One'),{target:{value:'Present'}});
+ fireEvent.change(screen.getByLabelText('Fictional Two'),{target:{value:'Excused'}});
+ expect((save as HTMLButtonElement).disabled).toBe(true);
+ expect(calls.filter(x=>x.method==='POST')).toHaveLength(0);
+ fireEvent.click(screen.getByLabelText(/I reviewed the shared note/));
+ fireEvent.click(save);
+ await waitFor(()=>expect(calls.some(x=>x.method==='POST')).toBe(true));
+ const payload=calls.find(x=>x.method==='POST')!.body;
+ expect(payload.participants).toEqual([{patient_id:p1,attendance:'Present'},{patient_id:p2,attendance:'Excused'}]);
+ expect(payload.reviewed).toBe(true);
+ expect(await screen.findByRole('link',{name:'Fictional One'})).toHaveProperty('href',expect.stringContaining('/emr/workspace?patient='+p1));
+ expect(await screen.findByRole('link',{name:'Fictional Two'})).toHaveProperty('href',expect.stringContaining('/emr/workspace?patient='+p2));
+ expect(calls.every(c=>c.url.startsWith('/api/emr/'))).toBe(true);
+});

@@ -21,6 +21,11 @@ for(const [id,role] of [[admin,'admin'],[otherAdmin,'admin'],[patient,'patient']
 }
 for(const id of [patient,otherPatient])await db.query('insert into public.clinical_patients values($1,$2)',[id,{first_name:'Fictional'}]);
 await db.exec(readFileSync('supabase/migrations/20261110061000_emr_individual_progress_notes.sql','utf8'));
+await db.exec(`alter table auth.users add column email_confirmed_at timestamptz;
+ alter table public.profiles add column full_name text;
+ update auth.users set email_confirmed_at=now();
+ update public.profiles set full_name=case when id='00000000-0000-0000-0000-000000000101'::uuid then 'Fictional Clinician' else 'Other Clinician' end;`);
+await db.exec(readFileSync('supabase/migrations/20261110071500_emr_individual_progress_note_attestations.sql','utf8'));
 const q=(sql,args=[])=>db.query(sql,args);
 const as=async(id,aal='aal2')=>{
  await db.exec('reset role');
@@ -90,5 +95,43 @@ await test('amendment denies wrong patient, wrong note, no review, short reason 
  await as(otherAdmin);
  assert.equal((await q('select * from public.emr_individual_progress_note_addenda')).rows.length,0);
  await assert.rejects(q('select public.save_emr_individual_progress_note_addendum($1)',[add]),/unavailable/);
+});
+
+let signatureId;
+await test('MFA note author can attest with profile-matched full name and signed content snapshot',async()=>{
+ await as(admin);
+ const result=await q('select public.attest_emr_individual_progress_note($1) id',[{note_id:noteId,patient_id:patient,typed_name:'Fictional Clinician',attested:true}]);
+ signatureId=result.rows[0].id;assert.ok(signatureId);
+ const sig=(await q('select note_id,owner_id,signer_name,signed_content from public.emr_individual_progress_note_attestations')).rows[0];
+ assert.equal(sig.note_id,noteId);assert.equal(sig.owner_id,admin);
+ assert.equal(sig.signer_name,'Fictional Clinician');
+ assert.equal(sig.signed_content.sections.data,entry.sections.data);
+ assert.equal(sig.signed_content.patient_id,patient);
+});
+await test('attestation is permanent, singular and cannot be overwritten via SQL or duplicate RPC',async()=>{
+ await as(admin);
+ const args={note_id:noteId,patient_id:patient,typed_name:'Fictional Clinician',attested:true};
+ await assert.rejects(q('select public.attest_emr_individual_progress_note($1)',[args]),/already attested/);
+ await assert.rejects(q("update public.emr_individual_progress_note_attestations set signer_name='Forged Clinician'"),/permission denied/);
+ await assert.rejects(q('delete from public.emr_individual_progress_note_attestations'),/permission denied/);
+ await assert.rejects(q('insert into public.emr_individual_progress_note_attestations(note_id) values($1)',[noteId]),/permission denied/);
+ assert.equal((await q('select count(*)::int n from public.emr_individual_progress_note_attestations')).rows[0].n,1);
+});
+await test('wrong profile name, missing review, wrong patient and forged note are rejected',async()=>{
+ await as(admin);
+ const original={note_id:noteId,patient_id:patient,typed_name:'Fictional Clinician',attested:true};
+ for(const bad of [{...original,typed_name:'Forged Clinician'},{...original,attested:false},
+ {...original,patient_id:otherPatient},{...original,note_id:'00000000-0000-0000-0000-000000000999'}]){
+  await assert.rejects(q('select public.attest_emr_individual_progress_note($1)',[bad]));
+ }
+});
+await test('patients and administrators without MFA cannot read or attest',async()=>{
+ const payload={note_id:noteId,patient_id:patient,typed_name:'Fictional Clinician',attested:true};
+ await as(patient);assert.equal((await q('select * from public.emr_individual_progress_note_attestations')).rows.length,0);
+ await assert.rejects(q('select public.attest_emr_individual_progress_note($1)',[payload]),/MFA required/);
+ await as(admin,'aal1');assert.equal((await q('select * from public.emr_individual_progress_note_attestations')).rows.length,0);
+ await assert.rejects(q('select public.attest_emr_individual_progress_note($1)',[payload]),/MFA required/);
+ await as(otherAdmin);assert.equal((await q('select * from public.emr_individual_progress_note_attestations')).rows.length,0);
+ await assert.rejects(q('select public.attest_emr_individual_progress_note($1)',[payload]));
 });
 await db.close();

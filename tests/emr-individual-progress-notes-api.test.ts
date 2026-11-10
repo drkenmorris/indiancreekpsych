@@ -59,14 +59,17 @@ test('reads verify central patient and bind both notes and addenda to exact char
  const patient={select:()=>patient,eq:vi.fn(()=>patient),maybeSingle:async()=>({data:{id:p},error:null})};
  const notes={select:()=>notes,eq:vi.fn(()=>notes),order:()=>notes,limit:async()=>({data:[{id:n,patient_id:p}],error:null})};
  const addenda={select:()=>addenda,in:vi.fn(()=>addenda),order:()=>addenda,limit:async()=>({data:[{id:other,note_id:n}],error:null})};
+ const attestations={select:()=>attestations,in:vi.fn(()=>attestations),order:()=>attestations,limit:async()=>({data:[{id:'00000000-0000-0000-0000-000000000301',note_id:n,signer_name:'Fictional Clinician',signed_at:'2026-11-09T22:00:00Z'}],error:null})};
  mocks.from.mockImplementation((table:string)=>table==='clinical_patients'?patient:
-  table==='emr_individual_progress_notes'?notes:addenda);
+  table==='emr_individual_progress_notes'?notes:table==='emr_individual_progress_note_addenda'?addenda:attestations);
  const response=await GET(new Request('https://www.indiancreekpsych.com/api/emr/progress-notes?patient='+p));
  expect(response.status).toBe(200);
- expect(await response.json()).toEqual({patientId:p,notes:[{id:n,patient_id:p}],addenda:[{id:other,note_id:n}]});
+ expect(await response.json()).toEqual({patientId:p,notes:[{id:n,patient_id:p}],addenda:[{id:other,note_id:n}],
+  attestations:[{id:'00000000-0000-0000-0000-000000000301',note_id:n,signer_name:'Fictional Clinician',signed_at:'2026-11-09T22:00:00Z'}]});
  expect(patient.eq).toHaveBeenCalledWith('id',p);
  expect(notes.eq).toHaveBeenCalledWith('patient_id',p);
  expect(addenda.in).toHaveBeenCalledWith('note_id',[n]);
+ expect(attestations.in).toHaveBeenCalledWith('note_id',[n]);
 });
 test('missing central patient fails closed before querying clinical note tables',async()=>{
  const patient={select:()=>patient,eq:()=>patient,maybeSingle:async()=>({data:null,error:null})};

@@ -14,7 +14,7 @@ test('reviewed individual patient note saves only after explicit review, with un
  vi.stubGlobal('fetch',vi.fn(async(url:string,init?:RequestInit)=>{
   const method=init?.method??'GET';const body=init?.body?JSON.parse(String(init.body)):undefined;
   calls.push({url,method,body});
-  if(method==='GET')return {ok:true,json:async()=>({patientId:p,notes:saved?[savedNote]:[],addenda:[]})};
+  if(method==='GET')return {ok:true,json:async()=>({patientId:p,notes:saved?[savedNote]:[],addenda:[],attestations:[]})};
   if(method==='POST'){saved=true;return {ok:true,json:async()=>({id:n,saved:true,unsigned:true,kind:'note'})};}
   throw Error('Unexpected request');
  }));
@@ -38,7 +38,7 @@ test('reviewed individual patient note saves only after explicit review, with un
  expect(screen.getByText(/Individual therapy — DAP — unsigned/)).toBeTruthy();
 });
 test('mismatched patient notes are not rendered or editable',async()=>{
- vi.stubGlobal('fetch',vi.fn(async()=>({ok:true,json:async()=>({patientId:p,notes:[{...savedNote,patient_id:wrong}],addenda:[]})})));
+ vi.stubGlobal('fetch',vi.fn(async()=>({ok:true,json:async()=>({patientId:p,notes:[{...savedNote,patient_id:wrong}],addenda:[],attestations:[]})})));
  render(<PatientProgressNotes patientId={p}/>);
  expect(await screen.findByRole('alert')).toHaveProperty('textContent',expect.stringContaining('Patient mismatch'));
  expect(screen.queryByRole('button',{name:'Save unsigned individual note'})).toBeNull();
@@ -49,7 +49,7 @@ test('clinician-reviewed addendum saves against existing note without editing it
  vi.stubGlobal('fetch',vi.fn(async(_url:string,init?:RequestInit)=>{
   const method=init?.method??'GET',body=init?.body?JSON.parse(String(init.body)):undefined;
   calls.push({method,body});
-  if(method==='GET')return {ok:true,json:async()=>({patientId:p,notes:[savedNote],addenda:amended?[{id:a,note_id:n,reason:'Clarification needed',amendment:'New reviewed details.',created_at:'2026-11-09T22:00:00Z'}]:[]})};
+  if(method==='GET')return {ok:true,json:async()=>({patientId:p,notes:[savedNote],attestations:[],addenda:amended?[{id:a,note_id:n,reason:'Clarification needed',amendment:'New reviewed details.',created_at:'2026-11-09T22:00:00Z'}]:[]})};
   if(method==='POST'){amended=true;return {ok:true,json:async()=>({id:a,saved:true,unsigned:true,kind:'addendum'})};}
   throw Error('Unexpected request');
  }));

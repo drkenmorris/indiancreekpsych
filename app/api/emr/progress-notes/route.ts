@@ -56,12 +56,19 @@ export async function GET(request:Request){
   .eq('patient_id',patientId).order('encounter_at',{ascending:false}).limit(100);
  if(error)return reply({error:'Individual progress notes unavailable.'},503);
  const ids=(notes??[]).map((note:{id:string})=>note.id);
- if(!ids.length)return reply({patientId,notes:[],addenda:[]});
- const {data:addenda,error:addendaError}=await ctx.supabase.from('emr_individual_progress_note_addenda')
-  .select('id,note_id,reason,amendment,created_at')
-  .in('note_id',ids).order('created_at',{ascending:true}).limit(500);
- if(addendaError)return reply({error:'Progress-note addenda unavailable.'},503);
- return reply({patientId,notes:notes??[],addenda:addenda??[]});
+ if(!ids.length)return reply({patientId,notes:[],addenda:[],attestations:[]});
+ const [addendaResult,attestationResult]=await Promise.all([
+  ctx.supabase.from('emr_individual_progress_note_addenda')
+   .select('id,note_id,reason,amendment,created_at')
+   .in('note_id',ids).order('created_at',{ascending:true}).limit(500),
+  ctx.supabase.from('emr_individual_progress_note_attestations')
+   .select('id,note_id,signer_name,signed_at')
+   .in('note_id',ids).order('signed_at',{ascending:true}).limit(100),
+ ]);
+ if(addendaResult.error||attestationResult.error)
+  return reply({error:'Progress-note history or attestation records unavailable.'},503);
+ return reply({patientId,notes:notes??[],addenda:addendaResult.data??[],
+  attestations:attestationResult.data??[]});
 }
 export async function POST(request:Request){
  const ctx=await emrAccess();

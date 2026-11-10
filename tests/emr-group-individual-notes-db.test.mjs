@@ -58,7 +58,7 @@ await test('absent patient, wrong session, incomplete note and unreviewed conten
 await test('other administrators, patients and MFA-less clinicians cannot see or write protected individual notes',async()=>{
  await as(secondAdmin);
  assert.equal((await q('select * from public.emr_group_individual_notes')).rows.length,0);
- await assert.rejects(q('select public.save_emr_group_individual_note($1)',[note]),/MFA required/);
+ await assert.rejects(q('select public.save_emr_group_individual_note($1)',[note]),/Group session unavailable/);
  await as(p1);assert.equal((await q('select * from public.emr_group_individual_notes')).rows.length,0);
  await as(admin,'aal1');assert.equal((await q('select * from public.emr_group_individual_notes')).rows.length,0);
  await assert.rejects(q('select public.save_emr_group_individual_note($1)',[note]),/MFA required/);

@@ -24,11 +24,17 @@ export async function GET(request:Request){
   if('code' in source)return reply({error:source.error},source.code);
   const report=mapIntakeToBps(source.intake.answers as Record<string,string>);
   const {data:reviews,error}=await ctx.supabase.from('emr_bps_intake_reviews')
-   .select('id,source_version,source_status,source_updated_at,clinical_answers,clinician_notes,created_at')
-   .eq('patient_id',id).order('created_at',{ascending:false}).limit(20);
+   .select('id,patient_id,source_account_id,source_version,source_status,source_updated_at,clinical_answers,clinician_notes,created_at')
+   .eq('patient_id',id).eq('source_account_id',source.patient.account_id)
+   .order('created_at',{ascending:false}).limit(20);
   if(error)return reply({error:'BPS review history unavailable; nonproduction migration may not yet be applied.'},503);
+  // A central chart may be relinked to another website account. Never display historical
+  // snapshots from the former account under the newly linked patient's clinical source.
+  if((reviews??[]).some(review=>review.patient_id!==id||review.source_account_id!==source.patient.account_id))
+   return reply({error:'BPS review provenance does not match the current linked patient account.'},409);
+  const safeReviews=(reviews??[]).map(({patient_id:_patient,source_account_id:_account,...review})=>review);
   return reply({patientId:id,linked:true,source:{status:source.intake.status,version:source.intake.version,
-    updatedAt:source.intake.updated_at},...report,reviews:reviews??[]});
+    updatedAt:source.intake.updated_at},...report,reviews:safeReviews});
  }catch(e){return reply({error:e instanceof Error?e.message:'Protected intake unavailable.'},503);}
 }
 export async function POST(request:Request){

@@ -9,16 +9,17 @@ const submit=(details:Record<string,unknown>)=>new Request('https://www.indiancr
  body:JSON.stringify(details)});
 const payload={patientId:patient,sourceVersion:2,sourceStatus:'submitted',sourceUpdatedAt:stamp,reviewed:true,notes:{presenting:'Reported changes'}};
 let linked:string|null;
+let reviewRows:Record<string,unknown>[];
 let version:number;
 let data:Record<string,string>;
 beforeEach(()=>{
- vi.clearAllMocks();linked=account;version=2;
+ vi.clearAllMocks();linked=account;version=2;reviewRows=[];
  data={counseling_reason:'Reports sadness',suicidal_thoughts_current:'Yes',roi_authorize:'Yes',medication_entries:'structured original'};
  m.sameOrigin.mockReturnValue(true);m.rpc.mockResolvedValue({data:'00000000-0000-0000-0000-000000000500',error:null});
  m.from.mockImplementation((table:string)=>{
   if(table==='clinical_patients'){const q={select:()=>q,eq:vi.fn(()=>q),maybeSingle:async()=>({data:{id:patient,account_id:linked},error:null})};return q;}
   if(table==='patient_intakes'){const q={select:()=>q,eq:vi.fn(()=>q),maybeSingle:async()=>({data:{answers:data,status:'submitted',version,updated_at:stamp},error:null})};return q;}
-  if(table==='emr_bps_intake_reviews'){const q={select:()=>q,eq:vi.fn(()=>q),order:()=>q,limit:async()=>({data:[],error:null})};return q;}
+  if(table==='emr_bps_intake_reviews'){const q={select:()=>q,eq:vi.fn(()=>q),order:()=>q,limit:async()=>({data:reviewRows,error:null})};return q;}
   throw Error('Unexpected '+table);
  });
  m.access.mockResolvedValue({supabase:{from:m.from,rpc:m.rpc}});
@@ -63,4 +64,24 @@ test('stale source and duplicate snapshots fail closed at the database validatio
   m.rpc.mockResolvedValueOnce({data:null,error:{code}});
   expect((await POST(submit(payload))).status).toBe(status);
  }
+});
+
+test('saved BPS history cannot follow a relinked patient account or cross into another chart',async()=>{
+ reviewRows=[{id:'00000000-0000-0000-0000-000000000600',patient_id:patient,source_account_id:account,
+   source_version:2,source_status:'submitted',source_updated_at:stamp,created_at:stamp,
+   clinical_answers:{counseling_reason:'Patient-reported history'},clinician_notes:{presenting:'Reviewed'}}];
+ const response=await GET(request());expect(response.status).toBe(200);
+ const body=await response.json();expect(body.reviews).toHaveLength(1);
+ expect(body.reviews[0].clinical_answers.counseling_reason).toBe('Patient-reported history');
+ expect(body.reviews[0]).not.toHaveProperty('source_account_id');
+ expect(body.reviews[0]).not.toHaveProperty('patient_id');
+ const reviewQuery=m.from.mock.results.find((r:any)=>r.value?.limit)?.value;
+ expect(reviewQuery?.eq).toHaveBeenCalledWith('patient_id',patient);
+ expect(reviewQuery?.eq).toHaveBeenCalledWith('source_account_id',account);
+ // Fail closed even if a downstream database response violates the intended scope.
+ reviewRows=[{...reviewRows[0],source_account_id:'00000000-0000-0000-0000-000000000999'}];
+ const blocked=await GET(request());expect(blocked.status).toBe(409);
+ expect(JSON.stringify(await blocked.json())).not.toContain('Patient-reported history');
+ reviewRows=[{...reviewRows[0],source_account_id:account,patient_id:'00000000-0000-0000-0000-000000000998'}];
+ expect((await GET(request())).status).toBe(409);
 });

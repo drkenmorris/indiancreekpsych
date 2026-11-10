@@ -53,3 +53,16 @@ export function mapIntakeToBps(answers:Record<string,string>){
  const unmappedKeys=Object.keys(answers).filter(key=>!mapped.has(key)&&typeof answers[key]==='string'&&answers[key].trim());
  return {sections,unmappedKeys};
 }
+
+/** Read back only explicitly clinical, patient-reported fields stored in a BPS snapshot.
+ * Legal authorizations, insurance and separately reviewed medication data are never
+ * presented as BPS clinical findings, including for historical database snapshots.
+ */
+export function mapSavedBpsReportedFields(answers:Record<string,string>){
+ const mapped=mapIntakeToBps(answers);
+ return {
+  sections:mapped.sections.filter(section=>section.disposition==='clinical'&&section.answered>0)
+   .map(section=>({...section,fields:section.fields.filter(field=>field.value.trim())})),
+  unmappedKeys:mapped.unmappedKeys
+ };
+}

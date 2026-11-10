@@ -48,3 +48,30 @@ test('original central chart exposes matching destinations even when patient rep
  expect(source).toContain('No linked patient-reported medication allergy entries are available');
  expect(source).toContain('No linked structured trauma checklist is available');
 });
+
+test('reopening an immutable BPS review shows stored patient reports separately from unsigned clinician notes, without a new save',async()=>{
+ const patient='00000000-0000-0000-0000-000000000602';
+ const sections=Array.from({length:21},(_,i)=>({title:'Section '+i,domain:'History',disposition:'clinical',fields:[],answered:0}));
+ const calls:string[]=[];
+ vi.stubGlobal('fetch',vi.fn(async(url:string)=>{calls.push(url);return {ok:true,json:async()=>({
+  patientId:patient,source:{status:'draft',version:5,updatedAt:'2026-11-10T12:00:00Z'},
+  sections,unmappedKeys:[],reviews:[{id:'00000000-0000-0000-0000-000000000610',
+   source_version:4,source_status:'submitted',source_updated_at:'2026-11-10T10:00:00Z',
+   created_at:'2026-11-10T10:05:00Z',
+   clinical_answers:{counseling_reason:'Historical patient report',suicidal_thoughts_current:'Yes',
+    roi_authorize:'Sensitive legal authorization',medication_entries:'Medication stored separately'},
+   clinician_notes:{presenting:'Clinician noted need for follow-up',safety:'Independent risk assessment pending'}}]
+ })};}));
+ const {container}=render(<PatientBpsIntakeReview patientId={patient}/>);
+ await screen.findByText(/Previously saved immutable clinician reviews/);
+ expect(container.textContent).toContain('source v4 (submitted)');
+ expect(container.textContent).toContain('Historical patient report');
+ expect(container.textContent).toContain('Clinician noted need for follow-up');
+ expect(container.textContent).toContain('Independent risk assessment pending');
+ expect(container.textContent).toContain('patient reported');
+ expect(container.textContent).not.toContain('Sensitive legal authorization');
+ expect(container.textContent).not.toContain('Medication stored separately');
+ expect(container.textContent).toContain('not a new import, verified clinical finding');
+ expect(container.querySelector('form')).toBeNull();
+ expect(calls).toEqual(['/api/emr/bps-intake?patient='+patient]);
+});

@@ -1,6 +1,6 @@
 import {expect,test} from 'vitest';
 import {intakeSections,intakeSectionsForVersion} from '@/lib/patient/intake';
-import {bpsNoteDomains,bpsSectionClassification,mapIntakeToBps} from '@/lib/emr/intake-bps';
+import {bpsNoteDomains,bpsSectionClassification,mapIntakeToBps,mapSavedBpsReportedFields} from '@/lib/emr/intake-bps';
 test('all 21 current and historical sections receive deliberate BPS dispositions',()=>{
  for(const sections of [intakeSections,intakeSectionsForVersion('legacy')]){
   expect(sections).toHaveLength(21);
@@ -26,4 +26,20 @@ test('separate review for medications and medical/substance use prevents silent 
   expect(report.sections.find(s=>s.title===title)?.disposition).toBe('separate-review');
  }
  expect(Object.keys(bpsNoteDomains)).toEqual(['presenting','treatment','medical','safety','family','goals','limitations']);
+});
+
+test('saved BPS read-back groups only permitted patient-reported clinical history, not legal or separately reviewed records',()=>{
+ const saved=mapSavedBpsReportedFields({
+  counseling_reason:'Reported low mood',suicidal_thoughts_current:'Yes',
+  protective_factors:'Family support',medication_entries:'Do not expose a medication record',
+  roi_authorize:'Yes',insurance_member:'Private insurance ID',unapproved_history:'Unclassified'
+ });
+ expect(saved.sections.find(s=>s.title==='Presenting concerns and functional impact')?.fields[0]?.value).toBe('Reported low mood');
+ expect(saved.sections.find(s=>s.title==='Safety and risk screening')?.fields.map(f=>f.key)).toEqual(['suicidal_thoughts_current','protective_factors']);
+ expect(saved.sections.every(s=>s.disposition==='clinical')).toBe(true);
+ const readBack=JSON.stringify(saved.sections);
+ expect(readBack).not.toContain('Do not expose a medication record');
+ expect(readBack).not.toContain('Private insurance ID');
+ expect(readBack).not.toContain('roi_authorize');
+ expect(saved.unmappedKeys).toContain('unapproved_history');
 });

@@ -1,6 +1,6 @@
 'use client';
 import {useEffect,useState,type FormEvent} from 'react';
-import {bpsNoteDomains,emptyBpsNotes,type BpsNotes} from '@/lib/emr/intake-bps';
+import {bpsNoteDomains,emptyBpsNotes,mapSavedBpsReportedFields,type BpsNotes} from '@/lib/emr/intake-bps';
 type Field={key:string;label:string;type:string;value:string};
 type Section={title:string;domain:string;disposition:'clinical'|'separate-review'|'reference';fields:Field[];answered:number};
 type Review={id:string;source_version:number;source_status:string;source_updated_at:string;created_at:string;clinical_answers:Record<string,string>;clinician_notes:BpsNotes};
@@ -64,10 +64,23 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
      </div>)}</dl>{section.answered===0&&<p>No response recorded. Blank is not equivalent to a negative clinical finding.</p>}
    </details>)}
    {data.reviews.length>0&&<details><summary>Previously saved immutable clinician reviews ({data.reviews.length})</summary>
-    {data.reviews.map(review=><section key={review.id}><h3>{new Date(review.created_at).toLocaleString()} — source v{review.source_version} ({review.source_status})</h3>
-     <p>Original patient-reported fields preserved as a clinical history snapshot. No automatic diagnosis or signature.</p>
-     <dl>{Object.entries(review.clinician_notes).filter(([,value])=>value).map(([key,value])=><div key={key}><dt>{bpsNoteDomains[key as keyof BpsNotes]||key}</dt><dd>{value}</dd></div>)}</dl>
-    </section>)}
+    {data.reviews.map(review=>{
+     const frozen=mapSavedBpsReportedFields(review.clinical_answers??{});
+     const count=frozen.sections.reduce((sum,section)=>sum+section.fields.length,0);
+     return <section key={review.id}>
+      <h3>{new Date(review.created_at).toLocaleString()} — source v{review.source_version} ({review.source_status})</h3>
+      <p>Linked intake source last updated {new Date(review.source_updated_at).toLocaleString()}. This is an immutable historical snapshot of patient-reported information, not a new import, verified clinical finding, diagnosis or signature.</p>
+      <details><summary>View saved patient-reported BPS history ({count} clinical fields)</summary>
+       {count===0&&<p>No eligible patient-reported clinical history fields were saved in this review. Blank is not a negative clinical finding.</p>}
+       {frozen.sections.map(section=><div key={section.title}><h4>{section.domain}</h4>
+        <dl>{section.fields.map(field=><div key={field.key}><dt>{field.label} (patient reported)</dt><dd style={{whiteSpace:'pre-wrap'}}>{field.value}</dd></div>)}</dl>
+       </div>)}
+       {frozen.unmappedKeys.length>0&&<p role="alert">This stored snapshot has {frozen.unmappedKeys.length} unrecognized field(s), intentionally excluded from the BPS view. Review the source mapping before clinical use.</p>}
+      </details>
+      <h4>Separate clinician contextual notes — unsigned</h4>
+      <dl>{Object.entries(review.clinician_notes).filter(([,value])=>value).map(([key,value])=><div key={key}><dt>{bpsNoteDomains[key as keyof BpsNotes]||key}</dt><dd style={{whiteSpace:'pre-wrap'}}>{value}</dd></div>)}</dl>
+     </section>;
+    })}
    </details>}
    {!prepared?<button type="button" disabled={saving} onClick={()=>{setPrepared(true);setReviewed(false);setNotes(emptyBpsNotes());setStatus('');}}>Prepare clinician-reviewed BPS intake draft</button>:
     <form onSubmit={save} autoComplete="off">

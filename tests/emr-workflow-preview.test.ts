@@ -1,0 +1,10 @@
+import {afterEach,beforeEach,expect,test,vi} from 'vitest';
+import {POST} from '@/app/api/emr/workflow/route';
+const m=vi.hoisted(()=>({access:vi.fn(),origin:vi.fn()}));
+vi.mock('@/lib/emr/access',()=>({emrAccess:m.access,sameOrigin:m.origin,privateHeaders:{'Cache-Control':'private, no-store'}}));
+beforeEach(()=>{m.access.mockResolvedValue({supabase:{auth:{getSession:async()=>({data:{session:{access_token:'fictional-token'}}})}}});m.origin.mockReturnValue(true);vi.stubGlobal('fetch',vi.fn(async()=>Response.json({revision:0,value:{}})));vi.stubEnv('VERCEL_URL','validated-preview.vercel.app');});
+afterEach(()=>{vi.unstubAllEnvs();vi.unstubAllGlobals();vi.clearAllMocks();});
+const request=()=>new Request('https://validated-preview.vercel.app/api/emr/workflow',{method:'POST',headers:{Cookie:'sb-session=private; _vercel_jwt=fictional-preview-access; unrelated=private'},body:'{}'});
+test('preview internal hop preserves only scoped preview access and fixed destination',async()=>{vi.stubEnv('VERCEL_ENV','preview');expect((await POST(request())).status).toBe(200);const [url,init]=vi.mocked(fetch).mock.calls[0];expect(String(url)).toBe('https://validated-preview.vercel.app/api/emr_engine');expect(init?.headers).toEqual({'Content-Type':'application/json',Authorization:'Bearer fictional-token',Cookie:'_vercel_jwt=fictional-preview-access'});});
+test('production never forwards preview or application cookies',async()=>{vi.stubEnv('VERCEL_ENV','production');await POST(request());const [url,init]=vi.mocked(fetch).mock.calls[0];expect(String(url)).toBe('https://www.indiancreekpsych.com/api/emr_engine');expect(init?.headers).not.toHaveProperty('Cookie');});
+test('unauthorized request cannot reach internal engine',async()=>{m.access.mockResolvedValue(null);expect((await POST(request())).status).toBe(403);expect(fetch).not.toHaveBeenCalled();});

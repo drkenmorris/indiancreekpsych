@@ -39,7 +39,17 @@ def central_patient(row,records=()):
  first=d.get('first_name') or full.split(' ')[0] or 'Patient';last=d.get('last_name') or (' '.join(full.split(' ')[1:])) or 'Demographics pending';dob=d.get('dob','')
  return dict(d,id=row['id'],first_name=first,last_name=last,name=first+' '+last,dob=dob,assigned_id=first[0].upper()+last[0].upper()+dob[5:7]+dob[8:10]+dob[:4] if dob else 'DOB pending',status='active' if d.get('active',True) else 'archived',concern=d.get('concern','Not yet documented'),medications='See medication history',allergies='See medication allergy record',synthetic=False)
 def process(payload,repo):
- pid=payload.get('patientId');uuid.UUID(pid)
+ pid=payload.get('patientId')
+ if pid in (None,''):
+  if payload.get('method','GET')!='GET' or payload.get('path')!='/api/blank-workspace' or payload.get('body'):
+   raise ValueError('Select a patient before saving clinical records.')
+  with tempfile.TemporaryDirectory(prefix='empty-emr-') as temp:
+   store=Store(Path(temp)/'workspace.sqlite3')
+   metadata=dict(store.bootstrap(),patients=[],patient_directory=[],practice='Indian Creek Psychological Services',csrf='clinic-session',mode='No patient selected')
+  patient={key:'' for key in ('id','first_name','last_name','middle_name','name','dob','assigned_id','concern','medications','allergies')}
+  patient.update(status='active',synthetic=False)
+  return {'value':{'boot':metadata,'chart':{'patient':patient,'records':[]},'groups':{'group':{'id':'','name':'','roster':[]},'sessions':[]}},'revision':0}
+ uuid.UUID(pid)
  rows=repo.rest('clinical_patients?select=id,demographics,revision,profiles!clinical_patients_account_id_fkey(full_name)&id=eq.'+pid)
  if not rows:raise PermissionError('Patient record unavailable.')
  person=rows[0]

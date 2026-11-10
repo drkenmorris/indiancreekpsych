@@ -16,6 +16,16 @@ class Repo:
 class WorkflowTests(unittest.TestCase):
  def setUp(self):self.repo=Repo()
  def run_action(self,path,body=None,revision=0,pid=None):return m.process({'patientId':pid or self.repo.pid,'path':path,'method':'POST' if body else 'GET','body':body,'expectedRevision':revision},self.repo)
+ def test_blank_workspace_returns_only_empty_forms_and_static_definitions(self):
+  result=m.process({'path':'/api/blank-workspace','method':'GET','patientId':''},self.repo)['value']
+  self.assertEqual(result['boot']['patients'],[]);self.assertEqual(result['boot']['patient_directory'],[])
+  self.assertEqual(result['chart']['patient']['id'],'');self.assertEqual(result['chart']['patient']['name'],'')
+  self.assertEqual(result['chart']['records'],[]);self.assertIn('biopsychosocial_symptoms',result['boot'])
+  self.assertEqual(self.repo.saved,[])
+ def test_no_patient_can_never_save_or_read_another_chart(self):
+  for request in [{'path':'/api/save','method':'POST','body':{'action':'insurance'}},{'path':'/api/chart?patient='+self.repo.pid,'method':'GET'}]:
+   with self.assertRaises(ValueError):m.process(dict(request,patientId=''),self.repo)
+  self.assertEqual(self.repo.saved,[])
  def test_bootstrap_has_only_central_patient_no_demo_seed(self):
   b=self.run_action('/api/bootstrap')['value'];self.assertEqual([p['id'] for p in b['patients']],[self.repo.pid]);self.assertEqual(b['practice'],'Indian Creek Psychological Services')
  def test_insurance_and_medications_survive_reopen_in_same_patient(self):

@@ -94,7 +94,7 @@
   display:block;
   width:100%;
   height:100%;
-  object-fit:cover;
+  object-fit:contain;
   object-position:center;
 }
 .scrollingCatalogCardBody{
@@ -251,7 +251,7 @@
   min-height:330px;
 }
 :is(.specialtiesImmersiveMain,.servicesImmersiveMain) .scrollingCatalogImage{
-  height:166px;
+  height:198px;
 }
 :is(.specialtiesImmersiveMain,.servicesImmersiveMain) .scrollingCatalogCardBody{
   padding:15px 20px 18px;
@@ -313,5 +313,5 @@
     width:254px;
     min-height:322px;
   }
-  :is(.specialtiesImmersiveMain,.servicesImmersiveMain) .scrollingCatalogImage{height:151px}
+  :is(.specialtiesImmersiveMain,.servicesImmersiveMain) .scrollingCatalogImage{height:166px}
 }

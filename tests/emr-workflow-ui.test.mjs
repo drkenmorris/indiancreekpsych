@@ -30,6 +30,24 @@ await test('actual hosted forms and global navigation render against central pat
  assert.equal(w.document.querySelector('#module-section-form'),null,'no provider assignment can be saved against a fictitious identity');
 
 
+
+ // A real selected chart must never auto-populate clinical assessment or plan fields
+ // with example histories, a made-up diagnosis, review date or fabricated outcome.
+ fixture.chart.records.push({id:'fictional-checkin-for-form-test',kind:'response',created:'2026-11-10T00:00:00.000Z'});
+ runInContext("chooseSection('assessment','summary');render();",dom.getInternalVMContext());
+ for(const name of Object.keys(fixture.boot.assessment_fields).concat(['pathway_name','pathway_rationale'])){
+  const input=w.document.querySelector('#content [name="'+name+'"]');
+  assert.ok(input,'original assessment field '+name+' should render');
+  assert.equal(input.value,'',name+' must not contain prewritten synthetic clinical facts');
+ }
+ fixture.chart.records.push({id:'fictional-assessment-for-form-test',kind:'assessment',created:'2026-11-10T00:00:01.000Z',problems:[]});
+ runInContext("chooseSection('plan','problems');render();",dom.getInternalVMContext());
+ for(const name of ['diagnosis','treatment_approaches','response_to_treatment','homework','review_date']){
+  const input=w.document.querySelector('#content [name="'+name+'"]');
+  assert.ok(input,'original treatment-plan field '+name+' should render');
+  assert.equal(input.value,'',name+' must require explicit clinical entry, not a synthetic default');
+ }
+ fixture.chart.records.splice(-2,2);
  for(const [module,key,text] of [['personal','insurance','Insurance information'],['assessment','biopsychosocial','Current Symptom Checklist'],['notes','record_history','Record history']]){runInContext(`chooseSection(${JSON.stringify(module)},${JSON.stringify(key)});render();`,dom.getInternalVMContext());await new Promise(r=>setTimeout(r,20));assert.match(w.document.querySelector('#content').textContent,new RegExp(text,'i'));}
  assert.equal(w.document.querySelectorAll('[aria-label="Linked 21-section intake biopsychosocial review"]').length,0,'no extra panel added to the original BPS layout');
  await runInContext('refreshRegistry()',dom.getInternalVMContext());

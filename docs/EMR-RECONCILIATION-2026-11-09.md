@@ -64,3 +64,16 @@ The production clinic intake already captures structured current/past medication
 - No change to production `main`, Vercel production deployment, existing patient records or live data was made by this branch.
 
 **Release gate:** rebase against the latest `main`; run all EMR workflow, intake, auth, MFA, RLS, database, UI and build checks; conduct authenticated fictional-record browser tests in a nonproduction deployment; validate changed modules and obtain a rollback path before production promotion.
+
+
+## Third selectively integrated workflow: central group sessions and attendance (CI verified)
+
+The legacy production `public/emr-assets/production.js` deliberately suppressed its synthetic group screen, although the bundled `emr_engine/modules/groups.py` existed as a fixed fictional roster. The separate prototype shows a shared-session and individual-note flow, but its demonstration SQLite/browser data is not acceptable as live clinical storage. A central replacement has now been committed on the protected integration branch:
+
+- `/emr/groups` is a server-gated administrative page. The existing EMR link and legacy "Groups" menu now direct to it, without altering appointments or the administrator's identity.
+- `/api/emr/groups` requires the current administrator session, MFA and same-origin POST; it accepts only a reviewed shared session with 2–30 **distinct central UUID patients** and each selected patient's Present/Absent/Excused attendance.
+- New migration `20261109190000_emr_group_sessions.sql` stores an immutable shared session plus patient-bound participation records with owner-scoped read RLS. Only a strict `security definer` RPC can perform a single atomic insert; it rechecks administrator authorization and MFA.
+- Group notes intentionally contain **shared topic and content only**. Clinician-authored participant-specific notes must stay in their individual patient workspaces. The system does **not** claim completed group billing, clinician signatures, individual note migration or group scheduling.
+- Added DB/RLS regression and API validation tests, included in the existing test:intake pipeline.
+- CI [run 42726275969](https://github.com/drkenmorris/indiancreekpsych/actions/runs/42726275969) on code commit `90a4ca8d9d8373f0651773dc48dfafb6cfd74b9d` **passed**: TypeScript, 130 Node tests, 259 Vitest tests across 54 files, full Next.js build, and 2 standalone kiosk tests. The full engine Python suite also completed as part of test:intake. These are test results, **not** a production-use or browser acceptance sign-off.
+- **Outstanding before any production merge**: apply migration in nonproduction, validate authorized browser workflow and real patient-record access under clinic roles, cross-reference individual group notes and billing, and repeat scheduler/admin regression. Production remains unchanged.

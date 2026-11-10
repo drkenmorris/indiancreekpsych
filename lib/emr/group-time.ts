@@ -1,30 +1,29 @@
-/** Convert an explicitly entered clinic-local wall time to UTC.
- * A browser's timezone must never silently change the intended America/Chicago time.
- * Reject nonexistent spring-forward times and ambiguous fall-back times rather than guessing.
+/** Converts practice-local date/time to an unambiguous instant.
+ * The practice timezone comes from protected appointment_settings, not the browser.
+ * DST gaps and duplicate times fail closed to protect immutable clinical records.
  */
-const CLINIC_ZONE = 'America/Chicago';
-const localFormat = new Intl.DateTimeFormat('en-US', {
-  timeZone: CLINIC_ZONE,
-  year: 'numeric', month: '2-digit', day: '2-digit',
-  hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
-});
-export function groupSessionStartUtc(local: string): string {
-  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(local);
-  if (!match) throw Error('Choose a valid clinic-local date and time.');
-  const [,ys,ms,ds,hs,mins] = match;
-  const [year,month,day,hour,minute] = [ys,ms,ds,hs,mins].map(Number);
-  const nominal = Date.UTC(year,month-1,day,hour,minute);
-  if (year < 2000 || year > 2100 || !Number.isFinite(nominal) ||
-      new Date(nominal).toISOString().slice(0,16) !== local)
+export function groupSessionStartUtc(local:string, timeZone:string):string {
+  const match=/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(local);
+  if(!match)throw Error('Choose a valid clinic-local date and time.');
+  const [year,month,day,hour,minute]=match.slice(1).map(Number);
+  const nominal=Date.UTC(year,month-1,day,hour,minute);
+  if(year<2000||year>2100||new Date(nominal).toISOString().slice(0,16)!==local)
     throw Error('Choose a valid clinic-local date and time.');
-  const expected = [year,month,day,hour,minute];
-  const matches = [5,6].map(offsetHours => new Date(nominal + offsetHours*3600000))
-    .filter(date => {
-      const values = Object.fromEntries(localFormat.formatToParts(date).map(p => [p.type, p.value]));
-      return ['year','month','day','hour','minute'].every((key,i) => Number(values[key]) === expected[i]);
-    });
-  if (matches.length !== 1)
-    throw Error(matches.length ? 'This local time occurs twice during the daylight-saving change. Choose another time.' :
-      'This local time does not exist during the daylight-saving change. Choose another time.');
-  return matches[0].toISOString();
+  let fmt:Intl.DateTimeFormat;
+  try {
+    fmt=new Intl.DateTimeFormat('en-US',{timeZone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
+  }catch{throw Error('The clinic timezone is invalid. Review scheduling settings.');}
+  const fields=(value:number)=>Object.fromEntries(fmt.formatToParts(new Date(value)).map(p=>[p.type,p.value]));
+  const offsets=new Set<number>();
+  for(const shift of [-36,-12,0,12,36]){
+    const sample=nominal+shift*3600000,p=fields(sample);
+    offsets.add(Date.UTC(Number(p.year),Number(p.month)-1,Number(p.day),Number(p.hour),Number(p.minute))-sample);
+  }
+  const matches=new Set<number>();
+  for(const offset of offsets){
+    const candidate=nominal-offset,p=fields(candidate);
+    if([p.year,p.month,p.day,p.hour,p.minute].map(Number).every((v,i)=>v===[year,month,day,hour,minute][i]))matches.add(candidate);
+  }
+  if(matches.size!==1)throw Error('This clinic time is missing or duplicated during a daylight-saving transition. Choose another time.');
+  return new Date([...matches][0]).toISOString();
 }

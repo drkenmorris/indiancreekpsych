@@ -14,7 +14,7 @@ test('reviewed group session saves central patient attendance and retains chart 
   const payload=init?.body?JSON.parse(String(init.body)):undefined;
   calls.push({url,method,body:payload});
   if(url==='/api/emr/patients')return {ok:true,json:async()=>({patients})};
-  if(url==='/api/emr/groups'&&method==='GET')return {ok:true,json:async()=>({sessions:stored?[session]:[]})};
+  if(url==='/api/emr/groups'&&method==='GET')return {ok:true,json:async()=>({timezone:'America/Chicago',sessions:stored?[session]:[]})};
   if(url==='/api/emr/groups'&&method==='POST'){stored=true;return {ok:true,json:async()=>({saved:true,id:session.id})};}
   throw Error('Unexpected fetch '+url);
  }));
@@ -38,6 +38,7 @@ test('reviewed group session saves central patient attendance and retains chart 
  const payload=calls.find(x=>x.method==='POST')!.body;
  expect(payload.participants).toEqual([{patient_id:p1,attendance:'Present'},{patient_id:p2,attendance:'Excused'}]);
  expect(payload.reviewed).toBe(true);
+ expect(payload.scheduled_start).toBe('2026-11-09T20:00:00.000Z');
  expect(await screen.findByRole('link',{name:'Fictional One'})).toHaveProperty('href',expect.stringContaining('/emr/workspace?patient='+p1));
  expect(await screen.findByRole('link',{name:'Fictional Two'})).toHaveProperty('href',expect.stringContaining('/emr/workspace?patient='+p2));
  expect(calls.every(c=>c.url.startsWith('/api/emr/'))).toBe(true);

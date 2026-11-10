@@ -29,8 +29,8 @@ registryRequest=async function(action,data={}){
 };
 const originalCentralStart=startClinicalWorkspace;
 startClinicalWorkspace=async function(){
- if(initialPatient())return originalCentralStart(false);
- try{const patients=await centralRegistry();boot={patients,patient_directory:patients};chart=null;patientId='';render();openDirectory();return true;}
+ if(initialPatient()){const opened=await originalCentralStart(false);setNavigationExpanded(true);return opened;}
+ try{const patients=await centralRegistry();boot={patients,patient_directory:patients};chart=null;patientId='';setNavigationExpanded(true);render();openDirectory();return true;}
  catch(error){message(error.message,true);return false;}
 };
 const originalCentralRender=render;

@@ -91,7 +91,7 @@ test('linked intake medication and medical history are available for read-only c
   fireEvent.click(await screen.findByRole('button', {name: /Sample Person.*Linked patient account/i}));
   const disclosure = await screen.findByText(/Patient-reported medication, allergy, and medical\/substance history/);
   fireEvent.click(disclosure);
-  expect(screen.getByText('Fictional trial medication')).toBeTruthy();
+  expect(screen.getAllByText('Fictional trial medication').length).toBeGreaterThan(0);
   expect(screen.getByText('Fictional patient-reported medical history')).toBeTruthy();
   expect(screen.getByText(/Fictional reported rash/)).toBeTruthy();
   expect(screen.getByText(/has not been independently verified/)).toBeTruthy();

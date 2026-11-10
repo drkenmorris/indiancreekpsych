@@ -80,7 +80,7 @@ export default function RegisterPage() {
               <label>Last name<input type="text" autoComplete="family-name" maxLength={80} value={lastName} onChange={e => setLastName(e.target.value)} required /></label>
             </div>
             <label>Email<input type="email" autoComplete="email" maxLength={254} value={email} onChange={e => setEmail(e.target.value)} required /></label>
-            <label>Password<input type="password" autoComplete="new-password" minLength={12} value={password} onChange={e => setPassword(e.target.value)} required /><small>Use at least 12 characters. You can add authenticator verification and a passkey after confirming your email.</small></label>
+            <label>Password<input type="password" autoComplete="new-password" minLength={12} value={password} onChange={e => setPassword(e.target.value)} required /><small>Use at least 12 characters. Authenticator-app MFA is recommended for patient privacy but not required. You can enable it after verifying your email. Passkeys are also optional.</small></label>
             <label className="newsletterConsent">
               <span><input type="checkbox" checked={newsletterConsent} onChange={e => setNewsletterConsent(e.target.checked)} /> Email me the Indian Creek newsletter every two weeks (optional).</span>
             </label>

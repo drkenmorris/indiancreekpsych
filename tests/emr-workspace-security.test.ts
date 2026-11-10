@@ -22,14 +22,17 @@ test('admin session without aal2 MFA cannot load original clinical workspace',as
  expect(response.headers.get('location')).toContain('/account/security?next=%2Femr');
  expect(m.from).not.toHaveBeenCalled();expect(m.readFile).not.toHaveBeenCalled();
 });
-test('invalid or absent patient UUID cannot load a chart',async()=>{
- for(const id of ['bad','']){const response=await GET(request(id));expect(response.status).toBe(307);expect(response.headers.get('location')).toBe('https://www.indiancreekpsych.com/emr');}
+test('invalid patient UUID is rejected before any chart lookup',async()=>{
+ const response=await GET(request('bad'));expect(response.status).toBe(400);
  expect(m.from).not.toHaveBeenCalled();expect(m.readFile).not.toHaveBeenCalled();
+});
+test('no selected patient serves original menu shell without querying a chart',async()=>{
+ const response=await GET(request(''));expect(response.status).toBe(200);
+ expect(m.from).not.toHaveBeenCalled();expect(m.readFile).toHaveBeenCalled();
 });
 test('unrecognized or unauthorized patient ID is rejected before original HTML is served',async()=>{
  lookup.mockResolvedValue({data:null,error:null});
- const response=await GET(request());expect(response.status).toBe(307);
- expect(response.headers.get('location')).toBe('https://www.indiancreekpsych.com/emr');
+ const response=await GET(request());expect(response.status).toBe(404);
  expect(m.readFile).not.toHaveBeenCalled();
 });
 test('central patient lookup failure fails closed, no clinical workspace HTML',async()=>{

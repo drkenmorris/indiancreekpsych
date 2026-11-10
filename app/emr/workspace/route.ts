@@ -14,10 +14,12 @@ export async function GET(request:Request){
  const ctx=await emrAccess();
  if(!ctx)return NextResponse.redirect(new URL('/account/security?next=%2Femr',request.url));
  const id=new URL(request.url).searchParams.get('patient');
- if(!uuid(id))return NextResponse.redirect(new URL('/emr',request.url));
+ if(id&&!uuid(id))return NextResponse.json({error:'Invalid patient ID.'},{status:400,headers:privateHeaders});
+ if(id){
  const {data,error}=await ctx.supabase.from('clinical_patients').select('id').eq('id',id).maybeSingle();
  if(error)return NextResponse.json({error:'Patient authorization could not be verified.'},{status:503,headers:privateHeaders});
- if(!data)return NextResponse.redirect(new URL('/emr',request.url));
+ if(!data)return NextResponse.json({error:'Patient unavailable.'},{status:404,headers:privateHeaders});
+ }
  try{
   return new Response(await readFile(join(process.cwd(),'public/emr-assets/index.html'),'utf8'),{
    headers:{'Content-Type':'text/html; charset=utf-8','Cache-Control':'private, no-store',

@@ -2,7 +2,7 @@ import {runInContext} from 'node:vm';
 import {test} from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';import {execFileSync} from 'node:child_process';import {JSDOM} from 'jsdom';
 const fixture=JSON.parse(execFileSync('python3',['-c',`import importlib.util,json
 s=importlib.util.spec_from_file_location('tests','tests/emr-workflow-engine.test.py');m=importlib.util.module_from_spec(s);s.loader.exec_module(m)
-r=m.Repo();print(json.dumps({'pid':r.pid,'boot':m.m.process({'patientId':r.pid,'path':'/api/bootstrap'},r)['value'],'chart':m.m.process({'patientId':r.pid,'path':'/api/chart'},r)['value']}))`],{encoding:'utf8'}));
+r=m.Repo();print(json.dumps({'pid':r.pid,'boot':m.m.process({'patientId':r.pid,'path':'/api/bootstrap'},r)['value'],'chart':m.m.process({'patientId':r.pid,'path':'/api/chart'},r)['value'],'blank':m.m.process({'patientId':'','path':'/api/blank-workspace','method':'GET'},r)['value']}))`],{encoding:'utf8'}));
 const library=JSON.parse(readFileSync('public/emr-assets/strengths-library.js','utf8').split(' = ')[1].trim().slice(0,-1)).items.map(x=>({...x,active:true,kind:x.type==='strength'?'strength':'challenge'}));
 await test('actual hosted forms and global navigation render against central patient transport',async()=>{
  const html=readFileSync('public/emr-assets/index.html','utf8').replace(/<script[^>]*><\/script>/g,'');const dom=new JSDOM(html,{url:'https://www.indiancreekpsych.com/emr/workspace?patient='+fixture.pid+'&module=assessment&section=assessment%3Abiopsychosocial',runScripts:'outside-only'}),w=dom.window,errors=[];
@@ -71,4 +71,32 @@ await test('actual hosted forms and global navigation render against central pat
  library.at(-1).active=false;q('#descriptor-reload').click();await new Promise(r=>setTimeout(r,20));
  assert.equal(q('input[value="permanent-shared-item"]'),null,'inactive central choices are not offered');
  assert.equal(errors.length,0,errors.join(';'));assert.equal(w.localStorage.getItem('emr-web-demo-v1'),null);dom.window.close();
+});
+
+await test('unselected workspace opens actual empty forms and checkboxes without selecting or saving a patient',async()=>{
+ const html=readFileSync('public/emr-assets/index.html','utf8').replace(/<script[^>]*><\/script>/g,'');
+ const dom=new JSDOM(html,{url:'https://www.indiancreekpsych.com/emr/workspace',runScripts:'outside-only'}),w=dom.window,errors=[],writes=[];
+ w.matchMedia=()=>({matches:false,addEventListener(){}});w.HTMLElement.prototype.scrollIntoView=function(){};
+ w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;};
+ w.addEventListener('error',event=>errors.push(event.message));
+ w.fetch=async(url,options)=>{let value;
+  if(url==='/api/emr/workflow'&&options?.body){const body=JSON.parse(options.body);assert.equal(body.patientId,'');assert.equal(body.path,'/api/blank-workspace');assert.equal(body.method,'GET');value={value:fixture.blank,revision:0};}
+  else if(url==='/api/emr/descriptors')value={items:library};
+  else if(url==='/api/emr/workflow')value={me:{id:'fictional-provider',is_admin:true,profile:{first_name:'Fictional',last_name:'Provider'}}};
+  else {writes.push(url);throw Error('Unexpected patient access '+url);}
+  return {ok:true,status:200,json:async()=>value};
+ };
+ for(const f of ['planner.js','navigation.js','patients.js','module-menu.js','providers.js','menu-completion.js','navigation-menus.js','strengths-library.js','strengths-builder.js','app.js','production.js','central-directory.js'])runInContext(readFileSync('public/emr-assets/'+f,'utf8'),dom.getInternalVMContext());
+ await new Promise(resolve=>setTimeout(resolve,100));
+ assert.equal(errors.length,0,errors.join(';'));assert.equal(w.document.querySelector('#patient-directory').open,false);
+ assert.ok(w.document.querySelector('input[name="first_name"]'),'demographics fields available without a patient');
+ for(const [module,key] of [['assessment','biopsychosocial'],['notes','planner'],['plan','problems'],['prognosis','prognosis'],['discharge','details']]){
+  runInContext(`chooseSection(${JSON.stringify(module)},${JSON.stringify(key)});render();`,dom.getInternalVMContext());
+  assert.ok(w.document.querySelectorAll('#content input,#content textarea,#content select').length>0,module+' has actual form controls');
+  for(const field of w.document.querySelectorAll('#content input:not([type="hidden"]):not([type="button"]):not([type="submit"]),#content textarea,#content select')){
+   if(['checkbox','radio'].includes(field.type))assert.equal(field.checked,false);else assert.equal(field.value,'',field.name+' has no sample value');
+  }
+ }
+ await assert.rejects(runInContext("api('/api/save',{method:'POST',body:'{}'})",dom.getInternalVMContext()),/Select a patient/);
+ assert.deepEqual(writes,[]);assert.equal(errors.length,0,errors.join(';'));dom.window.close();
 });

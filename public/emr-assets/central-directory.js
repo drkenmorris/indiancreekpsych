@@ -27,20 +27,40 @@ registryRequest=async function(action,data={}){
  const response=await fetch('/api/emr/patients',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({demographics:values})});
  const value=await response.json();if(!response.ok)throw Error(value.error||'Patient save was not confirmed.');return value;
 };
+let blankWorkspace=false;
+const originalCentralApi=api;
+api=function(path,options){
+ if(blankWorkspace&&options?.method==='POST')return Promise.reject(Error('Select a patient before saving clinical records.'));
+ return originalCentralApi(path,options);
+};
 const originalCentralStart=startClinicalWorkspace;
 startClinicalWorkspace=async function(){
- if(initialPatient()){const opened=await originalCentralStart(false);setNavigationExpanded(true);return opened;}
- try{const patients=await centralRegistry();boot={patients,patient_directory:patients};chart=null;patientId='';setNavigationExpanded(true);render();openDirectory();return true;}
- catch(error){message(error.message,true);return false;}
+ if(initialPatient()){blankWorkspace=false;const opened=await originalCentralStart(false);setNavigationExpanded(true);return opened;}
+ try{
+  const empty=await api('/api/blank-workspace');
+  boot=empty.boot;chart=empty.chart;groupState=empty.groups;patientId='';blankWorkspace=true;
+  setNavigationExpanded(true);render();return true;
+ }catch(error){message(error.message,true);return false;}
 };
 const originalCentralRender=render;
 render=function(){
- if(providerMe&&!chart&&view!=='schedule'&&!['providers','settings'].includes(view)){
-  renderGlobalMenu();$('#heading').innerHTML='<h1>'+esc(mainModules[mainModule]?.[0]||'Personal Data')+'</h1>';
-  $('#chart-header').replaceChildren();$('#content').innerHTML='<section class="card"><h2>Find or add a patient</h2><p>Use Home → Find/Add Patient to open a patient record.</p></section>';return;
+ const result=originalCentralRender();
+ if(blankWorkspace&&chart){
+  $('#chart-header').innerHTML='<section class="patient-header"><div><h2>No patient selected</h2><p>Choose a patient when you are ready to save.</p></div></section>';
+  $('#content').querySelectorAll('input,textarea,select').forEach(input=>{
+   if(input.type==='hidden'||input.type==='button'||input.type==='submit')return;
+   if(input.type==='checkbox'||input.type==='radio'){input.checked=false;return;}
+   if(input.tagName==='SELECT'&&!Array.from(input.options).some(option=>option.value===''))input.insertAdjacentHTML('afterbegin','<option value="">Not selected</option>');
+   input.value='';
+  });
  }
- return originalCentralRender();
+ return result;
 };
+// Blank forms are available for inspection/editing; they can never write an unbound chart.
+document.addEventListener('submit',event=>{
+ if(!blankWorkspace||!event.target.closest('#content'))return;
+ event.preventDefault();event.stopImmediatePropagation();message('Select a patient before saving clinical records.',true);
+},true);
 // The menu names/order stay identical to the demo; logout uses the clinic session.
 document.addEventListener('click',async event=>{
  if(!event.target.closest('[data-quick-action="logout"]'))return;

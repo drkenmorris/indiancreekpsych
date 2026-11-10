@@ -5,6 +5,15 @@ type Field={key:string;label:string;type:string;value:string};
 type Section={title:string;domain:string;disposition:'clinical'|'separate-review'|'reference';fields:Field[];answered:number};
 type Review={id:string;source_version:number;source_status:string;source_updated_at:string;created_at:string;clinical_answers:Record<string,string>;clinician_notes:BpsNotes};
 type ResponseData={patientId:string;source:{status:string;version:number;updatedAt:string};sections:Section[];unmappedKeys:string[];reviews:Review[]};
+const focusedReviewLinks:Record<string,{label:string;anchor:string}[]>={
+ 'Medications':[
+  {label:'Review reported medications in the central chart',anchor:'emr-intake-medication-review'},
+  {label:'Review reported medication allergies in the central chart',anchor:'emr-intake-allergy-review'}],
+ 'Medical & Substance Use History':[
+  {label:'Review medical and substance-use history in the central chart',anchor:'emr-intake-medical-review'}],
+ 'Trauma, family, social, educational, and occupational history':[
+  {label:'Review structured trauma history in the central chart',anchor:'emr-intake-trauma-review'}]
+};
 const readable=(field:Field)=>['treatment-history','medications','medical-substance','trauma-history','legal-routing','dsm-version'].includes(field.type)?
  'Structured questionnaire: use the protected original intake or the dedicated reconciliation module; raw content is not automatically imported.':field.value;
 async function json(response:Response){const data=await response.json();if(!response.ok)throw Error(data.error||'Protected BPS request failed.');return data;}
@@ -46,6 +55,10 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
     <summary>{i+1}. {section.title} — {section.answered}/{section.fields.length} answered · {section.disposition}</summary>
     <p><strong>BPS routing:</strong> {section.domain}. {section.disposition==='reference'?'Reference only; no legal document or administrative decision is copied into BPS.':
        section.disposition==='separate-review'?'Use the existing dedicated medication, medical or structured-history reconciliation; BPS does not silently duplicate these entries.':'Potential clinical history; clinician review is mandatory before any snapshot.'}</p>
+    {focusedReviewLinks[section.title]?.length>0&&<nav aria-label={section.title+' clinician reconciliation'}>
+     {focusedReviewLinks[section.title].map(target=><a key={target.anchor} href={'/emr/patients?patient='+encodeURIComponent(patientId)+'#'+target.anchor}>{target.label}</a>)}
+     <p>Opens the existing clinician-review workflow for this exact central patient. Opening a link never copies, approves or saves patient statements.</p>
+    </nav>}
     <dl>{section.fields.filter(field=>field.value.trim()).map(field=><div key={field.key}>
       <dt>{field.label}</dt><dd style={{whiteSpace:'pre-wrap'}}>{readable(field)}</dd>
      </div>)}</dl>{section.answered===0&&<p>No response recorded. Blank is not equivalent to a negative clinical finding.</p>}

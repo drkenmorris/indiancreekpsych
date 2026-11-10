@@ -25,7 +25,7 @@ test('authorized linked central patient opens original BPS and 21-section source
  expect(markup).toContain('section=assessment%3Abiopsychosocial');
  expect(markup).toContain('/emr/workspace?patient='+patient);
  expect(markup).toContain('/emr/patients?patient='+patient);
- expect(markup).toContain('clinic\'s existing administrator credentials');
+ expect(markup).toContain('existing administrator credentials, MFA');
  expect(m.from).toHaveBeenCalledWith('clinical_patients');
 });
 test('no MFA denies page before reading central patient',async()=>{

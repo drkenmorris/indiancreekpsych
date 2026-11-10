@@ -4,7 +4,7 @@ import {GET} from '@/app/emr/workspace/route';
 const m=vi.hoisted(()=>({patientAccess:vi.fn(),emrAccess:vi.fn(),readFile:vi.fn(),from:vi.fn()}));
 vi.mock('@/lib/patient/access',()=>({patientAccess:m.patientAccess}));
 vi.mock('@/lib/emr/access',()=>({emrAccess:m.emrAccess,privateHeaders:{'Cache-Control':'private, no-store'}}));
-vi.mock('node:fs/promises',()=>({readFile:m.readFile}));
+vi.mock('node:fs/promises',async(importOriginal)=>{const original=await importOriginal<typeof import('node:fs/promises')>();return {...original,readFile:m.readFile,default:{...original,readFile:m.readFile}};});
 const patient='00000000-0000-4000-8000-000000000101';
 const request=(id=patient)=>new Request('https://www.indiancreekpsych.com/emr/workspace?patient='+encodeURIComponent(id));
 let lookup:ReturnType<typeof vi.fn>;

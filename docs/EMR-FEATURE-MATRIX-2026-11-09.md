@@ -54,12 +54,12 @@
 
 - Production: `app/emr/page.tsx`, `app/emr/PatientRepository.tsx`, `app/emr/workspace/route.ts`, `app/emr/treatment-plan/PatientTreatmentPlan.tsx`, `app/api/emr/{patients,treatment-plans,treatment-library,dsm-records,workflow}/route.ts`, `lib/emr/*`, `app/appointments/calendar/*`.
 - Prototype: deployed `index.html`, `app.js`, `patients.js`, `planner.js`, `module-menu.js`, `providers.js`, `menu-completion.js`, `navigation-menus.js`, `style.css`, and `engine/modules/*`.
-- Shared engine file inventory: 20 names. Fully verified identical bodies: `clinical.py` only. Others are **not** fully compared; source retrieval capped at about 2,014 base64 characters, so no parity conclusion is warranted.
+- Shared engine source parity **completed by raw SHA-1 digest audit**: 20/20 shared Python/JSON module bodies are byte-identical between deployed prototype and GitHub `main`; see `docs/EMR-BACKEND-HASH-AUDIT-2026-11-09.md`. Vercel body truncation no longer blocks file-parity determination.
 - Read-only branch increments and their automated regression results are described in `docs/EMR-RECONCILIATION-2026-11-09.md` and draft PR #108.
 
 ## Gaps before calling the comparison *complete*
 
-1. Obtain complete prototype backend module files (source checkout or complete export) to compare all 20 source bodies, not truncated deployment excerpts.
+1. **Backend file parity resolved**: no additional source recovery is necessary for the 20 shared module bodies. Remaining work is semantic/behavioral comparison of wrappers, routes, schemas, live data handling and frontend workflows.
 2. Compare full live clinical feature schemas and UI flows beyond the selected production files (especially treatment plans, progress notes, document storage, billing, group records, discharge, and access roles).
 3. Obtain authenticated end-to-end screenshots/interactions for matching fictional charts in both environments, with scheduler untouched.
 4. Identify exact production missing fields/workflows and turn each **ADAPT** row into a tested PR change.

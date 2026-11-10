@@ -24,3 +24,7 @@ const centralOriginalMessage=message;
 message=function(text,error=false){centralOriginalMessage(String(text).replace(/ locally\./g,' to the central patient record.').replace(/Saved locally/g,'Saved centrally'),error);};
 const centralOriginalQuickMenus=renderQuickMenus;
 renderQuickMenus=function(){centralOriginalQuickMenus();const nav=document.querySelector('#provider-quick-menu nav');if(nav&&patientId){const link=document.createElement('a');link.href='/emr?patient='+encodeURIComponent(patientId);link.textContent='DSM assessment records';nav.append(link);}};
+
+// The synthetic prototype directory must never create or replace clinic patient records.
+// Change-patient actions use the existing protected central directory instead.
+openDirectory=function(){safeNavigate(()=>{window.location.assign('/emr');});};

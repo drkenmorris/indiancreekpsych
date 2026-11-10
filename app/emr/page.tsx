@@ -1,5 +1,9 @@
-import {patientAccess} from '@/lib/patient/access';
-import AdministrativeShell from '@/app/components/AdministrativeShell';
-import PatientRepository from './PatientRepository';
+import {redirect} from 'next/navigation';
 export const dynamic='force-dynamic';
-export default async function EmrPage(){await patientAccess(true,'/emr');return <AdministrativeShell><main className="centralEmr"><PatientRepository/></main></AdministrativeShell>;}
+type EntryParams={patient?:string;module?:string;section?:string};
+export default async function EmrPage({searchParams}:{searchParams?:Promise<EntryParams>}={}){
+ const params=searchParams?await searchParams:{};
+ const query=new URLSearchParams();
+ for(const key of ['patient','module','section'] as const)if(params[key])query.set(key,params[key]);
+ redirect('/emr/workspace'+(query.size?'?'+query.toString():''));
+}

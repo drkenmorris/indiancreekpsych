@@ -77,3 +77,15 @@ The legacy production `public/emr-assets/production.js` deliberately suppressed 
 - Added DB/RLS regression and API validation tests, included in the existing test:intake pipeline.
 - CI [run 42726275969](https://github.com/drkenmorris/indiancreekpsych/actions/runs/42726275969) on code commit `90a4ca8d9d8373f0651773dc48dfafb6cfd74b9d` **passed**: TypeScript, 130 Node tests, 259 Vitest tests across 54 files, full Next.js build, and 2 standalone kiosk tests. The full engine Python suite also completed as part of test:intake. These are test results, **not** a production-use or browser acceptance sign-off.
 - **Outstanding before any production merge**: apply migration in nonproduction, validate authorized browser workflow and real patient-record access under clinic roles, cross-reference individual group notes and billing, and repeat scheduler/admin regression. Production remains unchanged.
+
+## Fourth selectively integrated workflow: per-patient central group attendance (read-only, branch-only)
+
+The original prototype's group workflow links individuals to a shared group session, but its synthetic local roster is not the live patient authority. The protected group-session module already has central participation records; this increment makes those records visible from each central patient's clinician chart.
+
+- New MFA-required `GET /api/emr/groups/patient?patient=<central UUID>` checks that the central patient exists, enforces Supabase patient/session RLS, filters by the requested UUID at the participation table, and returns only that patient's attendance and shared session metadata. No peer names, peer attendance, freeform shared content or individual notes are emitted.
+- New `PatientGroupHistory` embedded in the central patient record provides a read-only date/topic/attendance timeline (up to 100 matching entries), with explicit notice that it is neither a patient progress note nor a signature or bill.
+- The protected chart remains usable when group history is unavailable. Navigation never substitutes the prototype's browser-vault or SQLite patients.
+- Tests cover rejection of missing MFA, malformed or nonexistent UUID, query error, privacy allowlist, and read-only UI. The feature has no writes or schema changes beyond the still-pending group migration.
+- This increment still requires authenticated browser acceptance on a nonproduction database with group migration applied, and does not complete per-participant clinical documentation, signatures, or group billing.
+
+Release remains blocked; no production deployment.

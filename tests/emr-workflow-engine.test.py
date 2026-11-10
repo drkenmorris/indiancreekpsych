@@ -1,4 +1,6 @@
-import importlib.util,unittest,json,uuid
+import importlib.util,unittest,json,uuid,io
+from unittest.mock import patch
+from urllib.error import HTTPError
 from pathlib import Path
 spec=importlib.util.spec_from_file_location('adapter',Path(__file__).parents[1]/'api/emr_engine.py');m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
 class Repo:
@@ -62,6 +64,12 @@ class WorkflowTests(unittest.TestCase):
  def test_invalid_clinical_choice_rejected_before_write(self):
   with self.assertRaises(ValueError):self.run_action('/api/save',{'action':'insurance','data':{'carrier':'Fictional','subscriber_relationship':'invalid'}})
   self.assertEqual(self.repo.saved,[])
+ def test_postgrest_conflict_remains_an_actionable_conflict(self):
+  repo=object.__new__(m.Repository);repo.base='https://fictional.invalid';repo.headers={}
+  for code in ('40001','PT409'):
+   error=HTTPError(repo.base,409,'Conflict',{},io.BytesIO(json.dumps({'code':code,'message':'Reopen the chart'}).encode()))
+   with patch.object(m,'urlopen',side_effect=error):
+    with self.assertRaisesRegex(m.Conflict,'Reopen the chart'):repo.call('/rest/v1/rpc/save_emr_workspace',{})
  def test_schedule_and_shared_group_writes_disabled(self):
   with self.assertRaises(ValueError):self.run_action('/api/save',{'action':'appointment','data':{}})
   self.assertEqual(self.run_action('/api/groups')['value']['group']['roster'],[])

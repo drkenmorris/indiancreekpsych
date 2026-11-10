@@ -13,6 +13,7 @@ async function as(id,aal='aal2'){await db.exec('reset role');await db.query("sel
 const q=(sql,args=[])=>db.query(sql,args);let id,manual;
 
 await db.exec(readFileSync(new URL('../supabase/migrations/20261103212059_emr_production_workspace.sql',import.meta.url),'utf8'));
+await db.exec(readFileSync(new URL('../supabase/migrations/20261110121936_emr_workspace_conflict_http_status.sql',import.meta.url),'utf8'));
 
 await test('central patient workspace persists append-only versions and rejects stale saves',async()=>{await as(admin);const state={records:[{id:'fictional-entry',body:'fictional note'}]};assert.equal((await q('select save_emr_workspace($1,0,$2) n',[patient,state])).rows[0].n,1);await assert.rejects(q('select save_emr_workspace($1,0,$2)',[patient,state]),/Another session/);assert.equal((await q('select count(*)::int n from emr_workspace_versions')).rows[0].n,1);await assert.rejects(q('select save_emr_workspace($1,1,$2)',[patient,{records:[]}]),/immutable/);});
 await test('central EMR supports another patient without conflating charts',async()=>{await as(admin);manual=(await q('insert into clinical_patients(demographics) values($1) returning id',[{first_name:'Fictional',last_name:'Separate'}])).rows[0].id;await q('select save_emr_workspace($1,0,$2)',[manual,{records:[{id:'other-entry'}]}]);assert.equal((await q('select state from emr_workspaces where patient_id=$1',[patient])).rows[0].state.records[0].id,'fictional-entry');});

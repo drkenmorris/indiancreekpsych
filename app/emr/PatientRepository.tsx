@@ -7,6 +7,7 @@ import IntakeMedicalSubstance from '@/app/components/IntakeMedicalSubstance';
 import PatientGroupHistory from './PatientGroupHistory';
 import IntakeMedicationReconciliation from './IntakeMedicationReconciliation';
 import IntakeMedicalSubstanceReconciliation from './IntakeMedicalSubstanceReconciliation';
+import IntakeAllergyReconciliation from './IntakeAllergyReconciliation';
 import {MEDICATION_ENTRIES_KEY} from '@/lib/patient/medications';
 import {MEDICAL_SUBSTANCE_KEY} from '@/lib/patient/medical-substance';
 type Patient={id:string;account_id:string|null;revision:number;demographics:Record<string,string>;profiles:{full_name?:string}|{full_name?:string}[]|null};
@@ -32,5 +33,6 @@ export default function PatientRepository(){const [emailEditing,setEmailEditing]
  </details>}
 {intake?.answers?.[MEDICATION_ENTRIES_KEY]&&<IntakeMedicationReconciliation key={selected.id} patientId={selected.id} intakeJson={intake.answers[MEDICATION_ENTRIES_KEY]} intakeUpdatedAt={intake.updated_at}/>}
 {intake?.answers?.[MEDICAL_SUBSTANCE_KEY]&&<IntakeMedicalSubstanceReconciliation key={selected.id} patientId={selected.id} sourceJson={intake.answers[MEDICAL_SUBSTANCE_KEY]} sourceUpdatedAt={intake.updated_at}/>}
+{(intake?.answers?.medication_allergy_status||intake?.answers?.medication_allergy_notes)&&<IntakeAllergyReconciliation key={selected.id} patientId={selected.id} sourceStatus={intake?.answers?.medication_allergy_status||''} sourceNotes={intake?.answers?.medication_allergy_notes||''} sourceUpdatedAt={intake?.updated_at||''}/>}
 <Link href="/admin/intakes">Open protected intake review</Link></article><PatientGroupHistory patientId={selected.id}/><article className="centralCard"><h2>EMR workspace and assessments</h2><p><Link href={'/emr/treatment-plan?patient='+selected.id}>Build / print treatment plan</Link></p><p><Link href={'/admin/assign-test?test=dsm&patient='+selected.id}>DSM recipient assignment</Link> · <Link href={'/emr/dsm?patient='+selected.id}>DSM recipient results and evaluation</Link></p><p><Link href={'/admin/assign-test?test=asq&patient='+selected.id}>ASQ / ASEQ recipient assignments</Link> · <Link href={'/emr/asq?patient='+selected.id}>ASQ / ASEQ results and evaluations</Link></p><p><Link href={"/emr/workspace?patient="+selected.id}>Open full EMR chart and modules</Link></p><p>Records below belong to this central patient ID and your authorized clinic account. Another provider does not gain access merely by using the same patient name.</p><label>New assessment label<input value={recordLabel} maxLength={140} onChange={e=>setRecordLabel(e.target.value)}/></label><button onClick={createAssessment} disabled={busy||!recordLabel.trim()}>Start DSM assessment for this patient</button><ul>{records.map(r=><li key={r.id}><Link href={'/clinical-tests/dev/level1?record='+r.id}>{r.label} — revision {r.revision}</Link> · <Link href={'/clinical-tests/dev/summary?record='+r.id}>Report</Link></li>)}</ul></article></>}</section></div></>;
 }

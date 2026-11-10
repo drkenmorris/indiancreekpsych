@@ -19,6 +19,6 @@ test('unrecognized BPS subpage is not propagated',async()=>{
 });
 
 test('original BPS intake link carries the active clinical subpage into protected source review',()=>{
- const source=readFileSync(new URL('../public/emr-assets/app.js',import.meta.url),'utf8');
+ const source=readFileSync('public/emr-assets/app.js','utf8');
  expect(source).toContain('data-bps-intake-review href="/emr/bps-intake?patient=${encodeURIComponent(patientId)}&bps_page=${encodeURIComponent(bpsSubpage())}"');
 });

@@ -6,44 +6,64 @@ import './entry.css';
 
 export const dynamic='force-dynamic';
 
-const sections=[
- {title:'Central patient records',description:'Find the patient chart, reviewed demographics, clinical history and source reconciliation.',href:'/emr/patients',label:'Open patient directory'},
- {title:'Treatment planning',description:'Manage the clinical treatment library and create versioned individualized treatment plans.',href:'/emr/treatment-planners',label:'Treatment plan library'},
- {title:'Group therapy',description:'Document group attendance, shared sessions and patient-specific progress records.',href:'/emr/groups',label:'Group therapy workspace'},
- {title:'Clinical assessments',description:'Access assigned instruments and the assessment administration workspace.',href:'/clinical-tests',label:'Clinical assessments'},
- {title:'Intake and documents',description:'Review submitted intake material and patient-reported clinical source information.',href:'/admin/intakes',label:'Intake administration'},
- {title:'Appointments and calendar',description:'Use the existing production scheduling system. Existing appointments are preserved.',href:'/appointments',label:'Open existing scheduler'},
+type PatientRow={id:string;demographics:Record<string,unknown>|null};
+const demoModules=[
+ ['assessment','assessment:biopsychosocial','Biopsychosocial assessment'],
+ ['demographics','','Patient demographics'],
+ ['notes','','Progress notes'],
+ ['plan','','Treatment planning'],
+ ['privacy','','Legal forms and notices'],
+ ['insurance','','Insurance information'],
+ ['history','','Chart history'],
 ] as const;
-
+function clinicalHref(id:string,module:string,section:string){
+ const query=new URLSearchParams({patient:id,module});
+ if(section)query.set('section',section);
+ return '/emr/workspace?'+query.toString();
+}
+function labelPatient(patient:PatientRow){
+ const d=patient.demographics??{};
+ const name=[d.first_name,d.last_name].filter(v=>typeof v==='string'&&v.trim()).join(' ');
+ return name||'Patient chart '+patient.id.slice(0,8);
+}
 export default async function EmrPage(){
  const supabase=await createClient();
  const {data:{user}}=await supabase.auth.getUser();
- const authorized=user?Boolean(await emrAccess()):false;
+ const ctx=user?await emrAccess():null;
+ let patients:PatientRow[]=[];
+ let error='';
+ if(ctx){
+  const query=await ctx.supabase.from('clinical_patients').select('id,demographics').order('updated_at',{ascending:false}).limit(200);
+  if(query.error)error='The patient directory is temporarily unavailable. No charts were changed.';
+  else patients=(query.data??[]) as PatientRow[];
+ }
  return <AdministrativeShell><main className="emrEntry" aria-labelledby="emr-title">
-  <header className="emrEntryHeader">
-   <p className="emrEntryEyebrow">Indian Creek Psychological Services · Clinical workspace</p>
+  <header className="emrEntryHeader"><p className="emrEntryEyebrow">Indian Creek Psychological Services · Clinical workspace</p>
    <h1 id="emr-title">Electronic Medical Records</h1>
-   <p>Secure entry to the integrated clinical record, assessments, treatment planning and scheduling.</p>
-  </header>
-  {!user?<section className="emrEntryLogin" aria-labelledby="emr-login-title">
-   <p className="emrEntryEyebrow">Administrator sign-in required</p>
-   <h2 id="emr-login-title">Access your clinical workspace</h2>
-   <p>Use your existing clinic administrator account. Your current password, permissions and authenticator-app security stay in place.</p>
+   <p>The complete clinical workspace, including the biopsychosocial assessment, chart modules, notes, treatment planning and forms.</p></header>
+  {!user?<section className="emrEntryLogin"><h2>Administrator sign-in</h2>
+   <p>Enter using your existing administrator account and multi-factor verification.</p>
    <Link className="emrEntryButton" href="/login?next=%2Femr">Sign in to EMR</Link>
-   <p className="emrEntryHelp">Already signed in on another device? Sign in here to establish a protected session.</p>
-  </section>:!authorized?<section className="emrEntryLogin" aria-labelledby="emr-verify-title">
-   <p className="emrEntryEyebrow">Access verification required</p>
-   <h2 id="emr-verify-title">Complete administrator verification</h2>
-   <p>Clinical modules require your existing administrator role and multi-factor authentication. No patient records are displayed until access is verified.</p>
+  </section>:!ctx?<section className="emrEntryLogin"><h2>Complete administrator verification</h2>
+   <p>The clinical workspace requires an authorized administrator and MFA. Patient accounts may use clinic services without enrolling MFA.</p>
    <Link className="emrEntryButton" href="/account/security?next=%2Femr">Complete security verification</Link>
-   <p><Link href="/account">Account settings</Link> · <Link href="/login?next=%2Femr">Use another account</Link></p>
-  </section>:<><section className="emrEntryWelcome">
-   <div><p className="emrEntryEyebrow">Administrator access verified</p><h2>Clinical operations</h2><p>Select a workspace. Patient charts remain in the protected central repository.</p></div>
-   <Link href="/account">Manage account security</Link>
-  </section>
-  <section className="emrEntryGrid" aria-label="EMR workspaces">{sections.map(item=>
-   <article key={item.href} className="emrEntryCard"><h3>{item.title}</h3><p>{item.description}</p><Link href={item.href}>{item.label} <span aria-hidden="true">→</span></Link></article>
-  )}</section></>}
-  <footer className="emrEntryFooter"><Link href="/">Clinic home</Link><span>Existing scheduler and administrative credentials remain unchanged.</span></footer>
+   <p><Link href="/account">Account settings</Link></p></section>:<section className="emrEntryClinical">
+    <div className="emrEntryWelcome"><div><p className="emrEntryEyebrow">Administrator access verified</p>
+    <h2>Choose a patient to open the clinical EMR</h2>
+    <p>The full original-style EMR opens with the Biopsychosocial Assessment as its initial page. Its linked clinical modules remain available through the workspace menus.</p></div>
+    <Link href="/admin/assign-test">Assign psychological tests and email patients</Link></div>
+    {error&&<p role="alert">{error}</p>}
+    {!error&&(patients.length?<div className="emrEntryPatientList"><table><thead><tr><th scope="col">Patient chart</th><th scope="col">Open the complete workspace</th></tr></thead>
+    <tbody>{patients.map(patient=><tr key={patient.id}><th scope="row">{labelPatient(patient)}</th><td>
+      <Link className="emrEntryPatientLaunch" href={clinicalHref(patient.id,'assessment','assessment:biopsychosocial')}>Open biopsychosocial assessment</Link>
+      <details className="emrEntryModuleLinks"><summary>Other chart pages</summary><div>{demoModules.slice(1).map(([module,section,label])=><Link key={module} href={clinicalHref(patient.id,module,section)}>{label}</Link>)}</div></details>
+    </td></tr>)}</tbody></table></div>:<section className="emrEntryLogin"><h3>No linked central patient charts are available</h3><p>Add or link a test patient through the existing patient directory, then return here to launch the complete clinical workspace.</p><Link href="/emr/patients">Patient directory — setup only</Link></section>)}
+    <nav className="emrEntryActions" aria-label="Practice administration">
+     <Link href="/admin/assign-test">Psychological test assignment and email</Link>
+     <Link href="/appointments">Existing appointment scheduler</Link>
+     <Link href="/emr/patients">Patient directory administration</Link>
+     <Link href="/account">Administrator account</Link>
+    </nav>
+  </section>}
  </main></AdministrativeShell>;
 }

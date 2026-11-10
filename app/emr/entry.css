@@ -1,21 +1,22 @@
-.emrEntry{max-width:1180px;margin:0 auto;padding:clamp(1.4rem,4vw,3.2rem) 1.4rem 6rem;color:#173d3b}
-.emrEntryHeader{padding:2.25rem clamp(1.3rem,4vw,3rem);border-radius:1.1rem;background:linear-gradient(125deg,#153e39,#295e51);color:#fff}
-.emrEntryEyebrow{text-transform:uppercase;letter-spacing:.13em;font-weight:700;font-size:.77rem}
-.emrEntryHeader .emrEntryEyebrow{color:#e2c58e}
-.emrEntry h1{font-size:clamp(2.1rem,5vw,3.65rem);line-height:1.1;margin:.4rem 0 1rem}
-.emrEntryHeader>p:last-child{max-width:690px;font-size:1.07rem;line-height:1.7;color:#eef5f0}
-.emrEntryLogin{max-width:700px;margin:2rem auto;padding:clamp(1.4rem,4vw,2.7rem);border:1px solid #bccdc5;border-radius:1rem;background:#fff;box-shadow:0 13px 42px #183e3b0c}
-.emrEntryLogin h2,.emrEntryWelcome h2{font-size:1.7rem;margin:.6rem 0}
-.emrEntryLogin>p{line-height:1.65}
-.emrEntryButton{display:inline-block;background:#20564b;color:#fff!important;padding:.88rem 1.45rem;border-radius:.48rem;font-weight:700;text-decoration:none;margin:.9rem 0}
-.emrEntryButton:hover,.emrEntryButton:focus-visible{background:#113a33}
-.emrEntryHelp{font-size:.88rem;color:#52645c}
-.emrEntryWelcome{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:2rem 0;flex-wrap:wrap}
-.emrEntryGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1.15rem}
-.emrEntryCard{border:1px solid #d2ddd5;border-radius:.85rem;padding:1.5rem;background:#fff;display:flex;flex-direction:column;min-height:205px}
-.emrEntryCard h3{font-size:1.15rem;margin:.2rem 0 .7rem}
-.emrEntryCard p{color:#435d55;line-height:1.6;flex:1}
-.emrEntryCard a{font-weight:700;color:#1a6156}
-.emrEntryFooter{display:flex;gap:1.5rem;flex-wrap:wrap;margin:2.5rem 0;color:#51655e;font-size:.92rem}
-@media(max-width:900px){.emrEntryGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:600px){.emrEntryGrid{grid-template-columns:1fr}.emrEntryWelcome{display:block}}
+.emrEntry{max-width:1240px;margin:0 auto;padding:2rem 1.4rem 6rem;color:#173e37}
+.emrEntryHeader{padding:2.2rem clamp(1.3rem,4vw,3rem);border-radius:1rem;background:linear-gradient(125deg,#143c35,#295c50);color:#fff}
+.emrEntryEyebrow{text-transform:uppercase;letter-spacing:.12em;font-size:.77rem;font-weight:700}
+.emrEntryHeader .emrEntryEyebrow{color:#e6ce97}
+.emrEntryHeader h1{font-size:clamp(2rem,5vw,3.4rem);margin:.5rem 0 1rem}
+.emrEntryHeader p:last-child{max-width:800px;line-height:1.6}
+.emrEntryLogin{background:white;margin:2rem auto;padding:2rem;border:1px solid #d2dfd8;border-radius:.85rem;max-width:750px}
+.emrEntryLogin h2,.emrEntryWelcome h2{font-size:1.6rem;margin:.5rem 0}
+.emrEntryButton,.emrEntryPatientLaunch{display:inline-block;background:#245448!important;color:#fff!important;border-radius:.45rem;padding:.7rem 1rem;font-weight:700;text-decoration:none}
+.emrEntryWelcome{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;padding:2rem 0 1.3rem}
+.emrEntryWelcome p{max-width:760px;line-height:1.55}
+.emrEntryPatientList{overflow-x:auto;background:#fff;border:1px solid #ccd9d2;border-radius:.85rem}
+.emrEntryPatientList table{width:100%;border-collapse:collapse}
+.emrEntryPatientList th,.emrEntryPatientList td{text-align:left;padding:1rem;border-bottom:1px solid #dbe4dd;vertical-align:middle}
+.emrEntryPatientList thead{background:#e8f0eb}
+.emrEntryPatientList tbody tr:last-child th,.emrEntryPatientList tbody tr:last-child td{border-bottom:0}
+.emrEntryModuleLinks{margin-top:.7rem;font-size:.92rem}
+.emrEntryModuleLinks summary{cursor:pointer}
+.emrEntryModuleLinks div{display:flex;flex-wrap:wrap;gap:.7rem;margin-top:.6rem}
+.emrEntryModuleLinks a,.emrEntryActions a{color:#205c4d;text-underline-offset:3px}
+.emrEntryActions{display:flex;flex-wrap:wrap;gap:1rem 1.5rem;margin:2rem 0}
+@media(max-width:650px){.emrEntryPatientList th,.emrEntryPatientList td{padding:.65rem}.emrEntryWelcome{display:block}}

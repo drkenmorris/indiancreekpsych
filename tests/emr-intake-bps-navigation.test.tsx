@@ -1,6 +1,6 @@
 import React from 'react';
 import {afterEach,expect,test,vi} from 'vitest';
-import {cleanup,render,screen,waitFor} from '@testing-library/react';
+import {cleanup,render,screen,waitFor,fireEvent} from '@testing-library/react';
 import {readFileSync} from 'node:fs';
 import PatientBpsIntakeReview from '@/app/emr/PatientBpsIntakeReview';
 
@@ -74,4 +74,29 @@ test('reopening an immutable BPS review shows stored patient reports separately 
  expect(container.textContent).toContain('not a new import, verified clinical finding');
  expect(container.querySelector('form')).toBeNull();
  expect(calls).toEqual(['/api/emr/bps-intake?patient='+patient]);
+});
+
+test('acknowledged BPS save is never reported as unsaved when subsequent history refresh fails',async()=>{
+ const patient='00000000-0000-0000-0000-000000000701';
+ const sections=Array.from({length:21},(_,i)=>({title:'Section '+i,domain:'Clinical history',
+  disposition:'clinical',fields:[],answered:0}));
+ let reads=0,saves=0;
+ vi.stubGlobal('fetch',vi.fn(async(_url:string,init?:RequestInit)=>{
+  if(init?.method==='POST'){saves++;return {ok:true,json:async()=>({saved:true,id:'00000000-0000-0000-0000-000000000702'})};}
+  reads++;
+  if(reads>1)return {ok:false,json:async()=>({error:'History refresh temporarily unavailable'})};
+  return {ok:true,json:async()=>({patientId:patient,
+   source:{status:'submitted',version:2,updatedAt:'2026-11-10T12:00:00Z'},
+   sections,unmappedKeys:[],reviews:[]})};
+ }));
+ render(<PatientBpsIntakeReview patientId={patient}/>);
+ await screen.findByText(/Sections audited: 21\/21/);
+ fireEvent.click(screen.getByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i}));
+ fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed this intake/i}));
+ fireEvent.click(screen.getByRole('button',{name:/Save reviewed BPS history snapshot/i}));
+ await screen.findByText(/snapshot WAS saved, but its history could not be reloaded/i);
+ expect(screen.getByText(/do not submit it again/i)).toBeTruthy();
+ expect(screen.queryByRole('button',{name:/Save reviewed BPS history snapshot/i})).toBeNull();
+ expect(saves).toBe(1);
+ expect(reads).toBe(2);
 });

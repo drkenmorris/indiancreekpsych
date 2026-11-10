@@ -40,8 +40,16 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
     body:JSON.stringify({patientId,sourceVersion:data.source.version,sourceStatus:data.source.status,
      sourceUpdatedAt:data.source.updatedAt,notes,reviewed:true})}));
    if(!result.saved)throw Error('The review was not confirmed.');
-   const next=await load(patientId);setData(next);setPrepared(false);setReviewed(false);setNotes(emptyBpsNotes());
+   // The database has acknowledged this append-only write. A subsequent read failure
+   // must never be described as an unsaved review or invite a duplicate save.
+   setPrepared(false);setReviewed(false);setNotes(emptyBpsNotes());
    setStatus('Clinician-reviewed, unsigned BPS intake snapshot saved in the protected chart. Patient statements remain patient-reported; no diagnosis, authorization, or signature was created.');
+   try{
+    const next=await load(patientId);
+    setData(next);
+   }catch{
+    setStatus('The clinician-reviewed BPS snapshot WAS saved, but its history could not be reloaded. Reopen this patient chart to check the saved review; do not submit it again.');
+   }
   }catch(e){setStatus(e instanceof Error?e.message:'BPS intake save was not confirmed.');}finally{setSaving(false);}
  }
  return <article className="centralCard" aria-label="Intake biopsychosocial reconciliation">

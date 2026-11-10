@@ -8,18 +8,20 @@ import PatientBpsIntakeReview from '../PatientBpsIntakeReview';
 import '../central-emr.css';
 
 export const dynamic='force-dynamic';
-type Props={searchParams:Promise<{patient?:string}>};
+type Props={searchParams:Promise<{patient?:string;bps_page?:string}>};
+const bpsPages=new Set(['symptoms','treatment_history','medications','family_origin','medical_substance','developmental_personal','trauma_history']);
 
 export default async function EmrBpsIntakePage({searchParams}:Props){
  await patientAccess(true,'/emr/bps-intake');
  const ctx=await emrAccess();
  if(!ctx)redirect('/account/security?next=%2Femr');
- const {patient}=await searchParams;
+ const {patient,bps_page}=await searchParams;
  if(!uuid(patient))redirect('/emr');
  const {data,error}=await ctx.supabase.from('clinical_patients').select('id').eq('id',patient).maybeSingle();
  if(error)throw Error('The central patient could not be verified.');
  if(!data)notFound();
  const params=new URLSearchParams({patient,module:'assessment',section:'assessment:biopsychosocial'});
+ if(bps_page&&bpsPages.has(bps_page))params.set('bps_page',bps_page);
  return <AdministrativeShell><main className="centralEmr" aria-label="Protected clinician-reviewed biopsychosocial intake">
   <header><p>Indian Creek Psychological Services · Central clinical chart</p>
    <h1>Patient intake → Biopsychosocial assessment</h1>

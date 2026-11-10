@@ -79,3 +79,48 @@ document.addEventListener('click',async event=>{
  event.preventDefault();event.stopImmediatePropagation();
  safeNavigate(async()=>{try{const response=await fetch('/api/emr/logout',{method:'POST'});if(!response.ok)throw Error('Sign out could not be completed.');location.assign('/login?next=%2Femr');}catch(error){message(error.message,true);}});
 },true);
+
+
+// Clinic Supabase identity bootstrap. The protected /emr/workspace response is
+// authorized by the existing clinic session + administrator aal2 MFA; no separate
+// browser-local provider registration/login is allowed for the production chart.
+// This script loads after the original prototype modules, so their interface is
+// retained while their legacy synthetic account/session entry point is replaced.
+providerEntry=function(){
+ renderGlobalMenu();
+ $('#patient-list').replaceChildren();
+ $('#chart-header').replaceChildren();
+ $('#heading').innerHTML='<div class="eyebrow">INDIAN CREEK EMR</div><h1>Clinic administrator session required</h1>';
+ $('#content').innerHTML='<section class="card"><h2>Secure clinical workspace</h2><p>Use your existing Indian Creek administrator account and authenticator MFA. The old prototype provider registrations are not clinic accounts.</p><p><a href="/login?next=%2Femr">Return to clinic sign-in</a> · <a href="/account/security?next=%2Femr">Verify MFA</a></p></section>';
+};
+providerAPI=function(){
+ return Promise.reject(Error('Prototype provider accounts are disabled in the clinic EMR. Use existing administrator credentials and Supabase permissions.'));
+};
+renderProviderWorkspace=function(){
+ renderGlobalMenu();
+ $('#chart-header').replaceChildren();
+ $('#heading').innerHTML='<h1>Clinic administration</h1>';
+ $('#content').innerHTML='<section class="card"><h2>Existing clinic account and services</h2><p>Provider roles and MFA are managed by the clinic, not by a separate synthetic EMR account directory.</p><p><a href="/account/security">Account and MFA</a> · <a href="/admin/assign-test">Psychological assessment assignment</a> · <a href="/appointments">Existing appointment scheduler</a></p></section>';
+};
+initProviderUI=async function(){
+ // Keep the original clinical menus and navigation; replace only account bootstrap.
+ bindCalendarNavigation();
+ setNavigationExpanded(!matchMedia('(max-width:720px)').matches);
+ $('#navigation-toggle').addEventListener('click',()=>setNavigationExpanded($('#navigation-panels').hidden));
+ document.addEventListener('click',handleWorkspaceNavigation);
+ try{
+  const response=await fetch('/api/emr/workflow',{method:'GET',cache:'no-store',credentials:'same-origin'});
+  if(!response.ok)throw Error('Administrator session or MFA is no longer valid.');
+  const identity=await response.json();
+  if(!identity?.me?.id||identity.me.is_admin!==true)throw Error('Clinic administrator authorization was not confirmed.');
+  providerMe=identity.me;
+  providerPractice={name:'Indian Creek Psychological Services',type:'Clinical practice'};
+  providerInfo=null;
+  const opened=await startClinicalWorkspace();
+  if(opened===false)message('The protected chart could not be opened. No patient was changed or saved.',true);
+ }catch(error){
+  providerMe=null;boot=null;chart=null;groupState=null;
+  providerEntry();
+  message(error instanceof Error?error.message:'Clinic administrator session could not be verified.',true);
+ }
+};

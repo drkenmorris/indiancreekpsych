@@ -2,6 +2,7 @@
 import {useCallback,useEffect,useMemo,useState,type FormEvent} from 'react';
 import Link from 'next/link';
 import '../central-emr.css';
+import {groupSessionStartUtc} from '@/lib/emr/group-time';
 
 type Patient={id:string;demographics:Record<string,string>};
 type Attendance='Present'|'Absent'|'Excused';
@@ -34,7 +35,7 @@ export default function GroupSessions(){
    try{
      if(!form.scheduled_start||participants.length<2)throw Error('Select a start time and at least two distinct central patients.');
      const r=await fetch('/api/emr/groups',{method:'POST',headers:{'Content-Type':'application/json'},
-       body:JSON.stringify({...form,scheduled_start:new Date(form.scheduled_start).toISOString(),participants})});
+       body:JSON.stringify({...form,scheduled_start:groupSessionStartUtc(form.scheduled_start),participants})});
      const data=await r.json();if(!r.ok)throw Error(data.error||'Save failed.');
      setForm(fresh());setAttendance({});setMessage('Shared group session saved centrally as an immutable reviewed record. Individual clinical notes must be entered in each patient chart.');
      await load();

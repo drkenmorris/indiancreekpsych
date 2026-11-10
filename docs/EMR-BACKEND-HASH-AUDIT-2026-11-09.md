@@ -46,3 +46,24 @@
 The `/emr/groups` prototype-to-live adaptation now reads the actual practice timezone from protected `appointment_settings`, rather than deriving an instant from the clinician's browser timezone or hardcoding America/Chicago. It rejects missing/duplicated daylight-saving wall times and API timestamps without an explicit UTC offset. This is **branch code** awaiting CI and authenticated nonproduction acceptance.
 
 **Release status:** No production merge or Vercel production deployment authorized by this audit. Nonproduction migration test, authenticated browser acceptance, individual group note links, billed encounters, and full chart/workflow checks are still outstanding.
+
+## Additional deployed-source checks: ten shared frontend assets plus synthetic store
+
+The same Vercel raw-SHA-1 method was applied to the ten files under `src/public/*` versus `main:public/emr-assets/*`. The result independently confirms the previously observed **4 byte-identical** and **6 differing** frontend assets:
+
+| Frontend asset | Source bytes identical? | Integration rule |
+| --- | --- | --- |
+| `app.js` | No | Retain production central UUID and protected workspace |
+| `index.html` | No | Retain production routes |
+| `menu-completion.js` | **Yes** | No replacement necessary |
+| `module-menu.js` | No | Retain live managed libraries |
+| `navigation-menus.js` | No | Retain live logout/account routing |
+| `navigation.js` | **Yes** | No replacement necessary |
+| `patients.js` | No | Retain central patient precedence |
+| `planner.js` | **Yes** | No replacement necessary |
+| `providers.js` | No | Do not replace live administrator/session model |
+| `style.css` | **Yes** | No replacement necessary |
+
+The prototype's `engine/store.py` and production `emr_engine/store.py` are **not** byte-identical (prototype SHA-1 `c78294624cc972e34bab190f0a9589977bd6a431`; production SHA-1 `92d415a92cadb09ea02d0f740f18d36ec580cfde`). Both refer to synthetic workflow storage; this comparison **does not establish** that it is the active production database. The actual patient record authority remains the protected Supabase stack and must not be displaced by either synthetic store.
+
+**Total completed shared source-file comparisons this audit: 31** (20 shared engine module bodies, 10 shared frontend files, 1 synthetic engine store). **Identical: 24. Different: 7.** These are verified source-file comparisons, not a count of fully integrated clinical features.

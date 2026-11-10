@@ -1,4 +1,5 @@
 import {expect,test,vi} from 'vitest';
+import {readFileSync} from 'node:fs';
 const mocks=vi.hoisted(()=>({redirect:vi.fn((path:string)=>{throw new Error('redirect '+path);})}));
 vi.mock('next/navigation',()=>({redirect:mocks.redirect}));
 import EmrPage from '@/app/emr/page';
@@ -15,4 +16,9 @@ test('other requested clinical destinations and scheduler remain available',asyn
 });
 test('unrecognized BPS subpage is not propagated',async()=>{
  await expect(EmrPage({searchParams:Promise.resolve({bps_page:'https://example.com'})})).rejects.toThrow('redirect /emr/workspace?module=assessment&section=assessment%3Abiopsychosocial');
+});
+
+test('original BPS intake link carries the active clinical subpage into protected source review',()=>{
+ const source=readFileSync(new URL('../public/emr-assets/app.js',import.meta.url),'utf8');
+ expect(source).toContain('data-bps-intake-review href="/emr/bps-intake?patient=${encodeURIComponent(patientId)}&bps_page=${encodeURIComponent(bpsSubpage())}"');
 });

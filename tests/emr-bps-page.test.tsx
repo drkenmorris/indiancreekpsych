@@ -11,7 +11,7 @@ vi.mock('@/lib/emr/access',()=>({emrAccess:m.emrAccess}));
 vi.mock('next/navigation',()=>({redirect:m.redirect,notFound:m.notFound}));
 vi.mock('@/app/emr/PatientBpsIntakeReview',()=>({default:({patientId}:{patientId:string})=><div>Review for central patient {patientId}</div>}));
 const patient='00000000-0000-4000-8000-000000000101';
-const props=(id=patient)=>({searchParams:Promise.resolve({patient:id})});
+const props=(id=patient,bps_page?:string)=>({searchParams:Promise.resolve({patient:id,bps_page})});
 let lookup:ReturnType<typeof vi.fn>;
 beforeEach(()=>{
  vi.clearAllMocks();m.patientAccess.mockResolvedValue({});
@@ -27,6 +27,12 @@ test('authorized linked central patient opens original BPS and 21-section source
  expect(markup).toContain('/emr/patients?patient='+patient);
  expect(markup).toContain('existing administrator credentials, MFA');
  expect(m.from).toHaveBeenCalledWith('clinical_patients');
+});
+test('round-trip from original BPS preserves allowed clinical subpage without accepting unsafe navigation input',async()=>{
+ const markup=renderToStaticMarkup(await EmrBpsIntakePage(props(patient,'medical_substance')));
+ expect(markup).toContain('bps_page=medical_substance');
+ const unsafe=renderToStaticMarkup(await EmrBpsIntakePage(props(patient,'https://example.com')));
+ expect(unsafe).not.toContain('bps_page=');
 });
 test('no MFA denies page before reading central patient',async()=>{
  m.emrAccess.mockResolvedValue(null);

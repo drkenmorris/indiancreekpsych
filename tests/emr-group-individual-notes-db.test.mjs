@@ -25,6 +25,11 @@ for(const id of [p1,p2])await db.query('insert into public.clinical_patients val
 await db.exec(readFileSync('supabase/migrations/20261109190000_emr_group_sessions.sql','utf8'));
 await db.exec(readFileSync('supabase/migrations/20261110032200_emr_group_individual_notes.sql','utf8'));
 await db.exec(readFileSync('supabase/migrations/20261110045500_emr_group_note_amendments.sql','utf8'));
+await db.exec(`alter table auth.users add column email_confirmed_at timestamptz;
+ alter table public.profiles add column full_name text;
+ update auth.users set email_confirmed_at=now();
+ update public.profiles set full_name=case when id='00000000-0000-0000-0000-000000000101'::uuid then 'Fictional Group Clinician' else 'Other Clinician' end;`);
+await db.exec(readFileSync('supabase/migrations/20261110081500_emr_group_note_attestations.sql','utf8'));
 const q=(sql,args=[])=>db.query(sql,args);
 const as=async(id,aal='aal2')=>{
  await db.exec('reset role');
@@ -107,6 +112,67 @@ await test('other administrators, patients and missing MFA cannot read or append
  await as(admin,'aal1');
  assert.equal((await q('select * from public.emr_group_note_amendments')).rows.length,0);
  await assert.rejects(q('select public.save_emr_group_note_amendment($1)',[payload]),/MFA required/);
+});
+
+
+let signedGroupNoteId;
+await test('MFA note author may permanently attest a real attended group note with signed clinical snapshot',async()=>{
+ await as(admin);
+ const source=(await q('select id,sections from public.emr_group_individual_notes limit 1')).rows[0];
+ const signature=await q('select public.attest_emr_group_individual_note($1) id',[{
+  note_id:source.id,patient_id:p1,session_id:sid,typed_name:'Fictional Group Clinician',attested:true
+ }]);
+ signedGroupNoteId=signature.rows[0].id;
+ assert.ok(signedGroupNoteId);
+ const saved=(await q('select note_id,owner_id,signer_name,signed_content from public.emr_group_note_attestations')).rows[0];
+ assert.equal(saved.note_id,source.id);
+ assert.equal(saved.owner_id,admin);
+ assert.equal(saved.signer_name,'Fictional Group Clinician');
+ assert.equal(saved.signed_content.patient_id,p1);
+ assert.equal(saved.signed_content.session_id,sid);
+ assert.deepEqual(saved.signed_content.sections,source.sections);
+});
+await test('attestation cannot be forged, repeated, edited, or removed by an authenticated user',async()=>{
+ await as(admin);
+ const source=(await q('select id from public.emr_group_individual_notes limit 1')).rows[0].id;
+ const payload={note_id:source,patient_id:p1,session_id:sid,typed_name:'Fictional Group Clinician',attested:true};
+ await assert.rejects(q('select public.attest_emr_group_individual_note($1)',[payload]),/already attested/);
+ for(const bad of [
+  {...payload,typed_name:'Fake Clinician'}, {...payload,attested:false},
+  {...payload,patient_id:p2},{...payload,session_id:'00000000-0000-0000-0000-000000000999'},
+  {...payload,note_id:'00000000-0000-0000-0000-000000000999'}
+ ])await assert.rejects(q('select public.attest_emr_group_individual_note($1)',[bad]));
+ await assert.rejects(q("update public.emr_group_note_attestations set signer_name='Forged Clinician'"),/permission denied/);
+ await assert.rejects(q('delete from public.emr_group_note_attestations'),/permission denied/);
+ await assert.rejects(q('insert into public.emr_group_note_attestations(note_id) values($1)',[source]),/permission denied/);
+ assert.equal((await q('select count(*)::int n from public.emr_group_note_attestations')).rows[0].n,1);
+});
+await test('RLS blocks other admins, patients, and sessions without MFA; unsigned addenda remain independent',async()=>{
+ const source=(await q('select id from public.emr_group_individual_notes limit 1')).rows[0].id;
+ const payload={note_id:source,patient_id:p1,session_id:sid,typed_name:'Fictional Group Clinician',attested:true};
+ await as(secondAdmin);
+ assert.equal((await q('select * from public.emr_group_note_attestations')).rows.length,0);
+ await assert.rejects(q('select public.attest_emr_group_individual_note($1)',[payload]));
+ await as(p1);
+ assert.equal((await q('select * from public.emr_group_note_attestations')).rows.length,0);
+ await assert.rejects(q('select public.attest_emr_group_individual_note($1)',[payload]),/MFA required/);
+ await as(admin,'aal1');
+ assert.equal((await q('select * from public.emr_group_note_attestations')).rows.length,0);
+ await assert.rejects(q('select public.attest_emr_group_individual_note($1)',[payload]),/MFA required/);
+ await as(admin);
+ assert.equal((await q('select * from public.emr_group_note_amendments')).rows.length,1);
+ assert.equal((await q('select * from public.emr_group_note_attestations')).rows[0].id,signedGroupNoteId);
+});
+await test('unverified clinician email cannot create a clinical attestation',async()=>{
+ await db.exec('reset role');
+ await q('update auth.users set email_confirmed_at=null where id=$1',[admin]);
+ await as(admin);
+ const source=(await q('select id from public.emr_group_individual_notes limit 1')).rows[0].id;
+ await assert.rejects(q('select public.attest_emr_group_individual_note($1)',[{
+  note_id:source,patient_id:p1,session_id:sid,typed_name:'Fictional Group Clinician',attested:true
+ }]),/MFA required/);
+ await db.exec('reset role');
+ await q('update auth.users set email_confirmed_at=now() where id=$1',[admin]);
 });
 
 await db.close();

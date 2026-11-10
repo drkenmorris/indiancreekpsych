@@ -54,7 +54,7 @@ test('only attended sessions offer patient-bound DAP/SOAP/Narrative note editor;
  expect(payload).toEqual({patient_id:p,session_id:session,template:'DAP',reviewed:true,
   sections:{data:'Participated appropriately',assessment:'Engagement recorded',plan:'Continue sessions'}});
  expect(await screen.findByText(/Reviewed individual progress note saved as an unsigned/)).toBeTruthy();
- expect(screen.getByText('DAP — unsigned')).toBeTruthy();
+ expect(screen.getByText('DAP — recorded original')).toBeTruthy();
  expect(calls.every(c=>!c.url.includes(absent))).toBe(true);
 });
 

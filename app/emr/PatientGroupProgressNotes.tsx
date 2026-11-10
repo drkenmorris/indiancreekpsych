@@ -1,6 +1,7 @@
 'use client';
 import {useCallback,useEffect,useState,type FormEvent} from 'react';
 import PatientGroupNoteAmendments from './PatientGroupNoteAmendments';
+import PatientGroupNoteAttestation from './PatientGroupNoteAttestation';
 
 type Template='DAP'|'SOAP'|'Narrative';
 type SavedNote={
@@ -76,16 +77,17 @@ export default function PatientGroupProgressNotes({
  }
  return <section aria-label={'Individual progress notes — '+groupName}>
   <h4>Individual progress notes — {groupName}</h4>
-  <p>These notes belong only to the selected patient's documented attendance. They are separate from the shared group record. Saved entries remain unsigned and cannot be edited or treated as claims.</p>
+  <p>These notes belong only to the selected patient's documented attendance. They are separate from the shared group record. Original notes are stored unsigned and cannot be edited or treated as claims. The verified author may later attest an original note; corrections remain separate unsigned addenda.</p>
   {loading?<p role="status">Loading patient-specific group notes…</p>:error?
     <p role="alert">{error} This note editor is unavailable until records can be verified.</p>:
     <><h5>Previous reviewed notes ({notes.length})</h5>
      {notes.length===0?<p>No individual progress note has been saved for this session.</p>:
       <ol>{notes.map(note=><li key={note.id}>
-       <strong>{note.template} — unsigned</strong> · {new Date(note.created_at).toLocaleString('en-US')}
+       <strong>{note.template} — recorded original</strong> · {new Date(note.created_at).toLocaleString('en-US')}
        <dl>{Object.entries(note.sections).map(([key,value])=><div key={key}>
         <dt>{fieldNames[key]||key}</dt><dd>{value}</dd>
        </div>)}</dl>
+       <PatientGroupNoteAttestation key={'signature-'+note.id} noteId={note.id} patientId={patientId} sessionId={sessionId}/>
        <PatientGroupNoteAmendments key={note.id} noteId={note.id} patientId={patientId} sessionId={sessionId}/>
       </li>)}</ol>}
      <form onSubmit={save}>

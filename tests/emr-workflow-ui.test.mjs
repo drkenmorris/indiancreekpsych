@@ -11,6 +11,12 @@ await test('actual hosted forms and global navigation render against central pat
  for(const f of ['planner.js','navigation.js','patients.js','module-menu.js','providers.js','menu-completion.js','navigation-menus.js','strengths-library.js','strengths-builder.js','app.js','production.js'])runInContext(readFileSync('public/emr-assets/'+f,'utf8'),dom.getInternalVMContext());
  await new Promise(r=>setTimeout(r,100));assert.equal(errors.length,0,errors.join(';'));assert.match(w.document.querySelector('#chart-header').textContent,/Fictional Example/);assert.match(w.document.querySelector('#main-modules').textContent,/Administration/);
  for(const [module,key,text] of [['personal','insurance','Insurance information'],['assessment','biopsychosocial','Current Symptom Checklist'],['notes','record_history','Record history']]){runInContext(`chooseSection(${JSON.stringify(module)},${JSON.stringify(key)});render();`,dom.getInternalVMContext());await new Promise(r=>setTimeout(r,20));assert.match(w.document.querySelector('#content').textContent,new RegExp(text,'i'));}
+ // All seven original BPS subpages now link to the protected, real intake reconciliation.
+ runInContext("chooseSection('assessment','biopsychosocial');render();",dom.getInternalVMContext());
+ assert.match(w.document.querySelector('#content').textContent,/21-section intake → BPS clinician review/);
+ assert.equal(w.document.querySelector('a[href="/emr/bps-intake?patient='+fixture.pid+'"]')?.getAttribute('href'),'/emr/bps-intake?patient='+fixture.pid);
+ const bpsLinkCount=w.document.querySelectorAll('a[href^="/emr/bps-intake?patient="]').length;
+ assert.equal(bpsLinkCount,1,'a single centrally scoped BPS review link is rendered');
  // The builder runs in the actual hosted form and retains manual narrative.
  runInContext("chooseSection('assessment','strengths');render();",dom.getInternalVMContext());
  await new Promise(r=>setTimeout(r,20));

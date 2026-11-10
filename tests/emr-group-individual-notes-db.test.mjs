@@ -24,6 +24,7 @@ for(const [id,role] of [[admin,'admin'],[secondAdmin,'admin'],[p1,'patient']]){
 for(const id of [p1,p2])await db.query('insert into public.clinical_patients values($1,$2)',[id,{first_name:'Fictional',last_name:'Participant'}]);
 await db.exec(readFileSync('supabase/migrations/20261109190000_emr_group_sessions.sql','utf8'));
 await db.exec(readFileSync('supabase/migrations/20261110032200_emr_group_individual_notes.sql','utf8'));
+await db.exec(readFileSync('supabase/migrations/20261110045500_emr_group_note_amendments.sql','utf8'));
 const q=(sql,args=[])=>db.query(sql,args);
 const as=async(id,aal='aal2')=>{
  await db.exec('reset role');
@@ -69,4 +70,43 @@ await test('signed note and clinical data cannot be changed directly by authenti
  await assert.rejects(q('delete from public.emr_group_individual_notes'),/permission denied/);
  await assert.rejects(q('insert into public.emr_group_individual_notes(patient_id) values($1)',[p1]),/permission denied/);
 });
+
+await test('authorized clinician can add an immutable correction without modifying the original note',async()=>{
+ await as(admin);
+ const original=(await q('select id,sections from public.emr_group_individual_notes limit 1')).rows[0];
+ const details={note_id:original.id,patient_id:p1,session_id:sid,reason:'Clarify timing',amendment:'Patient described an additional coping skill after the group.',reviewed:true};
+ const result=await q('select public.save_emr_group_note_amendment($1) id',[details]);
+ assert.ok(result.rows[0].id);
+ const noteAfter=(await q('select sections from public.emr_group_individual_notes where id=$1',[original.id])).rows[0];
+ assert.deepEqual(noteAfter.sections,original.sections);
+ const rows=await q('select note_id,reason,amendment from public.emr_group_note_amendments');
+ assert.equal(rows.rows.length,1);assert.equal(rows.rows[0].note_id,original.id);
+});
+await test('addendum rejects wrong patient/session, missing review, and incomplete text; immutable history cannot be overwritten',async()=>{
+ await as(admin);
+ const id=(await q('select id from public.emr_group_individual_notes limit 1')).rows[0].id;
+ const payload={note_id:id,patient_id:p1,session_id:sid,reason:'Correct details',amendment:'New details reviewed with patient.',reviewed:true};
+ for(const bad of [
+  {...payload,patient_id:p2},{...payload,session_id:'00000000-0000-0000-0000-000000000999'},
+  {...payload,reviewed:false},{...payload,reason:'no'},{...payload,amendment:'x'},
+  {...payload,note_id:'00000000-0000-0000-0000-000000000999'},
+ ])await assert.rejects(q('select public.save_emr_group_note_amendment($1)',[bad]));
+ assert.equal((await q('select count(*)::int n from public.emr_group_note_amendments')).rows[0].n,1);
+ await assert.rejects(q("update public.emr_group_note_amendments set reason='Edited existing addendum'"),/permission denied/);
+ await assert.rejects(q('delete from public.emr_group_note_amendments'),/permission denied/);
+});
+await test('other administrators, patients and missing MFA cannot read or append the original clinician addendum',async()=>{
+ await as(admin);
+ const id=(await q('select id from public.emr_group_individual_notes limit 1')).rows[0].id;
+ const payload={note_id:id,patient_id:p1,session_id:sid,reason:'Correction needed',amendment:'Additional clinical information.',reviewed:true};
+ await as(secondAdmin);
+ assert.equal((await q('select * from public.emr_group_note_amendments')).rows.length,0);
+ await assert.rejects(q('select public.save_emr_group_note_amendment($1)',[payload]),/note unavailable/);
+ await as(p1);
+ assert.equal((await q('select * from public.emr_group_note_amendments')).rows.length,0);
+ await as(admin,'aal1');
+ assert.equal((await q('select * from public.emr_group_note_amendments')).rows.length,0);
+ await assert.rejects(q('select public.save_emr_group_note_amendment($1)',[payload]),/MFA required/);
+});
+
 await db.close();

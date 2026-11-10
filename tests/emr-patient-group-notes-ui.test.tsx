@@ -20,6 +20,8 @@ test('only attended sessions offer patient-bound DAP/SOAP/Narrative note editor;
   calls.push({url,method,body:init?.body?JSON.parse(String(init.body)):undefined});
   if(url.startsWith('/api/emr/groups/patient?'))
    return {ok:true,json:async()=>history};
+  if(url.startsWith('/api/emr/groups/individual-notes/amendments?'))
+   return {ok:true,json:async()=>({noteId:'00000000-0000-0000-0000-000000000299',patientId:p,sessionId:session,amendments:[]})};
   if(url.startsWith('/api/emr/groups/individual-notes?'))
    return {ok:true,json:async()=>({patientId:p,sessionId:session,notes:saved?[{
     id:'00000000-0000-0000-0000-000000000299',patient_id:p,session_id:session,

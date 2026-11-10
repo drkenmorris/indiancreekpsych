@@ -1,5 +1,6 @@
 'use client';
 import {useCallback,useEffect,useState,type FormEvent} from 'react';
+import PatientGroupNoteAmendments from './PatientGroupNoteAmendments';
 
 type Template='DAP'|'SOAP'|'Narrative';
 type SavedNote={
@@ -85,6 +86,7 @@ export default function PatientGroupProgressNotes({
        <dl>{Object.entries(note.sections).map(([key,value])=><div key={key}>
         <dt>{fieldNames[key]||key}</dt><dd>{value}</dd>
        </div>)}</dl>
+       <PatientGroupNoteAmendments key={note.id} noteId={note.id} patientId={patientId} sessionId={sessionId}/>
       </li>)}</ol>}
      <form onSubmit={save}>
       <fieldset disabled={saving}>

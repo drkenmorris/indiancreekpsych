@@ -1,16 +1,21 @@
 import { describe, expect, it } from "vitest";
 import { weeklyInsights } from "../app/content/weekly-insights";
+import { featureChapters } from "../app/content/weekly-insight-chapters";
 import { renderInsightEmail } from "../app/content/insight-email";
 import { serviceDetails, specialtyDetails } from "../app/content/clinical-detail";
 
 describe("clinical education library", () => {
   it("contains 52 unique, complete editorial editions", () => {
     expect(weeklyInsights).toHaveLength(52);
+    expect(featureChapters).toHaveLength(52);
     expect(new Set(weeklyInsights.map(item => item.slug)).size).toBe(52);
     weeklyInsights.forEach((item,index) => {
       expect(item.week).toBe(index+1);
       expect(item.insight.length).toBeGreaterThan(100);
       expect(item.practice.length).toBeGreaterThan(35);
+      expect(item.context.length).toBeGreaterThan(300);
+      expect(item.clinicalPerspective.length).toBeGreaterThan(300);
+      expect((item.summary+item.context+item.insight+item.clinicalPerspective+item.practice).split(/\s+/).length).toBeGreaterThan(145);
       expect(item.image).toMatch(/^\/images\//);
     });
   });
@@ -28,5 +33,7 @@ describe("clinical education library", () => {
     expect(html).toContain("{{UNSUBSCRIBE_URL}}");
     expect(html).toContain("https://indiancreekpsych.com/images/");
     expect(html).toContain("not individualized treatment advice");
+    expect(html).toContain("What clinical understanding adds");
+    expect(html).toContain(weeklyInsights[0].clinicalPerspective);
   });
 });

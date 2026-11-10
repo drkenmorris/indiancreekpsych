@@ -1,5 +1,6 @@
 /** Editorial library. No subscriber data, send automation, or clinical records are stored here. */
-export type WeeklyInsight = { week: number; slug: string; title: string; summary: string; insight: string; practice: string; image: string; category: string };
+import { featureChapters } from "./weekly-insight-chapters";
+export type WeeklyInsight = { week: number; slug: string; title: string; summary: string; insight: string; practice: string; context: string; clinicalPerspective: string; image: string; category: string };
 
 const images: Record<string,string> = {
   anxiety: "/images/service-individual-therapy.webp",
@@ -72,7 +73,7 @@ const editorial: [string,string,string,string,string][] = [
 export const weeklyInsights: WeeklyInsight[] = editorial.map(([category,title,summary,insight,practice], index) => ({
   week:index+1,
   slug:`week-${String(index+1).padStart(2,"0")}-${title.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/-$/g,"")}`,
-  title,summary,insight,practice,image:images[category],category,
+  title,summary,insight,practice,context:featureChapters[index]?.context??"",clinicalPerspective:featureChapters[index]?.clinicalPerspective??"",image:images[category],category,
 }));
 
 export function getWeeklyInsight(slug:string){return weeklyInsights.find(item=>item.slug===slug);}

@@ -22,3 +22,31 @@ test('original BPS intake link carries the active clinical subpage into protecte
  const source=readFileSync('public/emr-assets/app.js','utf8');
  expect(source).toContain('data-bps-intake-review href="/emr/bps-intake?patient=${encodeURIComponent(patientId)}&bps_page=${encodeURIComponent(bpsSubpage())}"');
 });
+
+
+test('original BPS UI boots from the real clinic Supabase administrator + MFA identity, never a demo provider login',()=>{
+ const html=readFileSync('public/emr-assets/index.html','utf8');
+ const central=readFileSync('public/emr-assets/central-directory.js','utf8');
+ expect(html.indexOf('/emr-assets/central-directory.js')).toBeGreaterThan(html.indexOf('/emr-assets/app.js'));
+ expect(central).toContain('initProviderUI=async function()');
+ expect(central).toContain("fetch('/api/emr/workflow',{method:'GET',cache:'no-store',credentials:'same-origin'})");
+ expect(central).toContain('identity.me.is_admin!==true');
+ expect(central).toContain('const opened=await startClinicalWorkspace()');
+ expect(central).not.toContain("localStorage.setItem(PROVIDER_WORKSPACE_KEY");
+});
+test('legacy fictitious provider registration cannot replace clinic accounts',()=>{
+ const central=readFileSync('public/emr-assets/central-directory.js','utf8');
+ expect(central).toContain('providerAPI=function()');
+ expect(central).toContain('Prototype provider accounts are disabled');
+ expect(central).toContain('providerEntry=function()');
+ expect(central).toContain('/login?next=%2Femr');
+ expect(central).toContain('/account/security?next=%2Femr');
+});
+test('original clinical modules retain existing appointment and assessment-assignment services',()=>{
+ const central=readFileSync('public/emr-assets/central-directory.js','utf8');
+ const production=readFileSync('public/emr-assets/production.js','utf8');
+ expect(production).toContain("location.assign('/appointments')");
+ expect(central).toContain('/admin/assign-test');
+ expect(central).toContain('renderProviderWorkspace=function()');
+ expect(central).toContain('/appointments');
+});

@@ -5,13 +5,13 @@ vi.mock('@/lib/emr/access',()=>({emrAccess:mocks.access,privateHeaders:{'Cache-C
 const id='00000000-0000-0000-0000-000000000101';
 const url=(patient=id)=>new Request('https://www.indiancreekpsych.com/api/emr/groups/patient?patient='+patient);
 function setup({exists=true,groups=[],errorTable=''}:{exists?:boolean;groups?:unknown[];errorTable?:string}={}){
- const eqs:Array<[string,string]>=[],tables:string[]=[];
+ const eqs:Array<[string,string]>=[],tables:string[]=[],orderBy:string[]=[];
  mocks.from.mockImplementation((name:string)=>{
    tables.push(name);
    const chain:any={
      select:()=>chain,
      eq:(key:string,value:string)=>{eqs.push([key,value]);return chain;},
-     order:()=>chain,
+     order:(column:string)=>{orderBy.push(column);return chain;},
      limit:async()=>({data:groups,error:name===errorTable?{message:'DB unavailable'}:null}),
      maybeSingle:async()=>({
        data:name==='clinical_patients'?(exists?{id}:null):{timezone:'America/Chicago'},
@@ -21,7 +21,7 @@ function setup({exists=true,groups=[],errorTable=''}:{exists?:boolean;groups?:un
    return chain;
  });
  mocks.access.mockResolvedValue({supabase:{from:mocks.from}});
- return {eqs,tables};
+ return {eqs,tables,orderBy};
 }
 beforeEach(()=>vi.clearAllMocks());
 test('requires administrator MFA before any patient query',async()=>{
@@ -47,6 +47,7 @@ test('queries only the selected patients participation and emits no peer identif
  expect(JSON.stringify(body)).not.toContain('DO-NOT-LEAK');
  expect(JSON.stringify(body)).not.toContain('NOT-FOR-PATIENT-HISTORY');
  expect(q.eqs).toContainEqual(['patient_id',id]);
+ expect(q.orderBy).toContain('session(scheduled_start)');
  expect(q.tables).toEqual(['clinical_patients','appointment_settings','emr_group_participation']);
  expect(mocks.from).toHaveBeenCalledTimes(3);
 });

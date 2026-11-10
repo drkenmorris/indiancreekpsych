@@ -30,7 +30,7 @@ export async function GET(request:Request){
   const {data,error}=await ctx.supabase.from('emr_group_participation')
     .select('attendance,session:emr_group_sessions!inner(id,group_name,scheduled_start,duration_minutes,shared_topic,created_at)')
     .eq('patient_id',patientId)
-    .order('scheduled_start',{referencedTable:'emr_group_sessions',ascending:false})
+    .order('session(scheduled_start)',{ascending:false})
     .limit(100);
   if(error)return reply({error:'Patient group history unavailable.'},503);
   const sessions=[];

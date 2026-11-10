@@ -17,6 +17,19 @@ await test('actual hosted forms and global navigation render against central pat
  assert.deepEqual(menuLabels('#provider-quick-menu'),['Provider Assignment','Provider Information','Assigned Patients List','Patient Overview','Patient Questionnaire Assignment','Patient Session Check-in','Billing']);
  assert.deepEqual(Array.from(w.document.querySelectorAll('#main-modules button')).map(node=>node.textContent),['Personal Data','Patient Assessments','Treatment Plan','Progress','Prognosis/Utilization Review','Prognosis','Discharge','Appointment Scheduler','Reports','System Settings','Administration']);
 
+ // Linked prototype menu pages must resolve to real protected clinic services,
+ // never synthetic appointment/provider data or separately saved demo accounts.
+ runInContext("chooseSection('administration','weekly_schedule');render();",dom.getInternalVMContext());
+ assert.equal(w.document.querySelector('#content a[href="/appointments"]')?.getAttribute('href'),'/appointments','must use the existing clinic calendar, never sample appointment records');
+ assert.equal(w.document.querySelector('#weekly-schedule-date'),null,'no local fictional weekly calendar is mounted');
+ runInContext("chooseSection('administration','assigned_patients');render();",dom.getInternalVMContext());
+ assert.equal(w.document.querySelector('#content a[href="/emr/patients"]')?.getAttribute('href'),'/emr/patients','central directory replaces synthetic assigned patient list');
+ assert.equal(w.document.querySelector('#assigned-patient-results'),null,'no demo chart lookup is rendered');
+ runInContext("chooseSection('personal','assigned_provider');render();",dom.getInternalVMContext());
+ assert.match(w.document.querySelector('#content').textContent,/Fictional provider accounts are disabled/);
+ assert.equal(w.document.querySelector('#module-section-form'),null,'no provider assignment can be saved against a fictitious identity');
+
+
  for(const [module,key,text] of [['personal','insurance','Insurance information'],['assessment','biopsychosocial','Current Symptom Checklist'],['notes','record_history','Record history']]){runInContext(`chooseSection(${JSON.stringify(module)},${JSON.stringify(key)});render();`,dom.getInternalVMContext());await new Promise(r=>setTimeout(r,20));assert.match(w.document.querySelector('#content').textContent,new RegExp(text,'i'));}
  assert.equal(w.document.querySelectorAll('[aria-label="Linked 21-section intake biopsychosocial review"]').length,0,'no extra panel added to the original BPS layout');
  await runInContext('refreshRegistry()',dom.getInternalVMContext());

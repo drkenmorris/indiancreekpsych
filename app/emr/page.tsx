@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import {redirect} from 'next/navigation';
+import {uuid} from '@/lib/emr/demographics';
 import {createClient} from '@/lib/supabase/server';
 import {emrAccess} from '@/lib/emr/access';
 import AdministrativeShell from '@/app/components/AdministrativeShell';
@@ -26,7 +28,8 @@ function labelPatient(patient:PatientRow){
  const name=[d.first_name,d.last_name].filter(v=>typeof v==='string'&&v.trim()).join(' ');
  return name||'Patient chart '+patient.id.slice(0,8);
 }
-export default async function EmrPage(){
+type EntryParams={patient?:string;module?:string;section?:string};
+export default async function EmrPage({searchParams}:{searchParams?:Promise<EntryParams>}={}){
  const supabase=await createClient();
  const {data:{user}}=await supabase.auth.getUser();
  const ctx=user?await emrAccess():null;
@@ -36,6 +39,13 @@ export default async function EmrPage(){
   const query=await ctx.supabase.from('clinical_patients').select('id,demographics').order('updated_at',{ascending:false}).limit(200);
   if(query.error)error='The patient directory is temporarily unavailable. No charts were changed.';
   else patients=(query.data??[]) as PatientRow[];
+ }
+ // Only an explicitly selected patient from the authorized central directory may launch the original EMR.
+ const selected=searchParams?await searchParams:null;
+ if(ctx&&!error&&uuid(selected?.patient)&&patients.some(patient=>patient.id===selected.patient)){
+  const requested=demoModules.find(([module])=>module===selected.module);
+  const module=requested?.[0]??'assessment';
+  redirect(clinicalHref(selected.patient,module,module==='assessment'?'assessment:biopsychosocial':''));
  }
  return <AdministrativeShell><main className="emrEntry" aria-labelledby="emr-title">
   <header className="emrEntryHeader"><p className="emrEntryEyebrow">Indian Creek Psychological Services · Clinical workspace</p>

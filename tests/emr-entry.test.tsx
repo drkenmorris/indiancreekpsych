@@ -2,7 +2,8 @@ import React from 'react';
 import {expect,test,vi,beforeEach} from 'vitest';
 import {renderToStaticMarkup} from 'react-dom/server';
 import EmrPage from '@/app/emr/page';
-const mocks=vi.hoisted(()=>({getUser:vi.fn(),access:vi.fn(),from:vi.fn()}));
+const mocks=vi.hoisted(()=>({getUser:vi.fn(),access:vi.fn(),from:vi.fn(),redirect:vi.fn((path:string)=>{throw Error('redirect '+path);})}));
+vi.mock('next/navigation',()=>({redirect:mocks.redirect}));
 vi.mock('@/lib/supabase/server',()=>({createClient:async()=>({auth:{getUser:mocks.getUser}})}));
 vi.mock('@/lib/emr/access',()=>({emrAccess:mocks.access}));
 beforeEach(()=>{
@@ -51,4 +52,15 @@ test('failed patient repository yields an error without invented patient names',
  const body=renderToStaticMarkup(await EmrPage());
  expect(body).toContain('patient directory is temporarily unavailable');
  expect(body).not.toContain('Fictional Patient');
+});
+
+test('explicit authorized chart URL opens original BPS interface',async()=>{
+ const id='00000000-0000-4000-8000-000000000101';
+ await expect(EmrPage({searchParams:Promise.resolve({patient:id,module:'assessment',section:'assessment:biopsychosocial'})})).rejects.toThrow('redirect /emr/workspace?patient='+id+'&module=assessment&section=assessment%3Abiopsychosocial');
+ expect(mocks.redirect).toHaveBeenCalledTimes(1);
+});
+test('unknown patient deep-link never silently selects a chart',async()=>{
+ const body=renderToStaticMarkup(await EmrPage({searchParams:Promise.resolve({patient:'00000000-0000-4000-8000-000000000102',module:'assessment'})}));
+ expect(body).toContain('Choose a patient to open the clinical EMR');
+ expect(mocks.redirect).not.toHaveBeenCalled();
 });

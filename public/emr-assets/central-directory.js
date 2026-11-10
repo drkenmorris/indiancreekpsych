@@ -39,13 +39,14 @@ startClinicalWorkspace=async function(){
  try{
   const empty=await api('/api/blank-workspace');
   boot=empty.boot;chart=empty.chart;groupState=empty.groups;patientId='';blankWorkspace=true;
-  setNavigationExpanded(true);render();return true;
+  if(activeSection)view=activeSection.definition[2];setNavigationExpanded(true);render();return true;
  }catch(error){message(error.message,true);return false;}
 };
 const originalCentralRender=render;
 render=function(){
  const result=originalCentralRender();
  if(blankWorkspace&&chart){
+  document.querySelector('.local-status').textContent='Blank workspace · not saved';
   $('#chart-header').innerHTML='<section class="patient-header"><div><h2>No patient selected</h2><p>Choose a patient when you are ready to save.</p></div></section>';
   $('#content').querySelectorAll('input,textarea,select').forEach(input=>{
    if(input.type==='hidden'||input.type==='button'||input.type==='submit')return;

@@ -67,6 +67,11 @@ test('linked intake medication and medical history are available for read-only c
   const calls: string[] = [];
   vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
     calls.push((init?.method ?? 'GET') + ' ' + url);
+    if(url==='/api/emr/workflow'){
+      const request=JSON.parse(String(init?.body??'{}'));
+      if(request.method!=='GET'||!request.path?.startsWith('/api/chart?patient='))throw Error('Unexpected write from read-only reconciliation preview.');
+      return {ok:true,json:async()=>({value:{records:[]},revision:1})};
+    }
     const body = url === '/api/emr/patients'
       ? {patients: [patient]}
       : url.startsWith('/api/emr/dsm-records?')
@@ -91,5 +96,6 @@ test('linked intake medication and medical history are available for read-only c
   expect(screen.getByText(/Fictional reported rash/)).toBeTruthy();
   expect(screen.getByText(/has not been independently verified/)).toBeTruthy();
   expect((screen.getByLabelText('Street address 1') as HTMLInputElement).value).toBe('Reviewed address');
-  expect(calls.every(call=>call.startsWith('GET '))).toBe(true);
+  expect(await screen.findByRole('button',{name:'Prepare review draft'})).toBeTruthy();
+  expect(calls.every(call=>call.startsWith('GET ')||call==='POST /api/emr/workflow')).toBe(true);
 });

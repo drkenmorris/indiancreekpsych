@@ -4,7 +4,7 @@ import {bpsNoteDomains,emptyBpsNotes,mapSavedBpsReportedFields,type BpsNotes} fr
 type Field={key:string;label:string;type:string;value:string};
 type Section={title:string;domain:string;disposition:'clinical'|'separate-review'|'reference';fields:Field[];answered:number};
 type Review={id:string;source_version:number;source_status:string;source_updated_at:string;created_at:string;clinical_answers:Record<string,string>;clinician_notes:BpsNotes;excluded_clinical_fields?:number};
-type ResponseData={patientId:string;source:{status:string;version:number;updatedAt:string};sections:Section[];unmappedKeys:string[];reviews:Review[]};
+type ResponseData={patientId:string;source:{accountId:string;status:string;version:number;updatedAt:string};sections:Section[];unmappedKeys:string[];reviews:Review[]};
 const focusedReviewLinks:Record<string,{label:string;anchor:string}[]>={
  'Mental health treatment history':[
   {label:'Review reported counseling and psychiatric treatment history in the central chart',anchor:'emr-intake-treatment-history-review'}],
@@ -52,7 +52,7 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
   setSaving(true);setStatus('');
   try{
    const result=await json(await fetch('/api/emr/bps-intake',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({patientId,sourceVersion:data.source.version,sourceStatus:data.source.status,
+    body:JSON.stringify({patientId,sourceAccountId:data.source.accountId,sourceVersion:data.source.version,sourceStatus:data.source.status,
      sourceUpdatedAt:data.source.updatedAt,notes,reviewed:true})}));
    if(!stillOnChart())return;
    if(!result.saved)throw Error('The review was not confirmed.');

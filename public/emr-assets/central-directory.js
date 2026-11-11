@@ -68,3 +68,12 @@ document.addEventListener('click',async event=>{
  event.preventDefault();event.stopImmediatePropagation();
  safeNavigate(async()=>{try{const response=await fetch('/api/emr/logout',{method:'POST'});if(!response.ok)throw Error('Sign out could not be completed.');location.assign('/login?next=%2Femr');}catch(error){message(error.message,true);}});
 },true);
+
+// Keep the original note forms and menus. Central immutable notes use their own
+// patient-bound storage; a workspace preview signature does not sign those notes.
+const originalAttestationNotesView=notesView;
+notesView=function(){
+ const original=originalAttestationNotesView();
+ if(blankWorkspace||!patientId)return original;
+ return '<section class="card"><h2>Saved clinical notes and author attestations</h2><p><a href="/emr/patients?patient='+encodeURIComponent(patientId)+'">Open this patient’s individual and group progress notes</a></p><p>Record and attest reviewed clinical notes in the central chart. The original workspace forms remain below; their preview signatures are separate.</p></section>'+original;
+};

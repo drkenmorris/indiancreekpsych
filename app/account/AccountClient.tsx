@@ -101,7 +101,7 @@ export default function AccountClient({
             <Link className="accountPrimaryLink" href="/clinical-tests">Psychological Tests and Questionnaires</Link>
             <Link className="accountPrimaryLink" href="/admin/assign-test">Assign Psychological Test</Link>
             <Link className="accountPrimaryLink" href="/admin/newsletters">Newsletter Library & Calendar</Link>
-            <Link className="accountPrimaryLink" href="/emr">Open EMR — Central patient records</Link>
+            <Link className="accountPrimaryLink" href="/emr">Open EMR</Link>
           </>
         )}
         {(accountType === "admin" || accountType === "staff") && (

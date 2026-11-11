@@ -83,7 +83,7 @@ export default function AuthMenuAction({ compact = false }: { compact?: boolean 
       {!compact && accountRole === "admin" && <Link href="/clinical-tests">Psychological Tests</Link>}
       {accountRole === "admin" && <AdministratorSections />}
       {!compact && accountRole === "admin" && (
-        <Link href="/emr">EMR — Central patient records</Link>
+        <Link href="/emr">Open EMR</Link>
       )}
       {((!compact && accountRole === "admin") || accountRole === "staff") && (
         <Link href="/admin/questionnaires">Patient Questionnaires</Link>

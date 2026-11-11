@@ -1,6 +1,6 @@
 import {expect,test} from 'vitest';
 import {intakeSections,intakeSectionsForVersion} from '@/lib/patient/intake';
-import {bpsNoteDomains,bpsSectionClassification,mapIntakeToBps,mapSavedBpsReportedFields} from '@/lib/emr/intake-bps';
+import {bpsNoteDomains,bpsSectionClassification,mapIntakeToBps,mapSavedBpsReportedFields,sanitizeBpsSnapshotAnswers,bpsSnapshotClinicalKeys} from '@/lib/emr/intake-bps';
 test('all 21 current and historical sections receive deliberate BPS dispositions',()=>{
  for(const sections of [intakeSections,intakeSectionsForVersion('legacy')]){
   expect(sections).toHaveLength(21);
@@ -42,4 +42,22 @@ test('saved BPS read-back groups only permitted patient-reported clinical histor
  expect(readBack).not.toContain('Private insurance ID');
  expect(readBack).not.toContain('roi_authorize');
  expect(saved.unmappedKeys).toContain('unapproved_history');
+});
+
+
+test('protected historical BPS snapshots never transmit medication, structured trauma, insurance or legal answers',()=>{
+ const actual=sanitizeBpsSnapshotAnswers({
+  counseling_reason:'Reported concern',suicidal_thoughts_current:'Yes',
+  guardian_relationship:'Parent',trauma_history:'Reported life event',
+  trauma_history_checklist:'{"selections":{"sensitive":"yes"}}',
+  treatment_history:'{"private":"structured"}',medication_entries:'Sensitive medication',
+  medication_allergy_notes:'Sensitive allergy',medical_substance_history:'Sensitive medical record',
+  roi_signature:'Private signature',insurance_member:'Private policy',
+  unapproved_history:'Unknown',functional_impact:37
+ });
+ expect(actual.answers).toEqual({counseling_reason:'Reported concern',suicidal_thoughts_current:'Yes',
+  guardian_relationship:'Parent',trauma_history:'Reported life event'});
+ expect(actual.excludedCount).toBe(8);
+ expect(bpsSnapshotClinicalKeys.has('trauma_history_checklist')).toBe(false);
+ expect(bpsSnapshotClinicalKeys.has('medication_entries')).toBe(false);
 });

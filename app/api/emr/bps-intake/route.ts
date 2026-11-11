@@ -38,7 +38,7 @@ export async function GET(request:Request){
    const clean=sanitizeBpsSnapshotAnswers(review.clinical_answers);
    return {...review,clinical_answers:clean.answers,excluded_clinical_fields:clean.excludedCount};
   });
-  return reply({patientId:id,linked:true,source:{status:source.intake.status,version:source.intake.version,
+  return reply({patientId:id,linked:true,source:{accountId:source.patient.account_id,status:source.intake.status,version:source.intake.version,
     updatedAt:source.intake.updated_at},...report,reviews:safeReviews});
  }catch(e){return reply({error:e instanceof Error?e.message:'Protected intake unavailable.'},503);}
 }
@@ -48,7 +48,7 @@ export async function POST(request:Request){
  try{
   const raw=await request.text();if(Buffer.byteLength(raw)>35000)return reply({error:'BPS review request too large.'},413);
   const body=JSON.parse(raw) as Record<string,unknown>;
-  if(!body||!uuid(body.patientId)||body.reviewed!==true||!Number.isInteger(body.sourceVersion)||
+  if(!body||!uuid(body.patientId)||!uuid(body.sourceAccountId)||body.reviewed!==true||!Number.isInteger(body.sourceVersion)||
     typeof body.sourceVersion!=='number'||body.sourceVersion<1||
     (body.sourceStatus!=='draft'&&body.sourceStatus!=='submitted')||
     typeof body.sourceUpdatedAt!=='string'||!Number.isFinite(Date.parse(body.sourceUpdatedAt)))
@@ -63,7 +63,7 @@ export async function POST(request:Request){
    notes[key]=value.trim();
   }
   const {data,error}=await ctx.supabase.rpc('save_emr_bps_intake_review',{p_payload:{
-   patient_id:body.patientId,source_version:body.sourceVersion,source_status:body.sourceStatus,
+   patient_id:body.patientId,source_account_id:body.sourceAccountId,source_version:body.sourceVersion,source_status:body.sourceStatus,
    source_updated_at:body.sourceUpdatedAt,reviewed:true,clinician_notes:notes
   }});
   if(error)return reply({error:error.code==='42501'?'BPS review authorization denied.':

@@ -44,9 +44,18 @@ export function mapIntakeToBps(answers:Record<string,string>){
  const sections=intakeSectionsForVersion(answers.legal_packet_version||'').map(section=>{
   const rule=bpsSectionClassification[section.title];
   if(!rule)throw Error('An intake section is not yet approved for biopsychosocial review: '+section.title);
-  const fields=section.fields.map(([key,label,type])=>({key,label,type,value:typeof answers[key]==='string'?answers[key]:''}));
+  // Audit all 21 sections but never transmit raw legal decisions, insurance
+  // identifiers or structured records handled by dedicated reconciliation modules.
+  const structuredSourceTypes=new Set(['treatment-history','medications','medical-substance','trauma-history','legal-routing','dsm-version']);
+  const fields=section.fields.map(([key,label,type])=>{
+   const raw=typeof answers[key]==='string'?answers[key]:'';
+   const reported=raw.trim().length>0;
+   const sourceOnly=reported&&(rule.disposition!=='clinical'||structuredSourceTypes.has(type));
+   return {key,label,type,value:sourceOnly?'Recorded in protected source; not copied into BPS.':raw,
+    sourceOnly,reported};
+  });
   return {title:section.title,domain:rule.domain,disposition:rule.disposition,fields,
-   answered:fields.filter(field=>field.value.trim()).length};
+   answered:fields.filter(field=>field.reported).length};
  });
  if(sections.length!==21)throw Error('The expected 21-section intake structure has changed. Review the source mapping.');
  const mapped=new Set(sections.flatMap(s=>s.fields.map(f=>f.key)));

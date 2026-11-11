@@ -1,7 +1,7 @@
 'use client';
 import {useEffect,useRef,useState,type FormEvent} from 'react';
 import {bpsNoteDomains,emptyBpsNotes,mapSavedBpsReportedFields,type BpsNotes} from '@/lib/emr/intake-bps';
-type Field={key:string;label:string;type:string;value:string};
+type Field={key:string;label:string;type:string;value:string;sourceOnly?:boolean;reported?:boolean};
 type Section={title:string;domain:string;disposition:'clinical'|'separate-review'|'reference';fields:Field[];answered:number};
 type Review={id:string;source_version:number;source_status:string;source_updated_at:string;created_at:string;clinical_answers:Record<string,string>;clinician_notes:BpsNotes;excluded_clinical_fields?:number};
 type ResponseData={patientId:string;source:{accountId:string;status:string;version:number;updatedAt:string};sections:Section[];unmappedKeys:string[];reviews:Review[]};
@@ -16,7 +16,9 @@ const focusedReviewLinks:Record<string,{label:string;anchor:string}[]>={
  'Trauma, family, social, educational, and occupational history':[
   {label:'Review structured trauma history in the central chart',anchor:'emr-intake-trauma-review'}]
 };
-const readable=(field:Field)=>['treatment-history','medications','medical-substance','trauma-history','legal-routing','dsm-version'].includes(field.type)?
+const protectedSourceTypes=new Set(['treatment-history','medications','medical-substance','trauma-history','legal-routing','dsm-version']);
+const readable=(field:Field,disposition:Section['disposition'])=>
+ disposition!=='clinical'||field.sourceOnly!==false||protectedSourceTypes.has(field.type)?
  'Structured questionnaire: use the protected original intake or the dedicated reconciliation module; raw content is not automatically imported.':field.value;
 async function json(response:Response){const data=await response.json();if(!response.ok)throw Error(data.error||'Protected BPS request failed.');return data;}
 export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
@@ -90,8 +92,8 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
      {focusedReviewLinks[section.title].map(target=><a key={target.anchor} href={'/emr/patients?patient='+encodeURIComponent(patientId)+'&review='+encodeURIComponent(target.anchor)+'#'+target.anchor}>{target.label}</a>)}
      <p>Opens the existing clinician-review workflow for this exact central patient. Opening a link never copies, approves or saves patient statements.</p>
     </nav>}
-    <dl>{section.fields.filter(field=>field.value.trim()).map(field=><div key={field.key}>
-      <dt>{field.label}</dt><dd style={{whiteSpace:'pre-wrap'}}>{readable(field)}</dd>
+    <dl>{section.fields.filter(field=>typeof field.value==='string'&&field.value.trim()).map(field=><div key={field.key}>
+      <dt>{field.label}</dt><dd style={{whiteSpace:'pre-wrap'}}>{readable(field,section.disposition)}</dd>
      </div>)}</dl>{section.answered===0&&<p>No response recorded. Blank is not equivalent to a negative clinical finding.</p>}
    </details>)}
    {data.reviews.length>0&&<details><summary>Previously saved immutable clinician reviews ({data.reviews.length})</summary>

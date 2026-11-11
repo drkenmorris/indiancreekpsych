@@ -197,3 +197,20 @@ test('a failed protected intake refresh cannot claim a saved or reviewed clinica
  expect(requests).toBe(2);
  dom.window.close();
 });
+
+test('original BPS redacts malformed structured, reference and missing-marker source answers even when upstream incorrectly exposes a value',async()=>{
+ const unsafe:any=report(firstPatient);
+ unsafe.sections[0].fields.push(
+  {key:'medication_entries',label:'Medication',type:'medications',reported:true,sourceOnly:false,value:'DO_NOT_LEAK_STRUCTURED_MEDICATION'},
+  {key:'counseling_goals',label:'Goals',type:'text',reported:true,value:'DO_NOT_LEAK_MISSING_MARKER'}
+ );
+ unsafe.sections[2].fields[0].value='DO_NOT_LEAK_REFERENCE_LEGAL';
+ const {ctx,dom}=harness(async()=>Response.json(unsafe));
+ ctx.render();
+ await vi.waitFor(()=>expect(dom.window.document.querySelector('section[aria-label="Patient intake context in original biopsychosocial workspace"]')?.textContent).toContain('source version 6'));
+ const displayed=dom.window.document.querySelector('section[aria-label="Patient intake context in original biopsychosocial workspace"]')!.textContent||'';
+ expect(displayed).toContain('Fictional patient-reported concern');
+ for(const secret of ['DO_NOT_LEAK_STRUCTURED_MEDICATION','DO_NOT_LEAK_MISSING_MARKER','DO_NOT_LEAK_REFERENCE_LEGAL'])expect(displayed).not.toContain(secret);
+ expect(displayed).toContain('Stored in the dedicated protected intake/reconciliation source.');
+ dom.window.close();
+});

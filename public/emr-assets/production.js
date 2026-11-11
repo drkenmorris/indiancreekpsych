@@ -84,6 +84,7 @@ async function populateOriginalBpsIntake(panel,id,generation){
   historyLink.textContent='Open protected clinician review, saved BPS source history and explicit snapshot save';
   history.append(historyLink);
   panel.append(history);
+  const protectedSourceTypes=new Set(['treatment-history','medications','medical-substance','trauma-history','legal-routing','dsm-version']);
   const details=document.createElement('details');
   const summary=document.createElement('summary');summary.textContent='Expand all 21 intake sections and patient-reported answers';
   details.append(summary);
@@ -104,7 +105,8 @@ async function populateOriginalBpsIntake(panel,id,generation){
      const value=document.createElement('dd');
      // A second presentation boundary: never expose structured or separate-review
      // values even if a malformed upstream response included them.
-     value.textContent=field.sourceOnly===true?'Stored in the dedicated protected intake/reconciliation source.':String(field.value??'');
+     value.textContent=field.sourceOnly!==false||protectedSourceTypes.has(field.type)?
+      'Stored in the dedicated protected intake/reconciliation source.':String(field.value??'');
      answers.append(label,value);
     }
     item.append(answers);

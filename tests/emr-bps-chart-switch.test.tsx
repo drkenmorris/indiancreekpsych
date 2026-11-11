@@ -26,3 +26,22 @@ test('a pending BPS save cannot reopen or message the wrong patient chart',async
  expect(screen.queryByText(/snapshot saved in the protected chart/i)).toBeNull();
  expect(reads).toEqual([a,b]);
 });
+
+test('clinician reconciliation independently withholds separate, structured, reference and unmarked patient source values',async()=>{
+ const id='00000000-0000-4000-8000-000000000801';
+ const sections=Array.from({length:21},(_,i)=>({
+  title:'Intake section '+i,domain:'Context',disposition:i===1?'reference':i===2?'separate-review':'clinical',
+  answered:i<3?3:0,fields:i===0?[
+   {key:'counseling_reason',label:'Reported concern',type:'text',reported:true,sourceOnly:false,value:'SAFE PATIENT REPORTED CONCERN'},
+   {key:'medication_entries',label:'Structured medication',type:'medications',reported:true,sourceOnly:false,value:'DO_NOT_LEAK_STRUCTURED'},
+   {key:'unmarked',label:'Unmarked historical data',type:'text',reported:true,value:'DO_NOT_LEAK_UNMARKED'}]:
+   i===1?[{key:'roi_authorize',label:'Authorization',type:'text',reported:true,sourceOnly:false,value:'DO_NOT_LEAK_LEGAL'}]:
+   i===2?[{key:'insurance_member',label:'Coverage',type:'text',reported:true,sourceOnly:false,value:'DO_NOT_LEAK_INSURANCE'}]:[]
+ }));
+ vi.stubGlobal('fetch',vi.fn(async()=>Response.json({patientId:id,source:{accountId:id,status:'submitted',version:2,updatedAt:'2026-11-11T12:00:00Z'},sections,unmappedKeys:[],reviews:[]})));
+ render(<PatientBpsIntakeReview patientId={id}/>);
+ await screen.findByText(/Version 2/);
+ expect(screen.getByText('SAFE PATIENT REPORTED CONCERN')).toBeTruthy();
+ for(const secret of ['DO_NOT_LEAK_STRUCTURED','DO_NOT_LEAK_UNMARKED','DO_NOT_LEAK_LEGAL','DO_NOT_LEAK_INSURANCE'])
+  expect(screen.queryByText(secret)).toBeNull();
+});

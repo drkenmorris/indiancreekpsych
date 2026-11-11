@@ -75,6 +75,17 @@ test('saved BPS history cannot follow a relinked patient account or cross into a
  expect(body.reviews[0].clinical_answers.counseling_reason).toBe('Patient-reported history');
  expect(body.reviews[0]).not.toHaveProperty('source_account_id');
  expect(body.reviews[0]).not.toHaveProperty('patient_id');
+ expect(body.reviews[0].excluded_clinical_fields).toBe(0);
+ reviewRows=[{...reviewRows[0],clinical_answers:{
+   counseling_reason:'Patient-reported history',medication_entries:'Do not disclose medications',
+   trauma_history_checklist:'Do not disclose structured trauma',roi_signature:'Do not disclose signature',
+   insurance_member:'Do not disclose policy'
+ }}];
+ const filtered=await GET(request());expect(filtered.status).toBe(200);
+ const safe=(await filtered.json()).reviews[0];
+ expect(safe.clinical_answers).toEqual({counseling_reason:'Patient-reported history'});
+ expect(safe.excluded_clinical_fields).toBe(4);
+ expect(JSON.stringify(safe)).not.toContain('Do not disclose');
  const reviewQuery=m.from.mock.results.find((r:any)=>r.value?.limit)?.value;
  expect(reviewQuery?.eq).toHaveBeenCalledWith('patient_id',patient);
  expect(reviewQuery?.eq).toHaveBeenCalledWith('source_account_id',account);

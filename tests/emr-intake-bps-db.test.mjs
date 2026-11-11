@@ -28,7 +28,7 @@ await db.exec(readFileSync('supabase/migrations/20261110103000_emr_bps_intake_re
 await db.exec(readFileSync('supabase/migrations/20261111101500_emr_bps_review_account_provenance.sql','utf8'));
 const q=(s,args=[])=>db.query(s,args);
 const as=async(id,aal='aal2')=>{await db.exec('reset role');await q("select set_config('request.user',$1,false),set_config('request.aal',$2,false)",[id,aal]);await db.exec('set role authenticated');};
-const payload={patient_id:patient,source_version:1,source_status:'submitted',source_updated_at:stamp,
+const payload={patient_id:patient,source_account_id:account,source_version:1,source_status:'submitted',source_updated_at:stamp,
  reviewed:true,clinician_notes:{presenting:'Clinician reviewed patient account; not a diagnosis.'}};
 await test('MFA clinician saves an append-only BPS review using DB-owned clinical source fields',async()=>{
  await as(admin);
@@ -82,7 +82,9 @@ await test('relinking a central chart to a different account preserves original 
  ]);
  await q('update public.clinical_patients set account_id=$1 where id=$2',[newlyLinked,patient]);
  await as(admin);
- const saved=await q('select public.save_emr_bps_intake_review($1) id',[payload]);
+ await assert.rejects(q('select public.save_emr_bps_intake_review($1)',[payload]),/account link changed/);
+ const currentPayload={...payload,source_account_id:newlyLinked};
+ const saved=await q('select public.save_emr_bps_intake_review($1) id',[currentPayload]);
  assert.ok(saved.rows[0].id);
  const snapshots=(await q('select source_account_id,source_version,clinical_answers from public.emr_bps_intake_reviews where patient_id=$1',[patient])).rows;
  assert.equal(snapshots.length,2);
@@ -94,7 +96,7 @@ await test('relinking a central chart to a different account preserves original 
  assert.equal(current?.clinical_answers.counseling_reason,'New linked account patient report');
  assert.equal(current?.clinical_answers.roi_authorize,undefined);
  // One immutable review per clinician/chart/account/version remains enforced.
- await assert.rejects(q('select public.save_emr_bps_intake_review($1)',[payload]));
+ await assert.rejects(q('select public.save_emr_bps_intake_review($1)',[currentPayload]),/duplicate key/);
  await as(other);
  assert.equal((await q('select * from public.emr_bps_intake_reviews')).rows.length,0);
 });

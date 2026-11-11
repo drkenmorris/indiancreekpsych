@@ -13,3 +13,32 @@ test('recipient resumes only its named version and sends revision/identity with 
 test.each(asqRoles)('assignment offers %s as a separate test and binds only that version to its named recipient',async role=>{const requests:Record<string,unknown>[]=[];vi.stubGlobal('fetch',vi.fn(async(url:string,options?:RequestInit)=>{if(url==='/api/emr/patients')return {ok:true,json:async()=>({patients:[{id:'00000000-0000-0000-0000-000000000201',demographics:{first_name:'Fictional',last_name:'Student'},profiles:null}]})};if(options?.method==='POST'){requests.push(JSON.parse(String(options.body)));return {ok:true,json:async()=>({created:true})};}return {ok:true,json:async()=>({tests:[{value:'asq',label:'ASQ / ASEQ',patientReady:false}],assignments:[],deliveryReady:true,asqReleaseReady:false})};}));render(<Assignment initialTestKey="asq"/>);await screen.findByRole('option',{name:/Fictional Student/});for(const option of ['Student / Self','Parent','Teacher'])expect(screen.getByRole('option',{name:`ASQ / ASEQ — ${option} — Patient release pending`})).toBeTruthy();expect(screen.queryByRole('radio')).toBeNull();expect((screen.getByRole('button',{name:'Save Assignment Draft'}) as HTMLButtonElement).disabled).toBe(true);fireEvent.change(screen.getByLabelText('Psychological test'),{target:{value:`asq:${role}`}});expect(screen.queryByLabelText('Patient date of birth')).toBeNull();expect(screen.getByRole('link',{name:/recipient interface/}).getAttribute('href')).toBe('/assessment-preview/asq?version='+role);fireEvent.change(screen.getByLabelText('Recipient first name'),{target:{value:'Fictional'}});fireEvent.change(screen.getByLabelText('Recipient last name'),{target:{value:'Teacher'}});fireEvent.change(screen.getByLabelText('Recipient email address'),{target:{value:'teacher@example.invalid'}});fireEvent.change(screen.getByLabelText('Patient / student this questionnaire concerns'),{target:{value:'00000000-0000-0000-0000-000000000201'}});fireEvent.click(screen.getByRole('button',{name:'Save Assignment Draft'}));await waitFor(()=>expect(requests).toHaveLength(1));await screen.findByText(/recipient release is pending; Send Invitation remains disabled/);expect(requests[0]).toMatchObject({firstName:'Fictional',lastName:'Teacher',email:'teacher@example.invalid',testKey:'asq',asqRole:role,patientId:'00000000-0000-0000-0000-000000000201'});});
 
 test.each(asqRoles)('%s recipient preview has a fixed version with no version selector',role=>{render(<AsqPreview role={role}/>);expect(screen.queryByRole('combobox')).toBeNull();expect(screen.getByRole('heading',{level:1}).textContent).toContain(asqDefinition(role).role==='student'?'Student / Self':role==='parent'?'Parent':'Teacher');expect(document.querySelectorAll('.asqQuestion')).toHaveLength(7);expect(screen.getByText(/send the recipient their individual assignment invitation/)).toBeTruthy();});
+
+test('invitation waits for an explicit in-page confirmation and can be canceled', async () => {
+  const sends: unknown[] = [];
+  const assignment = {
+    id: '00000000-0000-4000-8000-000000000201', status: 'draft', test_key: 'asq',
+    asq_role: 'teacher', recipient_first_name: 'Fictional', recipient_last_name: 'Recipient',
+    recipient_email: 'recipient@example.invalid', expires_at: '2099-01-01T00:00:00Z',
+  };
+  vi.stubGlobal('fetch', vi.fn(async (url: string, options?: RequestInit) => {
+    if (url === '/api/emr/patients') return {ok:true,json:async()=>({patients:[]})};
+    if (options?.method === 'POST') {
+      sends.push(JSON.parse(String(options.body)));
+      return {ok:true,json:async()=>({sent:true})};
+    }
+    return {ok:true,json:async()=>({
+      tests:[{value:'asq',label:'ASQ / ASEQ',patientReady:true}],
+      assignments:[assignment],deliveryReady:true,asqReleaseReady:true,
+    })};
+  }));
+  render(<Assignment/>);
+  fireEvent.click(await screen.findByRole('button',{name:/^Send Invitation$/}));
+  expect(sends).toHaveLength(0);
+  fireEvent.click(screen.getByRole('button',{name:'Cancel invitation send'}));
+  expect(sends).toHaveLength(0);
+  fireEvent.click(screen.getByRole('button',{name:/^Send Invitation$/}));
+  fireEvent.click(screen.getByRole('button',{name:'Confirm and send invitation'}));
+  await waitFor(()=>expect(sends).toEqual([{action:'send',id:assignment.id}]));
+  await screen.findByText(/email provider accepted the invitation/);
+});

@@ -23,6 +23,8 @@ beforeEach(()=>{
     medication_allergy_status:'Medication allergies reported',
     medication_allergy_notes:'Fictional reaction',
     medical_substance_history:'{"example":"patient report"}',
+    treatment_history_entries:'[{"setting":"Outpatient","provider_facility":"Fictional practice"}]',
+    roi_signature:'Fictional protected legal signature',
     trauma_history_checklist:'{"definition_version":"1.1.0","selections":{}}',
     trauma_history:'Fictional optional context',
     secret_token:'do not disclose',private_clinician_note:'not an allowed intake field',
@@ -66,10 +68,12 @@ test('medical sources are limited to allowlisted fields of the explicitly linked
     medication_allergy_status:intakeAnswers.medication_allergy_status,
     medication_allergy_notes:intakeAnswers.medication_allergy_notes,
     medical_substance_history:intakeAnswers.medical_substance_history,
+    treatment_history_entries:intakeAnswers.treatment_history_entries,
     trauma_history_checklist:intakeAnswers.trauma_history_checklist,
     trauma_history:intakeAnswers.trauma_history,
   });
   expect(json.intake.answers).not.toHaveProperty('secret_token');
+  expect(json.intake.answers).not.toHaveProperty('roi_signature');
   expect(json.intake.answers).not.toHaveProperty('private_clinician_note');
   expect(mocks.from).toHaveBeenCalledWith('patient_intakes');
 });

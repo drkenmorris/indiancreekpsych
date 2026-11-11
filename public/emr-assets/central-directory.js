@@ -1,7 +1,7 @@
 'use strict';
 // Keep the original demo menus/dialog; use only the MFA-protected central registry.
 async function centralRegistry(){
- const response=await fetch('/api/emr/patients',{cache:'no-store'});
+ const response=await fetch('/api/emr/patients?directory=1',{cache:'no-store'});
  const value=await response.json();
  if(!response.ok)throw Error(value.error||'Patient directory unavailable.');
  return value.patients.map(row=>{
@@ -9,12 +9,12 @@ async function centralRegistry(){
   const first=d.first_name||full.shift()||'',lastName=d.last_name||full.join(' '),dob=d.dob||'';
   return {id:row.id,first_name:first,last_name:lastName,middle_name:d.middle_name||'',dob,
    name:[first,lastName].filter(Boolean).join(' ')||'Patient chart '+row.id.slice(0,8),
-   assigned_id:patientCode(first,lastName,dob)||row.id.slice(0,8),status:d.active===false?'archived':'active'};
+   assigned_id:patientCode(first,lastName,dob)||row.id.slice(0,8),revision:row.revision,status:row.directory_deleted_at?'deleted':d.active===false?'archived':'active'};
  }).sort((a,b)=>a.last_name.localeCompare(b.last_name)||a.first_name.localeCompare(b.first_name));
 }
-refreshRegistry=async function(){const patients=await centralRegistry();boot={...(boot||{}),patients,patient_directory:patients};renderDirectory();};
+refreshRegistry=async function(){const patients=await centralRegistry();boot={...(boot||{}),patients:patients.filter(patient=>patient.status!=='deleted'),patient_directory:patients};renderDirectory();};
 const originalRegistryDirectory=renderDirectory;
-renderDirectory=function(){originalRegistryDirectory();document.querySelectorAll('[data-registry-action]').forEach(button=>{button.disabled=true;button.title='Record retention changes use clinic administration.';});};
+renderDirectory=function(){originalRegistryDirectory();document.querySelectorAll('[data-registry-action="archive"],[data-registry-action="activate"]').forEach(button=>{button.disabled=true;button.title='Record retention changes use clinic administration.';});};
 openDirectory=function(){safeNavigate(async()=>{try{await refreshRegistry();const dialog=$('#patient-directory');if(!dialog.open)dialog.showModal();}catch(error){message(error.message,true);}});};
 function selectedPatientWorkspaceUrl(id){
  // Patient selection preserves the clinician's original clinical form/subpage.
@@ -29,10 +29,25 @@ function selectedPatientWorkspaceUrl(id){
  return '/emr/workspace?'+query.toString();
 }
 selectPatient=async function(id){
- if(!boot?.patient_directory.some(patient=>patient.id===id)){directoryMessage('Patient unavailable.',true);return;}
+ if(!boot?.patient_directory.some(patient=>patient.id===id&&patient.status!=='deleted')){directoryMessage('Patient unavailable.',true);return;}
  location.assign(selectedPatientWorkspaceUrl(id));
 };
-registryRequest=async function(action,data={}){
+registryRequest=async function(action,data={},id){
+ if(action==='delete'||action==='restore'){
+  const patient=boot?.patient_directory.find(row=>row.id===id);
+  if(!patient)throw Error('Patient unavailable.');
+  const response=await fetch('/api/emr/patients',{
+   method:'PATCH',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({id,action,expectedRevision:patient.revision})
+  });
+  const result=await response.json();
+  if(!response.ok)throw Error(result.error||'Patient directory change was not confirmed.');
+  if(action==='delete'&&patientId===id){
+   patientId='';
+   location.assign('/emr/workspace');
+  }
+  return result;
+ }
  if(action!=='create')throw Error('Record retention changes use clinic administration.');
  const values={first_name:String(data.first_name||''),last_name:String(data.last_name||''),middle_name:String(data.middle_name||''),dob:String(data.dob||'')};
  const response=await fetch('/api/emr/patients',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({demographics:values})});

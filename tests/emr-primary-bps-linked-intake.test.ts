@@ -49,7 +49,7 @@ test('original seven-page BPS workspace displays linked 21-section context witho
  expect(panel.textContent).not.toContain('SECRET MEDICATION DATA');
  expect(panel.textContent).not.toContain('SECRET LEGAL DATA');
  expect(panel.textContent).toContain('no clinical content transferred');
- const link=Array.from(panel.querySelectorAll('a')).find(a=>a.textContent?.includes('Open protected clinician review and explicit BPS snapshot save')) as HTMLAnchorElement;
+ const link=Array.from(panel.querySelectorAll('a')).find((a:any)=>a.textContent?.includes('Open protected clinician review and explicit BPS snapshot save')) as HTMLAnchorElement;
  const url=new URL(link.href);
  expect(url.pathname).toBe('/emr/bps-intake');
  expect(url.searchParams.get('patient')).toBe(firstPatient);

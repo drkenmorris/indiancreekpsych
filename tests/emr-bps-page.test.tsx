@@ -32,7 +32,9 @@ test('round-trip from original BPS preserves allowed clinical subpage without ac
  const markup=renderToStaticMarkup(await EmrBpsIntakePage(props(patient,'medical_substance')));
  expect(markup).toContain('bps_page=medical_substance');
  const unsafe=renderToStaticMarkup(await EmrBpsIntakePage(props(patient,'https://example.com')));
- expect(unsafe).not.toContain('bps_page=');
+ expect(unsafe).not.toContain('https://example.com');
+ expect(unsafe).toContain('bps_page=symptoms');
+ expect(unsafe).toContain('href="/emr/workspace?patient='+patient+'&amp;module=assessment&amp;section=assessment%3Abiopsychosocial">Return to the original biopsychosocial assessment</a>');
 });
 test('no MFA denies page before reading central patient',async()=>{
  m.emrAccess.mockResolvedValue(null);

@@ -1,10 +1,10 @@
 import {beforeEach,expect,test,vi} from 'vitest';
-import {GET} from '@/app/api/emr/patients/route';
+import {GET,PATCH} from '@/app/api/emr/patients/route';
 
-const mocks=vi.hoisted(()=>({access:vi.fn(),from:vi.fn()}));
+const mocks=vi.hoisted(()=>({access:vi.fn(),from:vi.fn(),sameOrigin:vi.fn()}));
 vi.mock('@/lib/emr/access',()=>({
   emrAccess:mocks.access,
-  sameOrigin:()=>true,
+  sameOrigin:mocks.sameOrigin,
   privateHeaders:{'Cache-Control':'private, no-store'},
 }));
 
@@ -16,6 +16,7 @@ const makeRequest=(id=patientId)=>new Request('https://www.indiancreekpsych.com/
 
 beforeEach(()=>{
   vi.clearAllMocks();
+  mocks.sameOrigin.mockReturnValue(true);
   account_id=accountId;
   intakeAnswers={
     full_name:'Fictional Patient',email:'fictional@example.invalid',
@@ -32,7 +33,7 @@ beforeEach(()=>{
   mocks.from.mockImplementation((table:string)=>{
     if(table==='clinical_patients'){
       const chain={
-        select:()=>chain,order:()=>chain,limit:()=>chain,eq:()=>chain,
+        select:()=>chain,order:()=>chain,limit:()=>chain,eq:()=>chain,is:()=>chain,
         then:(resolve:(result:unknown)=>unknown,reject?:(reason:unknown)=>unknown)=>Promise.resolve({
           data:[{id:patientId,account_id,demographics:{first_name:'Fictional'},revision:3}],error:null,
         }).then(resolve,reject),
@@ -85,4 +86,36 @@ test('unlinked clinical patients cannot receive intake information by matching n
   const json=await result.json();
   expect(json.intake).toBeNull();
   expect(mocks.from).not.toHaveBeenCalledWith('patient_intakes');
+});
+
+const change = (action = 'delete', revision = 3) => new Request(makeRequest().url, {
+  method: 'PATCH',
+  body: JSON.stringify({ id: patientId, action, expectedRevision: revision }),
+});
+
+test('directory deletion and restoration target one patient at the expected revision', async () => {
+  const query = {
+    update: vi.fn(() => query), eq: vi.fn(() => query),
+    is: vi.fn(() => query), not: vi.fn(() => query),
+    select: vi.fn(() => query),
+    maybeSingle: vi.fn(async () => ({ data: { id: patientId }, error: null })),
+  };
+  mocks.from.mockReturnValue(query);
+  expect((await PATCH(change())).status).toBe(200);
+  expect(query.eq).toHaveBeenCalledWith('id', patientId);
+  expect(query.eq).toHaveBeenCalledWith('revision', 3);
+  expect(query.is).toHaveBeenCalledWith('directory_deleted_at', null);
+  expect(query.update).toHaveBeenCalledWith({ directory_deleted_at: expect.any(String) });
+  expect((await PATCH(change('restore'))).status).toBe(200);
+  expect(query.not).toHaveBeenCalledWith('directory_deleted_at', 'is', null);
+  expect(query.update).toHaveBeenCalledWith({ directory_deleted_at: null });
+});
+
+test('directory mutation rejects cross-origin and invalid actions before accessing data', async () => {
+  mocks.sameOrigin.mockReturnValue(false);
+  expect((await PATCH(change())).status).toBe(403);
+  mocks.sameOrigin.mockReturnValue(true);
+  expect((await PATCH(change('archive'))).status).toBe(400);
+  expect((await PATCH(change('delete', 0))).status).toBe(400);
+  expect(mocks.from).not.toHaveBeenCalled();
 });

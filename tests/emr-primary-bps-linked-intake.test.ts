@@ -102,3 +102,47 @@ test('BPS intake API or migration failure is visible, never represented as saved
  expect(dom.window.document.querySelector('section[aria-label="Patient intake context in original biopsychosocial workspace"]')?.textContent).toContain('no intake data were imported');
  dom.window.close();
 });
+
+
+test('primary original BPS displays immutable snapshot provenance without leaking historical clinical or legal payloads',async()=>{
+ const past={...report(firstPatient),reviews:[{
+  id:'00000000-0000-4000-8000-000000000999',
+  source_version:5,source_status:'submitted',source_updated_at:'2026-11-09T12:00:00Z',
+  created_at:'2026-11-09T12:30:00Z',
+  clinical_answers:{counseling_reason:'DO NOT ECHO HISTORY',roi_authorize:'DO NOT ECHO LEGAL'},
+  clinician_notes:{presenting:'DO NOT ECHO PRIVATE CLINICIAN NOTE'}
+ }]};
+ const {ctx,dom}=harness(async()=>Response.json(past));
+ ctx.render();
+ await vi.waitFor(()=>expect(dom.window.document.querySelector(
+  'section[aria-label="Clinician-reviewed BPS intake snapshot history"]'
+ )?.textContent).toContain('unsigned review'.replace(/^u/,'U')));
+ const history=dom.window.document.querySelector(
+  'section[aria-label="Clinician-reviewed BPS intake snapshot history"]')!;
+ expect(history.textContent).toContain('submitted intake version 5');
+ expect(history.textContent).toContain('current intake version has changed');
+ expect(history.textContent).not.toContain('DO NOT ECHO');
+ const link=new URL((history.querySelector('a') as HTMLAnchorElement).href);
+ expect(link.pathname).toBe('/emr/bps-intake');
+ expect(link.searchParams.get('patient')).toBe(firstPatient);
+ dom.window.close();
+});
+
+test('exactly matching clinician-reviewed BPS source version, status and timestamp is not marked stale',async()=>{
+ const current={...report(firstPatient),reviews:[{
+  id:'00000000-0000-4000-8000-000000000998',
+  source_version:6,source_status:'submitted',source_updated_at:'2026-11-10T12:00:00+00:00',
+  created_at:'2026-11-10T12:10:00Z',
+  clinical_answers:{},clinician_notes:{}
+ }]};
+ const {ctx,dom}=harness(async()=>Response.json(current));
+ ctx.render();
+ await vi.waitFor(()=>expect(dom.window.document.querySelector(
+  'section[aria-label="Clinician-reviewed BPS intake snapshot history"]'
+ )?.textContent).toContain('submitted intake version 6'));
+ const history=dom.window.document.querySelector(
+  'section[aria-label="Clinician-reviewed BPS intake snapshot history"]')!;
+ expect(history.textContent).not.toContain('current intake version has changed');
+ expect(history.textContent).not.toContain('not yet been saved');
+ dom.window.close();
+});

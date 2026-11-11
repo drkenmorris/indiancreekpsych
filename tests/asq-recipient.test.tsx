@@ -33,11 +33,11 @@ test('invitation waits for an explicit in-page confirmation and can be canceled'
     })};
   }));
   render(<Assignment/>);
-  fireEvent.click(await screen.findByRole('button',{name:'Send Invitation',exact:true}));
+  fireEvent.click(await screen.findByRole('button',{name:/^Send Invitation$/}));
   expect(sends).toHaveLength(0);
   fireEvent.click(screen.getByRole('button',{name:'Cancel invitation send'}));
   expect(sends).toHaveLength(0);
-  fireEvent.click(screen.getByRole('button',{name:'Send Invitation',exact:true}));
+  fireEvent.click(screen.getByRole('button',{name:/^Send Invitation$/}));
   fireEvent.click(screen.getByRole('button',{name:'Confirm and send invitation'}));
   await waitFor(()=>expect(sends).toEqual([{action:'send',id:assignment.id}]));
   await screen.findByText(/email provider accepted the invitation/);

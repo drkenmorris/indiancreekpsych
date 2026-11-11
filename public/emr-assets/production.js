@@ -26,6 +26,48 @@ async function populateOriginalBpsIntake(panel,id,generation){
   const guidance=document.createElement('p');
   guidance.textContent='Read-only patient statements are not verified clinician findings. No diagnosis, signature, medication/allergy reconciliation or clinical save occurs here.';
   panel.append(guidance);
+  // A prior review is NOT proof that the current intake was reviewed. Keep
+  // immutable snapshot provenance visible in the owner's primary BPS workspace
+  // without re-exposing historical clinical/medication/legal answer payloads.
+  const reviews=Array.isArray(result.reviews)?result.reviews:[];
+  const history=document.createElement('section');
+  history.setAttribute('aria-label','Clinician-reviewed BPS intake snapshot history');
+  const historyTitle=document.createElement('h3');
+  historyTitle.textContent='Clinician-reviewed intake snapshot history';
+  history.append(historyTitle);
+  if(reviews.length){
+   const list=document.createElement('ol');
+   for(const review of reviews){
+    const item=document.createElement('li');
+    const version=Number.isInteger(review.source_version)&&review.source_version>0?String(review.source_version):'unknown';
+    const status=['draft','submitted'].includes(review.source_status)?review.source_status:'unverified';
+    const at=Date.parse(review.created_at);
+    const date=Number.isFinite(at)?new Date(at).toLocaleString():'date unavailable';
+    item.textContent='Unsigned review of '+status+' intake version '+version+' · saved '+date+'.';
+    list.append(item);
+   }
+   history.append(list);
+  }else{
+   const none=document.createElement('p');none.textContent='No saved clinician-reviewed BPS intake snapshots for this patient.';
+   history.append(none);
+  }
+  const currentReviewed=reviews.some(review=>
+   review.source_version===result.source?.version&&
+   review.source_status===result.source?.status&&
+   Number.isFinite(Date.parse(review.source_updated_at))&&
+   Date.parse(review.source_updated_at)===Date.parse(result.source?.updatedAt));
+  if(!currentReviewed){
+   const warning=document.createElement('p');warning.setAttribute('role','status');
+   warning.textContent=reviews.length?
+    'The current intake version has changed since the recorded clinician reviews, or has not yet been reviewed. Reopen the current source before saving another unsigned review.':
+    'The current intake has not yet been saved as a clinician-reviewed BPS snapshot.';
+   history.append(warning);
+  }
+  const historyLink=document.createElement('a');
+  historyLink.href='/emr/bps-intake?patient='+encodeURIComponent(id);
+  historyLink.textContent='Open protected clinician review, saved BPS source history and explicit snapshot save';
+  history.append(historyLink);
+  panel.append(history);
   const details=document.createElement('details');
   const summary=document.createElement('summary');summary.textContent='Expand all 21 intake sections and patient-reported answers';
   details.append(summary);

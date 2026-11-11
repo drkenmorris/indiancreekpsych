@@ -27,6 +27,7 @@ declare
  uid uuid:=auth.uid();
  pid uuid;
  account uuid;
+ expected_account uuid;
  source public.patient_intakes%rowtype;
  source_version integer;
  source_updated_at timestamptz;
@@ -43,13 +44,14 @@ begin
  end if;
  begin
   pid:=(p_payload->>'patient_id')::uuid;
+  expected_account:=(p_payload->>'source_account_id')::uuid;
   source_version:=(p_payload->>'source_version')::integer;
   source_updated_at:=(p_payload->>'source_updated_at')::timestamptz;
  exception when others then raise exception 'Invalid BPS patient or intake provenance' using errcode='22023';end;
- if pid is null or source_version is null or source_version<1 or source_updated_at is null then
+ if pid is null or expected_account is null or source_version is null or source_version<1 or source_updated_at is null then
   raise exception 'Valid linked patient and intake version required' using errcode='22023';end if;
- select account_id into account from public.clinical_patients where id=pid;
- if account is null then raise exception 'Patient account is not linked' using errcode='22023';end if;
+ select account_id into account from public.clinical_patients where id=pid for share;
+ if account is distinct from expected_account then raise exception 'Patient account link changed: review current source' using errcode='22023';end if;
  select * into source from public.patient_intakes where patient_id=account for share;
  if not found or source.version is distinct from source_version or source.updated_at is distinct from source_updated_at
   or source.status is distinct from p_payload->>'source_status' then

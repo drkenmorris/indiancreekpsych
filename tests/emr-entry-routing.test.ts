@@ -18,6 +18,13 @@ test('unrecognized BPS subpage is not propagated',async()=>{
  await expect(EmrPage({searchParams:Promise.resolve({bps_page:'https://example.com'})})).rejects.toThrow('redirect /emr/workspace?module=assessment&section=assessment%3Abiopsychosocial');
 });
 
+test('central patient directory opens original BPS by default, not demographics or a synthetic account',()=>{
+ const source=readFileSync('app/emr/PatientRepository.tsx','utf8');
+ expect(source).toContain('href={"/emr?patient="+encodeURIComponent(selected.id)}');
+ expect(source).toContain('Open original biopsychosocial EMR and clinical modules');
+ expect(source).not.toContain('href={"/emr/workspace?patient="+selected.id}');
+});
+
 test('original BPS intake link carries the active clinical subpage into protected source review',()=>{
  const source=readFileSync('public/emr-assets/app.js','utf8');
  expect(source).toContain('data-bps-intake-review href="/emr/bps-intake?patient=${encodeURIComponent(patientId)}&bps_page=${encodeURIComponent(bpsSubpage())}"');

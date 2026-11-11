@@ -66,3 +66,51 @@ export function mapSavedBpsReportedFields(answers:Record<string,string>){
   unmappedKeys:mapped.unmappedKeys
  };
 }
+
+/** Mirrors the DB-owned BPS snapshot allowlist in migration 20261110103000.
+ * Fail closed on legacy or unexpected review payload fields before data leave
+ * the protected server. Sensitive legal, medication, and structured-trauma
+ * records remain in their dedicated clinician reconciliation workflows.
+ */
+export const bpsSnapshotClinicalKeys = new Set<string>([
+ "guardian_relationship",
+ "custody_notes",
+ "counseling_reason",
+ "concern_onset",
+ "concern_duration",
+ "precipitating_events",
+ "symptom_frequency",
+ "symptom_severity",
+ "functional_impact",
+ "sleep",
+ "appetite",
+ "energy",
+ "concentration",
+ "work_school_impact",
+ "relationship_impact",
+ "daily_living_impact",
+ "counseling_goals",
+ "prior_mental_health_treatment",
+ "prior_therapists",
+ "prior_diagnoses",
+ "self_harm_history",
+ "suicide_attempt_history",
+ "suicidal_thoughts_current",
+ "suicidal_plan_current",
+ "homicidal_thoughts_current",
+ "violence_risk_details",
+ "abuse_neglect_current",
+ "weapons_access",
+ "protective_factors",
+ "trauma_history"
+]);
+export function sanitizeBpsSnapshotAnswers(raw:unknown):{answers:Record<string,string>;excludedCount:number}{
+ const answers:Record<string,string>={};
+ if(!raw||typeof raw!=='object'||Array.isArray(raw))return {answers,excludedCount:1};
+ let excludedCount=0;
+ for(const [key,value] of Object.entries(raw)){
+  if(bpsSnapshotClinicalKeys.has(key)&&typeof value==='string'&&value.trim())answers[key]=value;
+  else excludedCount++;
+ }
+ return {answers,excludedCount};
+}

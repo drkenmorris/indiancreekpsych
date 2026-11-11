@@ -116,7 +116,7 @@ test('primary original BPS displays immutable snapshot provenance without leakin
  ctx.render();
  await vi.waitFor(()=>expect(dom.window.document.querySelector(
   'section[aria-label="Clinician-reviewed BPS intake snapshot history"]'
- )?.textContent).toContain('unsigned review'.replace(/^u/,'U')));
+ )?.textContent).toContain('Unsigned review'));
  const history=dom.window.document.querySelector(
   'section[aria-label="Clinician-reviewed BPS intake snapshot history"]')!;
  expect(history.textContent).toContain('submitted intake version 5');

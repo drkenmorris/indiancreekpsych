@@ -146,3 +146,54 @@ test('exactly matching clinician-reviewed BPS source version, status and timesta
  expect(history.textContent).not.toContain('not yet been saved');
  dom.window.close();
 });
+
+test('original BPS refreshes a changed linked intake without saving or resetting the clinical form',async()=>{
+ let sourceVersion=6;
+ const calls:{url:string;method:string}[]=[];
+ const {ctx,dom}=harness(async(url,options)=>{
+  calls.push({url,method:options?.method||'GET'});
+  const current=report(firstPatient);
+  return Response.json({...current,source:{...current.source,version:sourceVersion}});
+ });
+ ctx.render();
+ const panel=()=>dom.window.document.querySelector(
+  'section[aria-label="Patient intake context in original biopsychosocial workspace"]')!;
+ await vi.waitFor(()=>expect(panel().textContent).toContain('source version 6'));
+ const form=dom.window.document.querySelector('#clinical-form');
+ expect(form).not.toBeNull();
+ sourceVersion=7;
+ const refresh=Array.from(panel().querySelectorAll('button')).find(
+  (button:any)=>button.textContent?.includes('Refresh linked patient intake')) as HTMLButtonElement;
+ expect(refresh).toBeDefined();
+ expect(refresh.type).toBe('button');
+ refresh.click();
+ await vi.waitFor(()=>expect(panel().textContent).toContain('source version 7'));
+ expect(dom.window.document.querySelector('#clinical-form')).toBe(form);
+ expect(calls).toEqual([
+  {url:'/api/emr/bps-intake?patient='+firstPatient,method:'GET'},
+  {url:'/api/emr/bps-intake?patient='+firstPatient,method:'GET'}
+ ]);
+ expect(panel().textContent).toContain('current intake');
+ dom.window.close();
+});
+
+test('a failed protected intake refresh cannot claim a saved or reviewed clinical BPS',async()=>{
+ let requests=0;
+ const {ctx,dom}=harness(async()=>{
+  requests++;
+  return requests===1?Response.json(report(firstPatient)):
+   Response.json({error:'Protected intake temporarily unavailable'},{status:503});
+ });
+ ctx.render();
+ const panel=()=>dom.window.document.querySelector(
+  'section[aria-label="Patient intake context in original biopsychosocial workspace"]')!;
+ await vi.waitFor(()=>expect(panel().textContent).toContain('source version 6'));
+ const refresh=Array.from(panel().querySelectorAll('button')).find(
+  (button:any)=>button.textContent?.includes('Refresh linked patient intake')) as HTMLButtonElement;
+ refresh.click();
+ await vi.waitFor(()=>expect(panel().querySelector('[role="alert"]')?.textContent).toContain('temporarily unavailable'));
+ expect(panel().textContent).toContain('no intake data were imported');
+ expect(dom.window.document.querySelector('#clinical-form')).not.toBeNull();
+ expect(requests).toBe(2);
+ dom.window.close();
+});

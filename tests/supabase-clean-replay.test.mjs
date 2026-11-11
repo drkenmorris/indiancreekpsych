@@ -76,6 +76,10 @@ test('clinic migrations replay in order on an empty application database', async
     const {rows:[chart]}=await db.query('select id from public.clinical_patients where account_id=$1',[patientId]);
     assert.ok(chart?.id,'Patient registration must establish the real linked central chart');
     const answers={
+      full_name:'Fictional Intake Patient',
+      date_of_birth:'1990-01-01',
+      address:'123 Fictional Street',city:'Example',state:'KS',postal_code:'66000',
+      phone:'555-0100',email:'fictional-patient@example.invalid',insurance_coverage:'unsure',
       counseling_reason:'Fictional reported concern',
       trauma_history:'Fictional reported history',
       protective_factors:'Fictional family support',
@@ -148,6 +152,55 @@ test('clinic migrations replay in order on an empty application database', async
     await as(adminId);
     await assert.rejects(db.query('select public.save_emr_bps_intake_review($1) as id',[payload]),
       /changed/,'Saving with an outdated source timestamp/version must fail closed');
+
+    // Release-parity case: a complete submitted website intake is immutable, and
+    // its new version can be explicitly reviewed, saved and read back in the same
+    // original central chart. The earlier draft snapshot must stay unchanged.
+    await as(patientId);
+    const {rows:[submitted]}=await db.query(
+      "update public.patient_intakes set status='submitted' where patient_id=$1 returning version,status,updated_at",
+      [patientId]);
+    assert.equal(submitted.status,'submitted');
+    assert.ok(submitted.version>source.version,'Submission must advance the DB-owned source version');
+    const mutation=await db.query(
+      "update public.patient_intakes set answers='{}'::jsonb where patient_id=$1 returning patient_id",
+      [patientId]).catch(error=>{
+      assert.match(error.message,/Submitted intake cannot be changed|permission denied|row-level security/i);
+      return {rows:[]};
+    });
+    assert.equal(mutation.rows.length,0,'A submitted intake may not be modified by its patient');
+
+    const submittedPayload={...payload,source_version:submitted.version,
+      source_status:submitted.status,source_updated_at:new Date(submitted.updated_at).toISOString()};
+    await as(adminId,'aal1');
+    await assert.rejects(db.query('select public.save_emr_bps_intake_review($1) as id',[submittedPayload]),
+      /MFA|Administrator sign-in/,'AAL1 must not approve a submitted patient intake');
+    await as(adminId,'aal2');
+    const {rows:[submittedSave]}=await db.query(
+      'select public.save_emr_bps_intake_review($1) as id',[submittedPayload]);
+    assert.ok(submittedSave?.id,'Verified clinician can save the immutable submitted source');
+    const {rows:[submittedReview]}=await db.query(
+      'select source_account_id,source_version,source_status,source_updated_at,reviewed,clinical_answers,clinician_notes from public.emr_bps_intake_reviews where id=$1',
+      [submittedSave.id]);
+    assert.equal(submittedReview.source_account_id,patientId);
+    assert.equal(submittedReview.source_version,submitted.version);
+    assert.equal(submittedReview.source_status,'submitted');
+    assert.equal(submittedReview.reviewed,true);
+    assert.equal(submittedReview.clinical_answers.counseling_reason,'Updated fictional report');
+    for(const key of ['insurance_member','roi_authorize','medication_allergy_status','medication_allergy_notes']){
+      assert.equal(submittedReview.clinical_answers[key],undefined,key+' is separate from BPS');
+    }
+    const {rows:[firstReview]}=await db.query(
+      'select clinical_answers,source_status from public.emr_bps_intake_reviews where id=$1',[saved.id]);
+    assert.equal(firstReview.source_status,'draft');
+    assert.equal(firstReview.clinical_answers.counseling_reason,'Fictional reported concern',
+      'Later submission must never rewrite the earlier frozen clinical snapshot');
+    await assert.rejects(db.query(
+      'select public.save_emr_bps_intake_review($1) as id',[submittedPayload]),
+      /duplicate key/,'The submitted source version is append-only per clinician and chart');
+    await as(outsiderId);
+    assert.equal((await db.query('select id from public.emr_bps_intake_reviews')).rows.length,0,
+      'Unrelated accounts cannot see either saved review');
 
   } finally {
     await db.close();

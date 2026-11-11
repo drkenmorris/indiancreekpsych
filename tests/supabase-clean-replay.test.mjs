@@ -100,7 +100,22 @@ test('clinic migrations replay in order on an empty application database', async
     await as(adminId,'aal1');
     await assert.rejects(db.query('select public.save_emr_bps_intake_review($1) as id',[payload]),
       /MFA|Administrator sign-in/,'AAL1 must not save clinician BPS history');
+    // The scheduler's own RLS must require MFA for administrators, not merely
+    // a protected UI. Existing patient appointment reads remain available.
+    const {rows:[unverifiedAdminSettings]}=await db.query(
+      'select id from public.appointment_settings where id=true');
+    assert.equal(unverifiedAdminSettings.length,0,
+      'AAL1 administrator must not read scheduling administration records');
+    await as(patientId,'aal1');
+    const {rows:[patientSettings]}=await db.query(
+      'select id from public.appointment_settings where id=true');
+    assert.equal(patientSettings.length,1,
+      'Patient availability reads must remain accessible without administrator MFA');
     await as(adminId,'aal2');
+    const {rows:[verifiedAdminSettings]}=await db.query(
+      'update public.appointment_settings set scheduling_enabled=scheduling_enabled where id=true returning id');
+    assert.equal(verifiedAdminSettings.length,1,
+      'An AAL2 administrator must retain scheduling administration writes');
     const {rows:[saved]}=await db.query('select public.save_emr_bps_intake_review($1) as id',[payload]);
     assert.ok(saved?.id,'AAL2 admin should be able to save an explicitly reviewed linked intake');
     const {rows:[review]}=await db.query(

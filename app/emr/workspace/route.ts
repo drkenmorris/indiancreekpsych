@@ -29,6 +29,15 @@ export async function GET(request:Request){
  if(error)return NextResponse.json({error:'Patient authorization could not be verified.'},{status:503,headers:privateHeaders});
  if(!data)return NextResponse.json({error:'Patient unavailable.'},{status:404,headers:privateHeaders});
  }
+ // Legacy direct workspace links omitted both module and section, silently opening
+ // Demographics instead of the owner's primary original biopsychosocial interface.
+ // Canonicalize only those links AFTER clinic MFA and patient authorization; preserve
+ // every explicit clinical deep link and the existing scheduler/assignment services.
+ if(!requested.searchParams.has('module')&&!requested.searchParams.has('section')){
+  params.set('module','assessment');
+  params.set('section','assessment:biopsychosocial');
+  return NextResponse.redirect(new URL('/emr/workspace?'+params.toString(),request.url),307);
+ }
  try{
   return new Response(await readFile(join(process.cwd(),'public/emr-assets/index.html'),'utf8'),{
    headers:{'Content-Type':'text/html; charset=utf-8','Cache-Control':'private, no-store',

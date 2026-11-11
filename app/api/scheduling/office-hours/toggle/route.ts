@@ -24,7 +24,13 @@ export async function POST(request: Request) {
           const client = await createClient({ verificationSignal: signal });
           const { data, error } = await client.from('profiles').select('account_type').eq('id', identity.subject).single();
           if (error) throw Error('Permission lookup unavailable');
-          return data?.account_type === 'admin';
+          if (data?.account_type !== 'admin') return false;
+          // This SECURITY DEFINER-adjacent protected operation must deny an
+          // administrator who has not completed MFA before it requests owner
+          // approval or attempts any outbound write. Database RLS remains a
+          // separate, mandatory defense against stale/forged client requests.
+          const { data: assurance, error: mfaError } = await client.auth.mfa.getAuthenticatorAssuranceLevel();
+          return !mfaError && assurance?.currentLevel === 'aal2';
         },
         validateInput: (input: unknown) => {
           if (!input || typeof input !== 'object' || Array.isArray(input) || Object.keys(input).sort().join() !== 'enabled,id') throw Error('Invalid input');

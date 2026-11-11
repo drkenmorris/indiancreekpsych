@@ -1,4 +1,5 @@
 import {beforeEach,expect,test,vi} from 'vitest';
+import {readFileSync} from 'node:fs';
 import {GET} from '@/app/emr/workspace/route';
 
 const m=vi.hoisted(()=>({patientAccess:vi.fn(),emrAccess:vi.fn(),readFile:vi.fn(),from:vi.fn()}));
@@ -49,4 +50,20 @@ test('matching authorized central UUID serves original UI with private CSP heade
  expect(response.headers.get('Cache-Control')).toContain('no-store');
  expect(m.from).toHaveBeenCalledWith('clinical_patients');
  expect(m.patientAccess).toHaveBeenCalledWith(true,'/emr/workspace');
+});
+
+test('serverless tracing includes the exact original clinical HTML and all linked prototype controllers',()=>{
+ const config=readFileSync('next.config.mjs','utf8');
+ const route=readFileSync('app/emr/workspace/route.ts','utf8');
+ const html=readFileSync('public/emr-assets/index.html','utf8');
+ expect(config).toContain("'/emr/workspace': ['./public/emr-assets/index.html']");
+ expect(route).toContain("readFile(join(process.cwd(),'public/emr-assets/index.html')");
+ expect(html).toContain('id="workspace"');
+ expect(html).toContain('id="main-modules"');
+ for(const file of ['planner.js','module-menu.js','app.js','production.js','central-directory.js'])
+  expect(html).toContain('src="/emr-assets/'+file+'"');
+ // The browser must continue at /emr/workspace with the selected real patient;
+ // no synthetic provider login or localStorage chart is substituted by this fix.
+ expect(route).toContain("const id=new URL(request.url).searchParams.get('patient')");
+ expect(route).toContain("const ctx=await emrAccess()");
 });

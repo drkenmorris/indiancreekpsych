@@ -25,6 +25,7 @@ await db.query('insert into public.patient_intakes values($1,$2,$3,$4,$5)',[acco
  counseling_reason:'Patient-reported sadness',suicidal_thoughts_current:'Yes',medication_entries:'structured original',
  roi_authorize:'Yes',treatment_signature:'Patient Signature',insurance_member:'protected identifier'},'submitted',1,stamp]);
 await db.exec(readFileSync('supabase/migrations/20261110103000_emr_bps_intake_reviews.sql','utf8'));
+await db.exec(readFileSync('supabase/migrations/20261111101500_emr_bps_review_account_provenance.sql','utf8'));
 const q=(s,args=[])=>db.query(s,args);
 const as=async(id,aal='aal2')=>{await db.exec('reset role');await q("select set_config('request.user',$1,false),set_config('request.aal',$2,false)",[id,aal]);await db.exec('set role authenticated');};
 const payload={patient_id:patient,source_version:1,source_status:'submitted',source_updated_at:stamp,
@@ -66,5 +67,35 @@ await test('source version/status/timestamp tampering and unreviewed notes fail 
  await q('update public.patient_intakes set version=version+1 where patient_id=$1',[account]);
  await as(admin);
  await assert.rejects(q('select public.save_emr_bps_intake_review($1)',[payload]));
+});
+await test('relinking a central chart to a different account preserves original BPS evidence and permits its own source version',async()=>{
+ const newlyLinked='00000000-0000-0000-0000-000000000106';
+ // Only privileged chart administration can explicitly link an account.
+ // Never match by patient name, email or a synthetic provider identity.
+ await db.exec('reset role');
+ await q('insert into auth.users values($1)',[newlyLinked]);
+ await q('insert into public.profiles values($1,$2)',[newlyLinked,'patient']);
+ await q('insert into public.patient_intakes values($1,$2,$3,$4,$5)',[
+  newlyLinked,{counseling_reason:'New linked account patient report',
+   suicidal_thoughts_current:'No response',roi_authorize:'Protected new legal decision'},
+  'submitted',1,stamp
+ ]);
+ await q('update public.clinical_patients set account_id=$1 where id=$2',[newlyLinked,patient]);
+ await as(admin);
+ const saved=await q('select public.save_emr_bps_intake_review($1) id',[payload]);
+ assert.ok(saved.rows[0].id);
+ const snapshots=(await q('select source_account_id,source_version,clinical_answers from public.emr_bps_intake_reviews where patient_id=$1',[patient])).rows;
+ assert.equal(snapshots.length,2);
+ const old=snapshots.find(row=>row.source_account_id===account);
+ const current=snapshots.find(row=>row.source_account_id===newlyLinked);
+ assert.equal(old?.source_version,1);
+ assert.equal(old?.clinical_answers.counseling_reason,'Patient-reported sadness');
+ assert.equal(current?.source_version,1);
+ assert.equal(current?.clinical_answers.counseling_reason,'New linked account patient report');
+ assert.equal(current?.clinical_answers.roi_authorize,undefined);
+ // One immutable review per clinician/chart/account/version remains enforced.
+ await assert.rejects(q('select public.save_emr_bps_intake_review($1)',[payload]));
+ await as(other);
+ assert.equal((await q('select * from public.emr_bps_intake_reviews')).rows.length,0);
 });
 await db.close();

@@ -61,3 +61,44 @@ test('protected historical BPS snapshots never transmit medication, structured t
  expect(bpsSnapshotClinicalKeys.has('trauma_history_checklist')).toBe(false);
  expect(bpsSnapshotClinicalKeys.has('medication_entries')).toBe(false);
 });
+
+
+test('all 21 intake sections audit source presence without exposing separately reviewed or administrative raw answers',()=>{
+ const answers:Record<string,string>={};
+ const sections=intakeSectionsForVersion('');
+ for(const section of sections)for(const [key] of section.fields)answers[key]='PRIVATE_SOURCE_'+key;
+ const report=mapIntakeToBps(answers);
+ expect(report.sections).toHaveLength(21);
+ for(let i=0;i<sections.length;i++){
+  const original=sections[i],audited=report.sections[i];
+  expect(audited.title).toBe(original.title);
+  expect(audited.answered).toBe(original.fields.length);
+  expect(audited.fields.map(field=>field.key)).toEqual(original.fields.map(([key])=>key));
+  for(const field of audited.fields){
+   expect(field.reported).toBe(true);
+   if(audited.disposition!=='clinical'||['treatment-history','medications','medical-substance','trauma-history','legal-routing','dsm-version'].includes(field.type)){
+    expect(field.sourceOnly).toBe(true);
+    expect(field.value).toBe('Recorded in protected source; not copied into BPS.');
+    expect(field.value).not.toContain('PRIVATE_SOURCE_');
+   }else{
+    expect(field.sourceOnly).toBe(false);
+    expect(field.value).toBe('PRIVATE_SOURCE_'+field.key);
+   }
+  }
+ }
+ const apiPayload=JSON.stringify(report);
+ for(const secret of ['PRIVATE_SOURCE_insurance_member','PRIVATE_SOURCE_medication_entries',
+  'PRIVATE_SOURCE_medication_allergy_notes','PRIVATE_SOURCE_treatment_history',
+  'PRIVATE_SOURCE_trauma_history_checklist','PRIVATE_SOURCE_roi_signature',
+  'PRIVATE_SOURCE_medical_substance_history'])expect(apiPayload).not.toContain(secret);
+ expect(apiPayload).toContain('PRIVATE_SOURCE_counseling_reason');
+});
+test('structured source is never echoed through historical clinical BPS readback',()=>{
+ const result=mapSavedBpsReportedFields({counseling_reason:'Reported concern',
+  treatment_history:'PRIVATE_STRUCTURED_HISTORY',trauma_history_checklist:'PRIVATE_STRUCTURED_TRAUMA',
+  medication_entries:'PRIVATE_STRUCTURED_MEDICATION',insurance_member:'PRIVATE_POLICY'});
+ const wire=JSON.stringify(result.sections);
+ for(const secret of ['PRIVATE_STRUCTURED_HISTORY','PRIVATE_STRUCTURED_TRAUMA',
+  'PRIVATE_STRUCTURED_MEDICATION','PRIVATE_POLICY'])expect(wire).not.toContain(secret);
+ expect(wire).toContain('Reported concern');
+});

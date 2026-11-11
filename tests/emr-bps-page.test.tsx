@@ -59,3 +59,16 @@ test('login and MFA preserve the exact BPS patient and allowed subpage through c
  expect(unsafe).not.toContain('outside.example');
  expect(m.patientAccess).toHaveBeenLastCalledWith(true,'/emr/bps-intake?patient='+patient);
 });
+
+test('clinician reconciliation provides direct patient-scoped navigation to the original seven BPS forms without importing answers',async()=>{
+ const markup=renderToStaticMarkup(await EmrBpsIntakePage(props()));
+ expect(markup).toContain('Original seven-page biopsychosocial forms');
+ expect(markup).toContain('do not auto-copy questionnaire responses');
+ for(const key of ['symptoms','treatment_history','medications','family_origin',
+  'medical_substance','developmental_personal','trauma_history']){
+  const expected='patient='+patient+'&amp;module=assessment&amp;section=assessment%3Abiopsychosocial&amp;bps_page='+key;
+  expect(markup, 'Missing original form link '+key).toContain(expected);
+ }
+ expect((markup.match(/bps_page=/g)||[]).length).toBe(7);
+ expect(markup).not.toContain('patient=undefined');
+});

@@ -22,6 +22,7 @@ export default function TestAssignmentClient({initialTestKey="",initialPatientId
  const [assignments,setAssignments]=useState<Assignment[]>([]);
  const [emailReady,setEmailReady]=useState(false);
  const [busy,setBusy]=useState(false);
+ const [confirmInvitation,setConfirmInvitation]=useState<string|null>(null);
  const [message,setMessage]=useState("");
  const [error,setError]=useState("");
  const [loading,setLoading]=useState(true);
@@ -55,9 +56,8 @@ export default function TestAssignmentClient({initialTestKey="",initialPatientId
   finally{setBusy(false);}
  }
  async function send(item:Assignment){
-  if(busy)return;
-  if(!window.confirm("Send a secure invitation to "+item.recipient_email+
-    "? Only the named recipient signing in with that email can open the assigned version."))return;
+  if(busy||confirmInvitation!==item.id)return;
+  setConfirmInvitation(null);
   setBusy(true);setError("");setMessage("");
   try{
    const response=await fetch("/api/admin/test-assignments",{
@@ -115,7 +115,11 @@ export default function TestAssignmentClient({initialTestKey="",initialPatientId
       <td>{tests.find(t=>t.value===a.test_key)?.label??a.test_key}{a.test_key==='asq'&&<><small>{a.asq_role?asqRoleLabels[a.asq_role]:'Legacy assignment — version not specified'}</small>{a.patient_id&&<small><Link href={'/emr?patient='+a.patient_id}>Patient record</Link></small>}</>}{a.test_key==='dsm'&&<><small>{dsmVersionLabel(a.dsm_version)}{a.dsm_version==='adult'?(a.dsm_format==='icps-dsm-recipient/2'?' · Tiers 1–6':' · Earlier Tier 1–2 version'):' · Tier 1 only'}</small>{a.patient_id&&<small><Link href={'/emr/dsm?patient='+a.patient_id}>Patient DSM results</Link></small>}</>}</td>
       <td>{a.connected_progress&&<small>{a.connected_progress.status==='submitted'?'Questionnaire submitted':'In progress'} · {a.connected_progress.answered_count} answers saved · revision {a.connected_progress.revision}</small>}{a.dsm_progress&&<small>{a.dsm_progress.status==='submitted'?'Questionnaire submitted':'In progress'} · {a.dsm_progress.answered_count} answers saved · revision {a.dsm_progress.revision}</small>}{a.asq_progress&&<small>{a.asq_progress.status==='submitted'?'Questionnaire submitted':'In progress'} · {a.asq_progress.answered_count} answers saved · revision {a.asq_progress.revision}</small>}<span className="assignmentPill">{a.status==="sent"?"Email accepted":"Draft — not sent"}</span></td>
       <td>{a.status==="draft"?<button disabled={busy||!emailReady||!tests.find(t=>t.value===a.test_key)?.patientReady||(a.test_key==='asq'&&!a.asq_role)||(a.test_key==='dsm'&&!a.dsm_source_hash)||(!isConnectedKey(a.test_key)&&Date.parse(a.expires_at)<=Date.now())||(isConnectedKey(a.test_key)&&!a.connected_source_hash)}
-       onClick={()=>void send(a)}>Send Invitation</button>:<span>Sent</span>}{isConnectedKey(a.test_key)&&a.connected_source_hash&&<p><Link href={'/admin/assign-test/connected-responses/'+a.id}>View responses / clinical report / PDF</Link>{a.status==='sent'&&<small>Expires {new Date(a.expires_at).toLocaleString('en-US',{timeZone:'America/Chicago'})} Central</small>}</p>}{a.test_key==='dsm'&&!a.dsm_source_hash&&<small>Create a new DSM draft to link the patient and questionnaire version.</small>}{a.test_key==='dsm'&&a.dsm_source_hash&&<p><Link href={'/admin/assign-test/dsm-responses/'+a.id}>View DSM responses / evaluation</Link>{a.status==='sent'&&<small><Link href={'/patient/assigned-tests/'+a.id}>Assigned recipient link</Link></small>}</p>}{a.test_key==='asq'&&a.asq_role&&a.status==='sent'&&<p><Link href={'/patient/assigned-tests/'+a.id}>Assigned recipient link</Link><small>Only the invited account can open this questionnaire.</small></p>}{a.test_key==='asq'&&a.asq_role&&<p><Link href={'/admin/assign-test/asq-responses/'+a.id}>{a.asq_progress?.status==='submitted'?'Evaluate / view results':'View recorded responses'}</Link></p>}</td>
+       onClick={()=>setConfirmInvitation(a.id)}>Send Invitation</button>:<span>Sent</span>}{confirmInvitation===a.id&&<div role="group" aria-label="Confirm assessment invitation">
+       <p>Send a secure invitation to <strong>{a.recipient_email}</strong>? Only this recipient can open the assigned version.</p>
+       <button type="button" onClick={()=>setConfirmInvitation(null)} autoFocus>Cancel invitation send</button>
+       <button type="button" disabled={busy||!emailReady} onClick={()=>void send(a)}>Confirm and send invitation</button>
+      </div>}{isConnectedKey(a.test_key)&&a.connected_source_hash&&<p><Link href={'/admin/assign-test/connected-responses/'+a.id}>View responses / clinical report / PDF</Link>{a.status==='sent'&&<small>Expires {new Date(a.expires_at).toLocaleString('en-US',{timeZone:'America/Chicago'})} Central</small>}</p>}{a.test_key==='dsm'&&!a.dsm_source_hash&&<small>Create a new DSM draft to link the patient and questionnaire version.</small>}{a.test_key==='dsm'&&a.dsm_source_hash&&<p><Link href={'/admin/assign-test/dsm-responses/'+a.id}>View DSM responses / evaluation</Link>{a.status==='sent'&&<small><Link href={'/patient/assigned-tests/'+a.id}>Assigned recipient link</Link></small>}</p>}{a.test_key==='asq'&&a.asq_role&&a.status==='sent'&&<p><Link href={'/patient/assigned-tests/'+a.id}>Assigned recipient link</Link><small>Only the invited account can open this questionnaire.</small></p>}{a.test_key==='asq'&&a.asq_role&&<p><Link href={'/admin/assign-test/asq-responses/'+a.id}>{a.asq_progress?.status==='submitted'?'Evaluate / view results':'View recorded responses'}</Link></p>}</td>
      </tr>)}</tbody>
     </table></div>}
    <p className="assignmentHelp">Patients must sign in using the invited email address and complete required security verification. An invitation is not proof of identity and never overrides access rules.</p>

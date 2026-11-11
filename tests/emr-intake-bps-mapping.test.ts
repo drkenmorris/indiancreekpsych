@@ -57,7 +57,7 @@ test('protected historical BPS snapshots never transmit medication, structured t
  });
  expect(actual.answers).toEqual({counseling_reason:'Reported concern',suicidal_thoughts_current:'Yes',
   guardian_relationship:'Parent',trauma_history:'Reported life event'});
- expect(actual.excludedCount).toBe(8);
+ expect(actual.excludedCount).toBe(9);
  expect(bpsSnapshotClinicalKeys.has('trauma_history_checklist')).toBe(false);
  expect(bpsSnapshotClinicalKeys.has('medication_entries')).toBe(false);
 });

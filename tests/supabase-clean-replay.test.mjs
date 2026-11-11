@@ -102,17 +102,17 @@ test('clinic migrations replay in order on an empty application database', async
       /MFA|Administrator sign-in/,'AAL1 must not save clinician BPS history');
     // The scheduler's own RLS must require MFA for administrators, not merely
     // a protected UI. Existing patient appointment reads remain available.
-    const {rows:[unverifiedAdminSettings]}=await db.query(
+    const {rows:unverifiedAdminSettings}=await db.query(
       'select id from public.appointment_settings where id=true');
     assert.equal(unverifiedAdminSettings.length,0,
       'AAL1 administrator must not read scheduling administration records');
     await as(patientId,'aal1');
-    const {rows:[patientSettings]}=await db.query(
+    const {rows:patientSettings}=await db.query(
       'select id from public.appointment_settings where id=true');
     assert.equal(patientSettings.length,1,
       'Patient availability reads must remain accessible without administrator MFA');
     await as(adminId,'aal2');
-    const {rows:[verifiedAdminSettings]}=await db.query(
+    const {rows:verifiedAdminSettings}=await db.query(
       'update public.appointment_settings set scheduling_enabled=scheduling_enabled where id=true returning id');
     assert.equal(verifiedAdminSettings.length,1,
       'An AAL2 administrator must retain scheduling administration writes');

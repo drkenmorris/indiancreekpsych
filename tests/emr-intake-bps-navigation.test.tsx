@@ -30,7 +30,8 @@ test('all 21 linked BPS sections provide patient-scoped access to existing clini
   ['emr-intake-trauma-review','Review structured trauma history']
  ];
  for(const [anchor,label] of targets){
-  const link=container.querySelector('a[href="/emr/patients?patient='+patient+'&review='+anchor+'#'+anchor+'"]');
+  const href='/emr/patients?patient='+patient+'&review='+anchor+'#'+anchor;
+  const link=Array.from(container.querySelectorAll("a")).find(a=>a.getAttribute("href")===href);
   expect(link?.textContent).toContain(label);
  }
  expect(container.textContent).toContain('Opening a link never copies, approves or saves patient statements.');

@@ -7,7 +7,7 @@ const stamp='2026-11-10T09:00:00Z';
 const request=()=>new Request('https://www.indiancreekpsych.com/api/emr/bps-intake?patient='+patient);
 const submit=(details:Record<string,unknown>)=>new Request('https://www.indiancreekpsych.com/api/emr/bps-intake',{method:'POST',headers:{Origin:'https://www.indiancreekpsych.com'},
  body:JSON.stringify(details)});
-const payload={patientId:patient,sourceVersion:2,sourceStatus:'submitted',sourceUpdatedAt:stamp,reviewed:true,notes:{presenting:'Reported changes'}};
+const payload={patientId:patient,sourceAccountId:account,sourceVersion:2,sourceStatus:'submitted',sourceUpdatedAt:stamp,reviewed:true,notes:{presenting:'Reported changes'}};
 let linked:string|null;
 let reviewRows:Record<string,unknown>[];
 let version:number;
@@ -39,7 +39,7 @@ test('21-section review distinguishes risk, legal references and structured reco
  const response=await GET(request());expect(response.status).toBe(200);
  expect(response.headers.get('Cache-Control')).toContain('no-store');
  const body=await response.json();expect(body.sections).toHaveLength(21);
- expect(body.source).toEqual({version:2,status:'submitted',updatedAt:stamp});
+ expect(body.source).toEqual({accountId:account,version:2,status:'submitted',updatedAt:stamp});
  expect(body.sections.find((s:any)=>s.title==='Safety and risk screening').fields.find((f:any)=>f.key==='suicidal_thoughts_current').value).toBe('Yes');
  expect(body.sections.find((s:any)=>s.title==='Authorization to share health information').disposition).toBe('reference');
  expect(body.sections.find((s:any)=>s.title==='Medications').disposition).toBe('separate-review');
@@ -49,11 +49,11 @@ test('save accepts only explicit reviewed provenance and clinician notes, never 
  expect(response.status).toBe(201);
  expect(await response.json()).toEqual({id:'00000000-0000-0000-0000-000000000500',saved:true,unsigned:true,diagnosisCreated:false});
  expect(m.rpc).toHaveBeenCalledWith('save_emr_bps_intake_review',{p_payload:{
-  patient_id:patient,source_version:2,source_status:'submitted',source_updated_at:stamp,
+  patient_id:patient,source_account_id:account,source_version:2,source_status:'submitted',source_updated_at:stamp,
   reviewed:true,clinician_notes:{presenting:'Reported changes',treatment:'',medical:'',safety:'',family:'',goals:'',limitations:''}}});
 });
 test('invalid identity, review, timestamps, source version or arbitrary note keys cannot reach save RPC',async()=>{
- for(const bad of [{...payload,reviewed:false},{...payload,patientId:'wrong'},{...payload,sourceVersion:-1},
+ for(const bad of [{...payload,reviewed:false},{...payload,patientId:'wrong'},{...payload,sourceAccountId:null},{...payload,sourceVersion:-1},
   {...payload,sourceUpdatedAt:'invalid'}, {...payload,notes:{diagnosis:'fabricated'}},
   {...payload,notes:{safety:'x'.repeat(4001)}}, {...payload,notes:null}]){
   expect((await POST(submit(bad))).status).toBe(400);

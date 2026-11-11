@@ -27,10 +27,32 @@ test('invalid patient UUID is rejected before any chart lookup',async()=>{
  const response=await GET(request('bad'));expect(response.status).toBe(400);
  expect(m.from).not.toHaveBeenCalled();expect(m.readFile).not.toHaveBeenCalled();
 });
-test('no selected patient serves original menu shell without querying a chart',async()=>{
- const response=await GET(request(''));expect(response.status).toBe(200);
- expect(m.from).not.toHaveBeenCalled();expect(m.readFile).toHaveBeenCalled();
+test('legacy blank workspace entry redirects to the original BPS menu without looking up a chart',async()=>{
+ const legacy=await GET(request(''));
+ expect(legacy.status).toBe(307);
+ const url=new URL(legacy.headers.get('location')!);
+ expect(url.pathname).toBe('/emr/workspace');
+ expect(url.searchParams.get('module')).toBe('assessment');
+ expect(url.searchParams.get('section')).toBe('assessment:biopsychosocial');
+ expect(m.from).not.toHaveBeenCalled();expect(m.readFile).not.toHaveBeenCalled();
+ const response=await GET(new Request(url));
+ expect(response.status).toBe(200);
+ expect(m.from).not.toHaveBeenCalled();expect(m.readFile).toHaveBeenCalledOnce();
 });
+test('existing patient-only workspace links open the original BPS, while explicit clinical modules are preserved',async()=>{
+ const legacy=await GET(request());
+ expect(legacy.status).toBe(307);
+ const url=new URL(legacy.headers.get('location')!);
+ expect(url.searchParams.get('patient')).toBe(patient);
+ expect(url.searchParams.get('module')).toBe('assessment');
+ expect(url.searchParams.get('section')).toBe('assessment:biopsychosocial');
+ expect(m.readFile).not.toHaveBeenCalled();
+ expect((await GET(new Request(url))).status).toBe(200);
+ const notes=await GET(new Request('https://www.indiancreekpsych.com/emr/workspace?patient='+patient+'&module=notes&section=notes%3Aplanner'));
+ expect(notes.status).toBe(200);
+ expect(m.readFile).toHaveBeenCalledTimes(2);
+});
+
 test('unrecognized or unauthorized patient ID is rejected before original HTML is served',async()=>{
  lookup.mockResolvedValue({data:null,error:null});
  const response=await GET(request());expect(response.status).toBe(404);
@@ -42,14 +64,15 @@ test('central patient lookup failure fails closed, no clinical workspace HTML',a
  expect(response.headers.get('Cache-Control')).toContain('no-store');
  expect(m.readFile).not.toHaveBeenCalled();
 });
-test('matching authorized central UUID serves original UI with private CSP headers',async()=>{
- const response=await GET(request());
+test('matching authorized central UUID serves original BPS UI with private CSP headers',async()=>{
+ const query='patient='+patient+'&module=assessment&section=assessment%3Abiopsychosocial';
+ const response=await GET(new Request('https://www.indiancreekpsych.com/emr/workspace?'+query));
  expect(response.status).toBe(200);
  expect(await response.text()).toContain('Original clinical workspace');
  expect(response.headers.get('Content-Security-Policy')).toContain("script-src 'self'");
  expect(response.headers.get('Cache-Control')).toContain('no-store');
  expect(m.from).toHaveBeenCalledWith('clinical_patients');
- expect(m.patientAccess).toHaveBeenCalledWith(true,'/emr/workspace?patient='+patient);
+ expect(m.patientAccess).toHaveBeenCalledWith(true,'/emr/workspace?'+query);
 });
 
 test('serverless tracing includes the exact original clinical HTML and all linked prototype controllers',()=>{

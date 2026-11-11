@@ -9,7 +9,7 @@ afterEach(()=>{cleanup();vi.unstubAllGlobals();});
 test('all 21 linked BPS sections provide patient-scoped access to existing clinical reconciliation, never a second medication editor',async()=>{
  const patient='00000000-0000-0000-0000-000000000601';
  const sections=Array.from({length:21},(_,i)=>({
-  title:i===0?'Medications':i===1?'Medical & Substance Use History':i===2?'Trauma, family, social, educational, and occupational history':'Section '+i,
+  title:i===3?'Mental health treatment history':i===0?'Medications':i===1?'Medical & Substance Use History':i===2?'Trauma, family, social, educational, and occupational history':'Section '+i,
   domain:'Clinician reviewed history',disposition:i===0||i===1?'separate-review':'clinical',
   fields:[{key:'answer_'+i,label:'Patient report',type:'text',value:'Fictional report'}],answered:1
  }));
@@ -27,11 +27,12 @@ test('all 21 linked BPS sections provide patient-scoped access to existing clini
   ['emr-intake-medication-review','Review reported medications'],
   ['emr-intake-allergy-review','Review reported medication allergies'],
   ['emr-intake-medical-review','Review medical and substance-use'],
-  ['emr-intake-trauma-review','Review structured trauma history']
+  ['emr-intake-trauma-review','Review structured trauma history'],
+  ['emr-intake-treatment-history-review','Review reported counseling and psychiatric treatment history']
  ];
  const shortcuts=screen.getByRole('navigation',{name:'Patient-scoped clinical reconciliation shortcuts'});
  const links=Array.from(shortcuts.querySelectorAll('a'));
- expect(links).toHaveLength(4);
+ expect(links).toHaveLength(5);
  for(const [anchor,label] of targets){
   const link=links.find(node=>{
    const url=new URL(node.getAttribute('href')||'', 'https://clinic.example');
@@ -48,13 +49,18 @@ test('all 21 linked BPS sections provide patient-scoped access to existing clini
 
 test('original central chart exposes matching destinations even when patient reports are absent',()=>{
  const source=readFileSync('app/emr/PatientRepository.tsx','utf8');
- for(const anchor of ['emr-intake-medication-review','emr-intake-allergy-review','emr-intake-medical-review','emr-intake-trauma-review']){
+ for(const anchor of ['emr-intake-medication-review','emr-intake-allergy-review','emr-intake-medical-review','emr-intake-trauma-review','emr-intake-treatment-history-review']){
   expect(source).toContain('id="'+anchor+'"');
  }
  expect(source).toContain('No linked patient-reported medication entries are available');
  expect(source).toContain('No linked patient-reported medical and substance-use history is available');
  expect(source).toContain('No linked patient-reported medication allergy entries are available');
  expect(source).toContain('No linked structured trauma checklist is available');
+ expect(source).toContain('No linked structured counseling/psychiatric treatment history is available');
+ expect(source).toContain('value={intake.answers[TREATMENT_HISTORY_KEY]} readOnly');
+ expect(source).toContain("'medication_allergy_notes','treatment_history_entries'");
+ const entry=readFileSync('app/emr/patients/page.tsx','utf8');
+ expect(entry).toContain("'emr-intake-treatment-history-review'");
 });
 
 test('reopening an immutable BPS review shows stored patient reports separately from unsigned clinician notes, without a new save',async()=>{

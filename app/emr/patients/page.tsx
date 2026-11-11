@@ -4,7 +4,7 @@ import AdministrativeShell from '@/app/components/AdministrativeShell';
 import PatientRepository from '../PatientRepository';
 export const dynamic='force-dynamic';
 const reviewAnchors=new Set(['emr-intake-medication-review','emr-intake-allergy-review',
- 'emr-intake-medical-review','emr-intake-trauma-review']);
+ 'emr-intake-medical-review','emr-intake-trauma-review','emr-intake-treatment-history-review']);
 type Props={searchParams?:Promise<{patient?:string;review?:string}>};
 export default async function EmrPatientsPage({searchParams}:Props={}){
  const params=searchParams?await searchParams:{};

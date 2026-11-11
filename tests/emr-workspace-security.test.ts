@@ -64,7 +64,7 @@ test('serverless tracing includes the exact original clinical HTML and all linke
   expect(html).toContain('src="/emr-assets/'+file+'"');
  // The browser must continue at /emr/workspace with the selected real patient;
  // no synthetic provider login or localStorage chart is substituted by this fix.
- expect(route).toContain("const id=new URL(request.url).searchParams.get('patient')");
+ expect(route).toContain("const id=requested.searchParams.get('patient')");
  expect(route).toContain("const ctx=await emrAccess()");
 });
 

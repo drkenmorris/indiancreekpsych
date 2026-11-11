@@ -1,5 +1,5 @@
 import {expect,test} from 'vitest';
-import {intakeSections,intakeSectionsForVersion} from '@/lib/patient/intake';
+import {intakeSections,intakeSectionsForVersion,retiredMentalHealthFields,retiredContextFields} from '@/lib/patient/intake';
 import {bpsNoteDomains,bpsSectionClassification,mapIntakeToBps,mapSavedBpsReportedFields,sanitizeBpsSnapshotAnswers,bpsSnapshotClinicalKeys} from '@/lib/emr/intake-bps';
 test('all 21 current and historical sections receive deliberate BPS dispositions',()=>{
  for(const sections of [intakeSections,intakeSectionsForVersion('legacy')]){
@@ -127,4 +127,42 @@ test('directory-era 21-section intake fields receive the same source-only privac
  for(const secret of ['PRIVATE_DIRECTORY_insurance_member','PRIVATE_DIRECTORY_medication_entries',
   'PRIVATE_DIRECTORY_trauma_history_checklist','PRIVATE_DIRECTORY_treatment_signature'])
   expect(wire).not.toContain(secret);
+});
+
+
+test('all eleven retired psychiatric, family, social and legal context responses reach a clinical BPS source domain without becoming clinician facts',()=>{
+ const retired=[...retiredMentalHealthFields,...retiredContextFields];
+ expect(retired).toHaveLength(11);
+ const answers:Record<string,string>={counseling_reason:'Current presenting concern',unexpected_code:'Unmapped private answer'};
+ for(const [key] of retired)answers[key]='Historical patient report for '+key;
+ const report=mapIntakeToBps(answers);
+ expect(report.sections).toHaveLength(21);
+ const historical=report.sections.flatMap(section=>section.fields.filter(field=>field.type==='historical-patient-report')
+  .map(field=>({...field,domain:section.title,disposition:section.disposition})));
+ expect(historical).toHaveLength(11);
+ for(const [key] of retired){
+  const item=historical.find(field=>field.key===key);
+  expect(item,'Unrouted retired clinical field: '+key).toBeDefined();
+  expect(item?.disposition).toBe('clinical');
+  expect(item?.reported).toBe(true);
+  expect(item?.sourceOnly).toBe(false);
+  expect(item?.label).toContain('Historical patient report');
+  expect(item?.value).toBe('Historical patient report for '+key);
+  expect(report.unmappedKeys).not.toContain(key);
+ }
+ expect(historical.filter(field=>field.domain==='Mental health treatment history')).toHaveLength(2);
+ expect(historical.filter(field=>field.domain==='Trauma, family, social, educational, and occupational history')).toHaveLength(9);
+ expect(report.unmappedKeys).toEqual(['unexpected_code']);
+ // The database snapshot remains explicitly allowlisted: displaying historical
+ // patient testimony never silently creates a clinician fact or signed BPS record.
+ const snapshot=sanitizeBpsSnapshotAnswers(answers);
+ expect(snapshot.answers).toEqual({counseling_reason:'Current presenting concern'});
+ for(const [key] of retired)expect(snapshot.answers).not.toHaveProperty(key);
+ expect(snapshot.excludedCount).toBe(12);
+});
+test('retired intake fields stay absent when not reported and blanks cannot imply a negative history',()=>{
+ const report=mapIntakeToBps({psychiatric_hospitalizations:' ',legal_history:''});
+ expect(report.sections).toHaveLength(21);
+ expect(report.sections.flatMap(section=>section.fields).filter(field=>field.type==='historical-patient-report')).toHaveLength(0);
+ expect(report.unmappedKeys).toEqual([]);
 });

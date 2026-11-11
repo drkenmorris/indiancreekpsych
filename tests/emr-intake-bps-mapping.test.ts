@@ -102,3 +102,29 @@ test('structured source is never echoed through historical clinical BPS readback
   'PRIVATE_STRUCTURED_MEDICATION','PRIVATE_POLICY'])expect(wire).not.toContain(secret);
  expect(wire).toContain('Reported concern');
 });
+
+
+test('directory-era 21-section intake fields receive the same source-only privacy controls',()=>{
+ const legal_packet_version='2026-11-02-directory-1';
+ const sections=intakeSectionsForVersion(legal_packet_version);
+ const answers:Record<string,string>={legal_packet_version};
+ for(const section of sections)for(const [key] of section.fields)answers[key]='PRIVATE_DIRECTORY_'+key;
+ const report=mapIntakeToBps(answers);
+ expect(sections).toHaveLength(21);
+ expect(report.sections).toHaveLength(21);
+ for(let i=0;i<sections.length;i++){
+  expect(report.sections[i].title).toBe(sections[i].title);
+  expect(report.sections[i].fields.map(field=>field.key)).toEqual(sections[i].fields.map(([key])=>key));
+  expect(report.sections[i].answered).toBe(sections[i].fields.length);
+  for(const field of report.sections[i].fields){
+   const separate=report.sections[i].disposition!=='clinical'||
+    ['treatment-history','medications','medical-substance','trauma-history','legal-routing','dsm-version'].includes(field.type);
+   expect(field.sourceOnly).toBe(separate);
+   expect(field.value).toBe(separate?'Recorded in protected source; not copied into BPS.':'PRIVATE_DIRECTORY_'+field.key);
+  }
+ }
+ const wire=JSON.stringify(report);
+ for(const secret of ['PRIVATE_DIRECTORY_insurance_member','PRIVATE_DIRECTORY_medication_entries',
+  'PRIVATE_DIRECTORY_trauma_history_checklist','PRIVATE_DIRECTORY_treatment_signature'])
+  expect(wire).not.toContain(secret);
+});

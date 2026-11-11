@@ -21,6 +21,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run typecheck
+      - run: node --test tests/supabase-clean-replay.test.mjs
       - run: npm run test:intake
       - run: npm run test:attestations
       - run: npm run build

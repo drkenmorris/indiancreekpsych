@@ -20,10 +20,16 @@ async function json(response:Response){const data=await response.json();if(!resp
 export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
  const [data,setData]=useState<ResponseData|null>(null),[error,setError]=useState(''),[status,setStatus]=useState(''),
  [loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[prepared,setPrepared]=useState(false),
- [notes,setNotes]=useState<BpsNotes>(emptyBpsNotes),[reviewed,setReviewed]=useState(false);
+ [notes,setNotes]=useState<BpsNotes>(emptyBpsNotes),[reviewed,setReviewed]=useState(false),
+ [acknowledgedVersion,setAcknowledgedVersion]=useState<number|null>(null);
  // A save may finish after the clinician switches patients. Never allow its result
  // to update a different chart (including A → B → A navigation).
  const chartScope=useRef({patientId,generation:0});
+ // The database allows only one append-only review per clinician, central chart and
+ // source version. Show that invariant before another submit, and keep it enforced
+ // locally after an acknowledged save even if the read-back request fails.
+ const versionAlreadyReviewed=!!data&&(data.reviews.some(review=>review.source_version===data.source.version)||
+  acknowledgedVersion===data.source.version);
  async function load(id:string){
   const value=await json(await fetch('/api/emr/bps-intake?patient='+encodeURIComponent(id),{cache:'no-store'}));
   if(value.patientId!==id||!Array.isArray(value.sections)||value.sections.length!==21)throw Error('BPS source did not match the selected chart.');
@@ -32,13 +38,13 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
  useEffect(()=>{let active=true;
   if(chartScope.current.patientId!==patientId)chartScope.current={patientId,generation:chartScope.current.generation+1};
   setData(null);setError('');setStatus('');setLoading(true);setPrepared(false);setSaving(false);
-  setReviewed(false);setNotes(emptyBpsNotes());
+  setReviewed(false);setNotes(emptyBpsNotes());setAcknowledgedVersion(null);
   load(patientId).then(value=>{if(active)setData(value);}).catch(e=>{if(active)setError(e instanceof Error?e.message:'BPS intake unavailable.');})
    .finally(()=>{if(active)setLoading(false);});
   return ()=>{active=false;};
  },[patientId]);
  async function save(event:FormEvent<HTMLFormElement>){
-  event.preventDefault();if(!data||data.patientId!==patientId||!reviewed||saving||!prepared)return;
+  event.preventDefault();if(!data||data.patientId!==patientId||!reviewed||saving||!prepared||versionAlreadyReviewed)return;
   const generation=chartScope.current.generation;
   const stillOnChart=()=>chartScope.current.patientId===patientId&&chartScope.current.generation===generation;
   setSaving(true);setStatus('');
@@ -50,6 +56,7 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
    if(!result.saved)throw Error('The review was not confirmed.');
    // The database has acknowledged this append-only write. A subsequent read failure
    // must never be described as an unsaved review or invite a duplicate save.
+   setAcknowledgedVersion(data.source.version);
    setPrepared(false);setReviewed(false);setNotes(emptyBpsNotes());
    setStatus('Clinician-reviewed, unsigned BPS intake snapshot saved in the protected chart. Patient statements remain patient-reported; no diagnosis, authorization, or signature was created.');
    try{
@@ -105,7 +112,7 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
      </section>;
     })}
    </details>}
-   {!prepared?<button type="button" disabled={saving} onClick={()=>{setPrepared(true);setReviewed(false);setNotes(emptyBpsNotes());setStatus('');}}>Prepare clinician-reviewed BPS intake draft</button>:
+   {versionAlreadyReviewed?<p role="status">A clinician-reviewed BPS snapshot for this source version has already been saved. Its immutable history can be reopened above; a second save of the same version is not permitted. If the source changed without a new version, resolve the intake provenance before saving.</p>:!prepared?<button type="button" disabled={saving} onClick={()=>{setPrepared(true);setReviewed(false);setNotes(emptyBpsNotes());setStatus('');}}>Prepare clinician-reviewed BPS intake draft</button>:
     <form onSubmit={save} autoComplete="off">
      <h3>Clinician review and contextual assessment notes</h3>
      <p>The patient source is read-only. Enter your independent observations and follow-up needs here. Safety screening is not a substitute for an immediate clinical risk assessment.</p>

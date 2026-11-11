@@ -26,6 +26,22 @@ async function populateOriginalBpsIntake(panel,id,generation){
   const guidance=document.createElement('p');
   guidance.textContent='Read-only patient statements are not verified clinician findings. No diagnosis, signature, medication/allergy reconciliation or clinical save occurs here.';
   panel.append(guidance);
+  // A clinician may be reviewing a chart while its linked website intake is
+  // submitted or amended. Refresh only the read-only source context, never the
+  // original BPS form, its unsaved values, or the currently selected patient.
+  const refresh=document.createElement('button');
+  refresh.type='button';
+  refresh.textContent='Refresh linked patient intake from protected source';
+  refresh.addEventListener('click',()=>{
+   if(!stillCurrent())return;
+   const nextGeneration=++linkedIntakeRenderGeneration;
+   const loading=document.createElement('p');
+   loading.setAttribute('role','status');
+   loading.textContent='Refreshing linked intake for the selected patient…';
+   panel.replaceChildren(loading);
+   void populateOriginalBpsIntake(panel,id,nextGeneration);
+  });
+  panel.append(refresh);
   // A prior review is NOT proof that the current intake was reviewed. Keep
   // immutable snapshot provenance visible in the owner's primary BPS workspace
   // without re-exposing historical clinical/medication/legal answer payloads.

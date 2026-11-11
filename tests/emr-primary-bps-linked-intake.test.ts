@@ -25,7 +25,8 @@ function harness(fetchResponse:(url:string,options:any)=>Promise<Response>,id=fi
   patientId:id,view:'assessment',URLSearchParams,encodeURIComponent,fetch:fetchResponse,
   settingsSection:()=>'',message:()=>{},configCard:()=>'',console,
   render:()=>{dom.window.document.querySelector('#content')!.innerHTML=
-   '<p id="clinical-form">Original BPS clinical form remains available</p><nav><a data-bps-intake-review href="#">Original review link</a></nav>';}
+   '<p id="clinical-form">Original BPS clinical form remains available</p>'+
+   (ctx.view==='assessment'?'<nav><a data-bps-intake-review href="#">Original review link</a></nav>':'');}
  };
  runInNewContext(readFileSync('public/emr-assets/production.js','utf8'),ctx);
  return {ctx,dom};
@@ -64,7 +65,6 @@ test('unselected BPS charts and unrelated modules never query patient intake',()
  expect(calls).toEqual([]);
  expect(dom.window.document.querySelector('#clinical-form')).not.toBeNull();
  ctx.patientId=firstPatient;
- ctx.render=ctx.render;
  ctx.view='notes';
  ctx.render();
  expect(calls).toEqual([]);

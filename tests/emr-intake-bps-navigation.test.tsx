@@ -29,9 +29,16 @@ test('all 21 linked BPS sections provide patient-scoped access to existing clini
   ['emr-intake-medical-review','Review medical and substance-use'],
   ['emr-intake-trauma-review','Review structured trauma history']
  ];
+ const shortcuts=screen.getByRole('navigation',{name:'Patient-scoped clinical reconciliation shortcuts'});
+ const links=Array.from(shortcuts.querySelectorAll('a'));
+ expect(links).toHaveLength(4);
  for(const [anchor,label] of targets){
-  const href='/emr/patients?patient='+patient+'&review='+anchor+'#'+anchor;
-  const link=Array.from(container.querySelectorAll("a")).find(a=>a.getAttribute("href")===href);
+  const link=links.find(node=>{
+   const url=new URL(node.getAttribute('href')||'', 'https://clinic.example');
+   return url.pathname==='/emr/patients'&&url.searchParams.get('patient')===patient&&
+    url.searchParams.get('review')===anchor&&url.hash==='#'+anchor;
+  });
+  expect(link, 'missing patient-scoped review link for '+anchor).toBeDefined();
   expect(link?.textContent).toContain(label);
  }
  expect(container.textContent).toContain('Opening a link never copies, approves or saves patient statements.');

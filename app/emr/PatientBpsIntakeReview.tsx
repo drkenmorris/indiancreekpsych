@@ -68,6 +68,11 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
    <p>Source: <strong>{data.source.status==='submitted'?'Submitted intake (immutable source)':'Draft intake (may change)'}</strong> · Version {data.source.version} · Last updated {new Date(data.source.updatedAt).toLocaleString()}</p>
    <p>Sections audited: {data.sections.length}/21 · Saved clinician reviews: {data.reviews.length}.</p>
    {data.unmappedKeys.length>0&&<p role="alert">The source contains {data.unmappedKeys.length} additional historical or unrecognized field(s): {data.unmappedKeys.join(', ')}. These are NOT silently transferred. Review the original intake and resolve their mapping.</p>}
+   <nav aria-label="Patient-scoped clinical reconciliation shortcuts">
+    <p><strong>Open dedicated clinician reviews for this patient:</strong> These existing central-chart workflows keep medications, allergies, medical/substance-use history and structured trauma separate from unsigned BPS notes. Following a link does not save or approve any patient report.</p>
+    {Object.values(focusedReviewLinks).flat().map(target=><a key={target.anchor}
+     href={'/emr/patients?patient='+encodeURIComponent(patientId)+'&review='+encodeURIComponent(target.anchor)+'#'+target.anchor}>{target.label}</a>)}
+   </nav>
    {data.sections.map((section,i)=><details key={i}>
     <summary>{i+1}. {section.title} — {section.answered}/{section.fields.length} answered · {section.disposition}</summary>
     <p><strong>BPS routing:</strong> {section.domain}. {section.disposition==='reference'?'Reference only; no legal document or administrative decision is copied into BPS.':

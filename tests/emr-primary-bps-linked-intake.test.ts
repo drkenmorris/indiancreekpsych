@@ -40,7 +40,7 @@ test('original seven-page BPS workspace displays linked 21-section context witho
   return Response.json(report(firstPatient));
  });
  ctx.render();
- await vi.waitFor(()=>expect(dom.window.document.querySelectorAll('section[aria-label="Patient intake context in original biopsychosocial workspace"] ol li').length).toBe(21));
+ await vi.waitFor(()=>expect(dom.window.document.querySelectorAll('section[aria-label="Patient intake context in original biopsychosocial workspace"] > details > ol > li').length).toBe(21));
  const panel=dom.window.document.querySelector('section[aria-label="Patient intake context in original biopsychosocial workspace"]')!;
  expect(dom.window.document.querySelector('#clinical-form')?.textContent).toContain('Original BPS clinical form');
  expect(panel.textContent).toContain('source version 6');
@@ -49,7 +49,7 @@ test('original seven-page BPS workspace displays linked 21-section context witho
  expect(panel.textContent).not.toContain('SECRET MEDICATION DATA');
  expect(panel.textContent).not.toContain('SECRET LEGAL DATA');
  expect(panel.textContent).toContain('no clinical content transferred');
- const link=panel.querySelector('a') as HTMLAnchorElement;
+ const link=Array.from(panel.querySelectorAll('a')).find(a=>a.textContent?.includes('Open protected clinician review and explicit BPS snapshot save')) as HTMLAnchorElement;
  const url=new URL(link.href);
  expect(url.pathname).toBe('/emr/bps-intake');
  expect(url.searchParams.get('patient')).toBe(firstPatient);

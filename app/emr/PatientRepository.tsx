@@ -19,11 +19,24 @@ type RecordRow={id:string;label:string;revision:number;updated_at:string};
 const name=(p:Patient)=>[p.demographics.first_name,p.demographics.last_name].filter(Boolean).join(' ')||(Array.isArray(p.profiles)?p.profiles[0]?.full_name:p.profiles?.full_name)||'Patient account — demographics pending';
 const displayCode=(p:Patient)=>p.demographics.first_name&&p.demographics.last_name&&p.demographics.dob?p.demographics.first_name[0].toUpperCase()+p.demographics.last_name[0].toUpperCase()+p.demographics.dob.slice(5,7)+p.demographics.dob.slice(8,10)+p.demographics.dob.slice(0,4):'Pending reviewed name and birth date';
 const label=(key:string)=>({dob:'Birth date',address1:'Street address 1',address2:'Street address 2',postal_code:'Postal code'}[key]??key.replaceAll('_',' ').replace(/^./,s=>s.toUpperCase()));
+const clinicianReviewAnchors=new Set(['emr-intake-medication-review','emr-intake-allergy-review',
+ 'emr-intake-medical-review','emr-intake-trauma-review']);
 export default function PatientRepository(){const [emailEditing,setEmailEditing]=useState(false);
  const [patients,setPatients]=useState<Patient[]>([]),[selected,setSelected]=useState<Patient|null>(null),[draft,setDraft]=useState<Record<string,string>>({}),[filter,setFilter]=useState(''),[records,setRecords]=useState<RecordRow[]>([]),[message,setMessage]=useState(''),[busy,setBusy]=useState(false),[recordLabel,setRecordLabel]=useState('DSM assessment'),[intake,setIntake]=useState<{status:string;updated_at:string;answers?:Record<string,string>}|null>(null);
  const requestGeneration=useRef(0);
  const load=useCallback(async()=>{const r=await fetch('/api/emr/patients',{cache:'no-store'}),data=await r.json();if(!r.ok)throw Error(data.error);setPatients(data.patients);return data.patients as Patient[];},[]);useEffect(()=>{load().then(rows=>{const id=new URLSearchParams(window.location.search).get('patient');const p=rows.find(p=>p.id===id);if(p)void open(p);}).catch(e=>setMessage(e.message));},[load]);
  async function open(p:Patient){const generation=++requestGeneration.current;setBusy(true);setSelected(p);setEmailEditing(false);setDraft(p.demographics);setRecords([]);setIntake(null);setMessage('');try{const [r,i]=await Promise.all([fetch('/api/emr/dsm-records?patient='+p.id,{cache:'no-store'}),fetch('/api/emr/patients?id='+p.id,{cache:'no-store'})]);const rd=await r.json(),id=await i.json();if(!r.ok||!i.ok)throw Error(rd.error||id.error);if(generation!==requestGeneration.current)return;setSelected(id.patients[0]);setDraft(id.patients[0].demographics);setRecords(rd.records);setIntake(id.intake);}catch(e){if(generation===requestGeneration.current)setMessage(e instanceof Error?e.message:'Record unavailable.');}finally{if(generation===requestGeneration.current)setBusy(false);}}
+ // A browser fragment can be lost during clinic sign-in/MFA, and an anchor can
+ // render only after this patient's protected chart and intake have loaded.
+ // The whitelisted review target is therefore retained in the query string.
+ useEffect(()=>{
+  if(!selected||busy)return;
+  const params=new URLSearchParams(window.location.search);
+  if(params.get('patient')!==selected.id)return;
+  const target=params.get('review');
+  if(!target||!clinicianReviewAnchors.has(target))return;
+  document.getElementById(target)?.scrollIntoView?.({block:'start'});
+ },[selected?.id,busy]);
  function prefillIntakeContact(){if(!selected||!intake?.answers)return;const result=intakeContactPrefill(draft,intake.answers);if(!result.fields.length){setMessage('No blank supported contact fields are available to fill.');return;}setDraft(result.draft);setMessage('Copied '+result.fields.length+' patient-reported contact field(s) into this UNSAVED draft. Review each field before selecting Save central demographics. Existing chart values were preserved.');}
  async function save(){setBusy(true);try{const r=await fetch('/api/emr/patients',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:selected?.id,expectedRevision:selected?.revision,demographics:draft})}),data=await r.json();if(!r.ok)throw Error(data.error);const rows=await load(),p=rows.find(p=>p.id===data.id);if(p)await open(p);setMessage('Central patient demographics saved.');}catch(e){setMessage(e instanceof Error?e.message:'Save was not confirmed.');}finally{setBusy(false);}}
  async function createAssessment(){if(!selected)return;setBusy(true);try{const r=await fetch('/api/emr/dsm-records',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'create',patientId:selected.id,label:recordLabel})}),data=await r.json();if(!r.ok)throw Error(data.error);window.location.assign('/clinical-tests/dev/level1?record='+data.record.id);}catch(e){setMessage(e instanceof Error?e.message:'Record creation failed.');setBusy(false);}}

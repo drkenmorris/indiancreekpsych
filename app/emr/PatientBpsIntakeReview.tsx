@@ -73,7 +73,7 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
     <p><strong>BPS routing:</strong> {section.domain}. {section.disposition==='reference'?'Reference only; no legal document or administrative decision is copied into BPS.':
        section.disposition==='separate-review'?'Use the existing dedicated medication, medical or structured-history reconciliation; BPS does not silently duplicate these entries.':'Potential clinical history; clinician review is mandatory before any snapshot.'}</p>
     {focusedReviewLinks[section.title]?.length>0&&<nav aria-label={section.title+' clinician reconciliation'}>
-     {focusedReviewLinks[section.title].map(target=><a key={target.anchor} href={'/emr/patients?patient='+encodeURIComponent(patientId)+'#'+target.anchor}>{target.label}</a>)}
+     {focusedReviewLinks[section.title].map(target=><a key={target.anchor} href={'/emr/patients?patient='+encodeURIComponent(patientId)+'&review='+encodeURIComponent(target.anchor)+'#'+target.anchor}>{target.label}</a>)}
      <p>Opens the existing clinician-review workflow for this exact central patient. Opening a link never copies, approves or saves patient statements.</p>
     </nav>}
     <dl>{section.fields.filter(field=>field.value.trim()).map(field=><div key={field.key}>

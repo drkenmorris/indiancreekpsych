@@ -47,3 +47,15 @@ test('missing or unlinked chart cannot render a different patient',async()=>{
  lookup.mockResolvedValue({data:null,error:null});
  await expect(EmrBpsIntakePage(props())).rejects.toThrow('not-found');
 });
+
+test('login and MFA preserve the exact BPS patient and allowed subpage through clinician source review',async()=>{
+ await EmrBpsIntakePage(props(patient,'medical_substance'));
+ const returnTo='/emr/bps-intake?patient='+patient+'&bps_page=medical_substance';
+ expect(m.patientAccess).toHaveBeenCalledWith(true,returnTo);
+ m.emrAccess.mockResolvedValueOnce(null);
+ await expect(EmrBpsIntakePage(props(patient,'medical_substance')))
+  .rejects.toThrow('redirect /account/security?next='+encodeURIComponent(returnTo));
+ const unsafe=renderToStaticMarkup(await EmrBpsIntakePage(props(patient,'https://outside.example/path')));
+ expect(unsafe).not.toContain('outside.example');
+ expect(m.patientAccess).toHaveBeenLastCalledWith(true,'/emr/bps-intake?patient='+patient);
+});

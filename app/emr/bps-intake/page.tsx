@@ -12,10 +12,18 @@ type Props={searchParams:Promise<{patient?:string;bps_page?:string}>};
 const bpsPages=new Set(['symptoms','treatment_history','medications','family_origin','medical_substance','developmental_personal','trauma_history']);
 
 export default async function EmrBpsIntakePage({searchParams}:Props){
- await patientAccess(true,'/emr/bps-intake');
- const ctx=await emrAccess();
- if(!ctx)redirect('/account/security?next=%2Femr');
  const {patient,bps_page}=await searchParams;
+ // Keep an explicitly selected central chart and approved BPS subpage across
+ // login and MFA. Do not preserve arbitrary return URLs or unsupported pages.
+ const returnQuery=new URLSearchParams();
+ if(uuid(patient)){
+  returnQuery.set('patient',patient);
+  if(bps_page&&bpsPages.has(bps_page))returnQuery.set('bps_page',bps_page);
+ }
+ const returnTo='/emr/bps-intake'+(returnQuery.size?'?'+returnQuery.toString():'');
+ await patientAccess(true,returnTo);
+ const ctx=await emrAccess();
+ if(!ctx)redirect('/account/security?next='+encodeURIComponent(returnTo));
  if(!uuid(patient))redirect('/emr');
  const {data,error}=await ctx.supabase.from('clinical_patients').select('id').eq('id',patient).maybeSingle();
  if(error)throw Error('The central patient could not be verified.');

@@ -10,10 +10,19 @@ export const dynamic='force-dynamic';
 // The original full clinical UI is served only for a real central patient UUID after
 // both the administrator gate and the EMR's explicit aal2 MFA/RLS checks.
 export async function GET(request:Request){
- await patientAccess(true,'/emr/workspace');
+ // Preserve the original BPS section and patient UUID across clinic sign-in/MFA.
+ // A fixed same-site pathname prevents caller-controlled redirect destinations.
+ const requested=new URL(request.url);
+ const params=new URLSearchParams();
+ for(const key of ['patient','module','section','bps_page']){
+  const value=requested.searchParams.get(key);
+  if(value&&value.length<=160)params.set(key,value);
+ }
+ const returnTo='/emr/workspace'+(params.size?'?'+params.toString():'');
+ await patientAccess(true,returnTo);
  const ctx=await emrAccess();
- if(!ctx)return NextResponse.redirect(new URL('/account/security?next=%2Femr',request.url));
- const id=new URL(request.url).searchParams.get('patient');
+ if(!ctx)return NextResponse.redirect(new URL('/account/security?next='+encodeURIComponent(returnTo),request.url));
+ const id=requested.searchParams.get('patient');
  if(id&&!uuid(id))return NextResponse.json({error:'Invalid patient ID.'},{status:400,headers:privateHeaders});
  if(id){
  const {data,error}=await ctx.supabase.from('clinical_patients').select('id').eq('id',id).maybeSingle();

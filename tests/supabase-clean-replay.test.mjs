@@ -92,6 +92,12 @@ test('clinic migrations replay in order on an empty application database', async
       npp_received:'Decline acknowledgment',information_accuracy:'Yes',
       electronic_signature_consent:'Yes',patient_signature:'Fictional Patient',
       patient_signature_date:'2026-11-11',
+      legal_packet_version:'2026-11-02-directory-1',
+      legal_routing_answers:JSON.stringify({version:'1.0.0',answers:{
+        telehealth:'No',electronic:'No',minor:'No',representative:'No',
+        release:'No',part2:'No',sud_notes:'No',psychotherapy_notes:'No'}}),
+      treatment_consent:'I need to discuss this before consenting',
+      financial_review:'I request fee clarification before treatment',
       counseling_reason:'Fictional reported concern',
       trauma_history:'Fictional reported history',
       protective_factors:'Fictional family support',

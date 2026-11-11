@@ -23,4 +23,5 @@ jobs:
       - run: npm run typecheck
       - run: npm run test:intake
       - run: npm run test:attestations
+      - run: npm run build
       - run: npx vitest run tests/kiosk-intake.test.tsx

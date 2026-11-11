@@ -9,13 +9,45 @@ await test('actual hosted forms and global navigation render against central pat
  w.matchMedia=()=>({matches:false,addEventListener(){}});w.HTMLElement.prototype.scrollIntoView=function(){};w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;};w.confirm=()=>false;
  w.addEventListener('error',e=>errors.push(e.message));w.fetch=async(url,options)=>{let value;if(options?.body){const p=JSON.parse(options.body);assert.equal(p.patientId,fixture.pid);assert.equal(p.state,undefined);value={value:p.path==='/api/bootstrap'?fixture.boot:p.path.startsWith('/api/chart')?fixture.chart:{group:{name:'Permission pending',roster:[]},sessions:[]},revision:0};}else if(url==='/api/emr/patients')value={patients:[{id:fixture.pid,demographics:{first_name:'Fictional',last_name:'Example',dob:'1990-01-02'}}]};else if(url==='/api/emr/descriptors')value={items:library};else value={me:{id:'fictional-provider',is_admin:true,profile:{first_name:'Fictional',last_name:'Provider'}}};return {ok:true,status:200,json:async()=>value};};
  for(const f of ['planner.js','navigation.js','patients.js','module-menu.js','providers.js','menu-completion.js','navigation-menus.js','strengths-library.js','strengths-builder.js','app.js','production.js','central-directory.js'])runInContext(readFileSync('public/emr-assets/'+f,'utf8'),dom.getInternalVMContext());
- await new Promise(r=>setTimeout(r,100));assert.equal(errors.length,0,errors.join(';'));assert.match(w.document.querySelector('#chart-header').textContent,/Fictional Example/);assert.match(w.document.querySelector('#main-modules').textContent,/Administration/);assert.match(w.document.querySelector('#content').textContent,/Current Symptom Checklist/,'original BPS initial page must render');assert.ok(w.document.querySelector('#home-quick-menu button[data-quick-action="patients"]'),'original Find/Add Patient menu retained');assert.equal(w.document.querySelector('#provider-login'),null,'no synthetic provider login');
+ await new Promise(r=>setTimeout(r,100));assert.equal(errors.length,0,errors.join(';'));assert.match(w.document.querySelector('#chart-header').textContent,/Fictional Example/);assert.match(w.document.querySelector('#main-modules').textContent,/Administration/);assert.match(w.document.querySelector('#content').textContent,/Current Symptom Checklist/,'original BPS initial page must render');
+ assert.equal(w.document.querySelector('[data-bps-intake-review]')?.getAttribute('href'),'/emr/bps-intake?patient='+fixture.pid+'&bps_page=symptoms','clinician can open the protected 21-section intake and return to the same original BPS tab');assert.ok(w.document.querySelector('#home-quick-menu button[data-quick-action="patients"]'),'original Find/Add Patient menu retained');assert.equal(w.document.querySelector('#provider-login'),null,'no synthetic provider login');
  assert.equal(w.document.querySelector('#navigation-panels').hidden,false,'original left column opens expanded');
  const menuLabels=id=>Array.from(w.document.querySelector(id).querySelectorAll('nav button,nav a')).map(node=>node.textContent.trim());
  assert.deepEqual(menuLabels('#home-quick-menu'),['Logout','Find/Add Patient','Appointment Scheduler','Manage Treatment Planners','Weekly Therapist Schedule']);
  assert.deepEqual(menuLabels('#provider-quick-menu'),['Provider Assignment','Provider Information','Assigned Patients List','Patient Overview','Patient Questionnaire Assignment','Patient Session Check-in','Billing']);
  assert.deepEqual(Array.from(w.document.querySelectorAll('#main-modules button')).map(node=>node.textContent),['Personal Data','Patient Assessments','Treatment Plan','Progress','Prognosis/Utilization Review','Prognosis','Discharge','Appointment Scheduler','Reports','System Settings','Administration']);
 
+ // Linked prototype menu pages must resolve to real protected clinic services,
+ // never synthetic appointment/provider data or separately saved demo accounts.
+ runInContext("chooseSection('administration','weekly_schedule');render();",dom.getInternalVMContext());
+ assert.equal(w.document.querySelector('#content a[href="/appointments"]')?.getAttribute('href'),'/appointments','must use the existing clinic calendar, never sample appointment records');
+ assert.equal(w.document.querySelector('#weekly-schedule-date'),null,'no local fictional weekly calendar is mounted');
+ runInContext("chooseSection('administration','assigned_patients');render();",dom.getInternalVMContext());
+ assert.equal(w.document.querySelector('#content a[href="/emr/patients"]')?.getAttribute('href'),'/emr/patients','central directory replaces synthetic assigned patient list');
+ assert.equal(w.document.querySelector('#assigned-patient-results'),null,'no demo chart lookup is rendered');
+ runInContext("chooseSection('personal','assigned_provider');render();",dom.getInternalVMContext());
+ assert.match(w.document.querySelector('#content').textContent,/Fictional provider accounts are disabled/);
+ assert.equal(w.document.querySelector('#module-section-form'),null,'no provider assignment can be saved against a fictitious identity');
+
+
+
+ // A real selected chart must never auto-populate clinical assessment or plan fields
+ // with example histories, a made-up diagnosis, review date or fabricated outcome.
+ fixture.chart.records.push({id:'fictional-checkin-for-form-test',kind:'response',created:'2026-11-10T00:00:00.000Z'});
+ runInContext("chooseSection('assessment','summary');render();",dom.getInternalVMContext());
+ for(const name of Object.keys(fixture.boot.assessment_fields).concat(['pathway_name','pathway_rationale'])){
+  const input=w.document.querySelector('#content [name="'+name+'"]');
+  assert.ok(input,'original assessment field '+name+' should render');
+  assert.equal(input.value,'',name+' must not contain prewritten synthetic clinical facts');
+ }
+ fixture.chart.records.push({id:'fictional-assessment-for-form-test',kind:'assessment',created:'2026-11-10T00:00:01.000Z',problems:[]});
+ runInContext("chooseSection('plan','problems');render();",dom.getInternalVMContext());
+ for(const name of ['diagnosis','treatment_approaches','response_to_treatment','homework','review_date']){
+  const input=w.document.querySelector('#content [name="'+name+'"]');
+  assert.ok(input,'original treatment-plan field '+name+' should render');
+  assert.equal(input.value,'',name+' must require explicit clinical entry, not a synthetic default');
+ }
+ fixture.chart.records.splice(-2,2);
  for(const [module,key,text] of [['personal','insurance','Insurance information'],['assessment','biopsychosocial','Current Symptom Checklist'],['notes','record_history','Record history']]){runInContext(`chooseSection(${JSON.stringify(module)},${JSON.stringify(key)});render();`,dom.getInternalVMContext());await new Promise(r=>setTimeout(r,20));assert.match(w.document.querySelector('#content').textContent,new RegExp(text,'i'));}
  assert.equal(w.document.querySelectorAll('[aria-label="Linked 21-section intake biopsychosocial review"]').length,0,'no extra panel added to the original BPS layout');
  await runInContext('refreshRegistry()',dom.getInternalVMContext());
@@ -89,9 +121,17 @@ await test('unselected workspace opens actual empty forms and checkboxes without
  for(const f of ['planner.js','navigation.js','patients.js','module-menu.js','providers.js','menu-completion.js','navigation-menus.js','strengths-library.js','strengths-builder.js','app.js','production.js','central-directory.js'])runInContext(readFileSync('public/emr-assets/'+f,'utf8'),dom.getInternalVMContext());
  await new Promise(resolve=>setTimeout(resolve,100));
  assert.equal(errors.length,0,errors.join(';'));assert.equal(w.document.querySelector('#patient-directory').open,false);
+ // Opening a central patient retains the original seven-page BPS context.
+ runInContext("chooseSection('assessment','biopsychosocial')",dom.getInternalVMContext());
+ w.history.replaceState(null,'','/emr/workspace?module=assessment&section=assessment%3Abiopsychosocial&bps_page=family_origin');
+ assert.equal(runInContext("selectedPatientWorkspaceUrl("+JSON.stringify(fixture.pid)+")",dom.getInternalVMContext()),'/emr/workspace?patient='+fixture.pid+'&module=assessment&section=assessment%3Abiopsychosocial&bps_page=family_origin');
+ runInContext("chooseSection('notes','planner')",dom.getInternalVMContext());
+ assert.equal(runInContext("selectedPatientWorkspaceUrl("+JSON.stringify(fixture.pid)+")",dom.getInternalVMContext()),'/emr/workspace?patient='+fixture.pid+'&module=notes&section=notes%3Aplanner','other clinical destinations remain intact');
+
  assert.ok(w.document.querySelector('input[name="first_name"]'),'demographics fields available without a patient');
  for(const [module,key] of [['assessment','biopsychosocial'],['notes','planner'],['plan','problems'],['prognosis','prognosis'],['discharge','details']]){
   runInContext(`chooseSection(${JSON.stringify(module)},${JSON.stringify(key)});render();`,dom.getInternalVMContext());
+  if(module==='assessment')assert.equal(w.document.querySelector('[data-bps-intake-review]'),null,'unbound blank BPS cannot open linked patient intake');
   assert.ok(w.document.querySelectorAll('#content input,#content textarea,#content select').length>0,module+' has actual form controls');
   for(const field of w.document.querySelectorAll('#content input:not([type="hidden"]):not([type="button"]):not([type="submit"]),#content textarea,#content select')){
    if(['checkbox','radio'].includes(field.type))assert.equal(field.checked,false);else assert.equal(field.value,'',field.name+' has no sample value');

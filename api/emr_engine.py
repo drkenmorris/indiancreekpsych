@@ -27,7 +27,7 @@ class Repository:
    with urlopen(req,timeout=25) as response:return json.loads(response.read())
   except HTTPError as e:
    detail=json.loads(e.read())
-   if detail.get('code')=='40001':raise Conflict(detail.get('message','Revision conflict')) from None
+   if detail.get('code') in ('40001','PT409'):raise Conflict(detail.get('message','Revision conflict')) from None
    raise PermissionError('Repository access was not confirmed.') from None
  def rest(self,path,body=None):return self.call('/rest/v1/'+path,body)
 def central_patient(row,records=()):

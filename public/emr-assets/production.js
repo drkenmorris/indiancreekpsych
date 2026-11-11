@@ -1,7 +1,165 @@
-
 'use strict';
+
+// The original BPS form stays the primary workspace. Show its linked website
+// intake in a read-only, explicitly patient-reported panel; clinical review and
+// saving remain in the protected clinician workflow, never in this preview.
+let linkedIntakeRenderGeneration=0;
+async function populateOriginalBpsIntake(panel,id,generation){
+ const stillCurrent=()=>generation===linkedIntakeRenderGeneration&&patientId===id&&panel.isConnected;
+ try{
+  const response=await fetch('/api/emr/bps-intake?patient='+encodeURIComponent(id),
+   {cache:'no-store',credentials:'same-origin'});
+  const result=await response.json();
+  if(!stillCurrent())return;
+  if(!response.ok)throw Error(result.error||'Linked intake is unavailable.');
+  if(result.patientId!==id||!Array.isArray(result.sections)||result.sections.length!==21)
+   throw Error('The linked intake did not match this patient or the expected 21 sections.');
+  panel.replaceChildren();
+  const heading=document.createElement('h2');heading.textContent='Linked patient intake — BPS source context';
+  panel.append(heading);
+  const provenance=document.createElement('p');
+  provenance.textContent='Patient-reported '+(result.source?.status==='submitted'?'submitted':'draft')+
+   ' intake · source version '+String(result.source?.version??'unknown')+
+   ' · '+result.sections.length+'/21 sections · '+
+   (Array.isArray(result.reviews)?result.reviews.length:0)+' saved clinician review(s).';
+  panel.append(provenance);
+  const guidance=document.createElement('p');
+  guidance.textContent='Read-only patient statements are not verified clinician findings. No diagnosis, signature, medication/allergy reconciliation or clinical save occurs here.';
+  panel.append(guidance);
+  // A clinician may be reviewing a chart while its linked website intake is
+  // submitted or amended. Refresh only the read-only source context, never the
+  // original BPS form, its unsaved values, or the currently selected patient.
+  const refresh=document.createElement('button');
+  refresh.type='button';
+  refresh.textContent='Refresh linked patient intake from protected source';
+  refresh.addEventListener('click',()=>{
+   if(!stillCurrent())return;
+   const nextGeneration=++linkedIntakeRenderGeneration;
+   const loading=document.createElement('p');
+   loading.setAttribute('role','status');
+   loading.textContent='Refreshing linked intake for the selected patient…';
+   panel.replaceChildren(loading);
+   void populateOriginalBpsIntake(panel,id,nextGeneration);
+  });
+  panel.append(refresh);
+  // A prior review is NOT proof that the current intake was reviewed. Keep
+  // immutable snapshot provenance visible in the owner's primary BPS workspace
+  // without re-exposing historical clinical/medication/legal answer payloads.
+  const reviews=Array.isArray(result.reviews)?result.reviews:[];
+  const history=document.createElement('section');
+  history.setAttribute('aria-label','Clinician-reviewed BPS intake snapshot history');
+  const historyTitle=document.createElement('h3');
+  historyTitle.textContent='Clinician-reviewed intake snapshot history';
+  history.append(historyTitle);
+  if(reviews.length){
+   const list=document.createElement('ol');
+   for(const review of reviews){
+    const item=document.createElement('li');
+    const version=Number.isInteger(review.source_version)&&review.source_version>0?String(review.source_version):'unknown';
+    const status=['draft','submitted'].includes(review.source_status)?review.source_status:'unverified';
+    const at=Date.parse(review.created_at);
+    const date=Number.isFinite(at)?new Date(at).toLocaleString():'date unavailable';
+    item.textContent='Unsigned review of '+status+' intake version '+version+' · saved '+date+'.';
+    list.append(item);
+   }
+   history.append(list);
+  }else{
+   const none=document.createElement('p');none.textContent='No saved clinician-reviewed BPS intake snapshots for this patient.';
+   history.append(none);
+  }
+  const currentReviewed=reviews.some(review=>
+   review.source_version===result.source?.version&&
+   review.source_status===result.source?.status&&
+   Number.isFinite(Date.parse(review.source_updated_at))&&
+   Date.parse(review.source_updated_at)===Date.parse(result.source?.updatedAt));
+  if(!currentReviewed){
+   const warning=document.createElement('p');warning.setAttribute('role','status');
+   warning.textContent=reviews.length?
+    'The current intake version has changed since the recorded clinician reviews, or has not yet been reviewed. Reopen the current source before saving another unsigned review.':
+    'The current intake has not yet been saved as a clinician-reviewed BPS snapshot.';
+   history.append(warning);
+  }
+  const historyLink=document.createElement('a');
+  historyLink.href='/emr/bps-intake?patient='+encodeURIComponent(id);
+  historyLink.textContent='Open protected clinician review, saved BPS source history and explicit snapshot save';
+  history.append(historyLink);
+  panel.append(history);
+  const details=document.createElement('details');
+  const summary=document.createElement('summary');summary.textContent='Expand all 21 intake sections and patient-reported answers';
+  details.append(summary);
+  const list=document.createElement('ol');
+  for(const section of result.sections){
+   const item=document.createElement('li');
+   const heading=document.createElement('strong');
+   heading.textContent=String(section.title||'Unnamed section')+' — '+String(section.answered??0)+' answered';
+   item.append(heading);
+   const domain=document.createElement('p');
+   domain.textContent='BPS routing: '+String(section.domain||'Unclassified')+' ('+String(section.disposition||'unclassified')+').';
+   item.append(domain);
+   if(section.disposition==='clinical'&&Array.isArray(section.fields)){
+    const reported=section.fields.filter(field=>field.reported===true);
+    const answers=document.createElement('dl');
+    for(const field of reported){
+     const label=document.createElement('dt');label.textContent=String(field.label||field.key||'Patient response')+' (patient reported)';
+     const value=document.createElement('dd');
+     // A second presentation boundary: never expose structured or separate-review
+     // values even if a malformed upstream response included them.
+     value.textContent=field.sourceOnly===true?'Stored in the dedicated protected intake/reconciliation source.':String(field.value??'');
+     answers.append(label,value);
+    }
+    item.append(answers);
+   }else{
+    const boundary=document.createElement('p');
+    boundary.textContent='Separate protected source or administrative reference; no clinical content transferred.';
+    item.append(boundary);
+   }
+   list.append(item);
+  }
+  details.append(list);panel.append(details);
+  const action=document.createElement('a');
+  action.href='/emr/bps-intake?patient='+encodeURIComponent(id)+
+   '&bps_page='+encodeURIComponent(new URLSearchParams(location.search).get('bps_page')||'symptoms');
+  action.textContent='Open protected clinician review and explicit BPS snapshot save';
+  panel.append(action);
+  if(Array.isArray(result.unmappedKeys)&&result.unmappedKeys.length){
+   const warning=document.createElement('p');warning.setAttribute('role','alert');
+   warning.textContent=result.unmappedKeys.length+' unmapped intake field(s) require manual review; none were automatically imported.';
+   panel.append(warning);
+  }
+ }catch(error){
+  if(stillCurrent()){
+   panel.replaceChildren();
+   const notice=document.createElement('p');notice.setAttribute('role','alert');
+   notice.textContent='Linked intake cannot be reviewed in the original BPS workspace: '+
+    (error instanceof Error?error.message:'Protected source unavailable.')+
+    ' Existing clinical forms remain available; no intake data were imported.';
+   panel.append(notice);
+  }
+ }
+}
+function showOriginalBpsIntake(){
+ const generation=++linkedIntakeRenderGeneration;
+ const host=document.querySelector('#content');
+ // The original BPS navigation is the source of truth for the active clinical
+ // page. Never query patient intake from other modules or an unselected chart.
+ if(!host||!patientId||!host.querySelector('[data-bps-intake-review]'))return;
+ const panel=document.createElement('section');
+ panel.className='card';
+ panel.setAttribute('aria-label','Patient intake context in original biopsychosocial workspace');
+ const loading=document.createElement('p');loading.setAttribute('role','status');
+ loading.textContent='Checking the linked 21-section intake for this patient…';
+ panel.append(loading);host.prepend(panel);
+ void populateOriginalBpsIntake(panel,patientId,generation);
+}
+
 const originalProductionRender=render;
-render=function(){if(view==='groups'){renderGlobalMenu();$('#heading').innerHTML='<h1>Treatment Teams / Groups</h1>';$('#content').innerHTML='<section class="card"><p>Shared treatment-group records require explicit participant and care-team permissions. Individual patient records are available in the other modules.</p></section>';return;}if(view==='schedule'){location.assign('/appointments');return;}return originalProductionRender();};
+render=function(){
+ if(view==='groups'){location.assign('/emr/groups');return;}
+ if(view==='schedule'){location.assign('/appointments');return;}
+ const result=originalProductionRender();
+ showOriginalBpsIntake();
+ return result;
+};
 const centralOriginalSettings=settingsSection;
 settingsSection=function(key,label){if(key==='database')return configCard(label,'<p>This chart is stored in the central patient repository with saved revision history. Database operations require clinic administration.</p>');return centralOriginalSettings(key,label);};
 window.addEventListener('DOMContentLoaded',()=>{const billing=document.querySelector('a[href="/?module=billing"]');if(billing)billing.href='/emr/workspace?patient='+encodeURIComponent(new URLSearchParams(location.search).get('patient')||'')+'&module=billing';});

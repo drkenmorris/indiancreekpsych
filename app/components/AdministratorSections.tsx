@@ -6,10 +6,9 @@ import { useEffect, useRef } from "react";
 const sections = [
   { label: "Main website", href: "/" },
   { label: "Psychological testing", href: "/clinical-tests" },
-  { label: "Billing module — demo", href: "https://emr-workflow-demo.vercel.app/?module=billing", external: true },
+  { label: "EMR billing preview", href: "/emr?module=billing" },
   { label: "Scheduling and calendar", href: "/appointments" },
-  { label: "EMR — central patient records", href: "/emr" },
-  { label: "EMR workflow prototype", href: "https://emr-workflow-demo.vercel.app/", external: true },
+  { label: "Open EMR", href: "/emr" },
   { label: "Patient questionnaires", href: "/admin/questionnaires" },
   { label: "Newsletter library & calendar", href: "/admin/newsletters" },
   { label: "Account and security", href: "/account" },
@@ -46,12 +45,7 @@ export default function AdministratorSections() {
       }}>
       <summary ref={trigger}>Administrator sections <span aria-hidden="true">▴</span></summary>
       <nav className="administratorSectionsPanel" aria-label="Administrator section destinations">
-        {sections.map(section => section.external ? (
-          <a key={section.href} href={section.href} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer"
-            onClick={() => { if (disclosure.current) disclosure.current.open = false; }}>
-            {section.label}<small>Opens in a new tab</small>
-          </a>
-        ) : (
+        {sections.map(section => (
           <Link key={section.href} href={section.href}
             onClick={() => { if (disclosure.current) disclosure.current.open = false; }}>
             {section.label}

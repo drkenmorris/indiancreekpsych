@@ -1,4 +1,6 @@
-import importlib.util,unittest,json,uuid
+import importlib.util,unittest,json,uuid,io
+from unittest.mock import patch
+from urllib.error import HTTPError
 from pathlib import Path
 spec=importlib.util.spec_from_file_location('adapter',Path(__file__).parents[1]/'api/emr_engine.py');m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
 class Repo:
@@ -34,6 +36,24 @@ class WorkflowTests(unittest.TestCase):
   result=self.run_action('/api/save',{'action':'biopsychosocial_medication','patient_id':self.repo.pid,'data':{'medication':'Fictional medication','status':'Current','dosage':'Fictional dose','frequency':'Fictional frequency','start_date':'','end_date':'','prescribing_physician':'Fictional prescriber','beneficial':''}},1)
   self.assertEqual(result['revision'],2)
   c=self.run_action('/api/chart?patient='+self.repo.pid)['value'];self.assertEqual(len(c['records']),2);self.assertEqual(c['records'][0]['insured_last_name'],'Subscriber')
+ def test_biopsychosocial_trauma_history_is_saved_as_a_separate_immutable_central_snapshot(self):
+  body={'action':'biopsychosocial_trauma_history','patient_id':self.repo.pid,'data':{
+   'selections':{'experiences':['Physical assault or abuse'],'timing':['Childhood']},
+   'notes':{'context_notes':'Fictional history reviewed with patient','followup_notes':'Discuss follow-up preferences'}}}
+  response=self.run_action('/api/save',body)
+  self.assertEqual(response['revision'],1)
+  saved=self.run_action('/api/chart?patient='+self.repo.pid)['value']['records']
+  self.assertEqual(len(saved),1)
+  self.assertEqual(saved[0]['kind'],'biopsychosocial_trauma_history')
+  self.assertEqual(saved[0]['schema'],'biopsychosocial-trauma-history/1')
+  self.assertEqual(saved[0]['selections']['timing'],['Childhood'])
+  self.assertEqual(saved[0]['notes']['context_notes'],'Fictional history reviewed with patient')
+  with self.assertRaises(m.Conflict):self.run_action('/api/save',body)
+  self.assertEqual(len(self.run_action('/api/chart?patient='+self.repo.pid)['value']['records']),1)
+ def test_unsupported_trauma_selection_does_not_create_central_record(self):
+  with self.assertRaises(ValueError):self.run_action('/api/save',{'action':'biopsychosocial_trauma_history',
+   'patient_id':self.repo.pid,'data':{'selections':{'experiences':['Unrecognized clinical choice']}}})
+  self.assertEqual(self.repo.saved,[])
  def test_demographic_views_preserve_canonical_address_and_extended_fields(self):
   self.repo.row['demographics']['address1']='Fictional canonical address'
   self.assertEqual(self.run_action('/api/chart')['value']['patient']['street_address_1'],'Fictional canonical address')
@@ -54,6 +74,12 @@ class WorkflowTests(unittest.TestCase):
  def test_invalid_clinical_choice_rejected_before_write(self):
   with self.assertRaises(ValueError):self.run_action('/api/save',{'action':'insurance','data':{'carrier':'Fictional','subscriber_relationship':'invalid'}})
   self.assertEqual(self.repo.saved,[])
+ def test_postgrest_conflict_remains_an_actionable_conflict(self):
+  repo=object.__new__(m.Repository);repo.base='https://fictional.invalid';repo.headers={}
+  for code in ('40001','PT409'):
+   error=HTTPError(repo.base,409,'Conflict',{},io.BytesIO(json.dumps({'code':code,'message':'Reopen the chart'}).encode()))
+   with patch.object(m,'urlopen',side_effect=error):
+    with self.assertRaisesRegex(m.Conflict,'Reopen the chart'):repo.call('/rest/v1/rpc/save_emr_workspace',{})
  def test_schedule_and_shared_group_writes_disabled(self):
   with self.assertRaises(ValueError):self.run_action('/api/save',{'action':'appointment','data':{}})
   self.assertEqual(self.run_action('/api/groups')['value']['group']['roster'],[])

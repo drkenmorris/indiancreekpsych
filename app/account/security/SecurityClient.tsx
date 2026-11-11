@@ -98,7 +98,7 @@ export default function SecurityClient({ next, optionalMfa = false }: { next: st
 
   return (
     <section className="appointmentPanel accountSecurityPanel">
-      <p><strong>Authenticator-app MFA:</strong> {optionalMfa ? "Optional for patient accounts. You can use intake and appointment services after verifying your email without setting up an authenticator. If you enable MFA, you will verify a code when signing in." : "Verify a six-digit one-time code after signing in. MFA is required for clinician and administrator access."}</p>
+      <p><strong>Authenticator-app MFA:</strong> {optionalMfa ? "Recommended for patient privacy, but not required. After verifying your email, you can continue to intake and appointments without setting up an authenticator. If you choose to enable MFA, you will verify a code when signing in." : "Verify a six-digit one-time code after signing in. MFA is required for clinician and administrator access."}</p>
       {loading ? <p role="status">Loading security settings…</p> : (
         <>
           {verifiedSession && <p className="authMessage">Your current session has completed MFA verification.</p>}

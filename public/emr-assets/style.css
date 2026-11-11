@@ -110,6 +110,8 @@ main{width:100%;max-width:none;padding:1.5rem 2rem}.heading-row .eyebrow{margin:
 .symptom-columns{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,390px),1fr));gap:20px;align-items:start}.symptom-table-wrap{min-width:0;overflow-x:auto}.symptom-table{width:100%;border-collapse:collapse;table-layout:fixed}.symptom-table th,.symptom-table td{padding:4px 2px;border-bottom:1px solid #d9e1dd}.symptom-table th[scope="col"]{font-size:11px;text-align:center}.symptom-table th:first-child{width:46%;text-align:left}.symptom-table th[scope="row"]{font-size:13px;text-align:left;overflow-wrap:anywhere}.symptom-table td{text-align:center}.symptom-choice{display:flex;min-height:44px;align-items:center;justify-content:center;cursor:pointer}.symptom-choice input{width:20px;height:20px;accent-color:#20634a}
 
 .bps-subpages{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}.bps-subpages button{font-size:12px}
+.bps-subpages .bps-intake-link{display:inline-flex;align-items:center;min-height:38px;padding:6px 12px;font-size:12px;font-weight:650;text-decoration:none;color:var(--green);background:#fff;border:1px solid var(--line);border-radius:6px}
+.bps-subpages .bps-intake-link:focus-visible{outline:3px solid var(--green);outline-offset:2px}
 
 .family-origin-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:16px;grid-auto-rows:1fr;align-items:stretch}.family-origin-grid fieldset{min-width:0;margin:0;height:100%}.family-origin-grid legend{min-height:44px}.family-origin-grid .check{align-items:flex-start;margin:6px 0}.family-origin-grid input[type=checkbox]{flex-shrink:0;margin-top:4px}
 

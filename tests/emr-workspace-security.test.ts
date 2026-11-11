@@ -49,7 +49,7 @@ test('matching authorized central UUID serves original UI with private CSP heade
  expect(response.headers.get('Content-Security-Policy')).toContain("script-src 'self'");
  expect(response.headers.get('Cache-Control')).toContain('no-store');
  expect(m.from).toHaveBeenCalledWith('clinical_patients');
- expect(m.patientAccess).toHaveBeenCalledWith(true,'/emr/workspace');
+ expect(m.patientAccess).toHaveBeenCalledWith(true,'/emr/workspace?patient='+patient);
 });
 
 test('serverless tracing includes the exact original clinical HTML and all linked prototype controllers',()=>{
@@ -66,4 +66,27 @@ test('serverless tracing includes the exact original clinical HTML and all linke
  // no synthetic provider login or localStorage chart is substituted by this fix.
  expect(route).toContain("const id=new URL(request.url).searchParams.get('patient')");
  expect(route).toContain("const ctx=await emrAccess()");
+});
+
+test('clinic login and MFA preserve the BPS subpage and real selected patient',async()=>{
+ const query='patient='+patient+'&module=assessment&section=assessment%3Abiopsychosocial&bps_page=family_origin';
+ const request=new Request('https://www.indiancreekpsych.com/emr/workspace?'+query);
+ const expected='/emr/workspace?'+query;
+ await GET(request);
+ expect(m.patientAccess).toHaveBeenCalledWith(true,expected);
+ m.emrAccess.mockResolvedValueOnce(null);
+ const blocked=await GET(request);
+ expect(blocked.status).toBe(307);
+ const next=new URL(blocked.headers.get('location')!).searchParams.get('next');
+ expect(next).toBe(expected);
+ expect(m.readFile).toHaveBeenCalledTimes(1);
+});
+test('authentication return destination ignores untrusted redirect parameters',async()=>{
+ const request=new Request('https://www.indiancreekpsych.com/emr/workspace?module=assessment&section=assessment%3Abiopsychosocial&next=https%3A%2F%2Fevil.example');
+ m.emrAccess.mockResolvedValue(null);
+ const blocked=await GET(request);
+ expect(blocked.status).toBe(307);
+ expect(new URL(blocked.headers.get('location')!).searchParams.get('next'))
+  .toBe('/emr/workspace?module=assessment&section=assessment%3Abiopsychosocial');
+ expect(m.from).not.toHaveBeenCalled();
 });

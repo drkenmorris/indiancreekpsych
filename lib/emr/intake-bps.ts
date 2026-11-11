@@ -1,4 +1,4 @@
-import {intakeSectionsForVersion} from '@/lib/patient/intake';
+import {intakeSectionsForVersion,retiredMentalHealthFields,retiredContextFields} from '@/lib/patient/intake';
 
 export type BpsDisposition='clinical'|'separate-review'|'reference';
 type SectionClassification={domain:string;disposition:BpsDisposition};
@@ -40,6 +40,24 @@ export const bpsNoteDomains={
 export type BpsNoteKey=keyof typeof bpsNoteDomains;
 export type BpsNotes=Record<BpsNoteKey,string>;
 export const emptyBpsNotes=():BpsNotes=>Object.fromEntries(Object.keys(bpsNoteDomains).map(key=>[key,''])) as BpsNotes;
+// Previous questionnaire versions retained patient reports that no longer have
+// inputs on the current 21-section form. Route every retired clinical-context
+// field to an existing BPS domain for explicit clinician inspection. They remain
+// patient reports and are NOT added to immutable DB-owned clinical snapshots.
+const historicalBpsDomain:Record<string,string>={
+ psychiatric_hospitalizations:'Mental health treatment history',
+ prior_psychiatric_medications:'Mental health treatment history',
+ family_mental_health_history:'Trauma, family, social, educational, and occupational history',
+ family_household:'Trauma, family, social, educational, and occupational history',
+ social_supports:'Trauma, family, social, educational, and occupational history',
+ education_history:'Trauma, family, social, educational, and occupational history',
+ employment_history:'Trauma, family, social, educational, and occupational history',
+ military_history:'Trauma, family, social, educational, and occupational history',
+ legal_history:'Trauma, family, social, educational, and occupational history',
+ cultural_spiritual_factors:'Trauma, family, social, educational, and occupational history',
+ strengths_interests:'Trauma, family, social, educational, and occupational history',
+};
+const historicalClinicalFields=[...retiredMentalHealthFields,...retiredContextFields];
 export function mapIntakeToBps(answers:Record<string,string>){
  const sections=intakeSectionsForVersion(answers.legal_packet_version||'').map(section=>{
   const rule=bpsSectionClassification[section.title];
@@ -54,6 +72,15 @@ export function mapIntakeToBps(answers:Record<string,string>){
    return {key,label,type,value:sourceOnly?'Recorded in protected source; not copied into BPS.':raw,
     sourceOnly,reported};
   });
+  // These fields are no longer on the editable intake. Surface nonempty legacy
+  // statements in the protected source review, explicitly labeled historical;
+  // do not synthesize negatives for missing responses or silently sign a chart.
+  for(const [key,label] of historicalClinicalFields){
+   if(historicalBpsDomain[key]!==section.title)continue;
+   const raw=typeof answers[key]==='string'?answers[key]:'';
+   if(raw.trim())fields.push({key,label:'Historical patient report — '+label,
+    type:'historical-patient-report',value:raw,sourceOnly:false,reported:true});
+  }
   return {title:section.title,domain:rule.domain,disposition:rule.disposition,fields,
    answered:fields.filter(field=>field.reported).length};
  });

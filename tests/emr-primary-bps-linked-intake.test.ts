@@ -1,5 +1,6 @@
 import {readFileSync} from 'node:fs';
 import {runInNewContext} from 'node:vm';
+// @ts-expect-error This repository runs jsdom in test fixtures without @types/jsdom.
 import {JSDOM} from 'jsdom';
 import {expect,test,vi} from 'vitest';
 

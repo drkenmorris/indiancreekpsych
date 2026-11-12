@@ -8,8 +8,12 @@ let catalogRequest:Promise<Product[]>|undefined;
 // NLM RxNorm Current Prescribable Content snapshot, retrieved 2026-11-12.
 // Load once on demand. Search text stays in the browser.
 function loadProducts() {
- return catalogRequest ??= import('@/lib/patient/intake-medication-catalog.json')
-  .then(module=>Object.entries(module.default))
+ return catalogRequest ??= fetch('/emr-assets/medication-catalog.json')
+  .then(response=>{
+   if(!response.ok)throw Error('Medication catalog unavailable');
+   return response.json() as Promise<Record<string,string>>;
+  })
+  .then(catalog=>Object.entries(catalog))
   .catch(error=>{
    catalogRequest=undefined;
    throw error;
@@ -30,10 +34,14 @@ export default function IntakeMedicationProduct({id,name,value,onChange}:{id:str
 
  const query=value.trim().toLowerCase();
  const words=query.split(/\s+/);
+ const startsWithName=(label:string)=>{
+  const normalized=label.toLowerCase();
+  return normalized.startsWith(query)||normalized.includes('['+query);
+ };
  const selected=products.find(([,label])=>label===value);
  const matches=query.length>=2 && !selected ? products
   .filter(([,label])=>words.every(word=>label.toLowerCase().includes(word)))
-  .sort(([,a],[,b])=>Number(b.toLowerCase().startsWith(query))-Number(a.toLowerCase().startsWith(query))||a.localeCompare(b,undefined,{numeric:true}))
+  .sort(([,a],[,b])=>Number(startsWithName(b))-Number(startsWithName(a))||a.localeCompare(b,undefined,{numeric:true}))
   .slice(0,60) : [];
 
  return <>
@@ -44,12 +52,13 @@ export default function IntakeMedicationProduct({id,name,value,onChange}:{id:str
   </label>
   <small id={id+'-help'}>Type a brand or generic name, or enter the name and strength from your label manually.</small>
   </div>
-  <label htmlFor={id+'-product'}>Available strengths and forms
-   <select id={id+'-product'} value={selected?.[1]??''} disabled={!selected&&!matches.length}
-    onChange={event=>{if(event.target.value)onChange(event.target.value);}}>
-    <option value="" disabled>{unavailable?'Catalog unavailable':!active||query.length<2?'Enter at least two characters':!products.length?'Loading medications…':matches.length||selected?'Choose the product on your label':'No match. Use manual entry.'}</option>
-    {(selected?[selected]:matches).map(([code,label])=><option key={code} value={label}>{label}</option>)}
-   </select>
-  </label>
+  {active&&query.length>=2&&!selected&&<div>
+   {matches.length>0?<fieldset aria-label="Available strengths and forms">
+    <legend>Available strengths and forms</legend>
+    <div className="medicationProductMatches">
+     {matches.map(([code,label])=><button key={code} type="button" className="secondaryAction" onClick={()=>onChange(label)}>{label}</button>)}
+    </div>
+   </fieldset>:<p role="status">{unavailable?'Catalog unavailable. Use manual entry.':products.length?'No match. Use manual entry.':'Loading medications…'}</p>}
+  </div>}
  </>;
 }

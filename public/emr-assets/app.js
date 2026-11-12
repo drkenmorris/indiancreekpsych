@@ -121,7 +121,7 @@ let bpsMedicationEdit=null;
 function bpsMedicationEntries(){const latest=new Map();for(const r of records('biopsychosocial_medication'))latest.set(r.medication_id,r);return [...latest.values()].toReversed();}
 function medicationEntryFields(r={},prefix='med'){
  const input=(key,label,type='text',required=false)=>`<label class="field" for="${prefix}-${key}">${label}${required?' (required)':''}<input id="${prefix}-${key}" name="${key}" type="${type}" value="${esc(r[key]||'')}" ${type==='text'?'maxlength="200"':''} ${required?'required':''} autocomplete="off"></label>`;
- return `<div class="provider-field-grid">${input('medication','Medication','text',true)}<label class="field" for="${prefix}-status">Medication Status (required)<select id="${prefix}-status" name="status" required><option value="">Choose status</option>${['Current','Past'].map(v=>`<option ${r.status===v?'selected':''}>${v}</option>`).join('')}</select></label>${input('dosage','Dosage')}${input('frequency','Frequency')}${input('start_date','Start Date','date')}${input('end_date','End Date','date')}${input('prescribing_physician','Prescribing Physician')}</div><fieldset><legend>Was the medication beneficial?</legend><div class="choices">${['Beneficial','Not beneficial'].map((value,index)=>`<label class="check" for="${prefix}-benefit-${index}"><input id="${prefix}-benefit-${index}" type="checkbox" name="benefit" value="${value}" ${r.benefit===value?'checked':''}>${value}</label>`).join('')}</div><p class="hint">Choose one, or leave both unchecked if not recorded.</p></fieldset><p class="hint">Leave unknown details or dates blank. Choose Past to record an end date.</p>`;
+ return `<div class="provider-field-grid"><div>${input('medication','Medication','text',true)}<p class="hint">Type at least two letters of the generic or brand name, or enter the product manually.</p><div data-medication-matches hidden></div></div><label class="field" for="${prefix}-status">Medication Status (required)<select id="${prefix}-status" name="status" required><option value="">Choose status</option>${['Current','Past'].map(v=>`<option ${r.status===v?'selected':''}>${v}</option>`).join('')}</select></label>${input('dosage','Dosage')}${input('frequency','Frequency')}${input('start_date','Start Date','date')}${input('end_date','End Date','date')}${input('prescribing_physician','Prescribing Physician')}</div><fieldset><legend>Was the medication beneficial?</legend><div class="choices">${['Beneficial','Not beneficial'].map((value,index)=>`<label class="check" for="${prefix}-benefit-${index}"><input id="${prefix}-benefit-${index}" type="checkbox" name="benefit" value="${value}" ${r.benefit===value?'checked':''}>${value}</label>`).join('')}</div><p class="hint">Choose one, or leave both unchecked if not recorded.</p></fieldset><p class="hint">Leave unknown details or dates blank. Choose Past to record an end date.</p>`;
 }
 function bpsMedicationsView(){
  const entries=bpsMedicationEntries(),edit=entries.find(r=>r.id===bpsMedicationEdit),r=edit||{},allergies=last('medication_allergies');
@@ -129,10 +129,58 @@ function bpsMedicationsView(){
  return `<section class="card">${bpsSubnav()}<h2>Psychiatric Medications</h2><h3>${edit?'Edit medication':'Add medication'}</h3>${form('biopsychosocial_medication',`<input type="hidden" name="prior_id" value="${esc(edit?.id||'')}">`+medicationEntryFields(r,'med'),edit?'Save medication changes':'Add medication')}${edit?'<button type="button" class="secondary" id="med-new-entry">Cancel edit / New medication</button>':''}</section>
  <section class="card"><h2>Medication Allergies</h2>${form('medication_allergies',`<label class="field" for="med-allergy-status">Allergy Status<select id="med-allergy-status" name="allergy_status">${['Not yet reviewed','No known medication allergies','Medication allergies reported'].map(v=>`<option ${allergies?.allergy_status===v?'selected':''}>${v}</option>`).join('')}</select></label><label class="field" for="med-allergy-notes">Medication Allergies / Reactions<textarea id="med-allergy-notes" name="allergy_notes" maxlength="4000" rows="3">${esc(allergies?.allergy_notes||'')}</textarea></label>`,'Save medication allergies')}</section>${list('Current')}${list('Past')}${medicationIntakeDemoView()}`;
 }
+let medicationCatalogRequest;
+function bindMedicationCatalog(form){
+ const input=form.elements.medication, results=form.querySelector('[data-medication-matches]');
+ input.addEventListener('input',async()=>{
+  const query=input.value.trim().toLowerCase();
+  results.replaceChildren();
+  results.hidden=query.length<2;
+  if(results.hidden)return;
+  results.textContent='Loading medications…';
+  try{
+   medicationCatalogRequest ||= fetch('/emr-assets/medication-catalog.json').then(response=>{
+    if(!response.ok)throw Error('Medication catalog unavailable');
+    return response.json();
+   }).catch(error=>{medicationCatalogRequest=undefined;throw error;});
+   const catalog=await medicationCatalogRequest;
+   if(!input.isConnected||input.value.trim().toLowerCase()!==query)return;
+   const startsWithName=label=>label.startsWith(query)||label.includes('['+query);
+   const words=query.split(/\s+/);
+   const matches=Object.values(catalog).filter(label=>words.every(word=>label.toLowerCase().includes(word)))
+    .sort((a,b)=>Number(startsWithName(b.toLowerCase()))-Number(startsWithName(a.toLowerCase()))||a.localeCompare(b,undefined,{numeric:true})).slice(0,60);
+   results.textContent=matches.length?'':'No match. Use manual entry.';
+   if(!matches.length)return;
+   const list=document.createElement('fieldset');
+   const legend=document.createElement('legend');
+   legend.textContent='Available strengths and forms';
+   list.append(legend);
+   const choices=document.createElement('div');
+   choices.className='medication-product-matches';
+   for(const label of matches){
+    const button=document.createElement('button');
+    button.type='button';
+    button.className='secondary';
+    button.textContent=label;
+    button.addEventListener('click',()=>{
+     input.value=label;
+     results.hidden=true;
+     form.dataset.modified='true';
+     input.focus();
+    });
+    choices.append(button);
+   }
+   list.append(choices);
+   results.append(list);
+  }catch{
+   if(input.isConnected&&input.value.trim().toLowerCase()===query)results.textContent='Catalog unavailable. Use manual entry.';
+  }
+ });
+}
 function bindBpsMedications(){
  document.querySelectorAll('[data-edit-medication]').forEach(button=>button.addEventListener('click',()=>safeNavigate(()=>{bpsMedicationEdit=button.dataset.editMedication;render();})));
  document.querySelector('#med-new-entry')?.addEventListener('click',()=>safeNavigate(()=>{bpsMedicationEdit=null;render();}));
- const f=document.querySelector('form[data-action="biopsychosocial_medication"]');if(!f)return;const status=f.elements.status,end=f.elements.end_date;let priorEnd=end.value;const update=()=>{if(status.value==='Current'){priorEnd=end.value||priorEnd;end.value='';end.disabled=true;}else{end.disabled=false;end.value=priorEnd;}};status.addEventListener('change',update);update();
+ const f=document.querySelector('form[data-action="biopsychosocial_medication"]');if(!f)return;bindMedicationCatalog(f);const status=f.elements.status,end=f.elements.end_date;let priorEnd=end.value;const update=()=>{if(status.value==='Current'){priorEnd=end.value||priorEnd;end.value='';end.disabled=true;}else{end.disabled=false;end.value=priorEnd;}};status.addEventListener('change',update);update();
  f.querySelectorAll('[name=benefit]').forEach(input=>input.addEventListener('change',()=>{if(input.checked)f.querySelectorAll('[name=benefit]').forEach(other=>{if(other!==input)other.checked=false;});}));
  document.querySelectorAll('form[data-action="biopsychosocial_medication"],form[data-action="medication_allergies"]').forEach(form=>form.addEventListener('input',()=>form.dataset.modified='true'));
 }

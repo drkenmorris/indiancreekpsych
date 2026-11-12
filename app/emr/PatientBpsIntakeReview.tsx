@@ -66,7 +66,6 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
    try{
     const next=await load(patientId);
     if(stillOnChart()){
-     setData(next);
      // A successful write receipt alone does not prove the new review is readable
      // under the same chart, source status, version and timestamp. Do not report
      // clinician-history readback as verified until the exact saved row is present.
@@ -77,6 +76,9 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
       next.source.version===data.source.version&&next.source.status===data.source.status&&
       Number.isFinite(Date.parse(next.source.updatedAt))&&
       Date.parse(next.source.updatedAt)===Date.parse(data.source.updatedAt);
+     // Retain the acknowledged old version and its duplicate-save lock if the
+     // linked source changed mid-flight. Reopening the chart is required.
+     if(sameSource)setData(next);
      const verified=sameSource&&typeof result.id==='string'&&next.reviews.some(review=>
       review.id===result.id&&review.source_version===data.source.version&&
       review.source_status===data.source.status&&

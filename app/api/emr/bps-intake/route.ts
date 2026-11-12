@@ -1,7 +1,7 @@
 import {NextResponse} from 'next/server';
 import {emrAccess,privateHeaders,sameOrigin} from '@/lib/emr/access';
 import {uuid} from '@/lib/emr/demographics';
-import {bpsNoteDomains,mapIntakeToBps,sanitizeBpsClinicianNotes,sanitizeBpsSnapshotAnswers} from '@/lib/emr/intake-bps';
+import {bpsNoteDomains,mapIntakeToBps,sanitizeBpsClinicianNotes,sanitizeBpsSnapshotAnswers,validBpsTimestamp} from '@/lib/emr/intake-bps';
 export const dynamic='force-dynamic';
 const reply=(data:unknown,status=200)=>NextResponse.json(data,{status,headers:privateHeaders});
 const sourceFields='patient_id,answers,status,version,updated_at';
@@ -25,7 +25,7 @@ async function linkedSource(supabase:NonNullable<Awaited<ReturnType<typeof emrAc
  // consumers and cannot make malformed historical rows safe to disclose.
  if((intake.data.status!=='draft'&&intake.data.status!=='submitted')||
    !Number.isSafeInteger(intake.data.version)||intake.data.version<1||
-   typeof intake.data.updated_at!=='string'||!Number.isFinite(Date.parse(intake.data.updated_at)))
+   !validBpsTimestamp(intake.data.updated_at))
   return {code:409 as const,error:'Linked intake source metadata is invalid; reopen the protected original intake.'};
  return {patient:patient.data,intake:intake.data};
 }
@@ -53,8 +53,8 @@ export async function GET(request:Request){
   if((reviews??[]).some(review=>!uuid(review.id)||
     !Number.isSafeInteger(review.source_version)||review.source_version<1||
     (review.source_status!=='draft'&&review.source_status!=='submitted')||
-    typeof review.source_updated_at!=='string'||!Number.isFinite(Date.parse(review.source_updated_at))||
-    typeof review.created_at!=='string'||!Number.isFinite(Date.parse(review.created_at))))
+    !validBpsTimestamp(review.source_updated_at)||
+    !validBpsTimestamp(review.created_at)))
    return reply({error:'BPS historical review provenance could not be verified.'},409);
   const safeReviews=(reviews??[]).map(({patient_id:_patient,source_account_id:_account,...review})=>{
    // A malformed or historical review must never leak unapproved intake fields
@@ -77,7 +77,7 @@ export async function POST(request:Request){
   if(!body||!uuid(body.patientId)||!uuid(body.sourceAccountId)||body.reviewed!==true||!Number.isSafeInteger(body.sourceVersion)||
     typeof body.sourceVersion!=='number'||body.sourceVersion<1||
     (body.sourceStatus!=='draft'&&body.sourceStatus!=='submitted')||
-    typeof body.sourceUpdatedAt!=='string'||!Number.isFinite(Date.parse(body.sourceUpdatedAt)))
+    !validBpsTimestamp(body.sourceUpdatedAt))
    return reply({error:'Valid linked patient, source version and explicit clinical review required.'},400);
   if(!body.notes||typeof body.notes!=='object'||Array.isArray(body.notes))return reply({error:'Clinical notes are required.'},400);
   const fields=Object.keys(bpsNoteDomains);

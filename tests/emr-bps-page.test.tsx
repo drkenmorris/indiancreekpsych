@@ -50,6 +50,14 @@ test('missing or unlinked chart cannot render a different patient',async()=>{
  await expect(EmrBpsIntakePage(props())).rejects.toThrow('not-found');
 });
 
+test('a returned central chart ID must match the selected patient even if the database query was filtered',async()=>{
+ const anotherPatient='00000000-0000-4000-8000-000000000102';
+ lookup.mockResolvedValue({data:{id:anotherPatient},error:null});
+ await expect(EmrBpsIntakePage(props())).rejects.toThrow('not-found');
+ const query=m.from.mock.results[0]?.value;
+ expect(query?.eq).toHaveBeenCalledWith('id',patient);
+});
+
 test('login and MFA preserve the exact BPS patient and allowed subpage through clinician source review',async()=>{
  await EmrBpsIntakePage(props(patient,'medical_substance'));
  const returnTo='/emr/bps-intake?patient='+patient+'&bps_page=medical_substance';

@@ -12,7 +12,7 @@ test('a pending BPS save cannot reopen or message the wrong patient chart',async
   if(init?.method==='POST')return pending;
   const id=new URL(url,'https://www.indiancreekpsych.com').searchParams.get('patient')||'';
   reads.push(id);
-  return {ok:true,json:async()=>({patientId:id,source:{status:'submitted',version:id===a?2:9,updatedAt:'2026-11-10T12:00:00Z'},sections:Array.from({length:21},(_,i)=>({title:'Section '+i,domain:'History',disposition:'clinical',fields:[],answered:0})),unmappedKeys:[],reviews:[]})};
+  return {ok:true,json:async()=>({patientId:id,source:{accountId:id,status:'submitted',version:id===a?2:9,updatedAt:'2026-11-10T12:00:00Z'},sections:Array.from({length:21},(_,i)=>({title:'Section '+i,domain:'History',disposition:'clinical',fields:[],answered:0})),unmappedKeys:[],reviews:[]})};
  }));
  const {rerender}=render(<PatientBpsIntakeReview patientId={a}/>);
  await screen.findByText(/Version 2/);
@@ -48,4 +48,37 @@ test('clinician reconciliation independently withholds separate, structured, ref
  expect(screen.getByText('SAFE PATIENT REPORTED CONCERN')).toBeTruthy();
  for(const secret of ['DO_NOT_LEAK_STRUCTURED','DO_NOT_LEAK_UNMARKED','DO_NOT_LEAK_LEGAL','DO_NOT_LEAK_INSURANCE','DO_NOT_LEAK_SPOOFED_INSURANCE','DO_NOT_LEAK_SPOOFED_LEGAL','DO_NOT_LEAK_RETIRED_MEDICATION','DO_NOT_LEAK_RETIRED_LEGAL'])
   expect(screen.queryByText(secret)).toBeNull();
+});
+
+test.each([
+ ['missing linked account', {accountId:null}],
+ ['invalid linked account', {accountId:'not-a-uuid'}],
+ ['unsupported source status', {status:'revoked'}],
+ ['zero source version', {version:0}],
+ ['unsafe integer source version', {version:Number.MAX_SAFE_INTEGER+1}],
+ ['invalid source timestamp', {updatedAt:'not-a-timestamp'}],
+ ['missing history array', {reviews:null}]
+])('clinician BPS review withholds patient statements and save controls for %s',async(_reason,change)=>{
+ const id='00000000-0000-4000-8000-000000000801';
+ const source={accountId:'00000000-0000-4000-8000-000000000802',status:'submitted',version:7,updatedAt:'2026-11-10T12:00:00Z'};
+ const response={
+  patientId:id,source,sections:Array.from({length:21},(_,i)=>({
+   title:'Section '+i,domain:'Clinical context',disposition:'clinical',answered:i===0?1:0,
+   fields:i===0?[{key:'counseling_reason',label:'Patient report',type:'text',
+    sourceOnly:false,reported:true,value:'PRIVATE_FICTIONAL_PATIENT_REPORT'}]:[]
+  })),unmappedKeys:[],reviews:[]
+ };
+ const altered='reviews' in change?{...response,reviews:change.reviews}:{...response,source:{...source,...change}};
+ let posts=0;
+ vi.stubGlobal('fetch',vi.fn(async(_url:string,options?:RequestInit)=>{
+  if(options?.method==='POST')posts++;
+  return Response.json(altered);
+ }));
+ render(<PatientBpsIntakeReview patientId={id}/>);
+ const alert=await screen.findByRole('alert');
+ expect(alert.textContent).toContain('provenance or clinical review history could not be verified');
+ expect(screen.queryByText('PRIVATE_FICTIONAL_PATIENT_REPORT')).toBeNull();
+ expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
+ expect(screen.queryByRole('button',{name:/Save reviewed BPS history snapshot/i})).toBeNull();
+ expect(posts).toBe(0);
 });

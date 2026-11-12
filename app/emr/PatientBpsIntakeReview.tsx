@@ -70,11 +70,20 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
      // A successful write receipt alone does not prove the new review is readable
      // under the same chart, source status, version and timestamp. Do not report
      // clinician-history readback as verified until the exact saved row is present.
-     const verified=typeof result.id==='string'&&next.reviews.some(review=>
+     // A source can change or its chart can be relinked between the initial
+     // intake GET, the save RPC and this history GET. An old review matching
+     // its original version is NOT verification of the currently linked source.
+     const sameSource=next.source.accountId===data.source.accountId&&
+      next.source.version===data.source.version&&next.source.status===data.source.status&&
+      Number.isFinite(Date.parse(next.source.updatedAt))&&
+      Date.parse(next.source.updatedAt)===Date.parse(data.source.updatedAt);
+     const verified=sameSource&&typeof result.id==='string'&&next.reviews.some(review=>
       review.id===result.id&&review.source_version===data.source.version&&
       review.source_status===data.source.status&&
+      Number.isFinite(Date.parse(review.source_updated_at))&&
       Date.parse(review.source_updated_at)===Date.parse(data.source.updatedAt));
      if(verified)setStatus('Clinician-reviewed, unsigned BPS intake snapshot saved AND independently verified in the protected chart history. Patient statements remain patient-reported; no diagnosis, authorization, or signature was created.');
+     else if(!sameSource)setStatus('BPS save was acknowledged, but the linked intake source changed during chart-history verification (account, version, status or timestamp). This source is NOT independently verified. Reopen the chart and reconcile the new intake before further review; do not resubmit the prior version.');
      else setStatus('BPS save was acknowledged, but the exact saved review and source provenance were NOT verified in chart history. Reopen this chart and investigate before relying on the new review; do not submit it again.');
     }
    }catch{

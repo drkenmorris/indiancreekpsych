@@ -21,7 +21,7 @@ async function populateOriginalBpsIntake(panel,id,generation){
   provenance.textContent='Patient-reported '+(result.source?.status==='submitted'?'submitted':'draft')+
    ' intake · source version '+String(result.source?.version??'unknown')+
    ' · '+result.sections.length+'/21 sections · '+
-   (Array.isArray(result.reviews)?result.reviews.length:0)+' saved clinician review(s).';
+   (Array.isArray(result.reviews)?result.reviews.filter(review=>review.reviewed===true).length:0)+' attested clinician review(s).';
   panel.append(provenance);
   const guidance=document.createElement('p');
   guidance.textContent='Read-only patient statements are not verified clinician findings. No diagnosis, signature, medication/allergy reconciliation or clinical save occurs here.';

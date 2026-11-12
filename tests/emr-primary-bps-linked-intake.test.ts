@@ -3,6 +3,7 @@ import {runInNewContext} from 'node:vm';
 // @ts-expect-error This repository runs jsdom in test fixtures without @types/jsdom.
 import {JSDOM} from 'jsdom';
 import {expect,test,vi} from 'vitest';
+import {bpsVisibleSourceKeys} from '@/lib/emr/intake-bps';
 
 const firstPatient='00000000-0000-4000-8000-000000000801';
 const secondPatient='00000000-0000-4000-8000-000000000802';
@@ -205,12 +206,26 @@ test('original BPS redacts malformed structured, reference and missing-marker so
   {key:'counseling_goals',label:'Goals',type:'text',reported:true,value:'DO_NOT_LEAK_MISSING_MARKER'}
  );
  unsafe.sections[2].fields[0].value='DO_NOT_LEAK_REFERENCE_LEGAL';
+ unsafe.sections[0].fields.push(
+  {key:'insurance_member',label:'Falsely typed insurance field',type:'text',reported:true,sourceOnly:false,value:'DO_NOT_LEAK_SPOOFED_INSURANCE'},
+  {key:'roi_authorize',label:'Falsely typed legal field',type:'text',reported:true,sourceOnly:false,value:'DO_NOT_LEAK_SPOOFED_LEGAL'}
+ );
  const {ctx,dom}=harness(async()=>Response.json(unsafe));
  ctx.render();
  await vi.waitFor(()=>expect(dom.window.document.querySelector('section[aria-label="Patient intake context in original biopsychosocial workspace"]')?.textContent).toContain('source version 6'));
  const displayed=dom.window.document.querySelector('section[aria-label="Patient intake context in original biopsychosocial workspace"]')!.textContent||'';
  expect(displayed).toContain('Fictional patient-reported concern');
- for(const secret of ['DO_NOT_LEAK_STRUCTURED_MEDICATION','DO_NOT_LEAK_MISSING_MARKER','DO_NOT_LEAK_REFERENCE_LEGAL'])expect(displayed).not.toContain(secret);
+ for(const secret of ['DO_NOT_LEAK_STRUCTURED_MEDICATION','DO_NOT_LEAK_MISSING_MARKER','DO_NOT_LEAK_REFERENCE_LEGAL','DO_NOT_LEAK_SPOOFED_INSURANCE','DO_NOT_LEAK_SPOOFED_LEGAL'])expect(displayed).not.toContain(secret);
  expect(displayed).toContain('Stored in the dedicated protected intake/reconciliation source.');
  dom.window.close();
+});
+
+
+test('original BPS browser allowlist is synchronized with the typed clinical source mapping',()=>{
+ const source=readFileSync('public/emr-assets/production.js','utf8');
+ const match=source.match(/const bpsVisibleSourceKeys=new Set\((\[[^\n]*\])\);/);
+ expect(match).not.toBeNull();
+ const keys=JSON.parse(match![1]) as string[];
+ expect(new Set(keys).size).toBe(keys.length);
+ expect(new Set(keys)).toEqual(bpsVisibleSourceKeys);
 });

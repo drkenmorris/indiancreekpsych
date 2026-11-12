@@ -170,3 +170,32 @@ test.each([
  expect(posts).toBe(1);
  expect(reads).toBe(2);
 });
+
+
+test.each(['lost POST response','indeterminate server error','malformed success receipt'])(
+ 'BPS clinician cannot retry same source version blindly after %s',async(scenario)=>{
+ let posts=0,reads=0;
+ vi.stubGlobal('fetch',vi.fn(async (_url:string,options?:RequestInit)=>{
+  if(options?.method==='POST'){
+   posts++;
+   if(scenario==='lost POST response')throw Error('Connection interrupted before the save receipt');
+   if(scenario==='indeterminate server error')
+    return Response.json({error:'Unable to confirm review persistence'},{status:503});
+   return Response.json({saved:false});
+  }
+  reads++;
+  return Response.json(source());
+ }));
+ render(<PatientBpsIntakeReview patientId={patient}/>);
+ await screen.findByText(/Version 7/);
+ fireEvent.click(screen.getByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i}));
+ fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed this intake/i}));
+ fireEvent.click(screen.getByRole('button',{name:/Save reviewed BPS history snapshot/i}));
+ await screen.findByText(/no save receipt was verified/i);
+ expect(screen.getByText(/outcome of this submission is unknown; no clinical save is claimed/i)).toBeTruthy();
+ expect(screen.queryByText(/snapshot saved AND independently verified/i)).toBeNull();
+ expect(screen.queryByRole('button',{name:/Save reviewed BPS history snapshot/i})).toBeNull();
+ expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
+ expect(posts).toBe(1);
+ expect(reads).toBe(1);
+ });

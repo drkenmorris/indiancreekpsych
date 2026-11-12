@@ -52,7 +52,21 @@ export default function AppointmentsClient({userId,accountType,preferredName,ini
     }catch(error){setBookingMessage(error instanceof Error?error.message:(error as {message?:string})?.message??"Booking could not be confirmed. Refresh the schedule before retrying.");}finally{setBusy(false);}
   };
 
-  const saveSettings=async(e:FormEvent)=>{e.preventDefault();setBusy(true);const {error}=await supabase.from("appointment_settings").update(settings).eq("id",true);if(!error)await loadSlots();setMessage(error?error.message:"Scheduling settings saved.");setBusy(false);};
+  const saveSettings=async(e:FormEvent)=>{
+    e.preventDefault();if(busy)return;setBusy(true);setMessage("");
+    // PostgREST can successfully return from an UPDATE that matched zero rows
+    // (e.g. stale authorizations/RLS). Require an exact persisted-settings receipt.
+    const submitted={...settings};
+    try{
+      const {data,error}=await supabase.from("appointment_settings")
+        .update(submitted).eq("id",true).select("*").maybeSingle();
+      if(error)throw error;
+      if(!data||data.id!==true||Object.entries(submitted).some(([key,value])=>data[key]!==value))
+        throw new Error("Scheduling settings were not verified in the database. Refresh before retrying.");
+      await loadSlots();setMessage("Scheduling settings saved and verified.");
+    }catch(error){setMessage(error instanceof Error?error.message:"Scheduling settings were not verified. Refresh before retrying.");}
+    finally{setBusy(false);}
+  };
   const addRule=async(e:FormEvent)=>{
     e.preventDefault();setRuleMessage("");
     if(!rule.start_time||!rule.end_time||rule.end_time<=rule.start_time){setRuleMessage("Choose an end time later than the start time on the same day.");return;}
@@ -76,9 +90,31 @@ export default function AppointmentsClient({userId,accountType,preferredName,ini
       setRules(v=>v.map(x=>x.id===r.id?result.rule as Rule:x));await loadSlots();
     }catch(error){setRuleMessage(error instanceof Error?error.message:"The update could not be confirmed. Refresh before retrying.");}finally{setBusy(false);}
   };
-  const deleteRule=async(id:string)=>{const {error}=await supabase.from("appointment_availability_rules").delete().eq("id",id);if(error)setMessage(error.message);else{setRules(v=>v.filter(x=>x.id!==id));await loadSlots();}};
+  const deleteRule=async(id:string)=>{
+    if(busy)return;setBusy(true);setRuleMessage("");
+    try{
+      const {data,error}=await supabase.from("appointment_availability_rules").delete().eq("id",id).select("id");
+      if(error)throw error;
+      if(!Array.isArray(data)||data.length!==1||data[0]?.id!==id)
+        throw new Error("Removal of office hours was not verified. Refresh before retrying.");
+      setRules(v=>v.filter(x=>x.id!==id));await loadSlots();
+      setRuleMessage("Office hours removed and verified.");
+    }catch(error){setRuleMessage(error instanceof Error?error.message:"Removal was not verified. Refresh before retrying.");}
+    finally{setBusy(false);}
+  };
   const addBlock=async(e:FormEvent)=>{e.preventDefault();const payload={starts_at:new Date(block.starts_at).toISOString(),ends_at:new Date(block.ends_at).toISOString(),label:block.label||null};const {data,error}=await supabase.from("appointment_blocks").insert(payload).select().single();if(error)setMessage(error.message);else{setBlocks(v=>[...v,data as Block].sort((a,b)=>a.starts_at.localeCompare(b.starts_at)));await loadSlots();setMessage("Blocked time added.");}};
-  const deleteBlock=async(id:string)=>{const {error}=await supabase.from("appointment_blocks").delete().eq("id",id);if(error)setMessage(error.message);else{setBlocks(v=>v.filter(x=>x.id!==id));await loadSlots();}};
+  const deleteBlock=async(id:string)=>{
+    if(busy)return;setBusy(true);setMessage("");
+    try{
+      const {data,error}=await supabase.from("appointment_blocks").delete().eq("id",id).select("id");
+      if(error)throw error;
+      if(!Array.isArray(data)||data.length!==1||data[0]?.id!==id)
+        throw new Error("Blackout removal was not verified. Refresh before retrying.");
+      setBlocks(v=>v.filter(x=>x.id!==id));await loadSlots();
+      setMessage("Blackout removed and verified.");
+    }catch(error){setMessage(error instanceof Error?error.message:"Blackout removal was not verified. Refresh before retrying.");}
+    finally{setBusy(false);}
+  };
 
 
 
@@ -148,12 +184,12 @@ export default function AppointmentsClient({userId,accountType,preferredName,ini
         {editingRuleId&&<button className="secondaryAction" type="button" onClick={()=>{setEditingRuleId(null);setRuleMessage("");}}>Cancel editing</button>}
         {ruleMessage&&<p className="authMessage" role="status">{ruleMessage}</p>}
         <p>Office hours set the outer limits. Patient openings are one hour before or after booked appointments; a day needs a reserved starting hour or an existing booking to offer openings.</p>
-        <div className="ruleList">{rules.map(r=><article key={r.id}><div><strong>{weekdays[r.weekday]}</strong><span>{r.start_time.slice(0,5)}–{r.end_time.slice(0,5)} · {r.enabled?"Open":"Paused"}{r.anchor_time?` · Starting hour ${r.anchor_time.slice(0,5)} reserved`:""}</span></div><div><button className="secondaryAction" type="button" disabled={busy} onClick={()=>{setEditingRuleId(r.id);setRule({weekday:r.weekday,start_time:r.start_time.slice(0,5),end_time:r.end_time.slice(0,5),anchor_time:r.anchor_time?.slice(0,5)??""});setRuleMessage("Editing hours above. Set a reserved starting hour, then choose Save hours.");}}>Edit</button><button className="secondaryAction" type="button" onClick={()=>void toggleRule(r)}>{r.enabled?"Pause":"Enable"}</button><button className="secondaryAction" type="button" onClick={()=>void deleteRule(r.id)}>Delete</button></div></article>)}</div>
+        <div className="ruleList">{rules.map(r=><article key={r.id}><div><strong>{weekdays[r.weekday]}</strong><span>{r.start_time.slice(0,5)}–{r.end_time.slice(0,5)} · {r.enabled?"Open":"Paused"}{r.anchor_time?` · Starting hour ${r.anchor_time.slice(0,5)} reserved`:""}</span></div><div><button className="secondaryAction" type="button" disabled={busy} onClick={()=>{setEditingRuleId(r.id);setRule({weekday:r.weekday,start_time:r.start_time.slice(0,5),end_time:r.end_time.slice(0,5),anchor_time:r.anchor_time?.slice(0,5)??""});setRuleMessage("Editing hours above. Set a reserved starting hour, then choose Save hours.");}}>Edit</button><button className="secondaryAction" type="button" onClick={()=>void toggleRule(r)}>{r.enabled?"Pause":"Enable"}</button><button className="secondaryAction" type="button" disabled={busy} onClick={()=>void deleteRule(r.id)}>Delete</button></div></article>)}</div>
       </section>}
 
       {view==="blackouts"&&<section className="appointmentPanel"><p className="eyebrow">Blocked time</p><h2>Blackout periods</h2>
         <form className="inlineSchedulerForm blockForm" onSubmit={addBlock}><label>Starts<input type="datetime-local" value={block.starts_at} onChange={e=>setBlock({...block,starts_at:e.target.value})}/></label><label>Ends<input type="datetime-local" value={block.ends_at} onChange={e=>setBlock({...block,ends_at:e.target.value})}/></label><label>Label<input placeholder="Vacation, meeting, personal time" value={block.label} onChange={e=>setBlock({...block,label:e.target.value})}/></label><button type="submit">Block time</button></form>
-        <div className="ruleList">{blocks.map(b=><article key={b.id}><div><strong>{b.label||"Blocked time"}</strong><span>{new Date(b.starts_at).toLocaleString()} – {new Date(b.ends_at).toLocaleString()}</span></div><button className="secondaryAction" type="button" onClick={()=>void deleteBlock(b.id)}>Remove</button></article>)}</div>
+        <div className="ruleList">{blocks.map(b=><article key={b.id}><div><strong>{b.label||"Blocked time"}</strong><span>{new Date(b.starts_at).toLocaleString()} – {new Date(b.ends_at).toLocaleString()}</span></div><button className="secondaryAction" type="button" disabled={busy} onClick={()=>void deleteBlock(b.id)}>Remove</button></article>)}</div>
       </section>}
     </>}
   </div>;

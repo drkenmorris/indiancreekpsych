@@ -9,16 +9,18 @@ const submit=(details:Record<string,unknown>)=>new Request('https://www.indiancr
  body:JSON.stringify(details)});
 const payload={patientId:patient,sourceAccountId:account,sourceVersion:2,sourceStatus:'submitted',sourceUpdatedAt:stamp,reviewed:true,notes:{presenting:'Reported changes'}};
 let linked:string|null;
+let returnedPatientId:string;
+let returnedIntakeAccountId:string;
 let reviewRows:Record<string,unknown>[];
 let version:number;
 let data:Record<string,string>;
 beforeEach(()=>{
- vi.clearAllMocks();linked=account;version=2;reviewRows=[];
+ vi.clearAllMocks();linked=account;returnedPatientId=patient;returnedIntakeAccountId=account;version=2;reviewRows=[];
  data={counseling_reason:'Reports sadness',suicidal_thoughts_current:'Yes',roi_authorize:'Yes',medication_entries:'structured original'};
  m.sameOrigin.mockReturnValue(true);m.rpc.mockResolvedValue({data:'00000000-0000-0000-0000-000000000500',error:null});
  m.from.mockImplementation((table:string)=>{
-  if(table==='clinical_patients'){const q={select:()=>q,eq:vi.fn(()=>q),maybeSingle:async()=>({data:{id:patient,account_id:linked},error:null})};return q;}
-  if(table==='patient_intakes'){const q={select:()=>q,eq:vi.fn(()=>q),maybeSingle:async()=>({data:{answers:data,status:'submitted',version,updated_at:stamp},error:null})};return q;}
+  if(table==='clinical_patients'){const q={select:()=>q,eq:vi.fn(()=>q),maybeSingle:async()=>({data:{id:returnedPatientId,account_id:linked},error:null})};return q;}
+  if(table==='patient_intakes'){const q={select:()=>q,eq:vi.fn(()=>q),maybeSingle:async()=>({data:{patient_id:returnedIntakeAccountId,answers:data,status:'submitted',version,updated_at:stamp},error:null})};return q;}
   if(table==='emr_bps_intake_reviews'){const q={select:()=>q,eq:vi.fn(()=>q),order:()=>q,limit:async()=>({data:reviewRows,error:null})};return q;}
   throw Error('Unexpected '+table);
  });
@@ -35,6 +37,20 @@ test('explicit linked account only, no name matching, no empty source fabricatio
  linked=null;expect((await GET(request())).status).toBe(409);
  expect(m.from).not.toHaveBeenCalledWith('patient_intakes');
 });
+test('cross-chart central-row or intake-account mismatches fail closed without exposing another patient source',async()=>{
+ returnedPatientId='00000000-0000-0000-0000-000000000998';
+ const wrongCentral=await GET(request());
+ expect(wrongCentral.status).toBe(409);
+ expect(JSON.stringify(await wrongCentral.json())).not.toContain('Reports sadness');
+ expect(m.from).not.toHaveBeenCalledWith('patient_intakes');
+ returnedPatientId=patient;
+ returnedIntakeAccountId='00000000-0000-0000-0000-000000000999';
+ const wrongIntake=await GET(request());
+ expect(wrongIntake.status).toBe(409);
+ expect(JSON.stringify(await wrongIntake.json())).not.toContain('Reports sadness');
+ expect(m.from).not.toHaveBeenCalledWith('emr_bps_intake_reviews');
+});
+
 test('21-section review distinguishes risk, legal references and structured reconciliation',async()=>{
  const response=await GET(request());expect(response.status).toBe(200);
  expect(response.headers.get('Cache-Control')).toContain('no-store');

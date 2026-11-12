@@ -219,7 +219,7 @@ test.each([false,undefined])('a saved row with review attestation %s cannot prov
  fireEvent.click(screen.getByRole('button',{name:/Save reviewed BPS history snapshot/i}));
  await screen.findByText(/NOT verified in chart history/);
  expect(screen.queryByText(/saved AND independently verified/)).toBeNull();
- expect(screen.getByText(/lacks confirmed clinician-review attestation/)).toBeTruthy();
+ expect(screen.getAllByText(/lacks confirmed clinician-review attestation/).length).toBeGreaterThanOrEqual(2);
  expect(screen.getByText(/A BPS history record for this source version lacks confirmed clinician-review attestation/)).toBeTruthy();
  expect(screen.queryByRole('button',{name:/Save reviewed BPS history snapshot/i})).toBeNull();
  expect(reads).toBe(2);

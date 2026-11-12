@@ -7,7 +7,7 @@ afterEach(()=>{cleanup();vi.unstubAllGlobals();});
 const patient='00000000-0000-4000-8000-000000000801';
 const stamp='2026-11-10T12:00:00Z';
 function source(reviews:Record<string,unknown>[]=[]){
- return {patientId:patient,source:{status:'submitted',version:7,updatedAt:stamp},
+ return {patientId:patient,source:{accountId:'00000000-0000-4000-8000-000000000802',status:'submitted',version:7,updatedAt:stamp},
   sections:Array.from({length:21},(_,i)=>({title:'Section '+i,domain:'Context',disposition:'clinical',fields:[],answered:0})),
   unmappedKeys:[],reviews};
 }
@@ -134,4 +134,39 @@ test('clinician BPS history with malformed historical clinician notes fails clos
  expect(screen.queryByText(withheld)).toBeNull();
  expect(screen.queryByText('PRIVATE_STRUCTURED_MEDICAL_NOTE')).toBeNull();
  expect(screen.queryByText('S'.repeat(4001))).toBeNull();
+});
+
+
+test.each([
+ ['new source version',{version:8}],
+ ['different linked account',{accountId:'00000000-0000-4000-8000-000000000803'}],
+ ['changed source status',{status:'draft'}],
+ ['new source timestamp',{updatedAt:'2026-11-10T12:05:00Z'}]
+])('acknowledged BPS save cannot be independently verified after %s during readback',async(_reason,changed)=>{
+ const savedId='00000000-0000-4000-8000-000000000999';
+ let reads=0,posts=0;
+ const oldReview={id:savedId,source_version:7,source_status:'submitted',
+  source_updated_at:stamp,created_at:stamp,clinical_answers:{},clinician_notes:{}};
+ vi.stubGlobal('fetch',vi.fn(async (_url:string,options?:RequestInit)=>{
+  if(options?.method==='POST'){posts++;return Response.json({saved:true,id:savedId});}
+  reads++;
+  const original=source();
+  return Response.json(reads===1?original:{
+   ...source([oldReview]),source:{...original.source,...changed}
+  });
+ }));
+ render(<PatientBpsIntakeReview patientId={patient}/>);
+ await screen.findByText(/Version 7/);
+ fireEvent.click(screen.getByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i}));
+ fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed this intake/i}));
+ fireEvent.click(screen.getByRole('button',{name:/Save reviewed BPS history snapshot/i}));
+ await screen.findByText(/linked intake source changed during chart-history verification/);
+ expect(screen.queryByText(/saved AND independently verified in the protected chart history/)).toBeNull();
+ expect(screen.getByText(/A clinician-reviewed BPS snapshot for this source version has already been saved/)).toBeTruthy();
+ expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
+ // The acknowledged source remains locked until reopening this chart; a changed
+ // account/status/version must never unlock another save within the same session.
+ expect(screen.getByText(/Version 7/)).toBeTruthy();
+ expect(posts).toBe(1);
+ expect(reads).toBe(2);
 });

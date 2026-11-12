@@ -126,7 +126,7 @@ function medicationEntryFields(r={},prefix='med'){
 function bpsMedicationsView(){
  const entries=bpsMedicationEntries(),edit=entries.find(r=>r.id===bpsMedicationEdit),r=edit||{},allergies=last('medication_allergies');
  const list=status=>`<section class="card"><h2>${status==='Current'?'Current Medications':'Past Medications'}</h2>${entries.filter(r=>r.status===status).map(r=>`<article class="record"><div class="heading-row"><h3>${esc(r.medication)}</h3><button type="button" class="secondary" data-edit-medication="${esc(r.id)}">Edit medication</button></div><dl><dt>Amount taken each time</dt><dd>${esc(r.dosage||'Not recorded')}</dd><dt>Frequency</dt><dd>${esc(r.frequency||'Not recorded')}</dd><dt>Estimated duration</dt><dd>${esc(r.duration||'Not recorded')}</dd><dt>Prescribing Physician</dt><dd>${esc(r.prescribing_physician||'Not recorded')}</dd><dt>Benefit</dt><dd>${esc(r.benefit||'Not recorded')}</dd></dl></article>`).join('')||'<p class="empty">No '+status.toLowerCase()+' medications recorded.</p>'}</section>`;
- return `<section class="card">${bpsSubnav()}<h2>Psychiatric Medications</h2>${patientId?`<p><a href="/emr/patients?patient=${encodeURIComponent(patientId)}&amp;review=emr-intake-medication-review">Open saved patient-reported medications</a></p>`:}<h3>${edit?'Edit medication':'Add medication'}</h3>${form('biopsychosocial_medication',`<input type="hidden" name="prior_id" value="${esc(edit?.id||'')}">`+medicationEntryFields(r,'med'),edit?'Save medication changes':'Add medication')}${edit?'<button type="button" class="secondary" id="med-new-entry">Cancel edit / New medication</button>':''}</section>
+ return `<section class="card">${bpsSubnav()}<h2>Psychiatric Medications</h2>${patientId?`<p><a href="/emr/patients?patient=${encodeURIComponent(patientId)}&amp;review=emr-intake-medication-review">Open saved patient-reported medications</a></p>`:""}<section data-saved-medications></section><h3>${edit?'Edit medication':'Add medication'}</h3>${form('biopsychosocial_medication',`<input type="hidden" name="prior_id" value="${esc(edit?.id||'')}">`+medicationEntryFields(r,'med'),edit?'Save medication changes':'Add medication')}${edit?'<button type="button" class="secondary" id="med-new-entry">Cancel edit / New medication</button>':''}</section>
  <section class="card"><h2>Medication Allergies</h2>${form('medication_allergies',`<label class="field" for="med-allergy-status">Allergy Status<select id="med-allergy-status" name="allergy_status">${['Not yet reviewed','No known medication allergies','Medication allergies reported'].map(v=>`<option ${allergies?.allergy_status===v?'selected':''}>${v}</option>`).join('')}</select></label><label class="field" for="med-allergy-notes">Medication Allergies / Reactions<textarea id="med-allergy-notes" name="allergy_notes" maxlength="4000" rows="3">${esc(allergies?.allergy_notes||'')}</textarea></label>`,'Save medication allergies')}</section>${list('Current')}${list('Past')}${medicationIntakeDemoView()}`;
 }
 let medicationCatalogRequest;
@@ -177,7 +177,40 @@ function bindMedicationCatalog(form){
   }
  });
 }
+function refreshSavedMedications(container,id){
+ let pending=false;
+ async function refresh(){
+  if(!container.isConnected||patientId!==id){clearInterval(timer);return;}
+  if(pending||document.visibilityState!=='visible')return;
+  pending=true;
+  try{
+   const response=await fetch('/api/emr/patients?id='+encodeURIComponent(id),{cache:'no-store'});
+   if(!response.ok)throw Error('Saved intake medications unavailable.');
+   const data=await response.json();
+   if(!container.isConnected||patientId!==id||data.patients?.[0]?.id!==id)return;
+   const answers=data.intake?.answers??{};
+   const entries=JSON.parse(answers.medication_entries||'[]');
+   const heading=document.createElement('h3');
+   heading.textContent='Saved patient-reported medications';
+   const list=document.createElement('ul');
+   for(const entry of entries.filter(entry=>entry.medication&&entry.status!=='Past')){
+    const row=document.createElement('li');
+    row.textContent=[entry.medication,entry.duration,entry.dosage&&'Amount taken each time: '+entry.dosage,entry.frequency].filter(Boolean).join(' · ');
+    list.append(row);
+   }
+   const past=document.createElement('p');
+   past.textContent=answers.prior_psychiatric_medications?'Medications that helped in the past: '+answers.prior_psychiatric_medications:'';
+   container.replaceChildren(heading,list,past);
+  }catch{
+   if(container.isConnected&&patientId===id)container.textContent='Saved intake medications unavailable.';
+  }finally{pending=false;}
+ }
+ const timer=setInterval(refresh,5000);
+ void refresh();
+}
 function bindBpsMedications(){
+ const saved=document.querySelector('[data-saved-medications]');
+ if(saved&&patientId)refreshSavedMedications(saved,patientId);
  document.querySelectorAll('[data-edit-medication]').forEach(button=>button.addEventListener('click',()=>safeNavigate(()=>{bpsMedicationEdit=button.dataset.editMedication;render();})));
  document.querySelector('#med-new-entry')?.addEventListener('click',()=>safeNavigate(()=>{bpsMedicationEdit=null;render();}));
  const f=document.querySelector('form[data-action="biopsychosocial_medication"]');if(!f)return;bindMedicationCatalog(f);

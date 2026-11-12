@@ -57,6 +57,10 @@ const historicalBpsDomain:Record<string,string>={
  cultural_spiritual_factors:'Trauma, family, social, educational, and occupational history',
  strengths_interests:'Trauma, family, social, educational, and occupational history',
 };
+// Older intake versions included medication-list and legal-history free text in
+// general context. Both must remain in their dedicated protected source review,
+// not in BPS narrative previews, even when the upstream field type is mislabeled.
+const protectedHistoricalKeys=new Set(['prior_psychiatric_medications','legal_history']);
 const historicalClinicalFields=[...retiredMentalHealthFields,...retiredContextFields];
 export function mapIntakeToBps(answers:Record<string,string>){
  const sections=intakeSectionsForVersion(answers.legal_packet_version||'').map(section=>{
@@ -78,8 +82,12 @@ export function mapIntakeToBps(answers:Record<string,string>){
   for(const [key,label] of historicalClinicalFields){
    if(historicalBpsDomain[key]!==section.title)continue;
    const raw=typeof answers[key]==='string'?answers[key]:'';
-   if(raw.trim())fields.push({key,label:'Historical patient report — '+label,
-    type:'historical-patient-report',value:raw,sourceOnly:false,reported:true});
+   if(raw.trim()){
+    const protectedSource=protectedHistoricalKeys.has(key);
+    fields.push({key,label:'Historical patient report — '+label,
+     type:'historical-patient-report',value:protectedSource?'Recorded in protected source; not copied into BPS.':raw,
+     sourceOnly:protectedSource,reported:true});
+   }
   }
   return {title:section.title,domain:rule.domain,disposition:rule.disposition,fields,
    answered:fields.filter(field=>field.reported).length};
@@ -148,7 +156,7 @@ export const bpsSnapshotClinicalKeys = new Set<string>([
  */
 export const bpsVisibleSourceKeys = new Set<string>([
  ...bpsSnapshotClinicalKeys,
- ...Object.keys(historicalBpsDomain)
+ ...Object.keys(historicalBpsDomain).filter(key=>!protectedHistoricalKeys.has(key))
 ]);
 export function sanitizeBpsSnapshotAnswers(raw:unknown):{answers:Record<string,string>;excludedCount:number}{
  const answers:Record<string,string>={};

@@ -106,6 +106,10 @@ await test('actual hosted forms and global navigation render against central pat
  runInContext("document.querySelector('#content').innerHTML=bpsMedicationsView();bindBpsMedications()",dom.getInternalVMContext());
  const medicationForm=q('form[data-action="biopsychosocial_medication"]');
  assert.ok(medicationForm);
+ const lookup=medicationForm.querySelector('[data-medication-lookup]');
+ assert.equal(lookup.textContent,'Search medication catalog');
+ lookup.click();
+ assert.match(medicationForm.querySelector('[data-medication-matches]').textContent,/Enter at least two letters/);
  const medicationFetch=w.fetch;
  w.fetch=(url,options)=>url==='/emr-assets/medication-catalog.json'
   ?Promise.resolve({ok:true,json:async()=>JSON.parse(readFileSync('public/emr-assets/medication-catalog.json','utf8'))})

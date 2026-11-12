@@ -36,7 +36,7 @@ test('unattested saved history is not counted as a clinician review and cannot b
  }));
  render(<PatientBpsIntakeReview patientId={patient}/>);
  await screen.findByText(/Saved clinician reviews:/);
- expect(screen.getByText(/lacks confirmed clinician-review attestation; investigate provenance/)).toBeTruthy();
+ expect(screen.getByText(/Some saved history records lack confirmed clinician-review attestation; investigate provenance/)).toBeTruthy();
  expect(screen.getByText(/A BPS history record for this source version lacks confirmed clinician-review attestation/)).toBeTruthy();
  expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
  expect(screen.queryByRole('button',{name:/Save reviewed BPS history snapshot/i})).toBeNull();

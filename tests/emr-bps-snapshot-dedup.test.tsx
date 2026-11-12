@@ -118,3 +118,20 @@ test('an acknowledged BPS save remains unverified until protected history readba
  expect(screen.queryByText(/save acknowledged; verifying/)).toBeNull();
  expect(screen.queryByRole('button',{name:/Save reviewed BPS history snapshot/i})).toBeNull();
 });
+
+test('clinician BPS history with malformed historical clinician notes fails closed in the rendered chart',async()=>{
+ const withheld='PRIVATE_LEGAL_IN_HISTORICAL_NOTE';
+ vi.stubGlobal('fetch',vi.fn(async()=>Response.json(source([{
+  id:'00000000-0000-4000-8000-000000000999',source_version:7,source_status:'submitted',
+  source_updated_at:stamp,created_at:stamp,clinical_answers:{},
+  clinician_notes:{presenting:'Allowed independent clinician observation',unknown_legal_field:withheld,
+   medical:{raw:'PRIVATE_STRUCTURED_MEDICAL_NOTE'},safety:'S'.repeat(4001)}
+ }]))));
+ render(<PatientBpsIntakeReview patientId={patient}/>);
+ await screen.findByText(/Version 7/);
+ expect(screen.getByText('Allowed independent clinician observation')).toBeTruthy();
+ expect(screen.getByText(/3 unapproved or malformed historical clinician-note field/)).toBeTruthy();
+ expect(screen.queryByText(withheld)).toBeNull();
+ expect(screen.queryByText('PRIVATE_STRUCTURED_MEDICAL_NOTE')).toBeNull();
+ expect(screen.queryByText('S'.repeat(4001))).toBeNull();
+});

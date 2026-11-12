@@ -59,7 +59,9 @@ const historicalBpsDomain:Record<string,string>={
 };
 const historicalClinicalFields=[...retiredMentalHealthFields,...retiredContextFields];
 export function mapIntakeToBps(answers:Record<string,string>){
- const sections=intakeSectionsForVersion(answers.legal_packet_version||'').map(section=>{
+ const intakeSections=intakeSectionsForVersion(answers.legal_packet_version||'');
+ const activeFields=new Set(intakeSections.flatMap(section=>section.fields.map(([key])=>key)));
+ const sections=intakeSections.map(section=>{
   const rule=bpsSectionClassification[section.title];
   if(!rule)throw Error('An intake section is not yet approved for biopsychosocial review: '+section.title);
   // Audit all 21 sections but never transmit raw legal decisions, insurance
@@ -76,7 +78,7 @@ export function mapIntakeToBps(answers:Record<string,string>){
   // statements in the protected source review, explicitly labeled historical;
   // do not synthesize negatives for missing responses or silently sign a chart.
   for(const [key,label] of historicalClinicalFields){
-   if(historicalBpsDomain[key]!==section.title)continue;
+   if(activeFields.has(key)||historicalBpsDomain[key]!==section.title)continue;
    const raw=typeof answers[key]==='string'?answers[key]:'';
    if(raw.trim())fields.push({key,label:'Historical patient report — '+label,
     type:'historical-patient-report',value:raw,sourceOnly:false,reported:true});

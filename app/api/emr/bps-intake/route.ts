@@ -39,7 +39,7 @@ export async function GET(request:Request){
    return {...review,clinical_answers:clean.answers,excluded_clinical_fields:clean.excludedCount};
   });
   return reply({patientId:id,linked:true,source:{accountId:source.patient.account_id,status:source.intake.status,version:source.intake.version,
-    updatedAt:source.intake.updated_at},...report,reviews:safeReviews});
+    updatedAt:source.intake.updated_at},...report,medicationEntries:source.intake.answers?.medication_entries||'',helpfulPastMedications:source.intake.answers?.prior_psychiatric_medications||'',reviews:safeReviews});
  }catch(e){return reply({error:e instanceof Error?e.message:'Protected intake unavailable.'},503);}
 }
 export async function POST(request:Request){

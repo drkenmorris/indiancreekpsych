@@ -121,12 +121,12 @@ let bpsMedicationEdit=null;
 function bpsMedicationEntries(){const latest=new Map();for(const r of records('biopsychosocial_medication'))latest.set(r.medication_id,r);return [...latest.values()].toReversed();}
 function medicationEntryFields(r={},prefix='med'){
  const input=(key,label,type='text',required=false)=>`<label class="field" for="${prefix}-${key}">${label}${required?' (required)':''}<input id="${prefix}-${key}" name="${key}" type="${type}" value="${esc(r[key]||'')}" ${type==='text'?'maxlength="200"':''} ${required?'required':''} autocomplete="off"></label>`;
- return `<div class="provider-field-grid"><div>${input('medication','Medication','text',true)}<p class="hint">Type at least two letters of the generic or brand name, or enter the product manually.</p><div data-medication-matches hidden></div></div><label class="field" for="${prefix}-status">Medication Status (required)<select id="${prefix}-status" name="status" required><option value="">Choose status</option>${['Current','Past'].map(v=>`<option ${r.status===v?'selected':''}>${v}</option>`).join('')}</select></label>${input('dosage','Amount taken each time')}${input('frequency','Frequency')}${input('start_date','Start Date','date')}${input('end_date','End Date','date')}${input('prescribing_physician','Prescribing Physician')}</div><fieldset><legend>Was the medication beneficial?</legend><div class="choices">${['Beneficial','Not beneficial'].map((value,index)=>`<label class="check" for="${prefix}-benefit-${index}"><input id="${prefix}-benefit-${index}" type="checkbox" name="benefit" value="${value}" ${r.benefit===value?'checked':''}>${value}</label>`).join('')}</div><p class="hint">Choose one, or leave both unchecked if not recorded.</p></fieldset><p class="hint">Leave unknown details or dates blank. Choose Past to record an end date.</p>`;
+ return `<div class="provider-field-grid"><div>${input('medication','Medication','text',true)}<p class="hint">Type at least two letters of the generic or brand name, or enter the product manually.</p><div data-medication-matches hidden></div></div><input type="hidden" name="status" value="${r.status==='Past'?'Past':'Current'}"><label class="field" for="${prefix}-duration">Estimated duration<select id="${prefix}-duration" name="duration"><option value="">Choose an estimate</option>${['Less than 3 months','3 to less than 6 months','6 months to less than 1 year','1 to less than 2 years','2 to 5 years','More than 5 years','Not sure'].map(v=>`<option ${r.duration===v?'selected':''}>${v}</option>`).join('')}</select></label>${input('dosage','Amount taken each time')}${input('frequency','Frequency')}${input('prescribing_physician','Prescribing Physician')}</div><fieldset><legend>Was the medication beneficial?</legend><div class="choices">${['Beneficial','Not beneficial'].map((value,index)=>`<label class="check" for="${prefix}-benefit-${index}"><input id="${prefix}-benefit-${index}" type="checkbox" name="benefit" value="${value}" ${r.benefit===value?'checked':''}>${value}</label>`).join('')}</div><p class="hint">Choose one, or leave both unchecked if not recorded.</p></fieldset><p class="hint">Leave unknown details or dates blank. Choose Past to record an end date.</p>`;
 }
 function bpsMedicationsView(){
  const entries=bpsMedicationEntries(),edit=entries.find(r=>r.id===bpsMedicationEdit),r=edit||{},allergies=last('medication_allergies');
- const list=status=>`<section class="card"><h2>${status==='Current'?'Current Medications':'Past Medications'}</h2>${entries.filter(r=>r.status===status).map(r=>`<article class="record"><div class="heading-row"><h3>${esc(r.medication)}</h3><button type="button" class="secondary" data-edit-medication="${esc(r.id)}">Edit medication</button></div><dl><dt>Amount taken each time</dt><dd>${esc(r.dosage||'Not recorded')}</dd><dt>Frequency</dt><dd>${esc(r.frequency||'Not recorded')}</dd><dt>Start Date</dt><dd>${esc(r.start_date||'Unknown')}</dd><dt>End Date</dt><dd>${esc(r.status==='Current'?'Current — no end date':r.end_date||'Unknown')}</dd><dt>Prescribing Physician</dt><dd>${esc(r.prescribing_physician||'Not recorded')}</dd><dt>Benefit</dt><dd>${esc(r.benefit||'Not recorded')}</dd></dl></article>`).join('')||'<p class="empty">No '+status.toLowerCase()+' medications recorded.</p>'}</section>`;
- return `<section class="card">${bpsSubnav()}<h2>Psychiatric Medications</h2><h3>${edit?'Edit medication':'Add medication'}</h3>${form('biopsychosocial_medication',`<input type="hidden" name="prior_id" value="${esc(edit?.id||'')}">`+medicationEntryFields(r,'med'),edit?'Save medication changes':'Add medication')}${edit?'<button type="button" class="secondary" id="med-new-entry">Cancel edit / New medication</button>':''}</section>
+ const list=status=>`<section class="card"><h2>${status==='Current'?'Current Medications':'Past Medications'}</h2>${entries.filter(r=>r.status===status).map(r=>`<article class="record"><div class="heading-row"><h3>${esc(r.medication)}</h3><button type="button" class="secondary" data-edit-medication="${esc(r.id)}">Edit medication</button></div><dl><dt>Amount taken each time</dt><dd>${esc(r.dosage||'Not recorded')}</dd><dt>Frequency</dt><dd>${esc(r.frequency||'Not recorded')}</dd><dt>Estimated duration</dt><dd>${esc(r.duration||'Not recorded')}</dd><dt>Prescribing Physician</dt><dd>${esc(r.prescribing_physician||'Not recorded')}</dd><dt>Benefit</dt><dd>${esc(r.benefit||'Not recorded')}</dd></dl></article>`).join('')||'<p class="empty">No '+status.toLowerCase()+' medications recorded.</p>'}</section>`;
+ return `<section class="card">${bpsSubnav()}<h2>Psychiatric Medications</h2>${patientId?`<p><a href="/emr/patients?patient=${encodeURIComponent(patientId)}&amp;review=emr-intake-medication-review">Open saved patient-reported medications</a></p>`:""}<section data-saved-medications></section><h3>${edit?'Edit medication':'Add medication'}</h3>${form('biopsychosocial_medication',`<input type="hidden" name="prior_id" value="${esc(edit?.id||'')}">`+medicationEntryFields(r,'med'),edit?'Save medication changes':'Add medication')}${edit?'<button type="button" class="secondary" id="med-new-entry">Cancel edit / New medication</button>':''}</section>
  <section class="card"><h2>Medication Allergies</h2>${form('medication_allergies',`<label class="field" for="med-allergy-status">Allergy Status<select id="med-allergy-status" name="allergy_status">${['Not yet reviewed','No known medication allergies','Medication allergies reported'].map(v=>`<option ${allergies?.allergy_status===v?'selected':''}>${v}</option>`).join('')}</select></label><label class="field" for="med-allergy-notes">Medication Allergies / Reactions<textarea id="med-allergy-notes" name="allergy_notes" maxlength="4000" rows="3">${esc(allergies?.allergy_notes||'')}</textarea></label>`,'Save medication allergies')}</section>${list('Current')}${list('Past')}${medicationIntakeDemoView()}`;
 }
 let medicationCatalogRequest;
@@ -177,10 +177,43 @@ function bindMedicationCatalog(form){
   }
  });
 }
+function refreshSavedMedications(container,id){
+ let pending=false;
+ async function refresh(){
+  if(!container.isConnected||patientId!==id){clearInterval(timer);return;}
+  if(pending||document.visibilityState!=='visible')return;
+  pending=true;
+  try{
+   const response=await fetch('/api/emr/patients?id='+encodeURIComponent(id),{cache:'no-store'});
+   if(!response.ok)throw Error('Saved intake medications unavailable.');
+   const data=await response.json();
+   if(!container.isConnected||patientId!==id||data.patients?.[0]?.id!==id)return;
+   const answers=data.intake?.answers??{};
+   const entries=JSON.parse(answers.medication_entries||'[]');
+   const heading=document.createElement('h3');
+   heading.textContent='Saved patient-reported medications';
+   const list=document.createElement('ul');
+   for(const entry of entries.filter(entry=>entry.medication&&entry.status!=='Past')){
+    const row=document.createElement('li');
+    row.textContent=[entry.medication,entry.duration,entry.dosage&&'Amount taken each time: '+entry.dosage,entry.frequency].filter(Boolean).join(' · ');
+    list.append(row);
+   }
+   const past=document.createElement('p');
+   past.textContent=answers.prior_psychiatric_medications?'Medications that helped in the past: '+answers.prior_psychiatric_medications:'';
+   container.replaceChildren(heading,list,past);
+  }catch{
+   if(container.isConnected&&patientId===id)container.textContent='Saved intake medications unavailable.';
+  }finally{pending=false;}
+ }
+ const timer=setInterval(refresh,5000);
+ void refresh();
+}
 function bindBpsMedications(){
+ const saved=document.querySelector('[data-saved-medications]');
+ if(saved&&patientId)refreshSavedMedications(saved,patientId);
  document.querySelectorAll('[data-edit-medication]').forEach(button=>button.addEventListener('click',()=>safeNavigate(()=>{bpsMedicationEdit=button.dataset.editMedication;render();})));
  document.querySelector('#med-new-entry')?.addEventListener('click',()=>safeNavigate(()=>{bpsMedicationEdit=null;render();}));
- const f=document.querySelector('form[data-action="biopsychosocial_medication"]');if(!f)return;bindMedicationCatalog(f);const status=f.elements.status,end=f.elements.end_date;let priorEnd=end.value;const update=()=>{if(status.value==='Current'){priorEnd=end.value||priorEnd;end.value='';end.disabled=true;}else{end.disabled=false;end.value=priorEnd;}};status.addEventListener('change',update);update();
+ const f=document.querySelector('form[data-action="biopsychosocial_medication"]');if(!f)return;bindMedicationCatalog(f);
  f.querySelectorAll('[name=benefit]').forEach(input=>input.addEventListener('change',()=>{if(input.checked)f.querySelectorAll('[name=benefit]').forEach(other=>{if(other!==input)other.checked=false;});}));
  document.querySelectorAll('form[data-action="biopsychosocial_medication"],form[data-action="medication_allergies"]').forEach(form=>form.addEventListener('input',()=>form.dataset.modified='true'));
 }

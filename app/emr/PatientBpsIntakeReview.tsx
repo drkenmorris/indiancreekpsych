@@ -6,7 +6,7 @@ import {MEDICATION_ENTRIES_KEY} from '@/lib/patient/medications';
 type Field={key:string;label:string;type:string;value:string};
 type Section={title:string;domain:string;disposition:'clinical'|'separate-review'|'reference';fields:Field[];answered:number};
 type Review={id:string;source_version:number;source_status:string;source_updated_at:string;created_at:string;clinical_answers:Record<string,string>;clinician_notes:BpsNotes;excluded_clinical_fields?:number};
-type ResponseData={patientId:string;source:{accountId:string;status:string;version:number;updatedAt:string};sections:Section[];unmappedKeys:string[];reviews:Review[]};
+type ResponseData={medicationEntries?:string;helpfulPastMedications?:string;patientId:string;source:{accountId:string;status:string;version:number;updatedAt:string};sections:Section[];unmappedKeys:string[];reviews:Review[]};
 const focusedReviewLinks:Record<string,{label:string;anchor:string}[]>={
  'Mental health treatment history':[
   {label:'Review reported counseling and psychiatric treatment history in the central chart',anchor:'emr-intake-treatment-history-review'}],
@@ -108,7 +108,7 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
      <p>Opens the existing clinician-review workflow for this exact central patient. Opening a link never copies, approves or saves patient statements.</p>
     </nav>}
     <dl>{section.fields.filter(field=>field.value.trim()).map(field=><div key={field.key}>
-      <dt>{field.label}</dt><dd style={{whiteSpace:'pre-wrap'}}>{field.key===MEDICATION_ENTRIES_KEY?<IntakeMedications value={field.value} readOnly/>:readable(field)}</dd>
+      <dt>{field.label}</dt><dd style={{whiteSpace:'pre-wrap'}}>{field.key===MEDICATION_ENTRIES_KEY&&data.medicationEntries?<IntakeMedications value={data.medicationEntries} readOnly/>:field.key==='prior_psychiatric_medications'&&data.helpfulPastMedications?data.helpfulPastMedications:readable(field)}</dd>
      </div>)}</dl>{section.answered===0&&<p>No response recorded. Blank is not equivalent to a negative clinical finding.</p>}
    </details>)}
    {data.reviews.length>0&&<details><summary>Previously saved immutable clinician reviews ({data.reviews.length})</summary>

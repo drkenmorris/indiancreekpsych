@@ -102,7 +102,28 @@ export default function AppointmentsClient({userId,accountType,preferredName,ini
     }catch(error){setRuleMessage(error instanceof Error?error.message:"Removal was not verified. Refresh before retrying.");}
     finally{setBusy(false);}
   };
-  const addBlock=async(e:FormEvent)=>{e.preventDefault();const payload={starts_at:new Date(block.starts_at).toISOString(),ends_at:new Date(block.ends_at).toISOString(),label:block.label||null};const {data,error}=await supabase.from("appointment_blocks").insert(payload).select().single();if(error)setMessage(error.message);else{setBlocks(v=>[...v,data as Block].sort((a,b)=>a.starts_at.localeCompare(b.starts_at)));await loadSlots();setMessage("Blocked time added.");}};
+  const addBlock=async(e:FormEvent)=>{
+    e.preventDefault();if(busy)return;setBusy(true);setMessage("");
+    try{
+      const starts=new Date(block.starts_at),ends=new Date(block.ends_at);
+      if(!Number.isFinite(starts.getTime())||!Number.isFinite(ends.getTime())||ends<=starts)
+        throw new Error("Choose valid blocked-time dates with an end later than the start.");
+      const payload={starts_at:starts.toISOString(),ends_at:ends.toISOString(),label:block.label||null};
+      const {data,error}=await supabase.from("appointment_blocks").insert(payload).select().single();
+      if(error)throw error;
+      // A non-error insert response is not a verified blackout. Require the
+      // returned persisted row to match the exact interval and label requested.
+      // On an ambiguous receipt, do not invite a blind retry: the row may exist.
+      if(!data||typeof data.id!=="string"||!data.id||
+        Date.parse(data.starts_at)!==starts.getTime()||
+        Date.parse(data.ends_at)!==ends.getTime()||data.label!==payload.label)
+        throw new Error("Blackout was not verified in the database. Refresh the schedule before retrying.");
+      setBlocks(v=>[...v,data as Block].sort((a,b)=>a.starts_at.localeCompare(b.starts_at)));
+      await loadSlots();setMessage("Blocked time saved and verified.");
+    }catch(error){
+      setMessage(error instanceof Error?error.message:"Blackout could not be verified. Refresh before retrying.");
+    }finally{setBusy(false);}
+  };
   const deleteBlock=async(id:string)=>{
     if(busy)return;setBusy(true);setMessage("");
     try{
@@ -188,7 +209,7 @@ export default function AppointmentsClient({userId,accountType,preferredName,ini
       </section>}
 
       {view==="blackouts"&&<section className="appointmentPanel"><p className="eyebrow">Blocked time</p><h2>Blackout periods</h2>
-        <form className="inlineSchedulerForm blockForm" onSubmit={addBlock}><label>Starts<input type="datetime-local" value={block.starts_at} onChange={e=>setBlock({...block,starts_at:e.target.value})}/></label><label>Ends<input type="datetime-local" value={block.ends_at} onChange={e=>setBlock({...block,ends_at:e.target.value})}/></label><label>Label<input placeholder="Vacation, meeting, personal time" value={block.label} onChange={e=>setBlock({...block,label:e.target.value})}/></label><button type="submit">Block time</button></form>
+        <form className="inlineSchedulerForm blockForm" onSubmit={addBlock}><label>Starts<input type="datetime-local" value={block.starts_at} onChange={e=>setBlock({...block,starts_at:e.target.value})}/></label><label>Ends<input type="datetime-local" value={block.ends_at} onChange={e=>setBlock({...block,ends_at:e.target.value})}/></label><label>Label<input placeholder="Vacation, meeting, personal time" value={block.label} onChange={e=>setBlock({...block,label:e.target.value})}/></label><button type="submit" disabled={busy}>{busy?"Working…":"Block time"}</button></form>
         <div className="ruleList">{blocks.map(b=><article key={b.id}><div><strong>{b.label||"Blocked time"}</strong><span>{new Date(b.starts_at).toLocaleString()} – {new Date(b.ends_at).toLocaleString()}</span></div><button className="secondaryAction" type="button" disabled={busy} onClick={()=>void deleteBlock(b.id)}>Remove</button></article>)}</div>
       </section>}
     </>}

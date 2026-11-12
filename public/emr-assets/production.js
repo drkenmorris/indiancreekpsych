@@ -21,9 +21,21 @@ async function populateOriginalBpsIntake(panel,id,generation){
   if(!source||typeof source.accountId!=='string'||
    !/^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(source.accountId)||
    !['draft','submitted'].includes(source.status)||
-   !Number.isInteger(source.version)||source.version<1||
+   !Number.isSafeInteger(source.version)||source.version<1||
    typeof source.updatedAt!=='string'||!Number.isFinite(Date.parse(source.updatedAt)))
    throw Error('Linked intake source identity, status, version or timestamp could not be verified.');
+  // A partial or malformed clinical history is NOT an empty review history. Refuse
+  // to display source answers or claim an attested review until provenance is sound.
+  if(!Array.isArray(result.reviews)||!Array.isArray(result.unmappedKeys)||
+   !result.reviews.every(review=>review&&typeof review==='object'&&
+    /^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(review.id)&&
+    typeof review.reviewed==='boolean'&&
+    Number.isSafeInteger(review.source_version)&&review.source_version>0&&
+    ['draft','submitted'].includes(review.source_status)&&
+    typeof review.source_updated_at==='string'&&Number.isFinite(Date.parse(review.source_updated_at))&&
+    typeof review.created_at==='string'&&Number.isFinite(Date.parse(review.created_at)))||
+   !result.unmappedKeys.every(key=>typeof key==='string'))
+   throw Error('Linked intake review history provenance or unmapped-field audit could not be verified.');
   panel.replaceChildren();
   const heading=document.createElement('h2');heading.textContent='Linked patient intake — BPS source context';
   panel.append(heading);

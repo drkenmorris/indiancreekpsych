@@ -41,4 +41,4 @@ async function loadRiskAssessment(panel,id,generation){
  }catch(error){if(current()){panel.replaceChildren();const message=document.createElement('p');message.setAttribute('role','alert');message.textContent=error instanceof Error?error.message:'Unable to load the submitted risk screening.';panel.append(message);}}
 }
 const riskPreviousRender=render;
-render=function(){const generation=++riskAssessmentGeneration;const result=riskPreviousRender();const panel=document.querySelector('#risk-assessment-source');if(panel&&patientId)void loadRiskAssessment(panel,patientId,generation);return result;};
+render=function(){if(activeSection?.module==='assessment'&&activeSection.key==='risk_assessment')view='module-section';const generation=++riskAssessmentGeneration;const result=riskPreviousRender();const panel=document.querySelector('#risk-assessment-source');if(panel&&patientId)void loadRiskAssessment(panel,patientId,generation);return result;};

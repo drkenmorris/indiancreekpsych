@@ -123,3 +123,24 @@ test('historical clinician-note columns are filtered before the protected chart 
  });
  expect(malformed.excluded_clinician_notes).toBe(1);
 });
+
+
+test('protected BPS source API never returns unapproved raw emergency-contact PII from clinical-classified intake fields',async()=>{
+ const privateName='PRIVATE_EMERGENCY_CONTACT_NAME';
+ const privatePhone='PRIVATE_EMERGENCY_CONTACT_PHONE';
+ data={...data,emergency_contact_name:privateName,emergency_contact_phone:privatePhone,
+  counseling_reason:'Fictional safe presenting reason'};
+ const response=await GET(request());
+ expect(response.status).toBe(200);
+ const body=await response.json();
+ const section=body.sections.find((s:{title:string})=>s.title==='Emergency contact, guardian, and responsible party');
+ for(const key of ['emergency_contact_name','emergency_contact_phone']){
+  const field=section.fields.find((f:{key:string})=>f.key===key);
+  expect(field.reported).toBe(true);
+  expect(field.sourceOnly).toBe(true);
+  expect(field.value).toContain('protected source');
+ }
+ expect(JSON.stringify(body)).not.toContain(privateName);
+ expect(JSON.stringify(body)).not.toContain(privatePhone);
+ expect(JSON.stringify(body)).toContain('Fictional safe presenting reason');
+});

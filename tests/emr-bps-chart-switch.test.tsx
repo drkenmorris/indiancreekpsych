@@ -57,6 +57,9 @@ test.each([
  ['zero source version', {version:0}],
  ['unsafe integer source version', {version:Number.MAX_SAFE_INTEGER+1}],
  ['invalid source timestamp', {updatedAt:'not-a-timestamp'}],
+  ['ambiguous numeric source timestamp', {updatedAt:'1'}],
+  ['calendar-normalized impossible source date', {updatedAt:'2026-02-30T09:00:00Z'}],
+  ['date-only source without clock or timezone', {updatedAt:'2026-11-10'}],
  ['missing history array', {reviews:null}]
 ])('clinician BPS review withholds patient statements and save controls for %s',async(_reason,change)=>{
  const id='00000000-0000-4000-8000-000000000801';

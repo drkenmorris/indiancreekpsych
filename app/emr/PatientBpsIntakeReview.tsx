@@ -1,6 +1,6 @@
 'use client';
 import {useEffect,useRef,useState,type FormEvent} from 'react';
-import {bpsNoteDomains,emptyBpsNotes,mapSavedBpsReportedFields,type BpsNotes} from '@/lib/emr/intake-bps';
+import {bpsNoteDomains,emptyBpsNotes,mapSavedBpsReportedFields,bpsVisibleSourceKeys,type BpsNotes} from '@/lib/emr/intake-bps';
 type Field={key:string;label:string;type:string;value:string;sourceOnly?:boolean;reported?:boolean};
 type Section={title:string;domain:string;disposition:'clinical'|'separate-review'|'reference';fields:Field[];answered:number};
 type Review={id:string;source_version:number;source_status:string;source_updated_at:string;created_at:string;clinical_answers:Record<string,string>;clinician_notes:BpsNotes;excluded_clinical_fields?:number};
@@ -18,7 +18,7 @@ const focusedReviewLinks:Record<string,{label:string;anchor:string}[]>={
 };
 const protectedSourceTypes=new Set(['treatment-history','medications','medical-substance','trauma-history','legal-routing','dsm-version']);
 const readable=(field:Field,disposition:Section['disposition'])=>
- disposition!=='clinical'||field.sourceOnly!==false||protectedSourceTypes.has(field.type)?
+ disposition!=='clinical'||field.sourceOnly!==false||!bpsVisibleSourceKeys.has(field.key)||protectedSourceTypes.has(field.type)?
  'Structured questionnaire: use the protected original intake or the dedicated reconciliation module; raw content is not automatically imported.':field.value;
 async function json(response:Response){const data=await response.json();if(!response.ok)throw Error(data.error||'Protected BPS request failed.');return data;}
 export default function PatientBpsIntakeReview({patientId}:{patientId:string}){

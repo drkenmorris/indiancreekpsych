@@ -72,11 +72,11 @@ export function mapIntakeToBps(answers:Record<string,string>){
   const fields=section.fields.map(([key,label,type])=>{
    const raw=typeof answers[key]==='string'?answers[key]:'';
    const reported=raw.trim().length>0;
-   const sourceOnly=reported&&(rule.disposition!=='clinical'||structuredSourceTypes.has(type));
+   const sourceOnly=reported&&(rule.disposition!=='clinical'||structuredSourceTypes.has(type)||!bpsVisibleSourceKeys.has(key));
    return {key,label,type,value:sourceOnly?'Recorded in protected source; not copied into BPS.':raw,
     sourceOnly,reported};
   });
-  // These fields are no longer on the editable intake. Surface nonempty legacy
+  // Fail closed at the API boundary, not only in the browser: current and future\n  // intake fields are raw-readable only when explicitly approved for BPS context.\n  // These fields are no longer on the editable intake. Surface nonempty legacy
   // statements in the protected source review, explicitly labeled historical;
   // do not synthesize negatives for missing responses or silently sign a chart.
   for(const [key,label] of historicalClinicalFields){

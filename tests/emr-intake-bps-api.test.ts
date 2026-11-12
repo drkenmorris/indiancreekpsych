@@ -96,3 +96,30 @@ test('saved BPS history cannot follow a relinked patient account or cross into a
  reviewRows=[{...reviewRows[0],source_account_id:account,patient_id:'00000000-0000-0000-0000-000000000998'}];
  expect((await GET(request())).status).toBe(409);
 });
+
+test('historical clinician-note columns are filtered before the protected chart API responds',async()=>{
+ const allowed='Independent fictional clinician context';
+ const secret='PRIVATE_INSURANCE_OR_LEGAL_NOTE_MUST_NOT_LEAK';
+ reviewRows=[{id:'00000000-0000-0000-0000-000000000600',patient_id:patient,source_account_id:account,
+   source_version:2,source_status:'submitted',source_updated_at:stamp,created_at:stamp,
+   clinical_answers:{counseling_reason:'Patient-reported concern'},
+   clinician_notes:{presenting:allowed,insurance_member:secret,
+    legal_decision:'PRIVATE_LEGAL_NOTE',medical:12345,safety:'S'.repeat(4001)}}];
+ const response=await GET(request());
+ expect(response.status).toBe(200);
+ const body=await response.json();
+ const saved=body.reviews[0];
+ expect(saved.clinician_notes.presenting).toBe(allowed);
+ expect(saved.clinician_notes.safety).toBe('');
+ expect(saved.excluded_clinician_notes).toBe(4);
+ for(const unsafe of [secret,'PRIVATE_LEGAL_NOTE','S'.repeat(4001),'insurance_member','legal_decision'])
+  expect(JSON.stringify(saved)).not.toContain(unsafe);
+ reviewRows=[{...reviewRows[0],clinician_notes:null}];
+ const invalid=await GET(request());
+ expect(invalid.status).toBe(200);
+ const malformed=(await invalid.json()).reviews[0];
+ expect(malformed.clinician_notes).toEqual({
+   presenting:'',treatment:'',medical:'',safety:'',family:'',goals:'',limitations:''
+ });
+ expect(malformed.excluded_clinician_notes).toBe(1);
+});

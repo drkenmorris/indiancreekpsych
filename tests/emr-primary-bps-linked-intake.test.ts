@@ -108,7 +108,7 @@ test('BPS intake API or migration failure is visible, never represented as saved
 test('primary original BPS displays immutable snapshot provenance without leaking historical clinical or legal payloads',async()=>{
  const past={...report(firstPatient),reviews:[{
   id:'00000000-0000-4000-8000-000000000999',
-  source_version:5,source_status:'submitted',source_updated_at:'2026-11-09T12:00:00Z',
+  reviewed:true,source_version:5,source_status:'submitted',source_updated_at:'2026-11-09T12:00:00Z',
   created_at:'2026-11-09T12:30:00Z',
   clinical_answers:{counseling_reason:'DO NOT ECHO HISTORY',roi_authorize:'DO NOT ECHO LEGAL'},
   clinician_notes:{presenting:'DO NOT ECHO PRIVATE CLINICIAN NOTE'}
@@ -132,7 +132,7 @@ test('primary original BPS displays immutable snapshot provenance without leakin
 test('exactly matching clinician-reviewed BPS source version, status and timestamp is not marked stale',async()=>{
  const current={...report(firstPatient),reviews:[{
   id:'00000000-0000-4000-8000-000000000998',
-  source_version:6,source_status:'submitted',source_updated_at:'2026-11-10T12:00:00+00:00',
+  reviewed:true,source_version:6,source_status:'submitted',source_updated_at:'2026-11-10T12:00:00+00:00',
   created_at:'2026-11-10T12:10:00Z',
   clinical_answers:{},clinician_notes:{}
  }]};
@@ -230,4 +230,23 @@ test('original BPS browser allowlist is synchronized with the typed clinical sou
  const keys=JSON.parse(match![1]) as string[];
  expect(new Set(keys).size).toBe(keys.length);
  expect(new Set(keys)).toEqual(bpsVisibleSourceKeys);
+});
+
+
+test('original BPS does not report a current source reviewed when the stored row lacks clinician attestation',async()=>{
+ const unverified={...report(firstPatient),reviews:[{
+  id:'00000000-0000-4000-8000-000000000998',reviewed:false,
+  source_version:6,source_status:'submitted',source_updated_at:'2026-11-10T12:00:00Z',
+  created_at:'2026-11-10T12:10:00Z',clinical_answers:{},clinician_notes:{}
+ }]};
+ const {ctx,dom}=harness(async()=>Response.json(unverified));
+ ctx.render();
+ await vi.waitFor(()=>expect(dom.window.document.querySelector(
+  'section[aria-label="Clinician-reviewed BPS intake snapshot history"]'
+ )?.textContent).toContain('Unverified review attestation'));
+ const history=dom.window.document.querySelector(
+  'section[aria-label="Clinician-reviewed BPS intake snapshot history"]')!;
+ expect(history.textContent).toContain('current intake version has changed');
+ expect(history.textContent).not.toContain('Unsigned review of submitted intake version 6');
+ dom.window.close();
 });

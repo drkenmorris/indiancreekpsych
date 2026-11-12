@@ -1,6 +1,8 @@
 'use client';
 import {useEffect,useRef,useState,type FormEvent} from 'react';
 import {bpsNoteDomains,emptyBpsNotes,mapSavedBpsReportedFields,type BpsNotes} from '@/lib/emr/intake-bps';
+import IntakeMedications from '@/app/components/IntakeMedications';
+import {MEDICATION_ENTRIES_KEY} from '@/lib/patient/medications';
 type Field={key:string;label:string;type:string;value:string};
 type Section={title:string;domain:string;disposition:'clinical'|'separate-review'|'reference';fields:Field[];answered:number};
 type Review={id:string;source_version:number;source_status:string;source_updated_at:string;created_at:string;clinical_answers:Record<string,string>;clinician_notes:BpsNotes;excluded_clinical_fields?:number};
@@ -26,6 +28,8 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
  [acknowledgedVersion,setAcknowledgedVersion]=useState<number|null>(null);
  // A save may finish after the clinician switches patients. Never allow its result
  // to update a different chart (including A → B → A navigation).
+ const reviewInProgress=useRef(false);
+ reviewInProgress.current=prepared||saving;
  const chartScope=useRef({patientId,generation:0});
  // The database allows only one append-only review per clinician, central chart and
  // source version. Show that invariant before another submit, and keep it enforced
@@ -41,9 +45,21 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
   if(chartScope.current.patientId!==patientId)chartScope.current={patientId,generation:chartScope.current.generation+1};
   setData(null);setError('');setStatus('');setLoading(true);setPrepared(false);setSaving(false);
   setReviewed(false);setNotes(emptyBpsNotes());setAcknowledgedVersion(null);
-  load(patientId).then(value=>{if(active)setData(value);}).catch(e=>{if(active)setError(e instanceof Error?e.message:'BPS intake unavailable.');})
-   .finally(()=>{if(active)setLoading(false);});
-  return ()=>{active=false;};
+  reviewInProgress.current=false;
+  let pending=false;
+  async function refresh(){
+   if(pending||reviewInProgress.current)return;
+   pending=true;
+   try{
+    const value=await load(patientId);
+    if(active&&!reviewInProgress.current){setData(value);setError('');}
+   }catch(e){if(active&&!reviewInProgress.current){setData(null);setError(e instanceof Error?e.message:'BPS intake unavailable.');}}
+   finally{pending=false;if(active)setLoading(false);}
+  }
+  void refresh();
+  const timer=window.setInterval(()=>{if(document.visibilityState==='visible')void refresh();},5000);
+  window.addEventListener('focus',refresh);
+  return ()=>{active=false;window.clearInterval(timer);window.removeEventListener('focus',refresh);};
  },[patientId]);
  async function save(event:FormEvent<HTMLFormElement>){
   event.preventDefault();if(!data||data.patientId!==patientId||!reviewed||saving||!prepared||versionAlreadyReviewed)return;
@@ -75,6 +91,7 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
   <p>Review the exact linked website patient's patient-reported intake. Clinical history is not an independently verified fact, diagnosis, signed assessment or risk clearance. Legal consent decisions and insurance remain in their own records. Medication, allergy, substance-use and structured trauma entries require their existing dedicated reconciliation modules.</p>
   {loading?<p role="status">Checking protected BPS intake…</p>:error?<p role="alert">{error}</p>:data?.patientId===patientId&&<>
    <p>Source: <strong>{data.source.status==='submitted'?'Submitted intake (immutable source)':'Draft intake (may change)'}</strong> · Version {data.source.version} · Last updated {new Date(data.source.updatedAt).toLocaleString()}</p>
+   <p>Saved patient answers refresh automatically while this page is open. Review drafts use the source version you opened.</p>
    <p>Sections audited: {data.sections.length}/21 · Saved clinician reviews: {data.reviews.length}.</p>
    {data.unmappedKeys.length>0&&<p role="alert">The source contains {data.unmappedKeys.length} additional historical or unrecognized field(s): {data.unmappedKeys.join(', ')}. These are NOT silently transferred. Review the original intake and resolve their mapping.</p>}
    <nav aria-label="Patient-scoped clinical reconciliation shortcuts">
@@ -91,7 +108,7 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
      <p>Opens the existing clinician-review workflow for this exact central patient. Opening a link never copies, approves or saves patient statements.</p>
     </nav>}
     <dl>{section.fields.filter(field=>field.value.trim()).map(field=><div key={field.key}>
-      <dt>{field.label}</dt><dd style={{whiteSpace:'pre-wrap'}}>{readable(field)}</dd>
+      <dt>{field.label}</dt><dd style={{whiteSpace:'pre-wrap'}}>{field.key===MEDICATION_ENTRIES_KEY?<IntakeMedications value={field.value} readOnly/>:readable(field)}</dd>
      </div>)}</dl>{section.answered===0&&<p>No response recorded. Blank is not equivalent to a negative clinical finding.</p>}
    </details>)}
    {data.reviews.length>0&&<details><summary>Previously saved immutable clinician reviews ({data.reviews.length})</summary>

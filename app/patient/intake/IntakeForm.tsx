@@ -102,7 +102,7 @@ export default function IntakeForm({userId,initial,defaults,preview=false}:{user
   {sectionIndex===sections.length-1&&(!submitted||!!answers[DSM_INTAKE_VERSION_KEY])&&<DsmVersionChoice value={answers[DSM_INTAKE_VERSION_KEY]??''} onChange={v=>update(DSM_INTAKE_VERSION_KEY,v)} dob={answers.date_of_birth} disabled={busy} readOnly={submitted}/>}
 
   {!submitted&&<section className="intakeWizardActions">
-   <p>* Required to submit. Drafts may be incomplete. {dirty?'You have unsaved changes.':''}</p>
+   <p>* Required to submit. Save draft on each page to share your saved answers with the practice before final submission. {dirty?'You have unsaved changes.':''}</p>
    <div className="intakeActionRow">
     <button className="secondaryAction" type="button" disabled={busy||sectionIndex===0} onClick={previous}>← Previous</button>
     <button className="secondaryAction" type="button" disabled={busy} onClick={()=>void save(false)}>{preview?'Check inputs (no save)':'Save draft'}</button>

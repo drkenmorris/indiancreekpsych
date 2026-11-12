@@ -85,6 +85,10 @@ async function populateOriginalBpsIntake(panel,id,generation){
   history.append(historyLink);
   panel.append(history);
   const protectedSourceTypes=new Set(['treatment-history','medications','medical-substance','trauma-history','legal-routing','dsm-version']);
+  // Defense-in-depth: mirror the server-approved BPS source keys, including
+  // retired contextual reports. Wrongly relabeled legal/coverage keys stay hidden.
+  // The Vitest parity assertion protects this list from drifting.
+  const bpsVisibleSourceKeys=new Set(["guardian_relationship","custody_notes","counseling_reason","concern_onset","concern_duration","precipitating_events","symptom_frequency","symptom_severity","functional_impact","sleep","appetite","energy","concentration","work_school_impact","relationship_impact","daily_living_impact","counseling_goals","prior_mental_health_treatment","prior_therapists","prior_diagnoses","self_harm_history","suicide_attempt_history","suicidal_thoughts_current","suicidal_plan_current","homicidal_thoughts_current","violence_risk_details","abuse_neglect_current","weapons_access","protective_factors","trauma_history","psychiatric_hospitalizations","prior_psychiatric_medications","family_mental_health_history","family_household","social_supports","education_history","employment_history","military_history","legal_history","cultural_spiritual_factors","strengths_interests"]);
   const details=document.createElement('details');
   const summary=document.createElement('summary');summary.textContent='Expand all 21 intake sections and patient-reported answers';
   details.append(summary);
@@ -105,7 +109,7 @@ async function populateOriginalBpsIntake(panel,id,generation){
      const value=document.createElement('dd');
      // A second presentation boundary: never expose structured or separate-review
      // values even if a malformed upstream response included them.
-     value.textContent=field.sourceOnly!==false||protectedSourceTypes.has(field.type)?
+     value.textContent=field.sourceOnly!==false||!bpsVisibleSourceKeys.has(field.key)||protectedSourceTypes.has(field.type)?
       'Stored in the dedicated protected intake/reconciliation source.':String(field.value??'');
      answers.append(label,value);
     }

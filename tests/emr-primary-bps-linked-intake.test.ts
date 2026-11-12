@@ -270,6 +270,16 @@ test.each([
   id:'00000000-0000-4000-8000-000000000998',
   reviewed:true,source_version:6,source_status:'submitted',
   source_updated_at:'not-a-date',created_at:'2026-11-10T12:10:00Z'
+ }]},
+ ['impossible historical source date',{reviews:[{
+  id:'00000000-0000-4000-8000-000000000998',
+  reviewed:true,source_version:6,source_status:'submitted',
+  source_updated_at:'2026-02-30T12:00:00Z',created_at:'2026-11-10T12:10:00Z'
+ }]},
+ ['ambiguous historical save date',{reviews:[{
+  id:'00000000-0000-4000-8000-000000000998',
+  reviewed:true,source_version:6,source_status:'submitted',
+  source_updated_at:'2026-11-10T12:00:00Z',created_at:'1'
  }]}]
 ])('original BPS refuses %s instead of claiming empty or reviewed history',async(_case,change)=>{
  const unsafe:any={...report(firstPatient),...change};
@@ -294,7 +304,10 @@ test.each([
  ['unexpected intake status',{status:'revoked'}],
  ['invalid source version',{version:0}],
  ['unsafe integer source version',{version:Number.MAX_SAFE_INTEGER+1}],
- ['unparseable source timestamp',{updatedAt:'not-a-source-timestamp'}]
+ ['unparseable source timestamp',{updatedAt:'not-a-source-timestamp'}],
+ ['impossible calendar source date',{updatedAt:'2026-02-30T12:00:00Z'}],
+ ['ambiguous numeric source date',{updatedAt:'1'}],
+ ['date-only source timestamp',{updatedAt:'2026-11-10'}]
 ])('original seven-page BPS refuses %s before displaying patient-reported intake',async(_case,change)=>{
  const unsafe=report(firstPatient);
  unsafe.sections[0].fields[0].value='PRIVATE_REPORTED_BPS_SOURCE';

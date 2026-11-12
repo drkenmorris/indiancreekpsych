@@ -4,6 +4,13 @@
 // intake in a read-only, explicitly patient-reported panel; clinical review and
 // saving remain in the protected clinician workflow, never in this preview.
 let linkedIntakeRenderGeneration=0;
+function validOriginalBpsTimestamp(value) {
+ if(typeof value!=='string')return false;
+ const match=/^(\d{4})-(\d{2})-(\d{2})T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d{1,9})?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/.exec(value);
+ if(!match||!Number.isFinite(Date.parse(value)))return false;
+ const year=Number(match[1]),month=Number(match[2]),day=Number(match[3]);
+ return month>=1&&month<=12&&day>=1&&day<=new Date(Date.UTC(year,month,0)).getUTCDate();
+}
 async function populateOriginalBpsIntake(panel,id,generation){
  const stillCurrent=()=>generation===linkedIntakeRenderGeneration&&patientId===id&&panel.isConnected;
  try{
@@ -22,7 +29,7 @@ async function populateOriginalBpsIntake(panel,id,generation){
    !/^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(source.accountId)||
    !['draft','submitted'].includes(source.status)||
    !Number.isSafeInteger(source.version)||source.version<1||
-   typeof source.updatedAt!=='string'||!Number.isFinite(Date.parse(source.updatedAt)))
+   !validOriginalBpsTimestamp(source.updatedAt))
    throw Error('Linked intake source identity, status, version or timestamp could not be verified.');
   // A partial or malformed clinical history is NOT an empty review history. Refuse
   // to display source answers or claim an attested review until provenance is sound.
@@ -32,8 +39,8 @@ async function populateOriginalBpsIntake(panel,id,generation){
     typeof review.reviewed==='boolean'&&
     Number.isSafeInteger(review.source_version)&&review.source_version>0&&
     ['draft','submitted'].includes(review.source_status)&&
-    typeof review.source_updated_at==='string'&&Number.isFinite(Date.parse(review.source_updated_at))&&
-    typeof review.created_at==='string'&&Number.isFinite(Date.parse(review.created_at)))||
+    validOriginalBpsTimestamp(review.source_updated_at)&&
+    validOriginalBpsTimestamp(review.created_at))||
    !result.unmappedKeys.every(key=>typeof key==='string'))
    throw Error('Linked intake review history provenance or unmapped-field audit could not be verified.');
   panel.replaceChildren();
@@ -93,7 +100,7 @@ async function populateOriginalBpsIntake(panel,id,generation){
   const currentReviewed=reviews.some(review=>review.reviewed===true&&
    review.source_version===result.source?.version&&
    review.source_status===result.source?.status&&
-   Number.isFinite(Date.parse(review.source_updated_at))&&
+   validOriginalBpsTimestamp(review.source_updated_at)&&
    Date.parse(review.source_updated_at)===Date.parse(result.source?.updatedAt));
   if(!currentReviewed){
    const warning=document.createElement('p');warning.setAttribute('role','status');

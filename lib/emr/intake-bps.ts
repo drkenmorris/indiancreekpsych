@@ -168,3 +168,19 @@ export function sanitizeBpsSnapshotAnswers(raw:unknown):{answers:Record<string,s
  }
  return {answers,excludedCount};
 }
+
+/** Fail-closed historical clinician-note readback. A malformed or pre-validation
+ * database row must not introduce unknown fields into the protected BPS API or
+ * the original clinician review. This does not modify the saved source record.
+ */
+export function sanitizeBpsClinicianNotes(raw:unknown):{notes:BpsNotes;excludedCount:number}{
+ const notes=emptyBpsNotes();
+ if(!raw||typeof raw!=='object'||Array.isArray(raw))return {notes,excludedCount:1};
+ let excludedCount=0;
+ for(const [key,value] of Object.entries(raw)){
+  if(Object.prototype.hasOwnProperty.call(bpsNoteDomains,key)&&typeof value==='string'&&value.length<=4000)
+   notes[key as BpsNoteKey]=value;
+  else excludedCount++;
+ }
+ return {notes,excludedCount};
+}

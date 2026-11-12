@@ -98,7 +98,7 @@ test('save accepts only explicit reviewed provenance and clinician notes, never 
   reviewed:true,clinician_notes:{presenting:'Reported changes',treatment:'',medical:'',safety:'',family:'',goals:'',limitations:''}}});
 });
 test('invalid identity, review, timestamps, source version or arbitrary note keys cannot reach save RPC',async()=>{
- for(const bad of [{...payload,reviewed:false},{...payload,patientId:'wrong'},{...payload,sourceAccountId:null},{...payload,sourceVersion:-1},
+ for(const bad of [{...payload,reviewed:false},{...payload,patientId:'wrong'},{...payload,sourceAccountId:null},{...payload,sourceVersion:-1},{...payload,sourceVersion:Number.MAX_SAFE_INTEGER+1},
   {...payload,sourceUpdatedAt:'invalid'}, {...payload,notes:{diagnosis:'fabricated'}},
   {...payload,notes:{safety:'x'.repeat(4001)}}, {...payload,notes:null}]){
   expect((await POST(submit(bad))).status).toBe(400);

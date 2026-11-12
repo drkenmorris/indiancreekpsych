@@ -46,6 +46,16 @@ export async function GET(request:Request){
   // snapshots from the former account under the newly linked patient's clinical source.
   if((reviews??[]).some(review=>review.patient_id!==id||review.source_account_id!==source.patient.account_id))
    return reply({error:'BPS review provenance does not match the current linked patient account.'},409);
+  // Historical review metadata is also protected clinical provenance. A database
+  // scope filter cannot establish that a returned row is an identifiable,
+  // versioned clinical snapshot. Withhold the entire response if any returned
+  // row is malformed rather than expose its answers under a fabricated date.
+  if((reviews??[]).some(review=>!uuid(review.id)||
+    !Number.isSafeInteger(review.source_version)||review.source_version<1||
+    (review.source_status!=='draft'&&review.source_status!=='submitted')||
+    typeof review.source_updated_at!=='string'||!Number.isFinite(Date.parse(review.source_updated_at))||
+    typeof review.created_at!=='string'||!Number.isFinite(Date.parse(review.created_at))))
+   return reply({error:'BPS historical review provenance could not be verified.'},409);
   const safeReviews=(reviews??[]).map(({patient_id:_patient,source_account_id:_account,...review})=>{
    // A malformed or historical review must never leak unapproved intake fields
    // in the API payload, even if the browser also filters its visible content.

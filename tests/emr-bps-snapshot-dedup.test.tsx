@@ -41,3 +41,51 @@ test('an acknowledged save stays locked if the history read-back fails',async()=
  expect(posts).toBe(1);
  expect(reads).toBe(2);
 });
+
+
+test('clinician BPS save is independently confirmed only after exact source-provenant chart history readback',async()=>{
+ const savedId='00000000-0000-4000-8000-000000000999';
+ let reads=0;
+ vi.stubGlobal('fetch',vi.fn(async (_url:string,options?:RequestInit)=>{
+  if(options?.method==='POST')return Response.json({saved:true,id:savedId});
+  reads++;
+  return Response.json(reads===1?source():source([{
+   id:savedId,source_version:7,source_status:'submitted',
+   source_updated_at:'2026-11-10T06:00:00-06:00',created_at:stamp,
+   clinical_answers:{},clinician_notes:{}
+  }]));
+ }));
+ render(<PatientBpsIntakeReview patientId={patient}/>);
+ await screen.findByText(/Version 7/);
+ fireEvent.click(screen.getByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i}));
+ fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed this intake/i}));
+ fireEvent.click(screen.getByRole('button',{name:/Save reviewed BPS history snapshot/i}));
+ await screen.findByText(/snapshot saved in the protected chart/);
+ expect(screen.queryByText(/NOT verified in chart history/)).toBeNull();
+ expect(reads).toBe(2);
+});
+
+test('clinician BPS save cannot claim verified chart history when readback has mismatched source provenance',async()=>{
+ const savedId='00000000-0000-4000-8000-000000000999';
+ let reads=0,posts=0;
+ vi.stubGlobal('fetch',vi.fn(async (_url:string,options?:RequestInit)=>{
+  if(options?.method==='POST'){posts++;return Response.json({saved:true,id:savedId});}
+  reads++;
+  return Response.json(reads===1?source():source([{
+   id:savedId,source_version:6,source_status:'submitted',
+   source_updated_at:stamp,created_at:stamp,
+   clinical_answers:{},clinician_notes:{}
+  }]));
+ }));
+ render(<PatientBpsIntakeReview patientId={patient}/>);
+ await screen.findByText(/Version 7/);
+ fireEvent.click(screen.getByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i}));
+ fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed this intake/i}));
+ fireEvent.click(screen.getByRole('button',{name:/Save reviewed BPS history snapshot/i}));
+ await screen.findByText(/NOT verified in chart history/);
+ expect(screen.queryByText(/snapshot saved in the protected chart/)).toBeNull();
+ expect(screen.getByText(/A clinician-reviewed BPS snapshot for this source version has already been saved/)).toBeTruthy();
+ expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
+ expect(posts).toBe(1);
+ expect(reads).toBe(2);
+});

@@ -208,14 +208,16 @@ test('original BPS redacts malformed structured, reference and missing-marker so
  unsafe.sections[2].fields[0].value='DO_NOT_LEAK_REFERENCE_LEGAL';
  unsafe.sections[0].fields.push(
   {key:'insurance_member',label:'Falsely typed insurance field',type:'text',reported:true,sourceOnly:false,value:'DO_NOT_LEAK_SPOOFED_INSURANCE'},
-  {key:'roi_authorize',label:'Falsely typed legal field',type:'text',reported:true,sourceOnly:false,value:'DO_NOT_LEAK_SPOOFED_LEGAL'}
+  {key:'roi_authorize',label:'Falsely typed legal field',type:'text',reported:true,sourceOnly:false,value:'DO_NOT_LEAK_SPOOFED_LEGAL'},
+  {key:'prior_psychiatric_medications',label:'Retired medication spoof',type:'historical-patient-report',reported:true,sourceOnly:false,value:'DO_NOT_LEAK_RETIRED_MEDICATION'},
+  {key:'legal_history',label:'Retired legal history spoof',type:'historical-patient-report',reported:true,sourceOnly:false,value:'DO_NOT_LEAK_RETIRED_LEGAL'}
  );
  const {ctx,dom}=harness(async()=>Response.json(unsafe));
  ctx.render();
  await vi.waitFor(()=>expect(dom.window.document.querySelector('section[aria-label="Patient intake context in original biopsychosocial workspace"]')?.textContent).toContain('source version 6'));
  const displayed=dom.window.document.querySelector('section[aria-label="Patient intake context in original biopsychosocial workspace"]')!.textContent||'';
  expect(displayed).toContain('Fictional patient-reported concern');
- for(const secret of ['DO_NOT_LEAK_STRUCTURED_MEDICATION','DO_NOT_LEAK_MISSING_MARKER','DO_NOT_LEAK_REFERENCE_LEGAL','DO_NOT_LEAK_SPOOFED_INSURANCE','DO_NOT_LEAK_SPOOFED_LEGAL'])expect(displayed).not.toContain(secret);
+ for(const secret of ['DO_NOT_LEAK_STRUCTURED_MEDICATION','DO_NOT_LEAK_MISSING_MARKER','DO_NOT_LEAK_REFERENCE_LEGAL','DO_NOT_LEAK_SPOOFED_INSURANCE','DO_NOT_LEAK_SPOOFED_LEGAL','DO_NOT_LEAK_RETIRED_MEDICATION','DO_NOT_LEAK_RETIRED_LEGAL'])expect(displayed).not.toContain(secret);
  expect(displayed).toContain('Stored in the dedicated protected intake/reconciliation source.');
  dom.window.close();
 });

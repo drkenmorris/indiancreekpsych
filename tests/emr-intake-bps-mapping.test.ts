@@ -145,9 +145,11 @@ test('all eleven retired psychiatric, family, social and legal context responses
   expect(item,'Unrouted retired clinical field: '+key).toBeDefined();
   expect(item?.disposition).toBe('clinical');
   expect(item?.reported).toBe(true);
-  expect(item?.sourceOnly).toBe(false);
+  const protectedLegacy=key==='prior_psychiatric_medications'||key==='legal_history';
+  expect(item?.sourceOnly).toBe(protectedLegacy);
   expect(item?.label).toContain('Historical patient report');
-  expect(item?.value).toBe('Historical patient report for '+key);
+  expect(item?.value).toBe(protectedLegacy?'Recorded in protected source; not copied into BPS.':'Historical patient report for '+key);
+  if(protectedLegacy)expect(JSON.stringify(report)).not.toContain('Historical patient report for '+key);
   expect(report.unmappedKeys).not.toContain(key);
  }
  expect(historical.filter(field=>field.domain==='Mental health treatment history')).toHaveLength(2);

@@ -140,6 +140,16 @@ export const bpsSnapshotClinicalKeys = new Set<string>([
  "protective_factors",
  "trauma_history"
 ]);
+/** A second presentation-layer allowlist. Only specifically approved clinical
+ * answers and known retired contextual reports can appear in BPS read-only
+ * context. A malformed upstream API must not relabel legal, insurance, or
+ * medication keys as innocuous clinical text to expose them in this view.
+ * Snapshot storage retains its stricter separate bpsSnapshotClinicalKeys list.
+ */
+export const bpsVisibleSourceKeys = new Set<string>([
+ ...bpsSnapshotClinicalKeys,
+ ...Object.keys(historicalBpsDomain)
+]);
 export function sanitizeBpsSnapshotAnswers(raw:unknown):{answers:Record<string,string>;excludedCount:number}{
  const answers:Record<string,string>={};
  if(!raw||typeof raw!=='object'||Array.isArray(raw))return {answers,excludedCount:1};

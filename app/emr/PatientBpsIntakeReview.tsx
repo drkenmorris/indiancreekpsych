@@ -65,7 +65,17 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
    setStatus('Clinician-reviewed, unsigned BPS intake snapshot saved in the protected chart. Patient statements remain patient-reported; no diagnosis, authorization, or signature was created.');
    try{
     const next=await load(patientId);
-    if(stillOnChart())setData(next);
+    if(stillOnChart()){
+     setData(next);
+     // A successful write receipt alone does not prove the new review is readable
+     // under the same chart, source status, version and timestamp. Do not report
+     // clinician-history readback as verified until the exact saved row is present.
+     const verified=typeof result.id==='string'&&next.reviews.some(review=>
+      review.id===result.id&&review.source_version===data.source.version&&
+      review.source_status===data.source.status&&
+      Date.parse(review.source_updated_at)===Date.parse(data.source.updatedAt));
+     if(!verified)setStatus('BPS save was acknowledged, but the exact saved review and source provenance were NOT verified in chart history. Reopen this chart and investigate before relying on the new review; do not submit it again.');
+    }
    }catch{
     if(stillOnChart())setStatus('The clinician-reviewed BPS snapshot WAS saved, but its history could not be reloaded. Reopen this patient chart to check the saved review; do not submit it again.');
    }

@@ -1,6 +1,6 @@
 import {expect,test} from 'vitest';
 import {intakeSections,intakeSectionsForVersion,retiredMentalHealthFields,retiredContextFields} from '@/lib/patient/intake';
-import {bpsNoteDomains,bpsSectionClassification,mapIntakeToBps,mapSavedBpsReportedFields,sanitizeBpsSnapshotAnswers,bpsSnapshotClinicalKeys} from '@/lib/emr/intake-bps';
+import {bpsNoteDomains,bpsSectionClassification,mapIntakeToBps,mapSavedBpsReportedFields,sanitizeBpsSnapshotAnswers,bpsSnapshotClinicalKeys,bpsVisibleSourceKeys} from '@/lib/emr/intake-bps';
 test('all 21 current and historical sections receive deliberate BPS dispositions',()=>{
  for(const sections of [intakeSections,intakeSectionsForVersion('legacy')]){
   expect(sections).toHaveLength(21);
@@ -76,7 +76,7 @@ test('all 21 intake sections audit source presence without exposing separately r
   expect(audited.fields.map(field=>field.key)).toEqual(original.fields.map(([key])=>key));
   for(const field of audited.fields){
    expect(field.reported).toBe(true);
-   if(audited.disposition!=='clinical'||['treatment-history','medications','medical-substance','trauma-history','legal-routing','dsm-version'].includes(field.type)){
+   if(audited.disposition!=='clinical'||!bpsVisibleSourceKeys.has(field.key)||['treatment-history','medications','medical-substance','trauma-history','legal-routing','dsm-version'].includes(field.type)){
     expect(field.sourceOnly).toBe(true);
     expect(field.value).toBe('Recorded in protected source; not copied into BPS.');
     expect(field.value).not.toContain('PRIVATE_SOURCE_');
@@ -117,7 +117,7 @@ test('directory-era 21-section intake fields receive the same source-only privac
   expect(report.sections[i].fields.map(field=>field.key)).toEqual(sections[i].fields.map(([key])=>key));
   expect(report.sections[i].answered).toBe(sections[i].fields.length);
   for(const field of report.sections[i].fields){
-   const separate=report.sections[i].disposition!=='clinical'||
+   const separate=report.sections[i].disposition!=='clinical'||!bpsVisibleSourceKeys.has(field.key)||
     ['treatment-history','medications','medical-substance','trauma-history','legal-routing','dsm-version'].includes(field.type);
    expect(field.sourceOnly).toBe(separate);
    expect(field.value).toBe(separate?'Recorded in protected source; not copied into BPS.':'PRIVATE_DIRECTORY_'+field.key);
@@ -167,4 +167,24 @@ test('retired intake fields stay absent when not reported and blanks cannot impl
  expect(report.sections).toHaveLength(21);
  expect(report.sections.flatMap(section=>section.fields).filter(field=>field.type==='historical-patient-report')).toHaveLength(0);
  expect(report.unmappedKeys).toEqual([]);
+});
+
+
+test('the server BPS mapper withholds unexpected emergency contact and administrative raw values even when inside a clinical section',()=>{
+ const secretName='CONFIDENTIAL_EMERGENCY_CONTACT_NAME';
+ const secretPhone='CONFIDENTIAL_EMERGENCY_CONTACT_PHONE';
+ const report=mapIntakeToBps({
+  emergency_contact_name:secretName,emergency_contact_phone:secretPhone,
+  counseling_reason:'Fictional presenting concern',guardian_relationship:'Parent'
+ });
+ const fields=report.sections.flatMap(section=>section.fields);
+ for(const [key,secret] of [['emergency_contact_name',secretName],['emergency_contact_phone',secretPhone]]){
+  const field=fields.find(item=>item.key===key);
+  expect(field?.reported).toBe(true);
+  expect(field?.sourceOnly).toBe(true);
+  expect(field?.value).toContain('protected source');
+  expect(JSON.stringify(report)).not.toContain(secret);
+ }
+ expect(fields.find(field=>field.key==='guardian_relationship')?.value).toBe('Parent');
+ expect(fields.find(field=>field.key==='counseling_reason')?.value).toBe('Fictional presenting concern');
 });

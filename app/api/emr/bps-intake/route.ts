@@ -12,7 +12,7 @@ async function linkedSource(supabase:NonNullable<Awaited<ReturnType<typeof emrAc
  // Do not trust a filtered database response unless the returned central row
  // actually belongs to the requested chart. Never fall back to name matching.
  if(patient.data.id!==id)return {code:409 as const,error:'Central patient source does not match the requested chart.'};
- if(!patient.data.account_id)return {code:409 as const,error:'Patient account is not explicitly linked; name matching is prohibited.'};
+ if(!uuid(patient.data.account_id))return {code:409 as const,error:'Patient account is not explicitly and validly linked; name matching is prohibited.'};
  const intake=await supabase.from('patient_intakes').select(sourceFields).eq('patient_id',patient.data.account_id).maybeSingle();
  if(intake.error)throw Error('Linked intake source unavailable.');
  if(!intake.data)return {code:404 as const,error:'No linked patient intake found.'};
@@ -20,6 +20,13 @@ async function linkedSource(supabase:NonNullable<Awaited<ReturnType<typeof emrAc
  // incorrectly scoped, mocked or stale intake result belongs to another account.
  if(intake.data.patient_id!==patient.data.account_id)
   return {code:409 as const,error:'Linked intake source does not match the central patient account.'};
+ // The server must verify source provenance before returning any questionnaire
+ // answers. A presentation-layer safeguard is insufficient for protected API
+ // consumers and cannot make malformed historical rows safe to disclose.
+ if((intake.data.status!=='draft'&&intake.data.status!=='submitted')||
+   !Number.isSafeInteger(intake.data.version)||intake.data.version<1||
+   typeof intake.data.updated_at!=='string'||!Number.isFinite(Date.parse(intake.data.updated_at)))
+  return {code:409 as const,error:'Linked intake source metadata is invalid; reopen the protected original intake.'};
  return {patient:patient.data,intake:intake.data};
 }
 export async function GET(request:Request){

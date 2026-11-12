@@ -114,3 +114,66 @@ test('a zero-row blackout DELETE cannot remove visible protected time',async()=>
  await screen.findByText('Blackout removed and verified.');
  expect(screen.queryByText('Synthetic blackout')).toBeNull();
 });
+
+
+test.each([
+ {caseName:'no persisted row',receipt:(_payload:any)=>null},
+ {caseName:'wrong persisted interval',receipt:(payload:any)=>({...payload,id:'fictional-block',ends_at:'2026-12-03T14:00:00.000Z'})},
+ {caseName:'wrong persisted label',receipt:(payload:any)=>({...payload,id:'fictional-block',label:'Unexpected server label'})},
+])('blackout INSERT requires a persisted matching row: $caseName',async ({receipt})=>{
+ const insert=vi.fn((payload:any)=>({select:()=>({single:async()=>({data:receipt(payload),error:null})})}));
+ mocks.from.mockReturnValue({insert});
+ render(<AppointmentsClient {...props}/>);
+ fireEvent.click(screen.getByRole('button',{name:'Blackout periods'}));
+ fireEvent.change(screen.getByLabelText('Starts'),{target:{value:'2026-12-01T10:00'}});
+ fireEvent.change(screen.getByLabelText('Ends'),{target:{value:'2026-12-01T11:00'}});
+ fireEvent.change(screen.getByLabelText('Label'),{target:{value:'Synthetic blackout'}});
+ fireEvent.click(screen.getByRole('button',{name:'Block time'}));
+ await screen.findByText(/Blackout was not verified in the database/);
+ expect(screen.queryByText('Blocked time saved and verified.')).toBeNull();
+ expect(screen.queryByText('Synthetic blackout')).toBeNull();
+ expect(insert).toHaveBeenCalledTimes(1);
+});
+
+test('blackout INSERT confirms a matching saved row before adding it to the schedule',async()=>{
+ const insert=vi.fn((payload:any)=>({select:()=>({single:async()=>({data:{...payload,id:'fictional-block'},error:null})})}));
+ mocks.from.mockReturnValue({insert});
+ render(<AppointmentsClient {...props}/>);
+ fireEvent.click(screen.getByRole('button',{name:'Blackout periods'}));
+ fireEvent.change(screen.getByLabelText('Starts'),{target:{value:'2026-12-01T10:00'}});
+ fireEvent.change(screen.getByLabelText('Ends'),{target:{value:'2026-12-01T11:00'}});
+ fireEvent.change(screen.getByLabelText('Label'),{target:{value:'Synthetic blackout'}});
+ fireEvent.click(screen.getByRole('button',{name:'Block time'}));
+ await screen.findByText('Blocked time saved and verified.');
+ expect(screen.getByText('Synthetic blackout')).toBeTruthy();
+ expect(insert).toHaveBeenCalledTimes(1);
+});
+
+test('invalid blackout interval is rejected before any scheduling write',async()=>{
+ const insert=vi.fn();
+ mocks.from.mockReturnValue({insert});
+ render(<AppointmentsClient {...props}/>);
+ fireEvent.click(screen.getByRole('button',{name:'Blackout periods'}));
+ fireEvent.change(screen.getByLabelText('Starts'),{target:{value:'2026-12-01T11:00'}});
+ fireEvent.change(screen.getByLabelText('Ends'),{target:{value:'2026-12-01T10:00'}});
+ fireEvent.click(screen.getByRole('button',{name:'Block time'}));
+ await screen.findByText(/Choose valid blocked-time dates with an end later/);
+ expect(insert).not.toHaveBeenCalled();
+});
+
+test('pending blackout insert locks its submit control against repeat writes',async()=>{
+ let finish!:(value:any)=>void;
+ const insert=vi.fn(()=>({select:()=>({single:()=>new Promise(resolve=>{finish=resolve;})})}));
+ mocks.from.mockReturnValue({insert});
+ render(<AppointmentsClient {...props}/>);
+ fireEvent.click(screen.getByRole('button',{name:'Blackout periods'}));
+ fireEvent.change(screen.getByLabelText('Starts'),{target:{value:'2026-12-01T10:00'}});
+ fireEvent.change(screen.getByLabelText('Ends'),{target:{value:'2026-12-01T11:00'}});
+ fireEvent.click(screen.getByRole('button',{name:'Block time'}));
+ expect((screen.getByRole('button',{name:'Working…'}) as HTMLButtonElement).disabled).toBe(true);
+ expect(insert).toHaveBeenCalledTimes(1);
+ finish({data:null,error:null});
+ await screen.findByText(/Blackout was not verified in the database/);
+ expect((screen.getByRole('button',{name:'Block time'}) as HTMLButtonElement).disabled).toBe(false);
+ expect(insert).toHaveBeenCalledTimes(1);
+});

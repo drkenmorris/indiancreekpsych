@@ -1,4 +1,5 @@
 'use client';
+import IntakeRiskScreening from '@/app/components/IntakeRiskScreening';
 import DsmVersionChoice from '@/app/components/DsmVersionChoice';
 import {DSM_INTAKE_VERSION_KEY} from '@/lib/clinical-tests/dsm/entry-choice';
 import IntakeCommunicationPreferences from '@/app/components/IntakeCommunicationPreferences';
@@ -152,7 +153,7 @@ export default function KioskIntake({token}:{token:string}){
 
     {sectionIndex>=10&&answers[LEGAL_ROUTING_KEY]&&<p className="intakeHelp"><strong>Page 10 guide:</strong> {legalRoutingResults(answers[LEGAL_ROUTING_KEY])?.find(f=>f.section===section.title)?.status||'Office review needed'}. <button type="button" onClick={()=>setSectionIndex(9)}>Return to the form directory</button></p>}
    <LegalSectionDocument sectionTitle={section.title}/>
-    <div className={styles.fields}>{section.fields.map(field=>{
+    <div className={styles.fields}>{section.title==='Safety and risk screening'?<IntakeRiskScreening answers={answers} onChange={update} disabled={busy}/>:section.fields.map(field=>{
      const [key,label,type]=field;if(type==='dsm-version')return null;if(showCommunication&&communicationFieldKeys.includes(key))return null;
      const required=field.length>3&&field[3];
      const options=(field.length>4?field[4]:[])??[];

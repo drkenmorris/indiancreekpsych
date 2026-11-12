@@ -85,3 +85,53 @@ test.each([
  expect(screen.queryByRole('button',{name:/Save reviewed BPS history snapshot/i})).toBeNull();
  expect(posts).toBe(0);
 });
+
+test('idle linked-intake refresh is source-scoped, stops during clinician review, and fails closed on invalid refreshed provenance',async()=>{
+ const patient='00000000-0000-4000-8000-000000000811';
+ const account='00000000-0000-4000-8000-000000000812';
+ let version=2, valid=true, calls=0;
+ const response=()=>({
+  patientId:patient,
+  source:{accountId:account,status:valid?'submitted':'retracted',version,updatedAt:'2026-11-12T12:00:00Z'},
+  sections:Array.from({length:21},(_,i)=>({
+   title:i===0?'Presenting concerns':i===1?'Medications':'Section '+i,
+   domain:i===1?'Medication reconciliation':'Clinical context',
+   disposition:i===1?'separate-review':'clinical',
+   answered:i<2?1:0,
+   fields:i===0?[{key:'counseling_reason',label:'Presenting concern',type:'text',sourceOnly:false,reported:true,value:'FICTIONAL_CONCERN_V'+version}]:
+    i===1?[{key:'medication_entries',label:'Structured medication',type:'medications',sourceOnly:true,reported:true,value:'PRIVATE_MEDICATION_V'+version}]:[]
+  })),unmappedKeys:[],reviews:[]
+ });
+ vi.stubGlobal('fetch',vi.fn(async(_url:string,init?:RequestInit)=>{
+  if(init?.method==='POST')throw Error('Test must not save a review');
+  calls++;
+  return Response.json(response());
+ }));
+ render(<PatientBpsIntakeReview patientId={patient}/>);
+ await screen.findByText(/Version 2/);
+ expect(screen.getByText('FICTIONAL_CONCERN_V2')).toBeTruthy();
+ expect(document.body.textContent).not.toContain('PRIVATE_MEDICATION_V2');
+ version=3;
+ await act(async()=>{window.dispatchEvent(new Event('focus'));});
+ await screen.findByText(/Version 3/);
+ expect(screen.getByText('FICTIONAL_CONCERN_V3')).toBeTruthy();
+ expect(document.body.textContent).not.toContain('PRIVATE_MEDICATION_V3');
+ expect(calls).toBe(2);
+ fireEvent.click(screen.getByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i}));
+ fireEvent.change(screen.getByLabelText('Presenting concerns and functional impact'),{target:{value:'UNSAVED_FICTIONAL_NOTE'}});
+ version=4;
+ await act(async()=>{window.dispatchEvent(new Event('focus'));});
+ expect(calls).toBe(2);
+ expect(screen.getByText(/Version 3/)).toBeTruthy();
+ expect(screen.getByDisplayValue('UNSAVED_FICTIONAL_NOTE')).toBeTruthy();
+ fireEvent.click(screen.getByRole('button',{name:/Discard unsaved draft/i}));
+ await act(async()=>{window.dispatchEvent(new Event('focus'));});
+ await screen.findByText(/Version 4/);
+ expect(screen.getByText('FICTIONAL_CONCERN_V4')).toBeTruthy();
+ expect(document.body.textContent).not.toContain('PRIVATE_MEDICATION_V4');
+ valid=false;
+ await act(async()=>{window.dispatchEvent(new Event('focus'));});
+ expect((await screen.findByRole('alert')).textContent).toContain('provenance or clinical review history could not be verified');
+ expect(screen.queryByText('FICTIONAL_CONCERN_V4')).toBeNull();
+ expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
+});

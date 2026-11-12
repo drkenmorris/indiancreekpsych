@@ -1,3 +1,4 @@
+import {riskScreeningFields,riskScreeningTitle} from './risk-screening';
 import {DSM_INTAKE_VERSION_KEY,validateDsmVersion} from '../clinical-tests/dsm/entry-choice';
 import {LEGAL_ROUTING_KEY,validateLegalRouting,parseLegalRouting} from './legal-routing';
 import {TRAUMA_CHECKLIST_KEY,validateTraumaHistory} from './trauma-history';
@@ -76,14 +77,7 @@ const originalIntakeSections:{title:string;description?:string;fields:readonly I
   ['medications_current','Additional medication information / previously recorded medication list','textarea']
  ]},
  {title:'Medical & Substance Use History',description:'Your reported medical conditions, care, health impact, substance use, and treatment or recovery history.',fields:[[MEDICAL_SUBSTANCE_KEY,'Medical & Substance Use History','medical-substance']]},
- {title:'Safety and risk screening',description:'These questions help us identify urgent safety needs. This electronic form is not continuously monitored.',fields:[
-  ['suicidal_thoughts_current','Are you currently having thoughts of killing yourself or wishing you were dead?','select',true,yesNo],
-  ['suicidal_plan_current','Do you currently have a suicide plan, intent, or access to means you might use?','select',true,yesNo],
-  ['homicidal_thoughts_current','Are you currently having thoughts of seriously harming someone else?','select',true,yesNo],
-  ['violence_risk_details','If yes to any safety question, please describe what is happening now','textarea'],
-  ['abuse_neglect_current','Are you currently experiencing abuse, neglect, exploitation, stalking, or domestic violence?','select',true,yesNoUnsure],
-  ['weapons_access','Do you have access to firearms or other weapons?','select',false,yesNoUnsure],['protective_factors','People, responsibilities, beliefs, or supports that help keep you safe','textarea']
- ]},
+ {title:riskScreeningTitle,description:'These questions help us identify urgent safety needs. This electronic form is not continuously monitored.',fields:riskScreeningFields},
  {title:'Trauma, family, social, educational, and occupational history',description:'Social context and life experiences can affect symptoms, coping, and treatment goals.',fields:[
   ['trauma_history','Significant trauma, abuse, loss, violence, or other adverse experiences you want your clinician to know about','textarea'],
   [TRAUMA_CHECKLIST_KEY,'Trauma History','trauma-history']

@@ -13,14 +13,16 @@ let returnedPatientId:string;
 let returnedIntakeAccountId:string;
 let reviewRows:Record<string,unknown>[];
 let version:number;
+let intakeStatus:string;
+let intakeUpdatedAt:string;
 let data:Record<string,string>;
 beforeEach(()=>{
- vi.clearAllMocks();linked=account;returnedPatientId=patient;returnedIntakeAccountId=account;version=2;reviewRows=[];
+ vi.clearAllMocks();linked=account;returnedPatientId=patient;returnedIntakeAccountId=account;version=2;intakeStatus='submitted';intakeUpdatedAt=stamp;reviewRows=[];
  data={counseling_reason:'Reports sadness',suicidal_thoughts_current:'Yes',roi_authorize:'Yes',medication_entries:'structured original'};
  m.sameOrigin.mockReturnValue(true);m.rpc.mockResolvedValue({data:'00000000-0000-0000-0000-000000000500',error:null});
  m.from.mockImplementation((table:string)=>{
   if(table==='clinical_patients'){const q={select:()=>q,eq:vi.fn(()=>q),maybeSingle:async()=>({data:{id:returnedPatientId,account_id:linked},error:null})};return q;}
-  if(table==='patient_intakes'){const q={select:()=>q,eq:vi.fn(()=>q),maybeSingle:async()=>({data:{patient_id:returnedIntakeAccountId,answers:data,status:'submitted',version,updated_at:stamp},error:null})};return q;}
+  if(table==='patient_intakes'){const q={select:()=>q,eq:vi.fn(()=>q),maybeSingle:async()=>({data:{patient_id:returnedIntakeAccountId,answers:data,status:intakeStatus,version,updated_at:intakeUpdatedAt},error:null})};return q;}
   if(table==='emr_bps_intake_reviews'){const q={select:()=>q,eq:vi.fn(()=>q),order:()=>q,limit:async()=>({data:reviewRows,error:null})};return q;}
   throw Error('Unexpected '+table);
  });
@@ -49,6 +51,33 @@ test('cross-chart central-row or intake-account mismatches fail closed without e
  expect(wrongIntake.status).toBe(409);
  expect(JSON.stringify(await wrongIntake.json())).not.toContain('Reports sadness');
  expect(m.from).not.toHaveBeenCalledWith('emr_bps_intake_reviews');
+});
+
+test('protected BPS API fails closed on malformed linked source before any questionnaire or history disclosure',async()=>{
+ data={counseling_reason:'PRIVATE_FICTIONAL_PATIENT_STATEMENT'};
+ const invalidSources=[
+  {status:'revoked',version:2,updatedAt:stamp},
+  {status:'submitted',version:0,updatedAt:stamp},
+  {status:'submitted',version:1.5,updatedAt:stamp},
+  {status:'submitted',version:Number.MAX_SAFE_INTEGER+1,updatedAt:stamp},
+  {status:'submitted',version:2,updatedAt:'not-a-date'}
+ ];
+ for(const entry of invalidSources){
+  m.from.mockClear();
+  intakeStatus=entry.status;version=entry.version;intakeUpdatedAt=entry.updatedAt;
+  const response=await GET(request());
+  expect(response.status).toBe(409);
+  expect(response.headers.get('Cache-Control')).toContain('no-store');
+  expect(JSON.stringify(await response.json())).not.toContain('PRIVATE_FICTIONAL_PATIENT_STATEMENT');
+  expect(m.from).not.toHaveBeenCalledWith('emr_bps_intake_reviews');
+ }
+ intakeStatus='submitted';version=2;intakeUpdatedAt=stamp;
+ linked='not-a-valid-account-uuid';
+ m.from.mockClear();
+ const unlinked=await GET(request());
+ expect(unlinked.status).toBe(409);
+ expect(JSON.stringify(await unlinked.json())).not.toContain('PRIVATE_FICTIONAL_PATIENT_STATEMENT');
+ expect(m.from).not.toHaveBeenCalledWith('patient_intakes');
 });
 
 test('21-section review distinguishes risk, legal references and structured reconciliation',async()=>{

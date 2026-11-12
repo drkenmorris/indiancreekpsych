@@ -28,6 +28,17 @@ export const bpsSectionClassification:Record<string,SectionClassification>={
  'Separate authorization for psychotherapy notes':{domain:'Psychotherapy-notes authorization (legal record only)',disposition:'reference'},
  'Patient attestation and consent to submit':{domain:'Patient attestation (not clinician attestation)',disposition:'reference'},
 };
+/** Accept complete ISO-8601/RFC3339 source timestamps only. Date.parse alone also
+ * accepts ambiguous dates (e.g. "1") and silently normalizes impossible days.
+ * Do not attach clinical source/review provenance to such values.
+ */
+export function validBpsTimestamp(value:unknown):value is string {
+ if(typeof value!=='string')return false;
+ const match=/^(\\d{4})-(\\d{2})-(\\d{2})T(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d{1,9})?(?:Z|[+-](?:[01]\\d|2[0-3]):[0-5]\\d)$/.exec(value);
+ if(!match||!Number.isFinite(Date.parse(value)))return false;
+ const year=Number(match[1]),month=Number(match[2]),day=Number(match[3]);
+ return month>=1&&month<=12&&day>=1&&day<=new Date(Date.UTC(year,month,0)).getUTCDate();
+}
 export const bpsNoteDomains={
  presenting:'Presenting concerns and functional impact',
  treatment:'Prior psychiatric/psychotherapy history',

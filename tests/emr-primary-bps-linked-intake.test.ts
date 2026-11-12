@@ -18,7 +18,7 @@ function report(patientId:string){
    i===2?[{key:'roi_authorize',label:'Authorization',type:'text',reported:true,sourceOnly:false,value:'SECRET LEGAL DATA'}]:[]
  }));
  return {patientId,source:{accountId:'00000000-0000-4000-8000-000000000803',status:'submitted',version:6,updatedAt:'2026-11-10T12:00:00Z'},
-  sections,unmappedKeys:['unmapped_legacy_field'],reviews:[{id:'fictional'}]};
+  sections,unmappedKeys:['unmapped_legacy_field'],reviews:[]};
 }
 function harness(fetchResponse:(url:string,options:any)=>Promise<Response>,id=firstPatient){
  const dom=new JSDOM('<main id="content"></main>',{url:'https://www.indiancreekpsych.com/emr/workspace?module=assessment&section=assessment%3Abiopsychosocial&bps_page=medications'});
@@ -254,10 +254,46 @@ test('original BPS does not report a current source reviewed when the stored row
 
 
 test.each([
+ ['absent clinician history array',{reviews:undefined}],
+ ['absent source-audit array',{unmappedKeys:undefined}],
+ ['malformed clinician attestation',{reviews:[{
+  id:'00000000-0000-4000-8000-000000000998',
+  reviewed:'true',source_version:6,source_status:'submitted',
+  source_updated_at:'2026-11-10T12:00:00Z',created_at:'2026-11-10T12:10:00Z'
+ }]}],
+ ['unversioned historical review',{reviews:[{
+  id:'00000000-0000-4000-8000-000000000998',
+  reviewed:true,source_version:0,source_status:'submitted',
+  source_updated_at:'2026-11-10T12:00:00Z',created_at:'2026-11-10T12:10:00Z'
+ }]}],
+ ['malformed historical timestamp',{reviews:[{
+  id:'00000000-0000-4000-8000-000000000998',
+  reviewed:true,source_version:6,source_status:'submitted',
+  source_updated_at:'not-a-date',created_at:'2026-11-10T12:10:00Z'
+ }]}]
+])('original BPS refuses %s instead of claiming empty or reviewed history',async(_case,change)=>{
+ const unsafe:any={...report(firstPatient),...change};
+ unsafe.sections[0].fields[0].value='PRIVATE_FICTIONAL_CLINICAL_REPORT';
+ const {ctx,dom}=harness(async()=>Response.json(unsafe));
+ ctx.render();
+ const panel=()=>dom.window.document.querySelector(
+  'section[aria-label="Patient intake context in original biopsychosocial workspace"]')!;
+ await vi.waitFor(()=>expect(panel()?.querySelector('[role="alert"]')?.textContent)
+  .toContain('review history provenance or unmapped-field audit could not be verified'));
+ expect(panel().textContent).not.toContain('PRIVATE_FICTIONAL_CLINICAL_REPORT');
+ expect(panel().textContent).not.toContain('attested clinician review(s)');
+ expect(panel().textContent).toContain('no intake data were imported');
+ expect(dom.window.document.querySelector('#clinical-form')?.textContent)
+  .toContain('Original BPS clinical form remains available');
+ dom.window.close();
+});
+
+test.each([
  ['missing linked account',{accountId:null}],
  ['invalid linked account',{accountId:'a different patient'}],
  ['unexpected intake status',{status:'revoked'}],
  ['invalid source version',{version:0}],
+ ['unsafe integer source version',{version:Number.MAX_SAFE_INTEGER+1}],
  ['unparseable source timestamp',{updatedAt:'not-a-source-timestamp'}]
 ])('original seven-page BPS refuses %s before displaying patient-reported intake',async(_case,change)=>{
  const unsafe=report(firstPatient);

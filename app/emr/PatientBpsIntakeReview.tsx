@@ -33,6 +33,7 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
  // The database allows only one append-only review per clinician, central chart and
  // source version. Show that invariant before another submit, and keep it enforced
  // locally after an acknowledged save even if the read-back request fails.
+ const sourceVersionHasUnverifiedReview=!!data&&data.reviews.some(review=>review.source_version===data.source.version&&review.reviewed!==true);
  const versionAlreadyReviewed=!!data&&(data.reviews.some(review=>review.source_version===data.source.version)||
    acknowledgedVersion===data.source.version||uncertainVersion===data.source.version);
  // A lost POST response does not prove the database rejected the write. Keep
@@ -110,7 +111,7 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
   <p>Review the exact linked website patient's patient-reported intake. Clinical history is not an independently verified fact, diagnosis, signed assessment or risk clearance. Legal consent decisions and insurance remain in their own records. Medication, allergy, substance-use and structured trauma entries require their existing dedicated reconciliation modules.</p>
   {loading?<p role="status">Checking protected BPS intake…</p>:error?<p role="alert">{error}</p>:data?.patientId===patientId&&<>
    <p>Source: <strong>{data.source.status==='submitted'?'Submitted intake (immutable source)':'Draft intake (may change)'}</strong> · Version {data.source.version} · Last updated {new Date(data.source.updatedAt).toLocaleString()}</p>
-   <p>Sections audited: {data.sections.length}/21 · Saved clinician reviews: {data.reviews.length}.</p>
+   <p>Sections audited: {data.sections.length}/21 · Saved clinician reviews: {data.reviews.filter(review=>review.reviewed===true).length}. {data.reviews.some(review=>review.reviewed!==true)&&'Some saved history records lack confirmed clinician-review attestation; investigate provenance.'}</p>
    {data.unmappedKeys.length>0&&<p role="alert">The source contains {data.unmappedKeys.length} additional historical or unrecognized field(s): {data.unmappedKeys.join(', ')}. These are NOT silently transferred. Review the original intake and resolve their mapping.</p>}
    <nav aria-label="Patient-scoped clinical reconciliation shortcuts">
     <p><strong>Open dedicated clinician reviews for this patient:</strong> These existing central-chart workflows keep medications, allergies, medical/substance-use history and structured trauma separate from unsigned BPS notes. Following a link does not save or approve any patient report.</p>
@@ -154,7 +155,8 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
     })}
    </details>}
    {versionAlreadyReviewed?<p role="status">{uncertainSave?
-    'A BPS review submission was attempted, but no save receipt was verified. This source version is locked in this session. Reopen the chart and check protected history before another attempt; do not assume the review was saved.':
+    'A BPS review submission was attempted, but no save receipt was verified. This source version is locked in this session. Reopen the chart and check protected history before another attempt; do not assume the review was saved.':sourceVersionHasUnverifiedReview?
+    'A BPS history record for this source version lacks confirmed clinician-review attestation. Its version remains locked; investigate chart provenance before clinical use or another submission.':
     'A clinician-reviewed BPS snapshot for this source version has already been saved. Its immutable history can be reopened above; a second save of the same version is not permitted. If the source changed without a new version, resolve the intake provenance before saving.'}</p>:!prepared?<button type="button" disabled={saving} onClick={()=>{setPrepared(true);setReviewed(false);setNotes(emptyBpsNotes());setStatus('');}}>Prepare clinician-reviewed BPS intake draft</button>:
     <form onSubmit={save} autoComplete="off">
      <h3>Clinician review and contextual assessment notes</h3>

@@ -50,7 +50,7 @@ test('clinician BPS save is independently confirmed only after exact source-prov
   if(options?.method==='POST')return Response.json({saved:true,id:savedId});
   reads++;
   return Response.json(reads===1?source():source([{
-   id:savedId,source_version:7,source_status:'submitted',
+   id:savedId,reviewed:true,source_version:7,source_status:'submitted',
    source_updated_at:'2026-11-10T06:00:00-06:00',created_at:stamp,
    clinical_answers:{},clinician_notes:{}
   }]));
@@ -110,7 +110,7 @@ test('an acknowledged BPS save remains unverified until protected history readba
  expect(screen.queryByRole('button',{name:/Save reviewed BPS history snapshot/i})).toBeNull();
  expect(reads).toBe(2);
  releaseReadback(Response.json(source([{
-  id:savedId,source_version:7,source_status:'submitted',
+  id:savedId,reviewed:true,source_version:7,source_status:'submitted',
   source_updated_at:stamp,created_at:stamp,
   clinical_answers:{},clinician_notes:{}
  }])));
@@ -145,7 +145,7 @@ test.each([
 ])('acknowledged BPS save cannot be independently verified after %s during readback',async(_reason,changed)=>{
  const savedId='00000000-0000-4000-8000-000000000999';
  let reads=0,posts=0;
- const oldReview={id:savedId,source_version:7,source_status:'submitted',
+ const oldReview={id:savedId,reviewed:true,source_version:7,source_status:'submitted',
   source_updated_at:stamp,created_at:stamp,clinical_answers:{},clinician_notes:{}};
  vi.stubGlobal('fetch',vi.fn(async (_url:string,options?:RequestInit)=>{
   if(options?.method==='POST'){posts++;return Response.json({saved:true,id:savedId});}
@@ -199,3 +199,27 @@ test.each(['lost POST response','indeterminate server error','malformed success 
  expect(posts).toBe(1);
  expect(reads).toBe(1);
  });
+
+
+test.each([false,undefined])('a saved row with review attestation %s cannot prove completed clinician review',async(attestation)=>{
+ const savedId='00000000-0000-4000-8000-000000000999';
+ let reads=0;
+ vi.stubGlobal('fetch',vi.fn(async (_url:string,options?:RequestInit)=>{
+  if(options?.method==='POST')return Response.json({saved:true,id:savedId});
+  reads++;
+  return Response.json(reads===1?source():source([{
+   id:savedId,reviewed:attestation,source_version:7,source_status:'submitted',
+   source_updated_at:stamp,created_at:stamp,clinical_answers:{},clinician_notes:{}
+  }]));
+ }));
+ render(<PatientBpsIntakeReview patientId={patient}/>);
+ await screen.findByText(/Version 7/);
+ fireEvent.click(screen.getByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i}));
+ fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed this intake/i}));
+ fireEvent.click(screen.getByRole('button',{name:/Save reviewed BPS history snapshot/i}));
+ await screen.findByText(/NOT verified in chart history/);
+ expect(screen.queryByText(/saved AND independently verified/)).toBeNull();
+ expect(screen.getByText(/lacks confirmed clinician-review attestation/)).toBeTruthy();
+ expect(screen.queryByRole('button',{name:/Save reviewed BPS history snapshot/i})).toBeNull();
+ expect(reads).toBe(2);
+});

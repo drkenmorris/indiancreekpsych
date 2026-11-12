@@ -4,15 +4,22 @@ import {uuid} from '@/lib/emr/demographics';
 import {bpsNoteDomains,mapIntakeToBps,sanitizeBpsClinicianNotes,sanitizeBpsSnapshotAnswers} from '@/lib/emr/intake-bps';
 export const dynamic='force-dynamic';
 const reply=(data:unknown,status=200)=>NextResponse.json(data,{status,headers:privateHeaders});
-const sourceFields='answers,status,version,updated_at';
+const sourceFields='patient_id,answers,status,version,updated_at';
 async function linkedSource(supabase:NonNullable<Awaited<ReturnType<typeof emrAccess>>>['supabase'],id:string){
  const patient=await supabase.from('clinical_patients').select('id,account_id').eq('id',id).maybeSingle();
  if(patient.error)throw Error('Central patient repository unavailable.');
  if(!patient.data)return {code:404 as const,error:'Central patient not found.'};
+ // Do not trust a filtered database response unless the returned central row
+ // actually belongs to the requested chart. Never fall back to name matching.
+ if(patient.data.id!==id)return {code:409 as const,error:'Central patient source does not match the requested chart.'};
  if(!patient.data.account_id)return {code:409 as const,error:'Patient account is not explicitly linked; name matching is prohibited.'};
  const intake=await supabase.from('patient_intakes').select(sourceFields).eq('patient_id',patient.data.account_id).maybeSingle();
  if(intake.error)throw Error('Linked intake source unavailable.');
  if(!intake.data)return {code:404 as const,error:'No linked patient intake found.'};
+ // A successful .eq() call is not proof of row provenance. Fail closed if an
+ // incorrectly scoped, mocked or stale intake result belongs to another account.
+ if(intake.data.patient_id!==patient.data.account_id)
+  return {code:409 as const,error:'Linked intake source does not match the central patient account.'};
  return {patient:patient.data,intake:intake.data};
 }
 export async function GET(request:Request){

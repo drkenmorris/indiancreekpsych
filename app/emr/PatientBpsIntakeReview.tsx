@@ -3,7 +3,7 @@ import {useEffect,useRef,useState,type FormEvent} from 'react';
 import {bpsNoteDomains,emptyBpsNotes,mapSavedBpsReportedFields,bpsVisibleSourceKeys,sanitizeBpsClinicianNotes,type BpsNotes} from '@/lib/emr/intake-bps';
 type Field={key:string;label:string;type:string;value:string;sourceOnly?:boolean;reported?:boolean};
 type Section={title:string;domain:string;disposition:'clinical'|'separate-review'|'reference';fields:Field[];answered:number};
-type Review={id:string;source_version:number;source_status:string;source_updated_at:string;created_at:string;clinical_answers:Record<string,string>;clinician_notes:BpsNotes;excluded_clinical_fields?:number;excluded_clinician_notes?:number};
+type Review={id:string;reviewed:boolean;source_version:number;source_status:string;source_updated_at:string;created_at:string;clinical_answers:Record<string,string>;clinician_notes:BpsNotes;excluded_clinical_fields?:number;excluded_clinician_notes?:number};
 type ResponseData={patientId:string;source:{accountId:string;status:string;version:number;updatedAt:string};sections:Section[];unmappedKeys:string[];reviews:Review[]};
 const focusedReviewLinks:Record<string,{label:string;anchor:string}[]>={
  'Mental health treatment history':[
@@ -90,7 +90,7 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
      // linked source changed mid-flight. Reopening the chart is required.
      if(sameSource)setData(next);
      const verified=sameSource&&typeof result.id==='string'&&next.reviews.some(review=>
-      review.id===result.id&&review.source_version===data.source.version&&
+      review.id===result.id&&review.reviewed===true&&review.source_version===data.source.version&&
       review.source_status===data.source.status&&
       Number.isFinite(Date.parse(review.source_updated_at))&&
       Date.parse(review.source_updated_at)===Date.parse(data.source.updatedAt));
@@ -137,6 +137,7 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
      const count=frozen.sections.reduce((sum,section)=>sum+section.fields.length,0);
      return <section key={review.id}>
       <h3>{new Date(review.created_at).toLocaleString()} — source v{review.source_version} ({review.source_status})</h3>
+      {review.reviewed!==true&&<p role="alert">This historical row lacks confirmed clinician-review attestation. Do not treat it as a reviewed BPS snapshot; investigate chart provenance.</p>}
       <p>Linked intake source last updated {new Date(review.source_updated_at).toLocaleString()}. This is an immutable historical snapshot of patient-reported information, not a new import, verified clinical finding, diagnosis or signature.</p>
       {!!review.excluded_clinical_fields&&<p role="alert">{review.excluded_clinical_fields} unapproved or malformed historical field(s) were withheld by the protected server. Review source provenance before clinical use.</p>}
       {omittedNotes>0&&<p role="alert">{omittedNotes} unapproved or malformed historical clinician-note field(s) were withheld from this BPS view. Investigate provenance before clinical use.</p>}

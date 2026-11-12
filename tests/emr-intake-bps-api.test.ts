@@ -60,7 +60,10 @@ test('protected BPS API fails closed on malformed linked source before any quest
   {status:'submitted',version:0,updatedAt:stamp},
   {status:'submitted',version:1.5,updatedAt:stamp},
   {status:'submitted',version:Number.MAX_SAFE_INTEGER+1,updatedAt:stamp},
-  {status:'submitted',version:2,updatedAt:'not-a-date'}
+  {status:'submitted',version:2,updatedAt:'not-a-date'},
+   {status:'submitted',version:2,updatedAt:'1'},
+   {status:'submitted',version:2,updatedAt:'2026-11-10'},
+   {status:'submitted',version:2,updatedAt:'2026-02-30T09:00:00Z'}
  ];
  for(const entry of invalidSources){
   m.from.mockClear();
@@ -99,7 +102,8 @@ test('save accepts only explicit reviewed provenance and clinician notes, never 
 });
 test('invalid identity, review, timestamps, source version or arbitrary note keys cannot reach save RPC',async()=>{
  for(const bad of [{...payload,reviewed:false},{...payload,patientId:'wrong'},{...payload,sourceAccountId:null},{...payload,sourceVersion:-1},{...payload,sourceVersion:Number.MAX_SAFE_INTEGER+1},
-  {...payload,sourceUpdatedAt:'invalid'}, {...payload,notes:{diagnosis:'fabricated'}},
+  {...payload,sourceUpdatedAt:'invalid'}, {...payload,sourceUpdatedAt:'2026-02-30T09:00:00Z'},
+   {...payload,sourceUpdatedAt:'2026-11-10'}, {...payload,sourceUpdatedAt:'1'}, {...payload,notes:{diagnosis:'fabricated'}},
   {...payload,notes:{safety:'x'.repeat(4001)}}, {...payload,notes:null}]){
   expect((await POST(submit(bad))).status).toBe(400);
  }expect(m.rpc).not.toHaveBeenCalled();
@@ -154,7 +158,9 @@ test('historical review rows with invalid identity, version, status or dates nev
   {...row,source_version:Number.MAX_SAFE_INTEGER+1},
   {...row,source_status:'unknown'},
   {...row,source_updated_at:'not-a-date'},
-  {...row,created_at:'not-a-date'}
+  {...row,created_at:'not-a-date'},
+   {...row,source_updated_at:'2026-02-30T09:00:00Z'},
+   {...row,created_at:'1'}
  ];
  for(const value of malformed){
   reviewRows=[value];

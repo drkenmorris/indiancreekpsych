@@ -17,7 +17,7 @@ test('all 21 linked BPS sections provide patient-scoped access to existing clini
  vi.stubGlobal('fetch',vi.fn(async(url:string,init?:RequestInit)=>{
   calls.push({url,method:init?.method||'GET'});
   return {ok:true,json:async()=>({
-   patientId:patient,source:{status:'submitted',version:4,updatedAt:'2026-11-10T11:00:00Z'},
+   patientId:patient,source:{accountId:patient,status:'submitted',version:4,updatedAt:'2026-11-10T11:00:00Z'},
    sections,unmappedKeys:[],reviews:[]
   })};
  }));
@@ -68,7 +68,7 @@ test('reopening an immutable BPS review shows stored patient reports separately 
  const sections=Array.from({length:21},(_,i)=>({title:'Section '+i,domain:'History',disposition:'clinical',fields:[],answered:0}));
  const calls:string[]=[];
  vi.stubGlobal('fetch',vi.fn(async(url:string)=>{calls.push(url);return {ok:true,json:async()=>({
-  patientId:patient,source:{status:'draft',version:5,updatedAt:'2026-11-10T12:00:00Z'},
+  patientId:patient,source:{accountId:patient,status:'draft',version:5,updatedAt:'2026-11-10T12:00:00Z'},
   sections,unmappedKeys:[],reviews:[{id:'00000000-0000-0000-0000-000000000610',
    source_version:4,source_status:'submitted',source_updated_at:'2026-11-10T10:00:00Z',
    created_at:'2026-11-10T10:05:00Z',
@@ -100,7 +100,7 @@ test('acknowledged BPS save is never reported as unsaved when subsequent history
   reads++;
   if(reads>1)return {ok:false,json:async()=>({error:'History refresh temporarily unavailable'})};
   return {ok:true,json:async()=>({patientId:patient,
-   source:{status:'submitted',version:2,updatedAt:'2026-11-10T12:00:00Z'},
+   source:{accountId:patient,status:'submitted',version:2,updatedAt:'2026-11-10T12:00:00Z'},
    sections,unmappedKeys:[],reviews:[]})};
  }));
  render(<PatientBpsIntakeReview patientId={patient}/>);

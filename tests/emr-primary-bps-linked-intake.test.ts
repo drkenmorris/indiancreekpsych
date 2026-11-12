@@ -248,5 +248,6 @@ test('original BPS does not report a current source reviewed when the stored row
   'section[aria-label="Clinician-reviewed BPS intake snapshot history"]')!;
  expect(history.textContent).toContain('current intake version has changed');
  expect(history.textContent).not.toContain('Unsigned review of submitted intake version 6');
+ expect(dom.window.document.querySelector('section[aria-label="Patient intake context in original biopsychosocial workspace"]')?.textContent).toContain('0 attested clinician review(s)');
  dom.window.close();
 });

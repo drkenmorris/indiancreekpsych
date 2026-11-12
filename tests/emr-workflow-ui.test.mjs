@@ -103,6 +103,24 @@ await test('actual hosted forms and global navigation render against central pat
  assert.ok(q('input[value="permanent-shared-item"]'),'new central choices appear after refresh');
  library.at(-1).active=false;q('#descriptor-reload').click();await new Promise(r=>setTimeout(r,20));
  assert.equal(q('input[value="permanent-shared-item"]'),null,'inactive central choices are not offered');
+ runInContext("document.querySelector('#content').innerHTML=bpsMedicationsView();bindBpsMedications()",dom.getInternalVMContext());
+ const medicationForm=q('form[data-action="biopsychosocial_medication"]');
+ assert.ok(medicationForm);
+ const medicationFetch=w.fetch;
+ w.fetch=(url,options)=>url==='/emr-assets/medication-catalog.json'
+  ?Promise.resolve({ok:true,json:async()=>JSON.parse(readFileSync('public/emr-assets/medication-catalog.json','utf8'))})
+  :medicationFetch(url,options);
+ medicationForm.elements.dosage.value='Half a tablet';
+ medicationForm.elements.medication.value='Ser';
+ medicationForm.elements.medication.dispatchEvent(new w.Event('input',{bubbles:true}));
+ await new Promise(r=>setTimeout(r,20));
+ const choice=Array.from(medicationForm.querySelectorAll('[data-medication-matches] button')).find(button=>button.textContent==='sertraline 50 MG Oral Tablet [Zoloft]');
+ assert.ok(choice,'three generic-name characters surface labeled strengths');
+ choice.click();
+ const medicationData=new w.FormData(medicationForm);
+ assert.equal(medicationData.get('medication'),choice.textContent);
+ assert.equal(medicationData.get('dosage'),'Half a tablet');
+ assert.equal(medicationForm.dataset.modified,'true');
  assert.equal(errors.length,0,errors.join(';'));assert.equal(w.localStorage.getItem('emr-web-demo-v1'),null);dom.window.close();
 });
 

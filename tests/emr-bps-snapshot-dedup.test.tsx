@@ -13,7 +13,7 @@ function source(reviews:Record<string,unknown>[]=[]){
 }
 test('the original clinician review never offers a duplicate save for an already reviewed source version',async()=>{
  vi.stubGlobal('fetch',vi.fn(async()=>Response.json(source([{
-  id:'00000000-0000-4000-8000-000000000999',source_version:7,source_status:'submitted',
+  id:'00000000-0000-4000-8000-000000000999',reviewed:true,source_version:7,source_status:'submitted',
   source_updated_at:stamp,created_at:stamp,clinical_answers:{},clinician_notes:{}
  }]))));
  render(<PatientBpsIntakeReview patientId={patient}/>);
@@ -21,6 +21,26 @@ test('the original clinician review never offers a duplicate save for an already
  expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
  expect(screen.queryByRole('button',{name:/Save reviewed BPS history snapshot/i})).toBeNull();
  expect(screen.getByText(/Previously saved immutable clinician reviews/i)).toBeTruthy();
+});
+
+
+test('unattested saved history is not counted as a clinician review and cannot be silently resubmitted',async()=>{
+ let posts=0;
+ vi.stubGlobal('fetch',vi.fn(async (_url:string,options?:RequestInit)=>{
+  if(options?.method==='POST'){posts++;return Response.json({saved:true});}
+  return Response.json(source([{
+   id:'00000000-0000-4000-8000-000000000999',reviewed:false,
+   source_version:7,source_status:'submitted',source_updated_at:stamp,
+   created_at:stamp,clinical_answers:{},clinician_notes:{}
+  }]));
+ }));
+ render(<PatientBpsIntakeReview patientId={patient}/>);
+ await screen.findByText(/Saved clinician reviews:/);
+ expect(screen.getByText(/lacks confirmed clinician-review attestation; investigate provenance/)).toBeTruthy();
+ expect(screen.getByText(/A BPS history record for this source version lacks confirmed clinician-review attestation/)).toBeTruthy();
+ expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
+ expect(screen.queryByRole('button',{name:/Save reviewed BPS history snapshot/i})).toBeNull();
+ expect(posts).toBe(0);
 });
 
 test('an acknowledged save stays locked if the history read-back fails',async()=>{

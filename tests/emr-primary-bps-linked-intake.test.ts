@@ -270,12 +270,12 @@ test.each([
   id:'00000000-0000-4000-8000-000000000998',
   reviewed:true,source_version:6,source_status:'submitted',
   source_updated_at:'not-a-date',created_at:'2026-11-10T12:10:00Z'
- }]},
+ }]}],
  ['impossible historical source date',{reviews:[{
   id:'00000000-0000-4000-8000-000000000998',
   reviewed:true,source_version:6,source_status:'submitted',
   source_updated_at:'2026-02-30T12:00:00Z',created_at:'2026-11-10T12:10:00Z'
- }]},
+ }]}],
  ['ambiguous historical save date',{reviews:[{
   id:'00000000-0000-4000-8000-000000000998',
   reviewed:true,source_version:6,source_status:'submitted',

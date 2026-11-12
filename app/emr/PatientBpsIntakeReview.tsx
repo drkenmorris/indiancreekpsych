@@ -62,7 +62,7 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
    // must never be described as an unsaved review or invite a duplicate save.
    setAcknowledgedVersion(data.source.version);
    setPrepared(false);setReviewed(false);setNotes(emptyBpsNotes());
-   setStatus('Clinician-reviewed, unsigned BPS intake snapshot saved in the protected chart. Patient statements remain patient-reported; no diagnosis, authorization, or signature was created.');
+   setStatus('BPS save acknowledged; verifying the saved review ID and source provenance against this patient chart history. Do not submit again.');
    try{
     const next=await load(patientId);
     if(stillOnChart()){
@@ -74,7 +74,8 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
       review.id===result.id&&review.source_version===data.source.version&&
       review.source_status===data.source.status&&
       Date.parse(review.source_updated_at)===Date.parse(data.source.updatedAt));
-     if(!verified)setStatus('BPS save was acknowledged, but the exact saved review and source provenance were NOT verified in chart history. Reopen this chart and investigate before relying on the new review; do not submit it again.');
+     if(verified)setStatus('Clinician-reviewed, unsigned BPS intake snapshot saved AND independently verified in the protected chart history. Patient statements remain patient-reported; no diagnosis, authorization, or signature was created.');
+     else setStatus('BPS save was acknowledged, but the exact saved review and source provenance were NOT verified in chart history. Reopen this chart and investigate before relying on the new review; do not submit it again.');
     }
    }catch{
     if(stillOnChart())setStatus('The clinician-reviewed BPS snapshot WAS saved, but its history could not be reloaded. Reopen this patient chart to check the saved review; do not submit it again.');

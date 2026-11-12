@@ -143,6 +143,30 @@ test('saved BPS history cannot follow a relinked patient account or cross into a
  expect((await GET(request())).status).toBe(409);
 });
 
+test('historical review rows with invalid identity, version, status or dates never disclose protected clinical answers',async()=>{
+ const row={id:'00000000-0000-0000-0000-000000000600',patient_id:patient,source_account_id:account,
+  source_version:2,source_status:'submitted',source_updated_at:stamp,created_at:stamp,
+  reviewed:true,clinical_answers:{counseling_reason:'PRIVATE_FICTIONAL_HISTORICAL_NOTE'},
+  clinician_notes:{presenting:'PRIVATE_FICTIONAL_CLINICIAN_NOTE'}};
+ const malformed=[
+  {...row,id:'wrong-id'},
+  {...row,source_version:0},
+  {...row,source_version:Number.MAX_SAFE_INTEGER+1},
+  {...row,source_status:'unknown'},
+  {...row,source_updated_at:'not-a-date'},
+  {...row,created_at:'not-a-date'}
+ ];
+ for(const value of malformed){
+  reviewRows=[value];
+  const response=await GET(request());
+  expect(response.status).toBe(409);
+  expect(response.headers.get('Cache-Control')).toContain('no-store');
+  const body=JSON.stringify(await response.json());
+  expect(body).not.toContain('PRIVATE_FICTIONAL_HISTORICAL_NOTE');
+  expect(body).not.toContain('PRIVATE_FICTIONAL_CLINICIAN_NOTE');
+ }
+});
+
 test('historical clinician-note columns are filtered before the protected chart API responds',async()=>{
  const allowed='Independent fictional clinician context';
  const secret='PRIVATE_INSURANCE_OR_LEGAL_NOTE_MUST_NOT_LEAK';

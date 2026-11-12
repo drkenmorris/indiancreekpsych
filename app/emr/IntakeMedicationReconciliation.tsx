@@ -1,6 +1,6 @@
 'use client';
 import {useEffect,useMemo,useState,type FormEvent} from 'react';
-import {emptyMedication,hasMedication,parseMedications,validateMedications,type MedicationEntry} from '@/lib/patient/medications';
+import {emptyMedication,medicationDurations,hasMedication,parseMedications,validateMedications,type MedicationEntry} from '@/lib/patient/medications';
 
 type ChartMedication=MedicationEntry&{id:string;kind:string};
 type WorkflowResponse={revision:number;value:{records:ChartMedication[]}};
@@ -86,7 +86,7 @@ export default function IntakeMedicationReconciliation({patientId,intakeJson,int
    source.entries.length===0?<p>No completed reported medications are available to reconcile.</p>:
    <ol>{source.entries.map((entry,index)=>{
     const exists=current.some(m=>sameMedication(m,entry));
-    return <li key={index}><strong>{entry.medication}</strong> — {entry.status||'Status not recorded'}
+    return <li key={index}><strong>{entry.medication}</strong>{entry.duration&&<> · {entry.duration}</>}{entry.dosage&&<> · Amount taken each time: {entry.dosage}</>}
      <button type="button" disabled={busy||exists} onClick={()=>{setSelectedIndex(index);setDraft({...entry});setReviewed(false);setMessage('');}}>
       {exists?'Already in central history':'Prepare review draft'}
      </button></li>;
@@ -97,6 +97,9 @@ export default function IntakeMedicationReconciliation({patientId,intakeJson,int
    <div className="centralFields">{keys.map(key=><label key={key}>{labels[key]}
     <input type={key.endsWith('_date')?'date':'text'} maxLength={key.endsWith('_date')?10:200}
      required={key==='medication'} value={draft[key]} onChange={e=>edit(key,e.target.value)}/></label>)}
+    <label>Estimated duration<select value={draft.duration??''} onChange={e=>{setDraft(prev=>({...prev,duration:e.target.value}));setReviewed(false);}}>
+     <option value="">Choose an estimate</option>{medicationDurations.map(duration=><option key={duration}>{duration}</option>)}
+    </select></label>
     <label>Medication status<select required value={draft.status} onChange={e=>{setDraft(prev=>({...prev,status:e.target.value,end_date:e.target.value==='Current'?'':prev.end_date}));setReviewed(false);}}>
      <option value="">Select status</option><option value="Current">Current</option><option value="Past">Past</option>
     </select></label>

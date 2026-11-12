@@ -10,8 +10,8 @@ export type IntakeField = readonly [key:string,label:string,type:string,required
 
 // Retained for read-only review of older submissions; absent from active questionnaires.
 export const retiredMentalHealthFields:readonly IntakeField[]=[
- ['psychiatric_hospitalizations','Psychiatric hospitalizations, crisis stabilization, or emergency evaluations','textarea'],
  ['prior_psychiatric_medications','Past psychiatric medications and response / side effects','textarea'],
+ ['psychiatric_hospitalizations','Psychiatric hospitalizations, crisis stabilization, or emergency evaluations','textarea'],
  ['family_mental_health_history','Family history of mental health conditions, suicide, or substance-use problems','textarea']
 ];
 
@@ -71,9 +71,10 @@ const originalIntakeSections:{title:string;description?:string;fields:readonly I
 
  ]},
  {title:'Medications',description:'Current and past medications, prescribing clinicians, and medication allergies or reactions.',fields:[
-  [MEDICATION_ENTRIES_KEY,'Current and Past Medications','medications'],
+  [MEDICATION_ENTRIES_KEY,'Medications you currently take','medications'],
   ['medication_allergy_status','Medication Allergy Status','select',false,allergyStatuses],
   ['medication_allergy_notes','Medication Allergies / Reactions','textarea'],
+  ['prior_psychiatric_medications','Medications that helped in the past and that you no longer take','textarea'],
   ['medications_current','Additional medication information / previously recorded medication list','textarea']
  ]},
  {title:'Medical & Substance Use History',description:'Your reported medical conditions, care, health impact, substance use, and treatment or recovery history.',fields:[[MEDICAL_SUBSTANCE_KEY,'Medical & Substance Use History','medical-substance']]},

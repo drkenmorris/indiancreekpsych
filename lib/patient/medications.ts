@@ -1,5 +1,6 @@
+export const medicationDurations=["Less than 3 months", "3 to less than 6 months", "6 months to less than 1 year", "1 to less than 2 years", "2 to 5 years", "More than 5 years", "Not sure"] as const;
 export const MEDICATION_ENTRIES_KEY='medication_entries';
-export type MedicationEntry={medication:string;status:string;dosage:string;frequency:string;start_date:string;end_date:string;prescribing_physician:string;benefit:string};
+export type MedicationEntry={medication:string;status:string;dosage:string;frequency:string;start_date:string;end_date:string;prescribing_physician:string;benefit:string;duration?:string};
 export const emptyMedication=():MedicationEntry=>({medication:'',status:'',dosage:'',frequency:'',start_date:'',end_date:'',prescribing_physician:'',benefit:''});
 export const medicationLimits={medication:200,status:7,dosage:200,frequency:200,start_date:10,end_date:10,prescribing_physician:200,benefit:14} as const;
 export const allergyStatuses=['Not yet reviewed','No known medication allergies','Medication allergies reported'] as const;
@@ -7,7 +8,7 @@ export function parseMedications(value:string):MedicationEntry[]{
  if(!value)return [];
  const entries:unknown=JSON.parse(value);
  if(!Array.isArray(entries)||entries.length>20)throw Error('Use up to 20 medication entries.');
- for(const entry of entries){if(!entry||typeof entry!=='object'||Array.isArray(entry)||Object.keys(entry).length!==8)throw Error('Invalid medication entry.');for(const [key,limit] of Object.entries(medicationLimits))if(typeof entry[key]!=='string'||entry[key].length>limit)throw Error('Invalid medication field.');}
+ for(const entry of entries){if(!entry||typeof entry!=='object'||Array.isArray(entry)||(Object.keys(entry).length!==8+Number(Object.hasOwn(entry,'duration'))|| (Object.hasOwn(entry,'duration')&&entry.duration!==''&&!medicationDurations.includes(entry.duration))))throw Error('Invalid medication entry.');for(const [key,limit] of Object.entries(medicationLimits))if(typeof entry[key]!=='string'||entry[key].length>limit)throw Error('Invalid medication field.');}
  return entries as MedicationEntry[];
 }
 export const hasMedication=(entry:MedicationEntry)=>Object.values(entry).some(v=>v.trim()!=='');

@@ -56,6 +56,9 @@ def medication(data,records):
         value=data.get(key,'')
         if not isinstance(value,str) or len(value)>limit:raise ValueError('Invalid '+key.replace('_',' ')+'.')
         body[key]=value.strip()
+    duration=data.get('duration','')
+    if duration not in ['', 'Less than 3 months', '3 to less than 6 months', '6 months to less than 1 year', '1 to less than 2 years', '2 to 5 years', 'More than 5 years', 'Not sure']:raise ValueError('Choose a valid estimated medication duration.')
+    if duration:body['duration']=duration
     if not body['medication']:raise ValueError('Enter the medication name.')
     if data.get('status') not in ['Current','Past']:raise ValueError('Choose Current or Past medication.')
     body['status']=data['status']

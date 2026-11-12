@@ -24,7 +24,7 @@ export async function GET(request:Request){
   if('code' in source)return reply({error:source.error},source.code);
   const report=mapIntakeToBps(source.intake.answers as Record<string,string>);
   const {data:reviews,error}=await ctx.supabase.from('emr_bps_intake_reviews')
-   .select('id,patient_id,source_account_id,source_version,source_status,source_updated_at,clinical_answers,clinician_notes,created_at')
+   .select('id,patient_id,source_account_id,source_version,source_status,source_updated_at,clinical_answers,clinician_notes,reviewed,created_at')
    .eq('patient_id',id).eq('source_account_id',source.patient.account_id)
    .order('created_at',{ascending:false}).limit(20);
   if(error)return reply({error:'BPS review history unavailable; nonproduction migration may not yet be applied.'},503);
@@ -37,7 +37,7 @@ export async function GET(request:Request){
    // in the API payload, even if the browser also filters its visible content.
    const clean=sanitizeBpsSnapshotAnswers(review.clinical_answers);
    const safeNotes=sanitizeBpsClinicianNotes(review.clinician_notes);
-   return {...review,clinical_answers:clean.answers,clinician_notes:safeNotes.notes,
+   return {...review,reviewed:review.reviewed===true,clinical_answers:clean.answers,clinician_notes:safeNotes.notes,
     excluded_clinical_fields:clean.excludedCount,excluded_clinician_notes:safeNotes.excludedCount};
   });
   return reply({patientId:id,linked:true,source:{accountId:source.patient.account_id,status:source.intake.status,version:source.intake.version,

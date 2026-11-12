@@ -14,12 +14,23 @@ async function populateOriginalBpsIntake(panel,id,generation){
   if(!response.ok)throw Error(result.error||'Linked intake is unavailable.');
   if(result.patientId!==id||!Array.isArray(result.sections)||result.sections.length!==21)
    throw Error('The linked intake did not match this patient or the expected 21 sections.');
+  // A stale, malformed or cross-account response must never be presented as a
+  // current clinical source. The protected API validates the linkage as well;
+  // the original seven-page BPS workspace independently rejects bad provenance.
+  const source=result.source;
+  if(!source||typeof source.accountId!=='string'||
+   !/^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(source.accountId)||
+   !['draft','submitted'].includes(source.status)||
+   !Number.isInteger(source.version)||source.version<1||
+   typeof source.updatedAt!=='string'||!Number.isFinite(Date.parse(source.updatedAt)))
+   throw Error('Linked intake source identity, status, version or timestamp could not be verified.');
   panel.replaceChildren();
   const heading=document.createElement('h2');heading.textContent='Linked patient intake — BPS source context';
   panel.append(heading);
   const provenance=document.createElement('p');
-  provenance.textContent='Patient-reported '+(result.source?.status==='submitted'?'submitted':'draft')+
-   ' intake · source version '+String(result.source?.version??'unknown')+
+  provenance.textContent='Patient-reported '+source.status+
+   ' intake · source version '+source.version+
+   ' · last updated '+new Date(source.updatedAt).toLocaleString()+
    ' · '+result.sections.length+'/21 sections · '+
    (Array.isArray(result.reviews)?result.reviews.filter(review=>review.reviewed===true).length:0)+' attested clinician review(s).';
   panel.append(provenance);

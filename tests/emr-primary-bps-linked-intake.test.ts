@@ -17,7 +17,7 @@ function report(patientId:string){
    i===1?[{key:'medication_entries',label:'Medication',type:'medications',reported:true,sourceOnly:true,value:'SECRET MEDICATION DATA'}]:
    i===2?[{key:'roi_authorize',label:'Authorization',type:'text',reported:true,sourceOnly:false,value:'SECRET LEGAL DATA'}]:[]
  }));
- return {patientId,source:{status:'submitted',version:6,updatedAt:'2026-11-10T12:00:00Z'},
+ return {patientId,source:{accountId:'00000000-0000-4000-8000-000000000803',status:'submitted',version:6,updatedAt:'2026-11-10T12:00:00Z'},
   sections,unmappedKeys:['unmapped_legacy_field'],reviews:[{id:'fictional'}]};
 }
 function harness(fetchResponse:(url:string,options:any)=>Promise<Response>,id=firstPatient){
@@ -249,5 +249,30 @@ test('original BPS does not report a current source reviewed when the stored row
  expect(history.textContent).toContain('current intake version has changed');
  expect(history.textContent).not.toContain('Unsigned review of submitted intake version 6');
  expect(dom.window.document.querySelector('section[aria-label="Patient intake context in original biopsychosocial workspace"]')?.textContent).toContain('0 attested clinician review(s)');
+ dom.window.close();
+});
+
+
+test.each([
+ ['missing linked account',{accountId:null}],
+ ['invalid linked account',{accountId:'a different patient'}],
+ ['unexpected intake status',{status:'revoked'}],
+ ['invalid source version',{version:0}],
+ ['unparseable source timestamp',{updatedAt:'not-a-source-timestamp'}]
+])('original seven-page BPS refuses %s before displaying patient-reported intake',async(_case,change)=>{
+ const unsafe=report(firstPatient);
+ unsafe.sections[0].fields[0].value='PRIVATE_REPORTED_BPS_SOURCE';
+ const {ctx,dom}=harness(async()=>Response.json({
+  ...unsafe,source:{...unsafe.source,...change}
+ }));
+ ctx.render();
+ const panel=()=>dom.window.document.querySelector(
+  'section[aria-label="Patient intake context in original biopsychosocial workspace"]')!;
+ await vi.waitFor(()=>expect(panel()?.querySelector('[role="alert"]')?.textContent)
+  .toContain('source identity, status, version or timestamp could not be verified'));
+ expect(panel().textContent).not.toContain('PRIVATE_REPORTED_BPS_SOURCE');
+ expect(panel().textContent).toContain('no intake data were imported');
+ expect(dom.window.document.querySelector('#clinical-form')?.textContent)
+  .toContain('Original BPS clinical form remains available');
  dom.window.close();
 });

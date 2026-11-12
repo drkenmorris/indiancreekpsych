@@ -12,18 +12,19 @@ let linked:string|null;
 let returnedPatientId:string;
 let returnedIntakeAccountId:string;
 let reviewRows:Record<string,unknown>[];
+let historyResultOverride:unknown;
 let version:number;
 let intakeStatus:string;
 let intakeUpdatedAt:string;
 let data:Record<string,string>;
 beforeEach(()=>{
- vi.clearAllMocks();linked=account;returnedPatientId=patient;returnedIntakeAccountId=account;version=2;intakeStatus='submitted';intakeUpdatedAt=stamp;reviewRows=[];
+ vi.clearAllMocks();linked=account;returnedPatientId=patient;returnedIntakeAccountId=account;version=2;intakeStatus='submitted';intakeUpdatedAt=stamp;reviewRows=[];historyResultOverride=undefined;
  data={counseling_reason:'Reports sadness',suicidal_thoughts_current:'Yes',roi_authorize:'Yes',medication_entries:'structured original'};
  m.sameOrigin.mockReturnValue(true);m.rpc.mockResolvedValue({data:'00000000-0000-0000-0000-000000000500',error:null});
  m.from.mockImplementation((table:string)=>{
   if(table==='clinical_patients'){const q={select:()=>q,eq:vi.fn(()=>q),maybeSingle:async()=>({data:{id:returnedPatientId,account_id:linked},error:null})};return q;}
   if(table==='patient_intakes'){const q={select:()=>q,eq:vi.fn(()=>q),maybeSingle:async()=>({data:{patient_id:returnedIntakeAccountId,answers:data,status:intakeStatus,version,updated_at:intakeUpdatedAt},error:null})};return q;}
-  if(table==='emr_bps_intake_reviews'){const q={select:()=>q,eq:vi.fn(()=>q),order:()=>q,limit:async()=>({data:reviewRows,error:null})};return q;}
+  if(table==='emr_bps_intake_reviews'){const q={select:()=>q,eq:vi.fn(()=>q),order:()=>q,limit:async()=>({data:historyResultOverride===undefined?reviewRows:historyResultOverride,error:null})};return q;}
   throw Error('Unexpected '+table);
  });
  m.access.mockResolvedValue({supabase:{from:m.from,rpc:m.rpc}});
@@ -232,4 +233,18 @@ test('stored BPS row without true clinician-review attestation is never represen
  reviewRows=[{...reviewRows[0],reviewed:null}];
  const missing=await GET(request());expect(missing.status).toBe(200);
  expect((await missing.json()).reviews[0].reviewed).toBe(false);
+});
+
+
+test('missing or malformed review-history results cannot masquerade as an empty clinical history',async()=>{
+ data={counseling_reason:'PRIVATE_FICTIONAL_PATIENT_STATEMENT'};
+ for(const invalid of [null,{},'unverified-history']){
+  historyResultOverride=invalid;
+  const response=await GET(request());
+  expect(response.status).toBe(503);
+  expect(response.headers.get('Cache-Control')).toContain('no-store');
+  const wire=JSON.stringify(await response.json());
+  expect(wire).not.toContain('PRIVATE_FICTIONAL_PATIENT_STATEMENT');
+  expect(wire).not.toContain('"reviews":[]');
+ }
 });

@@ -106,7 +106,7 @@ export default function AppointmentsClient({userId,accountType,preferredName,ini
     e.preventDefault();if(busy)return;setBusy(true);setMessage("");
     try{
       const starts=new Date(block.starts_at),ends=new Date(block.ends_at);
-      if(!Number.isFinite(starts.getTime())||!Number.isFinite(ends.getTime())||ends<=starts)
+      if(!Number.isFinite(starts.getTime())||!Number.isFinite(ends.getTime())||ends.getTime()<=starts.getTime())
         throw new Error("Choose valid blocked-time dates with an end later than the start.");
       const payload={starts_at:starts.toISOString(),ends_at:ends.toISOString(),label:block.label||null};
       const {data,error}=await supabase.from("appointment_blocks").insert(payload).select().single();

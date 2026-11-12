@@ -1,7 +1,7 @@
 import {NextResponse} from 'next/server';
 import {emrAccess,privateHeaders,sameOrigin} from '@/lib/emr/access';
 import {uuid} from '@/lib/emr/demographics';
-import {bpsNoteDomains,mapIntakeToBps,sanitizeBpsSnapshotAnswers} from '@/lib/emr/intake-bps';
+import {bpsNoteDomains,mapIntakeToBps,sanitizeBpsClinicianNotes,sanitizeBpsSnapshotAnswers} from '@/lib/emr/intake-bps';
 export const dynamic='force-dynamic';
 const reply=(data:unknown,status=200)=>NextResponse.json(data,{status,headers:privateHeaders});
 const sourceFields='answers,status,version,updated_at';
@@ -36,7 +36,9 @@ export async function GET(request:Request){
    // A malformed or historical review must never leak unapproved intake fields
    // in the API payload, even if the browser also filters its visible content.
    const clean=sanitizeBpsSnapshotAnswers(review.clinical_answers);
-   return {...review,clinical_answers:clean.answers,excluded_clinical_fields:clean.excludedCount};
+   const safeNotes=sanitizeBpsClinicianNotes(review.clinician_notes);
+   return {...review,clinical_answers:clean.answers,clinician_notes:safeNotes.notes,
+    excluded_clinical_fields:clean.excludedCount,excluded_clinician_notes:safeNotes.excludedCount};
   });
   return reply({patientId:id,linked:true,source:{accountId:source.patient.account_id,status:source.intake.status,version:source.intake.version,
     updatedAt:source.intake.updated_at},...report,reviews:safeReviews});

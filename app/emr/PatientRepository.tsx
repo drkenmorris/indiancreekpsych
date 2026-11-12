@@ -28,6 +28,29 @@ export default function PatientRepository(){const [emailEditing,setEmailEditing]
  const requestGeneration=useRef(0);
  const load=useCallback(async()=>{const r=await fetch('/api/emr/patients',{cache:'no-store'}),data=await r.json();if(!r.ok)throw Error(data.error);setPatients(data.patients);return data.patients as Patient[];},[]);useEffect(()=>{load().then(rows=>{const id=new URLSearchParams(window.location.search).get('patient');const p=rows.find(p=>p.id===id);if(p)void open(p);}).catch(e=>setMessage(e.message));},[load]);
  async function open(p:Patient){const generation=++requestGeneration.current;setBusy(true);setSelected(p);setEmailEditing(false);setDraft(p.demographics);setRecords([]);setIntake(null);setMessage('');try{const [r,i]=await Promise.all([fetch('/api/emr/dsm-records?patient='+p.id,{cache:'no-store'}),fetch('/api/emr/patients?id='+p.id,{cache:'no-store'})]);const rd=await r.json(),id=await i.json();if(!r.ok||!i.ok)throw Error(rd.error||id.error);if(generation!==requestGeneration.current)return;setSelected(id.patients[0]);setDraft(id.patients[0].demographics);setRecords(rd.records);setIntake(id.intake);}catch(e){if(generation===requestGeneration.current)setMessage(e instanceof Error?e.message:'Record unavailable.');}finally{if(generation===requestGeneration.current)setBusy(false);}}
+ useEffect(()=>{
+  if(!selected||busy)return;
+  const id=selected.id;
+  const generation=requestGeneration.current;
+  let active=true,pending=false;
+  async function refreshIntake(){
+   if(pending||document.visibilityState!=='visible')return;
+   pending=true;
+   try{
+    const response=await fetch('/api/emr/patients?id='+encodeURIComponent(id),{cache:'no-store'});
+    if(!active||generation!==requestGeneration.current)return;
+    if(response.status===401||response.status===403){setIntake(null);return;}
+    if(!response.ok)return;
+    const value=await response.json();
+    if(active&&generation===requestGeneration.current&&value.patients?.[0]?.id===id)
+     setIntake(previous=>previous?.updated_at===value.intake?.updated_at?previous:value.intake);
+   }catch{/* The next refresh retries transient failures. */}
+   finally{pending=false;}
+  }
+  const timer=window.setInterval(refreshIntake,5000);
+  window.addEventListener('focus',refreshIntake);
+  return ()=>{active=false;window.clearInterval(timer);window.removeEventListener('focus',refreshIntake);};
+ },[selected?.id,busy]);
  // A browser fragment can be lost during clinic sign-in/MFA, and an anchor can
  // render only after this patient's protected chart and intake have loaded.
  // The whitelisted review target is therefore retained in the query string.

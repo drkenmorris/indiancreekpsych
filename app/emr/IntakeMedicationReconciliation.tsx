@@ -5,7 +5,7 @@ import {emptyMedication,hasMedication,parseMedications,validateMedications,type 
 type ChartMedication=MedicationEntry&{id:string;kind:string};
 type WorkflowResponse={revision:number;value:{records:ChartMedication[]}};
 const keys=['medication','dosage','frequency','prescribing_physician','start_date','end_date'] as const;
-const labels={medication:'Medication name',dosage:'Dosage',frequency:'Frequency',prescribing_physician:'Prescribing clinician',start_date:'Start date',end_date:'End date'};
+const labels={medication:'Medication name',dosage:'Amount taken each time',frequency:'Frequency',prescribing_physician:'Prescribing clinician',start_date:'Start date',end_date:'End date'};
 const sameMedication=(a:MedicationEntry,b:MedicationEntry)=>a.medication.trim().toLocaleLowerCase()===b.medication.trim().toLocaleLowerCase()&&a.status===b.status;
 async function readJson(response:Response){
  const data=await response.json();

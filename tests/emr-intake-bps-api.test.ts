@@ -68,7 +68,7 @@ test('stale source and duplicate snapshots fail closed at the database validatio
 
 test('saved BPS history cannot follow a relinked patient account or cross into another chart',async()=>{
  reviewRows=[{id:'00000000-0000-0000-0000-000000000600',patient_id:patient,source_account_id:account,
-   source_version:2,source_status:'submitted',source_updated_at:stamp,created_at:stamp,
+   source_version:2,source_status:'submitted',source_updated_at:stamp,created_at:stamp,reviewed:true,
    clinical_answers:{counseling_reason:'Patient-reported history'},clinician_notes:{presenting:'Reviewed'}}];
  const response=await GET(request());expect(response.status).toBe(200);
  const body=await response.json();expect(body.reviews).toHaveLength(1);
@@ -76,6 +76,7 @@ test('saved BPS history cannot follow a relinked patient account or cross into a
  expect(body.reviews[0]).not.toHaveProperty('source_account_id');
  expect(body.reviews[0]).not.toHaveProperty('patient_id');
  expect(body.reviews[0].excluded_clinical_fields).toBe(0);
+ expect(body.reviews[0].reviewed).toBe(true);
  reviewRows=[{...reviewRows[0],clinical_answers:{
    counseling_reason:'Patient-reported history',medication_entries:'Do not disclose medications',
    trauma_history_checklist:'Do not disclose structured trauma',roi_signature:'Do not disclose signature',
@@ -101,7 +102,7 @@ test('historical clinician-note columns are filtered before the protected chart 
  const allowed='Independent fictional clinician context';
  const secret='PRIVATE_INSURANCE_OR_LEGAL_NOTE_MUST_NOT_LEAK';
  reviewRows=[{id:'00000000-0000-0000-0000-000000000600',patient_id:patient,source_account_id:account,
-   source_version:2,source_status:'submitted',source_updated_at:stamp,created_at:stamp,
+   source_version:2,source_status:'submitted',source_updated_at:stamp,created_at:stamp,reviewed:true,
    clinical_answers:{counseling_reason:'Patient-reported concern'},
    clinician_notes:{presenting:allowed,insurance_member:secret,
     legal_decision:'PRIVATE_LEGAL_NOTE',medical:12345,safety:'S'.repeat(4001)}}];
@@ -143,4 +144,17 @@ test('protected BPS source API never returns unapproved raw emergency-contact PI
  expect(JSON.stringify(body)).not.toContain(privateName);
  expect(JSON.stringify(body)).not.toContain(privatePhone);
  expect(JSON.stringify(body)).toContain('Fictional safe presenting reason');
+});
+
+
+test('stored BPS row without true clinician-review attestation is never represented as verified',async()=>{
+ reviewRows=[{id:'00000000-0000-0000-0000-000000000600',patient_id:patient,source_account_id:account,
+  source_version:2,source_status:'submitted',source_updated_at:stamp,created_at:stamp,
+  reviewed:false,clinical_answers:{counseling_reason:'Fictional report'},clinician_notes:{}}];
+ const response=await GET(request());expect(response.status).toBe(200);
+ const payload=await response.json();expect(payload.reviews).toHaveLength(1);
+ expect(payload.reviews[0].reviewed).toBe(false);
+ reviewRows=[{...reviewRows[0],reviewed:null}];
+ const missing=await GET(request());expect(missing.status).toBe(200);
+ expect((await missing.json()).reviews[0].reviewed).toBe(false);
 });

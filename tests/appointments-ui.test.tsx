@@ -1,7 +1,7 @@
 import {afterEach,beforeEach,expect,test,vi} from 'vitest';
 import {cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
-const mocks=vi.hoisted(()=>({rpc:vi.fn()}));
-vi.mock('@/lib/supabase/client',()=>({createClient:()=>({rpc:mocks.rpc})}));
+const mocks=vi.hoisted(()=>({rpc:vi.fn(),from:vi.fn()}));
+vi.mock('@/lib/supabase/client',()=>({createClient:()=>({rpc:mocks.rpc,from:mocks.from})}));
 vi.mock('../app/appointments/calendar/CalendarClient',()=>({default:()=>null}));
 import AppointmentsClient from '../app/appointments/AppointmentsClient';
 const props={userId:'admin',accountType:'admin' as const,preferredName:'Admin',initialSettings:{scheduling_enabled:true,timezone:'America/Chicago',appointment_duration_minutes:50,slot_interval_minutes:30,minimum_notice_hours:24,maximum_advance_days:60},initialRules:[],initialBlocks:[],initialAppointments:[]};
@@ -63,4 +63,54 @@ test('a positive integer booking receipt confirms the number of scheduled appoin
  fireEvent.click(screen.getByRole('button',{name:'Book patient appointments'}));
  await screen.findByText('3 appointments booked. Adjacent openings updated.');
  expect(screen.queryByText(/Booking was not confirmed/)).toBeNull();
+});
+
+test.each([
+ {name:'zero matched rows',data:null},
+ {name:'mismatched persisted settings',data:{id:true,...props.initialSettings,maximum_advance_days:365}},
+ {name:'wrong singleton',data:{id:false,...props.initialSettings}},
+])('scheduler settings refuse to report saved for $name',async ({data})=>{
+ mocks.from.mockReturnValue({update:()=>({eq:()=>({select:()=>({maybeSingle:async()=>({data,error:null})})})})});
+ render(<AppointmentsClient {...props}/>);
+ fireEvent.click(screen.getByRole('button',{name:'Online scheduling rules'}));
+ fireEvent.click(screen.getByRole('button',{name:'Save scheduling settings'}));
+ await screen.findByText(/Scheduling settings were not verified in the database/);
+ expect(screen.queryByText('Scheduling settings saved and verified.')).toBeNull();
+ expect(mocks.from).toHaveBeenCalledWith('appointment_settings');
+});
+test('scheduler only confirms settings when actual saved singleton matches all requested fields',async()=>{
+ mocks.from.mockReturnValue({update:()=>({eq:()=>({select:()=>({maybeSingle:async()=>({data:{id:true,...props.initialSettings},error:null})})})})});
+ render(<AppointmentsClient {...props}/>);
+ fireEvent.click(screen.getByRole('button',{name:'Online scheduling rules'}));
+ fireEvent.click(screen.getByRole('button',{name:'Save scheduling settings'}));
+ await screen.findByText('Scheduling settings saved and verified.');
+ expect(screen.queryByText(/Scheduling settings were not verified/)).toBeNull();
+});
+test('a zero-row office-hours DELETE cannot remove the visible rule or claim success',async()=>{
+ const rule={id:'00000000-0000-4000-8000-000000000002',weekday:1,start_time:'09:00:00',end_time:'17:00:00',enabled:true};
+ let returned:unknown[]=[];
+ mocks.from.mockReturnValue({delete:()=>({eq:()=>({select:async()=>({data:returned,error:null})})})});
+ render(<AppointmentsClient {...props} initialRules={[rule]}/>);
+ fireEvent.click(screen.getByRole('button',{name:'Weekly office hours'}));
+ fireEvent.click(screen.getByRole('button',{name:'Delete'}));
+ await screen.findByText(/Removal of office hours was not verified/);
+ expect(screen.getByText(/09:00–17:00/)).toBeTruthy();
+ returned=[{id:rule.id}];
+ fireEvent.click(screen.getByRole('button',{name:'Delete'}));
+ await screen.findByText('Office hours removed and verified.');
+ expect(screen.queryByText(/09:00–17:00/)).toBeNull();
+});
+test('a zero-row blackout DELETE cannot remove visible protected time',async()=>{
+ const blocked={id:'00000000-0000-4000-8000-000000000003',starts_at:'2026-12-01T12:00:00Z',ends_at:'2026-12-01T14:00:00Z',label:'Synthetic blackout'};
+ let returned:unknown[]=[];
+ mocks.from.mockReturnValue({delete:()=>({eq:()=>({select:async()=>({data:returned,error:null})})})});
+ render(<AppointmentsClient {...props} initialBlocks={[blocked]}/>);
+ fireEvent.click(screen.getByRole('button',{name:'Blackout periods'}));
+ fireEvent.click(screen.getByRole('button',{name:'Remove'}));
+ await screen.findByText(/Blackout removal was not verified/);
+ expect(screen.getByText('Synthetic blackout')).toBeTruthy();
+ returned=[{id:blocked.id}];
+ fireEvent.click(screen.getByRole('button',{name:'Remove'}));
+ await screen.findByText('Blackout removed and verified.');
+ expect(screen.queryByText('Synthetic blackout')).toBeNull();
 });

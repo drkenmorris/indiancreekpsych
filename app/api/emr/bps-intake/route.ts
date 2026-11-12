@@ -64,7 +64,7 @@ export async function POST(request:Request){
  try{
   const raw=await request.text();if(Buffer.byteLength(raw)>35000)return reply({error:'BPS review request too large.'},413);
   const body=JSON.parse(raw) as Record<string,unknown>;
-  if(!body||!uuid(body.patientId)||!uuid(body.sourceAccountId)||body.reviewed!==true||!Number.isInteger(body.sourceVersion)||
+  if(!body||!uuid(body.patientId)||!uuid(body.sourceAccountId)||body.reviewed!==true||!Number.isSafeInteger(body.sourceVersion)||
     typeof body.sourceVersion!=='number'||body.sourceVersion<1||
     (body.sourceStatus!=='draft'&&body.sourceStatus!=='submitted')||
     typeof body.sourceUpdatedAt!=='string'||!Number.isFinite(Date.parse(body.sourceUpdatedAt)))

@@ -9,6 +9,10 @@ test('validation accepts blank drafts and rejects contradictory allergy/date/ben
 test('brand search offers labeled strengths and preserves the patient-reported dose',async()=>{
  vi.stubGlobal('fetch',vi.fn().mockResolvedValue({ok:true,json:async()=> (await import('@/public/emr-assets/medication-catalog.json')).default}));
  render(<Harness/>);
+ const lookup=screen.getByRole('button',{name:'Search medication catalog'});
+ expect(lookup).toHaveProperty('type','button');
+ fireEvent.click(lookup);
+ expect(screen.getByText(/Enter at least two letters/)).toBeTruthy();
  fireEvent.change(screen.getByLabelText('Dosage'),{target:{value:'Half a tablet'}});
  fireEvent.change(screen.getByLabelText('Medication'),{target:{value:'Zo'}});
  const product=await screen.findByRole('button',{name:'sertraline 50 MG Oral Tablet [Zoloft]'});

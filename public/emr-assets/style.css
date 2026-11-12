@@ -127,3 +127,13 @@ form[data-action="biopsychosocial_trauma_history"] .check{min-height:44px}
 .button-link{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:10px 16px;border-radius:7px;background:var(--green);color:white;text-decoration:none;font-weight:650;font-size:14px}
 /* Patient-reported intake risk screening, scoped to the open central chart. */
 .riskAssessmentQuestion{border:1px solid #cadbd3;border-radius:10px;padding:14px 18px;margin:18px 0;min-width:0}.riskAssessmentQuestion legend{font-weight:700;padding:0 6px;line-height:1.5}.riskAssessmentChoices{display:flex;gap:24px;flex-wrap:wrap}.riskAssessmentChoices label{display:flex;align-items:center;gap:10px;min-height:44px}.riskAssessmentChoices input{width:22px;height:22px;min-height:22px;margin:0;accent-color:#245a4c}
+
+.medication-product-matches {
+  display: grid;
+  gap: .25rem;
+  max-height: 14rem;
+  overflow-y: auto;
+}
+.medication-product-matches button {
+  text-align: left;
+}

@@ -59,7 +59,7 @@ async function populateOriginalBpsIntake(panel,id,generation){
     const status=['draft','submitted'].includes(review.source_status)?review.source_status:'unverified';
     const at=Date.parse(review.created_at);
     const date=Number.isFinite(at)?new Date(at).toLocaleString():'date unavailable';
-    item.textContent='Unsigned review of '+status+' intake version '+version+' · saved '+date+'.';
+    item.textContent=(review.reviewed===true?'Unsigned review of ':'Unverified review attestation for ')+status+' intake version '+version+' · saved '+date+'.';
     list.append(item);
    }
    history.append(list);
@@ -67,7 +67,7 @@ async function populateOriginalBpsIntake(panel,id,generation){
    const none=document.createElement('p');none.textContent='No saved clinician-reviewed BPS intake snapshots for this patient.';
    history.append(none);
   }
-  const currentReviewed=reviews.some(review=>
+  const currentReviewed=reviews.some(review=>review.reviewed===true&&
    review.source_version===result.source?.version&&
    review.source_status===result.source?.status&&
    Number.isFinite(Date.parse(review.source_updated_at))&&

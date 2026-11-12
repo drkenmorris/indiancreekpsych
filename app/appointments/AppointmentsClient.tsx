@@ -43,6 +43,10 @@ export default function AppointmentsClient({userId,accountType,preferredName,ini
     try {
       const {data,error}=await supabase.rpc("book_patient_appointments",{p_patient_id:booking.patient_id||null,p_patient_name:booking.patient_id?null:booking.patient_name,p_first_date:booking.first_date,p_start_time:booking.start_time,p_repeat_weeks:booking.repeat_weeks,p_through:booking.repeat_weeks===0?booking.first_date:booking.through}).abortSignal(AbortSignal.timeout(20000));
       if(error)throw error;
+      // A successful HTTP/RPC response with zero, null or malformed affected rows
+      // is NOT evidence that a booking was committed. Never tell the clinician
+      // appointments exist unless the scheduler returns a positive integer receipt.
+      if(!Number.isSafeInteger(data)||data<1)throw new Error('Booking was not confirmed. Refresh the calendar to check the schedule before retrying.');
       setBookingMessage(`${data} appointment${data===1?"":"s"} booked. Adjacent openings updated.`);
       await loadSlots();
     }catch(error){setBookingMessage(error instanceof Error?error.message:(error as {message?:string})?.message??"Booking could not be confirmed. Refresh the schedule before retrying.");}finally{setBusy(false);}

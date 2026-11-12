@@ -44,6 +44,17 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
  async function load(id:string){
   const value=await json(await fetch('/api/emr/bps-intake?patient='+encodeURIComponent(id),{cache:'no-store'}));
   if(value.patientId!==id||!Array.isArray(value.sections)||value.sections.length!==21)throw Error('BPS source did not match the selected chart.');
+  // The clinician review is an independent PHI and attestation boundary, not just
+  // a copy of the original BPS preview. Never render answers or enable review
+  // when a malformed/stale API response lacks verified linked source metadata.
+  const source=value.source;
+  if(!source||typeof source.accountId!=='string'||
+   !/^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(source.accountId)||
+   (source.status!=='draft'&&source.status!=='submitted')||
+   !Number.isSafeInteger(source.version)||source.version<1||
+   typeof source.updatedAt!=='string'||!Number.isFinite(Date.parse(source.updatedAt))||
+   !Array.isArray(value.reviews)||!Array.isArray(value.unmappedKeys))
+   throw Error('Linked patient intake provenance or clinical review history could not be verified. Reopen the protected source.');
   return value as ResponseData;
  }
  useEffect(()=>{let active=true;

@@ -166,7 +166,7 @@ export default function KioskIntake({token}:{token:string}){
      return <div key={key} className={type==='textarea'?styles.wide:undefined}>
       <label>{label}{required?<span aria-hidden="true"> *</span>:null}
        {type==='select'
-        ?<select aria-required={required||undefined} value={answers[key]??''} onChange={e=>update(key,e.target.value)}><option value="">Select…</option>{options.map(option=><option key={option} value={option}>{option==='insured'?'I have insurance':option==='self-pay'?'Self-pay / no insurance':option==='unsure'?'I’m not sure':option}</option>)}</select>
+        ?<select aria-required={required||undefined} value={answers[key]??''} onChange={e=>update(key,e.target.value)}><option value="">Select…</option>{answers[key]&&!options.includes(answers[key])&&<option value={answers[key]}>Previously saved: {answers[key]}</option>}{options.map(option=><option key={option} value={option}>{option==='insured'?'I have insurance':option==='self-pay'?'Self-pay / no insurance':option==='unsure'?'I’m not sure':option}</option>)}</select>
         :type==='textarea'
          ?<textarea aria-required={required||undefined} rows={6} maxLength={key==='medication_allergy_notes'?4000:8000} value={answers[key]??''} onChange={e=>update(key,e.target.value)}/>
          :<input aria-required={required||undefined} type={type} maxLength={8000} inputMode={cost?'decimal':undefined} disabled={cost&&answers[key]==='I don’t know'} value={answers[key]??''} onChange={e=>update(key,e.target.value)}/>}

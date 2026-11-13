@@ -13,8 +13,8 @@ test('clinic migrations replay in order on an empty application database', async
       create role anon; create role authenticated; create role service_role bypassrls;
       create schema auth; create schema extensions;
       create extension pgcrypto with schema extensions;
-      // Reproduce the current Supabase auth.users columns needed by clinic migrations.
-      // This PGlite fixture is isolated and never reads or mutates hosted accounts.
+      -- Reproduce the current Supabase auth.users columns needed by clinic migrations.
+      -- This PGlite fixture is isolated and never reads or mutates hosted accounts.
       create table auth.users(id uuid primary key, email text, email_confirmed_at timestamptz, banned_until timestamptz,
         raw_user_meta_data jsonb default '{}', raw_app_meta_data jsonb default '{}');
       create table auth.mfa_factors(user_id uuid references auth.users, status text, factor_type text);

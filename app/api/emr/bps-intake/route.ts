@@ -4,7 +4,7 @@ import {uuid} from '@/lib/emr/demographics';
 import {bpsNoteDomains,mapIntakeToBps,sanitizeBpsClinicianNotes,sanitizeBpsSnapshotAnswers,validBpsTimestamp} from '@/lib/emr/intake-bps';
 export const dynamic='force-dynamic';
 const reply=(data:unknown,status=200)=>NextResponse.json(data,{status,headers:privateHeaders});
-const sourceFields='patient_id,answers,status,version,updated_at';
+const sourceFields='patient_id,answers,status,version,updated_at,submitted_at';
 async function linkedSource(supabase:NonNullable<Awaited<ReturnType<typeof emrAccess>>>['supabase'],id:string){
  const patient=await supabase.from('clinical_patients').select('id,account_id,directory_deleted_at').eq('id',id).is('directory_deleted_at',null).maybeSingle();
  if(patient.error)throw Error('Central patient repository unavailable.');
@@ -28,7 +28,11 @@ async function linkedSource(supabase:NonNullable<Awaited<ReturnType<typeof emrAc
  // consumers and cannot make malformed historical rows safe to disclose.
  if((intake.data.status!=='draft'&&intake.data.status!=='submitted')||
    !Number.isSafeInteger(intake.data.version)||intake.data.version<1||
-   !validBpsTimestamp(intake.data.updated_at))
+   !validBpsTimestamp(intake.data.updated_at)||
+   // Submitted clinical provenance must have a real submission receipt, not
+   // merely a status label. Drafts may have no submission timestamp.
+   (intake.data.status==='submitted'&&!validBpsTimestamp(intake.data.submitted_at))||
+   (intake.data.submitted_at!=null&&!validBpsTimestamp(intake.data.submitted_at)))
   return {code:409 as const,error:'Linked intake source metadata is invalid; reopen the protected original intake.'};
  // A malformed JSONB answer payload must not silently turn a 21-section
  // clinical intake into an apparently valid blank questionnaire. Only the
@@ -79,7 +83,7 @@ export async function GET(request:Request){
     excluded_clinical_fields:clean.excludedCount,excluded_clinician_notes:safeNotes.excludedCount};
   });
   return reply({patientId:id,linked:true,source:{accountId:source.patient.account_id,status:source.intake.status,version:source.intake.version,
-    updatedAt:source.intake.updated_at},...report,reviews:safeReviews});
+    updatedAt:source.intake.updated_at,submittedAt:source.intake.submitted_at??null},...report,reviews:safeReviews});
  // Never echo database/provider exception messages: they may include patient identifiers, clinical JSON or internal SQL details.
  }catch{return reply({error:'Protected BPS intake unavailable; reopen the chart and try again.'},503);}
 }

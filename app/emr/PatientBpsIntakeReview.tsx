@@ -76,7 +76,7 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
     typeof section.domain==='string'&&section.domain.length>0&&
     (section.disposition==='clinical'||section.disposition==='separate-review'||section.disposition==='reference')&&
     Number.isSafeInteger(section.answered)&&Number(section.answered)>=0&&
-    Array.isArray(section.fields)&&section.fields.every((candidate:unknown)=>{
+    Array.isArray(section.fields)&&Number(section.answered)<=section.fields.length&&section.fields.every((candidate:unknown)=>{
      if(!candidate||typeof candidate!=='object'||Array.isArray(candidate))return false;
      const field=candidate as Partial<Field>;
      return typeof field.key==='string'&&field.key.length>0&&
@@ -95,7 +95,7 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
   const validHistory=value.reviews.every((entry:unknown)=>{
    if(!entry||typeof entry!=='object'||Array.isArray(entry))return false;
    const review=entry as Partial<Review>;
-   return typeof review.id==='string'&&
+   return typeof review.id==='string'&&typeof review.reviewed==='boolean'&&
     /^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(review.id)&&
     Number.isSafeInteger(review.source_version)&&Number(review.source_version)>=1&&
     (review.source_status==='draft'||review.source_status==='submitted')&&

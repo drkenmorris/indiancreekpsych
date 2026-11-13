@@ -1,9 +1,13 @@
 'use client';
+import './intake-progress.css';
+import IntakeNarrative from '@/app/components/IntakeNarrative';
+import {intakePageKeys,intakePageReady,narrativeMayBeSkipped,requiredIntakePage} from '@/lib/patient/intake-progress';
 import IntakeRiskScreening from '@/app/components/IntakeRiskScreening';
 import DsmVersionChoice from '@/app/components/DsmVersionChoice';
 import {DSM_INTAKE_VERSION_KEY} from '@/lib/clinical-tests/dsm/entry-choice';
 import IntakeCommunicationPreferences from '@/app/components/IntakeCommunicationPreferences';
 import {communicationFieldKeys} from '@/lib/patient/intake';
+import {parseTraumaHistory} from '@/lib/patient/trauma-history';
 import IntakeTraumaHistory from '@/app/components/IntakeTraumaHistory';
 import {FormEvent,useEffect,useMemo,useRef,useState} from 'react';
 import {createClient} from '@/lib/supabase/client';
@@ -23,10 +27,21 @@ export default function IntakeForm({userId,initial,defaults,preview=false}:{user
  const [record,setRecord]=useState(initial),[answers,setAnswers]=useState<IntakeAnswers>(prepareLegalDraft(initial?.answers??defaults,initial?.status==='submitted'));
  const [busy,setBusy]=useState(false),[message,setMessage]=useState(''),[error,setError]=useState(''),[confirm,setConfirm]=useState(false),[dirty,setDirty]=useState(false);
  const [sectionIndex,setSectionIndex]=useState(0);
+ const [previewSaved,setPreviewSaved]=useState<IntakeAnswers>({});
+ const [previewPages,setPreviewPages]=useState<number[]>([]);
  const formRef=useRef<HTMLFormElement|null>(null);
  const submitted=!preview&&record?.status==='submitted';
  const sections=submitted?intakeSectionsForVersion(record?.answers.legal_packet_version||''):intakeSections;
  const section=sections[sectionIndex];
+ const page=sectionIndex+1;
+ const savedAnswers=preview?previewSaved:record?prepareLegalDraft(record.answers,submitted):{};
+ const savedPages=preview?previewPages:record?.completed_pages??[];
+ const requiredPages=sections.map((_,index)=>index+1).filter(number=>requiredIntakePage(number,savedAnswers[LEGAL_ROUTING_KEY]??''));
+ const completed=sections.map((_,index)=>index+1).filter(number=>submitted?requiredPages.includes(number)||savedPages.includes(number):savedPages.includes(number)&&
+  intakePageReady(number,answers)&&intakePageKeys(number).every(key=>(savedAnswers[key]??'')===(answers[key]??'')));
+ const pageReady=intakePageReady(page,answers);
+ const missingPage=requiredPages.find(number=>!completed.includes(number));
+ const pageStatus=(number:number)=>number===page?'current':completed.includes(number)?'saved':requiredPages.includes(number)?'required':'optional';
  const showCommunication=sectionIndex===1&&section.fields.some(field=>field[0]==='comm_phone_calls');
 
  useEffect(()=>{if(!dirty)return;const warn=(event:BeforeUnloadEvent)=>{event.preventDefault();event.returnValue='';};window.addEventListener('beforeunload',warn);return()=>window.removeEventListener('beforeunload',warn);},[dirty]);
@@ -36,33 +51,36 @@ export default function IntakeForm({userId,initial,defaults,preview=false}:{user
   if(scrollRoot instanceof HTMLElement)scrollRoot.scrollTop=0;
  },[sectionIndex]);
 
- const update=(key:string,value:string)=>{setAnswers(a=>({...a,[key]:value}));setDirty(true);setConfirm(false);setMessage('');};
+ const update=(key:string,value:string)=>{setAnswers(a=>({...a,[key]:value,...(key==='medication_allergy_status'&&value==='No known medication allergies'?{medication_allergy_notes:''}:{})}));setDirty(true);setConfirm(false);setMessage('');};
  async function save(submit:boolean){
-  if(busy||submitted)return;
+  if(busy||submitted||(!submit&&!pageReady)||(submit&&missingPage))return;
   setError('');
-  if(preview){setMessage(submit?'Preview mode: submission is disabled; no information was sent.':'The fields are responding to input. Preview mode never saves data to Supabase.');return;}
+  if(preview){setPreviewSaved({...previewSaved,...Object.fromEntries(intakePageKeys(page).map(key=>[key,answers[key]??'']))});setPreviewPages([...new Set([...previewPages,page])]);setMessage('Page marked complete in this preview only.');return;}
   if(!supabase){setError('Database connection unavailable.');return;}
-  const invalid=validateIntake(answers,submit);if(invalid){setError(invalid);return;}
+  const nextAnswers:IntakeAnswers={...savedAnswers,...(!submit?Object.fromEntries(intakePageKeys(page).map(key=>[key,answers[key]??''])):{}),legal_packet_version:LEGAL_PACKET_VERSION};
+  const invalid=validateIntake(nextAnswers,submit);if(invalid){setError(invalid);return;}
   setBusy(true);
   try{
-   const payload={answers:{...answers,legal_packet_version:LEGAL_PACKET_VERSION},status:submit?'submitted':'draft'};
+   const payload={answers:nextAnswers,completed_pages:submit?savedPages:[...new Set([...savedPages,page])],status:submit?'submitted':'draft'};
    const q=record?supabase.from('patient_intakes').update(payload).eq('patient_id',userId).eq('version',record.version):supabase.from('patient_intakes').insert({patient_id:userId,...payload});
    const {data,error:saveError}=await q.select().abortSignal(AbortSignal.timeout(20000)).single();
    if(saveError||!data)throw new Error('Your save could not be confirmed. Keep this page open and check your account in another tab before retrying. A newer version may already be saved.');
-   setRecord(data);setDirty(false);setMessage(submit?'Your questionnaire has been submitted to the practice.':'Draft saved securely.');setConfirm(false);
+   setRecord(data);setDirty(Object.keys(answers).some(key=>(answers[key]??'')!==(nextAnswers[key]??'')&&key!=='legal_packet_version'));setMessage(submit?'Your questionnaire has been submitted to the practice.':'Draft saved securely.');setConfirm(false);
   }catch(e){setError(e instanceof Error?e.message:'Unable to save. Your answers remain on this page.');}finally{setBusy(false);}
  }
  function submit(e:FormEvent){e.preventDefault();if(preview){setMessage('Preview only: this form cannot be submitted. Start a new office intake to test secure saving.');return;}
-  const invalid=validateIntake(answers,true);if(invalid){setError(invalid);return;}setError('');setConfirm(true);}
+  if(missingPage){setSectionIndex(missingPage-1);setError('Complete and save page '+missingPage+' before submitting.');return;}
+  const invalid=validateIntake({...savedAnswers,legal_packet_version:LEGAL_PACKET_VERSION},true);if(invalid){setError(invalid);return;}setError('');setConfirm(true);}
  const next=()=>{setError('');setMessage('');setSectionIndex(i=>Math.min(i+1,sections.length-1));};
  const previous=()=>{setError('');setMessage('');setSectionIndex(i=>Math.max(i-1,0));};
 
  return <form ref={formRef} onSubmit={submit} className="authForm intakeWizard" autoComplete="off">
   <section className="intakeProgress" aria-label="Questionnaire progress">
-   <div><strong>Section {sectionIndex+1} of {sections.length}</strong><span>{Math.round(((sectionIndex+1)/sections.length)*100)}% complete</span></div>
-   <progress max={sections.length} value={sectionIndex+1}/>
+   <div><strong>Section {sectionIndex+1} of {sections.length}</strong><span>{requiredPages.filter(number=>completed.includes(number)).length} of {requiredPages.length} required pages saved</span></div>
+   <progress max={requiredPages.length} value={requiredPages.filter(number=>completed.includes(number)).length}/>
+   <p className="intakeStatusLegend">Red: required · Yellow: optional · Dark gray: current page · Green: saved</p>
    <div className="intakeSectionTabs" role="tablist" aria-label="Intake sections">
-    {sections.map((item,index)=><button key={item.title} type="button" role="tab" aria-selected={index===sectionIndex} disabled={busy} onClick={()=>setSectionIndex(index)}>{index+1}</button>)}
+    {sections.map((item,index)=><button key={item.title} type="button" role="tab" aria-selected={index===sectionIndex} data-page-status={pageStatus(index+1)} aria-description={pageStatus(index+1)} disabled={busy} onClick={()=>{setSectionIndex(index);setConfirm(false);setError('');setMessage('');}}>{index+1}</button>)}
    </div>
   </section>
 
@@ -83,14 +101,15 @@ export default function IntakeForm({userId,initial,defaults,preview=false}:{user
    <LegalSectionDocument sectionTitle={section.title} version={submitted?(record?.answers.legal_packet_version||'legacy-unversioned'):LEGAL_PACKET_VERSION}/>
    <div className="intakeFields">{section.title==='Safety and risk screening'?<IntakeRiskScreening answers={answers} onChange={update} readOnly={submitted} disabled={busy}/>:section.fields.map(field=>{
     const [key,label,type]=field;if(type==='dsm-version')return null;if(showCommunication&&communicationFieldKeys.includes(key))return null;const required=field.length>3&&field[3];const options=(field.length>4?field[4]:[])??[];const cost=costFields.includes(key);
-    if(type==='legal-routing')return <div key={key} className="intakeWide"><IntakeLegalDirectory value={answers[key]??''} onChange={v=>update(key,v)} onOpen={page=>setSectionIndex(page-1)} readOnly={submitted} preview={preview}/></div>;
-    if(type==='trauma-history')return <div key={key} className="intakeWide"><IntakeTraumaHistory value={answers[key]??''} onChange={v=>update(key,v)} legacyAnswers={answers} readOnly={submitted}/></div>;
+    if(type==='legal-routing')return <div key={key} className="intakeWide"><IntakeLegalDirectory value={answers[key]??''} onChange={v=>update(key,v)} onOpen={page=>setSectionIndex(page-1)} readOnly={submitted} preview={preview} pageStatus={number=>completed.includes(number)?'saved':requiredPages.includes(number)?'required':'optional'}/></div>;
+    if(type==='trauma-history')return <div key={key} className="intakeWide"><IntakeTraumaHistory value={answers[key]??''} onChange={v=>update(key,v)} legacyAnswers={answers} readOnly={submitted}/>{!submitted&&!answers[key]&&<button type="button" onClick={()=>update(key,JSON.stringify(parseTraumaHistory('')))}>No checklist items to report</button>}</div>;
     if(type==='medical-substance')return <div key={key} className="intakeWide"><IntakeMedicalSubstance value={answers[key]??''} onChange={v=>update(key,v)} legacyAnswers={answers} readOnly={submitted}/></div>;
     if(type==='medications')return <div key={key} className="intakeWide"><IntakeMedications value={answers[key]??''} onChange={v=>update(key,v)} readOnly={submitted}/></div>;
     if(type==='treatment-history')return <div key={key} className="intakeWide"><IntakeTreatmentHistory value={answers[key]??''} onChange={v=>update(key,v)} readOnly={submitted}/></div>;
-    return <div key={key} className={type==='textarea'?'intakeWide':''}><label>{label}{required?' *':''}
+    if(key==='medication_allergy_notes'&&answers.medication_allergy_status==='No known medication allergies')return null;
+    if(type==='textarea')return <div key={key} className="intakeWide"><IntakeNarrative label={label+(required?' *':'')} value={answers[key]??''} onChange={value=>update(key,value)} allowNA={narrativeMayBeSkipped(key,answers)} disabled={submitted||busy} maxLength={key==='medication_allergy_notes'?4000:8000}/></div>;
+    return <div key={key}><label>{label}{required?' *':''}
      {type==='select'?<select value={answers[key]??''} onChange={e=>update(key,e.target.value)}><option value="">Select…</option>{answers[key]&&!options.includes(answers[key])&&<option value={answers[key]}>Previously saved: {answers[key]}</option>}{options.map(o=><option key={o} value={o}>{o==='insured'?'I have insurance':o==='self-pay'?'Self-pay / no insurance':o==='unsure'?'I’m not sure':o}</option>)}</select>
-     :type==='textarea'?<textarea rows={5} maxLength={key==='medication_allergy_notes'?4000:8000} value={answers[key]??''} onChange={e=>update(key,e.target.value)}/>
      :<input type={type} maxLength={8000} value={answers[key]??''} inputMode={cost?'decimal':undefined} disabled={cost&&answers[key]==='I don’t know'} onChange={e=>update(key,e.target.value)}/>}
     </label>{cost&&<label className="checkRow"><input type="checkbox" checked={answers[key]==='I don’t know'} onChange={e=>update(key,e.target.checked?'I don’t know':'')}/> I don’t know</label>}</div>;
    })}</div>
@@ -102,14 +121,15 @@ export default function IntakeForm({userId,initial,defaults,preview=false}:{user
   {sectionIndex===sections.length-1&&(!submitted||!!answers[DSM_INTAKE_VERSION_KEY])&&<DsmVersionChoice value={answers[DSM_INTAKE_VERSION_KEY]??''} onChange={v=>update(DSM_INTAKE_VERSION_KEY,v)} dob={answers.date_of_birth} disabled={busy} readOnly={submitted}/>}
 
   {!submitted&&<section className="intakeWizardActions">
-   <p>* Required to submit. Save draft on each page to share your saved answers with the practice before final submission. {dirty?'You have unsaved changes.':''}</p>
+   <p>Answer the applicable questions before saving this page. Saved pages are available to your clinician before final submission. {dirty?'You have unsaved changes.':''}</p>
    <div className="intakeActionRow">
     <button className="secondaryAction" type="button" disabled={busy||sectionIndex===0} onClick={previous}>← Previous</button>
-    <button className="secondaryAction" type="button" disabled={busy} onClick={()=>void save(false)}>{preview?'Check inputs (no save)':'Save draft'}</button>
+    <button className="secondaryAction" type="button" disabled={busy||!pageReady} onClick={()=>void save(false)}>{preview?'Mark page complete (preview only)':'Save page'}</button>
     {sectionIndex<sections.length-1
       ?<button type="button" disabled={busy} onClick={next}>Next →</button>
       :preview?<button type="button" disabled={busy} onClick={()=>setMessage('All questionnaire sections are available. This preview does not submit patient information.')}>Finish preview</button>
-      :<button type="submit" disabled={busy}>Review and submit</button>}
+      :null}
+    {!preview&&page>=14&&<button type="submit" disabled={busy}>Review and submit</button>}
    </div>
   </section>}
 

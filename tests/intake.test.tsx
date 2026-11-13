@@ -22,16 +22,17 @@ beforeEach(()=>{vi.clearAllMocks();vi.spyOn(window,'scrollTo').mockImplementatio
 test('incomplete drafts allowed, submission requires demographics and reason',()=>{expect(validateIntake({},false)).toBeNull();expect(validateIntake({},true)).toContain('Full legal name');expect(validateIntake(complete,true)).toBeNull();});
 test('unknown benefit amounts allowed; invalid percentages blocked',()=>{expect(validateIntake({...complete,coinsurance:'I don’t know'},true)).toBeNull();expect(validateIntake({...complete,coinsurance:'101'},true)).toContain('Coinsurance');expect(validateIntake({...complete,deductible:'-1'},true)).toContain('non-negative');});
 test('external and script redirects rejected',()=>{for(const url of ['//evil.test','javascript:alert(1)','/\\evil.test','/\nevil'])expect(safeNext(url)).toBe('/account');expect(safeNext('/patient/intake')).toBe('/patient/intake');});
-test('submission requires explicit confirmation and preserves answers on save failure',async()=>{
- mock.save.mockResolvedValue({error:{message:'offline'}});render(<IntakeForm userId="patient" initial={null} defaults={complete}/>);
- expect(screen.queryByRole('button',{name:'Review and submit'})).toBeNull();
- fireEvent.click(screen.getByRole('tab',{name:String(intakeSections.length)}));
- fireEvent.click(screen.getByRole('button',{name:'Review and submit'}));expect(mock.insert).not.toHaveBeenCalled();fireEvent.click(screen.getByRole('button',{name:'Confirm submission'}));await screen.findByRole('alert');
- fireEvent.click(screen.getByRole('tab',{name:'1'}));
- expect((screen.getByLabelText(/Full legal name/) as HTMLInputElement).value).toBe('Test Person');expect(mock.insert).toHaveBeenCalledWith({patient_id:'patient',answers:{...complete,legal_packet_version:LEGAL_PACKET_VERSION},status:'submitted'});
+test('unfinished required pages block submission and redirect to the first incomplete page',()=>{
+ render(<IntakeForm userId="patient" initial={null} defaults={complete}/>);
+ fireEvent.click(screen.getByRole('tab',{name:'14'}));
+ fireEvent.click(screen.getByRole('button',{name:'Review and submit'}));
+ expect(screen.getByRole('alert').textContent).toContain('Complete and save page 1');
+ expect(mock.insert).not.toHaveBeenCalled();
 });
-test('draft save accepts incomplete answers and confirms success',async()=>{
- mock.save.mockResolvedValue({data:{patient_id:'patient',answers:{},status:'draft',version:1},error:null});render(<IntakeForm userId="patient" initial={null} defaults={{}}/>);fireEvent.click(screen.getByRole('button',{name:'Save draft'}));await screen.findByText('Draft saved securely.');expect(mock.insert).toHaveBeenCalledWith({patient_id:'patient',answers:{legal_packet_version:LEGAL_PACKET_VERSION},status:'draft'});
+test('an incomplete page cannot be saved',()=>{
+ render(<IntakeForm userId="patient" initial={null} defaults={{}}/>);
+ expect(screen.getByRole('button',{name:'Save page'})).toHaveProperty('disabled',true);
+ expect(mock.insert).not.toHaveBeenCalled();
 });
 test('security load failure never offers fresh factor enrollment',async()=>{
  mock.list.mockResolvedValue({error:{message:'offline'}});mock.assurance.mockResolvedValue({error:{message:'offline'}});render(<SecurityClient next="/patient/intake"/>);await screen.findByRole('alert');expect(screen.queryByRole('button',{name:'Set up authenticator-app MFA'})).toBeNull();

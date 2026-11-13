@@ -31,8 +31,7 @@ test('staff preview lets people type and navigate every section without touching
  }
  fireEvent.click(screen.getByRole('tab',{name:'1'}));
  expect((screen.getByRole('textbox',{name:/^Full legal name/}) as HTMLInputElement).value).toBe('Synthetic Test');
- fireEvent.click(screen.getByRole('button',{name:'Check inputs (no save)'}));
- expect(screen.getByText(/The fields are responding to input/)).toBeTruthy();
+ expect(screen.getByRole('button',{name:'Mark page complete (preview only)'})).toHaveProperty('disabled',true);
  expect(client.create).not.toHaveBeenCalled();
 });
 
@@ -44,5 +43,5 @@ test('submitted signed questionnaire is visibly locked; preview remains independ
  }} defaults={{}}/></main>);
  expect(screen.getByText(/Signed submissions are intentionally locked/)).toBeTruthy();
  expect((screen.getByRole('textbox',{name:/^Full legal name/}) as HTMLInputElement).closest('fieldset')?.disabled).toBe(true);
- expect(screen.queryByRole('button',{name:'Save draft'})).toBeNull();
+ expect(screen.queryByRole('button',{name:'Save page'})).toBeNull();
 });

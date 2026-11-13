@@ -15,7 +15,9 @@ test('patient draft saves structured episodes, preserves old answers and reloads
  fireEvent.click(screen.getByRole('tab',{name:'5'}));
  fireEvent.change(screen.getByLabelText('Treatment Setting'),{target:{value:'Outpatient'}});
  fireEvent.change(screen.getByLabelText('Provider / Facility'),{target:{value:'Fictional center'}});
- fireEvent.click(screen.getByRole('button',{name:'Save draft'}));
+ fireEvent.change(screen.getByLabelText(/Have you received counseling/),{target:{value:'Yes'}});
+ for(const checkbox of screen.getAllByRole('checkbox',{name:/^Not applicable —/i}))if(!(checkbox.closest('.intakeNarrative')?.querySelector('textarea') as HTMLTextAreaElement).value)fireEvent.click(checkbox);
+ fireEvent.click(screen.getByRole('button',{name:'Save page'}));
  await screen.findByText('Draft saved securely.');
  expect(saved.answers.prior_therapists).toBe('Existing narrative');
  expect(JSON.parse(saved.answers.treatment_history_entries)[0].provider_facility).toBe('Fictional center');

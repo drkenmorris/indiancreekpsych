@@ -15,7 +15,9 @@ test('patient draft saves structured medical history, preserves old answers and 
  fireEvent.click(screen.getByRole('tab',{name:'7'}));
  fireEvent.change(screen.getByLabelText('Medical Details / Conditions, Care and Dates'),{target:{value:'Fictional medical details'}});
  fireEvent.change(screen.getByLabelText('Substance-Use Details / Substance, Amount, Frequency, First and Last Use'),{target:{value:'Fictional use details'}});
- fireEvent.click(screen.getByRole('button',{name:'Save draft'}));
+ for(const checkbox of screen.getAllByRole('checkbox',{name:'None reported'}))fireEvent.click(checkbox);
+ for(const checkbox of screen.getAllByLabelText(/^Not applicable —/i))if(!(checkbox.closest('.intakeNarrative')?.querySelector('textarea') as HTMLTextAreaElement).value)fireEvent.click(checkbox);
+ fireEvent.click(screen.getByRole('button',{name:'Save page'}));
  await screen.findByText('Draft saved securely.');
  expect(saved.answers.prior_therapists).toBe('Existing narrative');
  expect(JSON.parse(saved.answers.medical_substance_history).notes.use_notes).toBe('Fictional use details');

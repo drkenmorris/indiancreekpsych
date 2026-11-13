@@ -119,6 +119,59 @@ async function populateOriginalBpsIntake(panel,id,generation){
   // retired contextual reports. Wrongly relabeled legal/coverage keys stay hidden.
   // The Vitest parity assertion protects this list from drifting.
   const bpsVisibleSourceKeys=new Set(["guardian_relationship","custody_notes","counseling_reason","concern_onset","concern_duration","precipitating_events","symptom_frequency","symptom_severity","functional_impact","sleep","appetite","energy","concentration","work_school_impact","relationship_impact","daily_living_impact","counseling_goals","prior_mental_health_treatment","prior_therapists","prior_diagnoses","self_harm_history","suicide_attempt_history","suicidal_thoughts_current","suicidal_plan_current","homicidal_thoughts_current","violence_risk_details","abuse_neglect_current","weapons_access","protective_factors","trauma_history","psychiatric_hospitalizations","family_mental_health_history","family_household","social_supports","education_history","employment_history","military_history","cultural_spiritual_factors","strengths_interests"]);
+  // The original BPS stays fully editable. Provide source context relevant to its
+  // currently selected clinical page without writing questionnaire responses into
+  // clinician-authored fields or broadening medication/legal/trauma disclosure.
+  // Each page uses an exact approved section-name map; unfamiliar page IDs fall
+  // back to the complete 21-section source audit below.
+  const originalBpsPageSources={
+   symptoms:{label:'Current symptom checklist',titles:['Presenting concerns and functional impact','Safety and risk screening']},
+   treatment_history:{label:'Counseling and psychiatric history',titles:['Mental health treatment history']},
+   medications:{label:'Psychiatric medications',titles:['Medications']},
+   family_origin:{label:'Family of origin',titles:['Emergency contact, guardian, and responsible party','Trauma, family, social, educational, and occupational history']},
+   medical_substance:{label:'Medical and substance-use history',titles:['Medical & Substance Use History']},
+   developmental_personal:{label:'Developmental and personal history',titles:['Trauma, family, social, educational, and occupational history']},
+   trauma_history:{label:'Trauma history',titles:['Trauma, family, social, educational, and occupational history']}
+  };
+  const bpsPage=new URLSearchParams(location.search).get('bps_page')||'symptoms';
+  const pageSource=Object.prototype.hasOwnProperty.call(originalBpsPageSources,bpsPage)?
+   originalBpsPageSources[bpsPage]:null;
+  if(pageSource){
+   const pageContext=document.createElement('section');
+   pageContext.setAttribute('aria-label','Source context for selected original BPS page');
+   const pageHeading=document.createElement('h3');
+   pageHeading.textContent='Patient-reported source context for '+pageSource.label;
+   pageContext.append(pageHeading);
+   const pageNotice=document.createElement('p');
+   pageNotice.textContent='Read-only source reference for this BPS page, not a clinician finding or form entry. Clinician must independently review, enter and save all assessment findings.';
+   pageContext.append(pageNotice);
+   for(const section of result.sections.filter(section=>pageSource.titles.includes(section.title))){
+    const subheading=document.createElement('h4');subheading.textContent=section.title;pageContext.append(subheading);
+    if(section.disposition!=='clinical'){
+     const separate=document.createElement('p');
+     separate.textContent='Dedicated protected reconciliation required. No medication, allergy, structured history, legal or insurance values are copied into this BPS form.';
+     pageContext.append(separate);
+     continue;
+    }
+    const fields=(Array.isArray(section.fields)?section.fields:[]).filter(field=>
+     field&&field.reported===true&&field.sourceOnly===false&&
+     bpsVisibleSourceKeys.has(field.key)&&!protectedSourceTypes.has(field.type)&&
+     typeof field.value==='string'&&field.value.trim());
+    if(!fields.length){
+     const blank=document.createElement('p');blank.textContent='No BPS-approved patient report available for this page; blank is not a negative clinical finding.';
+     pageContext.append(blank);
+     continue;
+    }
+    const answers=document.createElement('dl');
+    for(const field of fields){
+     const label=document.createElement('dt');label.textContent=String(field.label||field.key)+' (patient reported)';
+     const value=document.createElement('dd');value.textContent=field.value;
+     answers.append(label,value);
+    }
+    pageContext.append(answers);
+   }
+   panel.append(pageContext);
+  }
   const details=document.createElement('details');
   const summary=document.createElement('summary');summary.textContent='Expand all 21 intake sections and patient-reported answers';
   details.append(summary);

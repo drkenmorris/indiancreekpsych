@@ -84,7 +84,10 @@ export async function POST(request:Request){
  if(!ctx||!sameOrigin(request))return reply({error:'Administrator sign-in, MFA and same-origin request required.'},403);
  try{
   const raw=await request.text();if(Buffer.byteLength(raw)>35000)return reply({error:'BPS review request too large.'},413);
-  const body=JSON.parse(raw) as Record<string,unknown>;
+  // Never reflect parser exception text: malformed requests may contain PHI.
+  let body:Record<string,unknown>;
+  try{body=JSON.parse(raw) as Record<string,unknown>;}
+  catch{return reply({error:'Invalid BPS review JSON payload.'},400);}
   if(!body||!uuid(body.patientId)||!uuid(body.sourceAccountId)||body.reviewed!==true||!Number.isSafeInteger(body.sourceVersion)||
     typeof body.sourceVersion!=='number'||body.sourceVersion<1||
     (body.sourceStatus!=='draft'&&body.sourceStatus!=='submitted')||
@@ -110,5 +113,5 @@ export async function POST(request:Request){
    error.code==='42501'?403:error.code==='23505'?409:error.code==='22023'?409:503);
   if(!uuid(data))return reply({error:'BPS review save was not confirmed.'},503);
   return reply({id:data,saved:true,unsigned:true,diagnosisCreated:false},201);
- }catch(e){return reply({error:e instanceof Error?e.message:'Invalid BPS review request.'},400);}
+ }catch{return reply({error:'BPS review processing failed; reopen chart history before retrying.',503);}
 }

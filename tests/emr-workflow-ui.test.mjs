@@ -41,7 +41,17 @@ await test('actual hosted forms and global navigation render against central pat
   assert.equal(input.value,'',name+' must not contain prewritten synthetic clinical facts');
  }
  fixture.chart.records.push({id:'fictional-assessment-for-form-test',kind:'assessment',created:'2026-11-10T00:00:01.000Z',problems:[]});
- runInContext("chooseSection('plan','problems');render();",dom.getInternalVMContext());
+ for(const [key,step] of [['problems','Problems'],['definitions','Definitions'],['goals','Goals'],['objectives','Objectives/Interventions']]){
+  runInContext(`chooseSection('plan','${key}');render();`,dom.getInternalVMContext());
+  const link=w.document.querySelector('#patient-plan-editor');
+  assert.ok(link);
+  const target=new URL(link.src);
+  assert.equal(target.searchParams.get('patient'),fixture.pid);
+  assert.equal(target.searchParams.get('step'),step);
+  assert.equal(target.searchParams.get('embedded'),'1');
+  assert.equal(w.document.querySelector('#plan-hierarchy'),null);
+ }
+ runInContext("chooseSection('plan','diagnosis');render();",dom.getInternalVMContext());
  for(const name of ['diagnosis','treatment_approaches','response_to_treatment','homework','review_date']){
   const input=w.document.querySelector('#content [name="'+name+'"]');
   assert.ok(input,'original treatment-plan field '+name+' should render');
@@ -148,7 +158,7 @@ await test('unselected workspace opens actual empty forms and checkboxes without
  assert.equal(runInContext("selectedPatientWorkspaceUrl("+JSON.stringify(fixture.pid)+")",dom.getInternalVMContext()),'/emr/workspace?patient='+fixture.pid+'&module=notes&section=notes%3Aplanner','other clinical destinations remain intact');
 
  assert.ok(w.document.querySelector('input[name="first_name"]'),'demographics fields available without a patient');
- for(const [module,key] of [['assessment','biopsychosocial'],['notes','planner'],['plan','problems'],['prognosis','prognosis'],['discharge','details']]){
+ for(const [module,key] of [['assessment','biopsychosocial'],['notes','planner'],['prognosis','prognosis'],['discharge','details']]){
   runInContext(`chooseSection(${JSON.stringify(module)},${JSON.stringify(key)});render();`,dom.getInternalVMContext());
   if(module==='assessment')assert.equal(w.document.querySelector('[data-bps-intake-review]'),null,'unbound blank BPS cannot open linked patient intake');
   assert.ok(w.document.querySelectorAll('#content input,#content textarea,#content select').length>0,module+' has actual form controls');
@@ -156,6 +166,8 @@ await test('unselected workspace opens actual empty forms and checkboxes without
    if(['checkbox','radio'].includes(field.type))assert.equal(field.checked,false);else assert.equal(field.value,'',field.name+' has no sample value');
   }
  }
+ runInContext("chooseSection('plan','problems');render();",dom.getInternalVMContext());
+ assert.ok(w.document.querySelector('[data-open-plan-patient]'));
  await assert.rejects(runInContext("api('/api/save',{method:'POST',body:'{}'})",dom.getInternalVMContext()),/Select a patient/);
  assert.deepEqual(writes,[]);assert.equal(errors.length,0,errors.join(';'));dom.window.close();
 });

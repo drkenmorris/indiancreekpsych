@@ -293,3 +293,22 @@ test('active medication history and structured medication records never leak thr
   expect(field?.value).toContain('protected source');
  }
 });
+
+
+test('malformed BPS review JSON and unexpected save failures never echo confidential clinical payloads',async()=>{
+ const privateValue='PRIVATE_FICTIONAL_CLINICAL_STATEMENT_NOT_FOR_RESPONSE';
+ const malformed=new Request('https://www.indiancreekpsych.com/api/emr/bps-intake',{
+  method:'POST',headers:{Origin:'https://www.indiancreekpsych.com','Content-Type':'application/json'},
+  body:'{"patientId":"'+patient+'","notes":{"presenting":"'+privateValue+'"},BROKEN}'
+ });
+ const invalid=await POST(malformed);
+ expect(invalid.status).toBe(400);
+ expect(invalid.headers.get('Cache-Control')).toContain('no-store');
+ expect(JSON.stringify(await invalid.json())).not.toContain(privateValue);
+ expect(m.rpc).not.toHaveBeenCalled();
+ m.rpc.mockRejectedValueOnce(new Error('PRIVATE_FICTIONAL_DATABASE_SECRET'));
+ const failure=await POST(submit(payload));
+ expect(failure.status).toBe(503);
+ expect(failure.headers.get('Cache-Control')).toContain('no-store');
+ expect(JSON.stringify(await failure.json())).not.toContain('PRIVATE_FICTIONAL_DATABASE_SECRET');
+});

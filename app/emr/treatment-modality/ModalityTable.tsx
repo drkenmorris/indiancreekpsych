@@ -115,6 +115,7 @@ export default function ModalityTable({ patientId }: { patientId: string }) {
  return <div data-modality-dirty={dirty || undefined}>
   <h1>Modality</h1>
   <p>Plan session types, expected attendance, and providers for this patient.</p>
+  <p>Confirm coverage and provider eligibility for the patient’s plan. For technician-administered testing, select the responsible supervising clinician.</p>
   {status && <p role="status">{status}</p>}
   {loaded && <>
    <form onSubmit={save}>
@@ -138,7 +139,7 @@ export default function ModalityTable({ patientId }: { patientId: string }) {
          <td><select aria-label={'Session type ' + (index + 1)} required value={row.code}
           onChange={event => update(row.key, { code: event.target.value })}>
           <option value="">Select session type</option>
-          {Object.entries(sessionTypes).map(([code, name]) => <option key={code} value={code}>{name}</option>)}
+          {Object.entries(sessionTypes).map(([code, name]) => <option key={code} value={code}>{code} · {name}</option>)}
          </select></td>
          <td>{row.code || '—'}</td>
          <td><select aria-label={'Expected sessions ' + (index + 1)} required value={row.count || ''}

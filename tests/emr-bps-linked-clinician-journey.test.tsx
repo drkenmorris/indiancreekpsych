@@ -55,7 +55,7 @@ test('fictional 21-section linked intake traverses the protected BPS API, clinic
      if(table==='patient_intakes'){
       const id=record.filters.find(([key])=>key==='patient_id')?.[1];
       return {data:id===account?{
-       patient_id:account,answers:sourceAnswers,status:'submitted',version:7,updated_at:stamp
+       patient_id:account,answers:sourceAnswers,status:'submitted',version:7,updated_at:stamp,submitted_at:stamp
       }:null,error:null};
      }
      throw Error('Unexpected single-row table '+table);

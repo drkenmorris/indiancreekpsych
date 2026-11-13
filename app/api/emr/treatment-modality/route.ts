@@ -2,10 +2,10 @@ import { NextResponse } from 'next/server';
 import { privateHeaders, sameOrigin } from '@/lib/emr/access';
 import { uuid } from '@/lib/emr/demographics';
 import { modalityAccess } from '@/lib/emr/modality-access';
-import { maxExpectedSessions, maxSessionRows, sessionFrequencies, sessionTypes } from '@/lib/emr/treatment-modality';
+import { maxCarePeriods, maxExpectedSessions, maxSessionRows, sessionFrequencies, sessionTypes, validCarePeriod, type CarePeriod } from '@/lib/emr/treatment-modality';
 
 export const dynamic = 'force-dynamic';
-const columns = 'patient_id,assigned_provider_id,revision,sessions';
+const columns = 'patient_id,assigned_provider_id,revision,sessions,care_periods';
 const reply = (data: unknown, status = 200) => NextResponse.json(data, { status, headers: privateHeaders });
 const denied = () => reply({ error: 'Clinic sign-in and MFA required.' }, 403);
 const unavailable = () => reply({ error: 'Patient unavailable or outside your assigned charts.' }, 404);
@@ -48,7 +48,7 @@ export async function POST(request: Request) {
    return error ? reply({ error: 'Provider could not be added. Reload the roster and try again.' }, 409) : reply({ saved: true });
   }
 
-  const { patientId, revision, assignedProviderId, sessions } = body;
+  const { patientId, revision, assignedProviderId, sessions, carePeriods } = body;
   if (!uuid(patientId) || !Number.isSafeInteger(revision) || revision < 0 ||
    (assignedProviderId !== null && !uuid(assignedProviderId)) || !Array.isArray(sessions) ||
    sessions.length > maxSessionRows || sessions.some(s => !s || typeof s.code !== 'string' ||
@@ -57,9 +57,16 @@ export async function POST(request: Request) {
     s.count < 1 || s.count > maxExpectedSessions || !uuid(s.providerId))) {
    return reply({ error: 'Complete the session type, count, frequency, and provider on each row.' }, 400);
   }
+  if (carePeriods !== undefined && (!Array.isArray(carePeriods) || carePeriods.length > maxCarePeriods ||
+   !carePeriods.every(validCarePeriod))) {
+   return reply({ error: 'Choose a level and valid start date for each care period. A planned end date must be on or after its start.' }, 400);
+  }
   if (ctx.admin && !await activePatient(ctx, patientId)) return unavailable();
   const patch = {
    sessions: sessions.map(({ code, count, frequency, providerId }) => ({ code, count, frequency, providerId })),
+   ...(carePeriods === undefined ? {} : {
+    care_periods: carePeriods.map(({ level, agreement, startDate, endDate }: CarePeriod) => ({ level, agreement, startDate, endDate })),
+   }),
    revision: revision + 1,
    ...(ctx.admin ? { assigned_provider_id: assignedProviderId } : {}),
   };

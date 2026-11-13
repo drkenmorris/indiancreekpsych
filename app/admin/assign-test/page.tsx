@@ -14,9 +14,10 @@ export default async function AssignTestPage({searchParams}:{searchParams:Promis
         <Link href="/admin/questionnaires">← Questionnaire Center</Link> <Link href="/admin/paubox-test">Paubox Email Diagnostic</Link>
         <p className="eyebrow">Administrator · MFA required</p>
         <h1>Patient Questionnaire Assignment</h1>
+        {params.patient&&<p><Link href={'/admin/assign-test/completed?patient='+encodeURIComponent(params.patient)}>View this patient’s assigned and completed assessments</Link></p>}
         <p>Assign a questionnaire to a named individual and email. For ASQ/ASEQ, choose Student / Self, Parent or Teacher and the central patient record it concerns.</p>
       </div>
-      <TestAssignmentClient initialTestKey={(['asq','dsm'].includes(params.test??'')||isConnectedKey(params.test))?params.test:''} initialPatientId={(['asq','dsm'].includes(params.test??'')||isConnectedKey(params.test))?params.patient??'':''}/>
+      <TestAssignmentClient initialTestKey={(['asq','dsm'].includes(params.test??'')||isConnectedKey(params.test))?params.test:''} initialPatientId={params.patient??''}/>
     </div>
   </main>;
 }

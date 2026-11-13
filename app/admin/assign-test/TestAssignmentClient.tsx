@@ -62,13 +62,24 @@ export default function TestAssignmentClient({initialTestKey="",initialPatientId
   try{
    const response=await fetch("/api/admin/test-assignments",{
     method:"POST",headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({action:"send",id:item.id})
+    body:JSON.stringify({action:item.status==="sent"?"resend":"send",id:item.id})
    });
    const json=await response.json();
    if(!response.ok)throw Error(json.error??"Email was not sent.");
    await load();
    setMessage("The email provider accepted the invitation. Delivery to the recipient's inbox is not yet confirmed.");
   }catch(e){setError(e instanceof Error?e.message:"Email was not sent.");}
+  finally{setBusy(false);}
+ }
+ async function remove(item:Assignment){
+  if(busy||!window.confirm('Delete this invitation from the list and disable its link? Saved questionnaire responses stay in the chart.'))return;
+  setBusy(true);setError("");setMessage("");
+  try{
+   const response=await fetch("/api/admin/test-assignments",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"remove",id:item.id})});
+   const result=await response.json();
+   if(!response.ok)throw Error(result.error);
+   await load();setMessage("Invitation removed.");
+  }catch(e){setError(e instanceof Error?e.message:"Unable to remove invitation.");}
   finally{setBusy(false);}
  }
  return <div className="assignmentPanels">
@@ -106,21 +117,21 @@ export default function TestAssignmentClient({initialTestKey="",initialPatientId
    <div className="assignmentStatusRow"><h2>Invitation status</h2><span className={emailReady?"deliveryConfigured":"deliveryOffline"}>{emailReady?"Email provider configured":"Secure email inactive"}</span></div>
    <p>Invitations are delivered through a transactional email provider. They do not contain the patient's name, birth date, assessment name, or results.</p>
    {!emailReady&&<p className="assignmentCaution">To activate patient email delivery, enroll with the healthcare email provider Paubox and verify your practice domain. Then configure <code>PAUBOX_API_KEY</code> and <code>TEST_INVITATION_FROM_EMAIL</code> as protected Vercel secrets. Once the signed BAA is confirmed and patient test release is approved, enable <code>PAUBOX_BAA_CONFIRMED</code> and <code>PATIENT_TEST_INVITATIONS_ENABLED</code>. No email is sent until all controls are satisfied.</p>}
-   <h3>Recent assignments</h3>
-   {loading?<p>Loading securely…</p>:assignments.length===0?<p>No assignments saved yet.</p>:
+   <h3>Invitations from the last 30 days</h3>
+   {loading?<p>Loading securely…</p>:assignments.length===0?<p>No recent invitations.</p>:
     <div className="assignmentTableWrap"><table className="assignmentTable">
      <thead><tr><th>Recipient</th><th>Test</th><th>Status</th><th>Action</th></tr></thead>
-     <tbody>{assignments.map(a=><tr key={a.id}>
+     <tbody>{assignments.map(a=>{const completed=[a.asq_progress,a.dsm_progress,a.connected_progress].some(p=>p?.status==="submitted");const expired=a.status==="sent"&&Date.parse(a.expires_at)<=Date.now();return <tr key={a.id}>
       <td><strong>{a.recipient_first_name} {a.recipient_last_name}</strong><small>{a.recipient_email}</small></td>
       <td>{tests.find(t=>t.value===a.test_key)?.label??a.test_key}{a.test_key==='asq'&&<><small>{a.asq_role?asqRoleLabels[a.asq_role]:'Legacy assignment — version not specified'}</small>{a.patient_id&&<small><Link href={'/emr?patient='+a.patient_id}>Patient record</Link></small>}</>}{a.test_key==='dsm'&&<><small>{dsmVersionLabel(a.dsm_version)}{a.dsm_version==='adult'?(a.dsm_format==='icps-dsm-recipient/2'?' · Tiers 1–6':' · Earlier Tier 1–2 version'):' · Tier 1 only'}</small>{a.patient_id&&<small><Link href={'/emr/dsm?patient='+a.patient_id}>Patient DSM results</Link></small>}</>}</td>
-      <td>{a.connected_progress&&<small>{a.connected_progress.status==='submitted'?'Questionnaire submitted':'In progress'} · {a.connected_progress.answered_count} answers saved · revision {a.connected_progress.revision}</small>}{a.dsm_progress&&<small>{a.dsm_progress.status==='submitted'?'Questionnaire submitted':'In progress'} · {a.dsm_progress.answered_count} answers saved · revision {a.dsm_progress.revision}</small>}{a.asq_progress&&<small>{a.asq_progress.status==='submitted'?'Questionnaire submitted':'In progress'} · {a.asq_progress.answered_count} answers saved · revision {a.asq_progress.revision}</small>}<span className="assignmentPill">{a.status==="sent"?"Email accepted":"Draft — not sent"}</span></td>
-      <td>{a.status==="draft"?<button disabled={busy||!emailReady||!tests.find(t=>t.value===a.test_key)?.patientReady||(a.test_key==='asq'&&!a.asq_role)||(a.test_key==='dsm'&&!a.dsm_source_hash)||(!isConnectedKey(a.test_key)&&Date.parse(a.expires_at)<=Date.now())||(isConnectedKey(a.test_key)&&!a.connected_source_hash)}
-       onClick={()=>setConfirmInvitation(a.id)}>Send Invitation</button>:<span>Sent</span>}{confirmInvitation===a.id&&<div role="group" aria-label="Confirm assessment invitation">
+      <td>{a.connected_progress&&<small>{a.connected_progress.status==='submitted'?'Questionnaire submitted':'In progress'} · {a.connected_progress.answered_count} answers saved · revision {a.connected_progress.revision}</small>}{a.dsm_progress&&<small>{a.dsm_progress.status==='submitted'?'Questionnaire submitted':'In progress'} · {a.dsm_progress.answered_count} answers saved · revision {a.dsm_progress.revision}</small>}{a.asq_progress&&<small>{a.asq_progress.status==='submitted'?'Questionnaire submitted':'In progress'} · {a.asq_progress.answered_count} answers saved · revision {a.asq_progress.revision}</small>}<span className="assignmentPill">{completed?"Completed":expired?"Expired":a.status==="sent"?"Email accepted":"Draft — not sent"}</span></td>
+      <td>{(a.status==="draft"||expired&&!completed)?<button disabled={busy||!emailReady||!tests.find(t=>t.value===a.test_key)?.patientReady||(a.test_key==='asq'&&!a.asq_role)||(a.test_key==='dsm'&&!a.dsm_source_hash)||(isConnectedKey(a.test_key)&&!a.connected_source_hash)}
+       onClick={()=>setConfirmInvitation(a.id)}>{expired?"Resend invitation":"Send Invitation"}</button>:null}<button type="button" disabled={busy} onClick={()=>void remove(a)}>Delete invitation</button>{confirmInvitation===a.id&&<div role="group" aria-label="Confirm assessment invitation">
        <p>Send a secure invitation to <strong>{a.recipient_email}</strong>? Only this recipient can open the assigned version.</p>
        <button type="button" onClick={()=>setConfirmInvitation(null)} autoFocus>Cancel invitation send</button>
        <button type="button" disabled={busy||!emailReady} onClick={()=>void send(a)}>Confirm and send invitation</button>
       </div>}{isConnectedKey(a.test_key)&&a.connected_source_hash&&<p><Link href={'/admin/assign-test/connected-responses/'+a.id}>View responses / clinical report / PDF</Link>{a.status==='sent'&&<small>Expires {new Date(a.expires_at).toLocaleString('en-US',{timeZone:'America/Chicago'})} Central</small>}</p>}{a.test_key==='dsm'&&!a.dsm_source_hash&&<small>Create a new DSM draft to link the patient and questionnaire version.</small>}{a.test_key==='dsm'&&a.dsm_source_hash&&<p><Link href={'/admin/assign-test/dsm-responses/'+a.id}>View DSM responses / evaluation</Link>{a.status==='sent'&&<small><Link href={'/patient/assigned-tests/'+a.id}>Assigned recipient link</Link></small>}</p>}{a.test_key==='asq'&&a.asq_role&&a.status==='sent'&&<p><Link href={'/patient/assigned-tests/'+a.id}>Assigned recipient link</Link><small>Only the invited account can open this questionnaire.</small></p>}{a.test_key==='asq'&&a.asq_role&&<p><Link href={'/admin/assign-test/asq-responses/'+a.id}>{a.asq_progress?.status==='submitted'?'Evaluate / view results':'View recorded responses'}</Link></p>}</td>
-     </tr>)}</tbody>
+     </tr>;})}</tbody>
     </table></div>}
    <p className="assignmentHelp">Patients must sign in using the invited email address and complete required security verification. An invitation is not proof of identity and never overrides access rules.</p>
   </section>

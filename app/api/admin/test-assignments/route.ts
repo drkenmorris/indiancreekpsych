@@ -10,6 +10,7 @@ import {asqRecipientReleaseApproved} from '@/lib/clinical-tests/asq/recipient-ac
 import {dsmAssignmentSource} from '@/lib/clinical-tests/dsm/assignment';
 import {checkedDsmSource} from '@/lib/clinical-tests/dsm/assignment-server';
 import {snapshotHash} from '@/lib/emr/dsm-snapshot';
+import {uuid} from '@/lib/emr/demographics';
 import {sameOrigin} from '@/lib/emr/access';
 
 export const runtime = "nodejs";
@@ -31,12 +32,17 @@ async function authorize() {
   return {supabase,user};
 }
 
-export async function GET(){
+export async function GET(request:NextRequest){
   const ctx=await authorize();
   if(!ctx)return NextResponse.json({error:"Administrator sign-in with MFA is required."},{status:403});
-  const {data,error}=await ctx.supabase.from("psych_test_assignments")
+  const patient=new URL(request.url).searchParams.get('patient');
+  if(patient!==null&&!uuid(patient))return NextResponse.json({error:'Invalid patient.'},{status:400});
+  const cutoff=new Date(Date.now()-30*86400000).toISOString();
+  const query=ctx.supabase.from("psych_test_assignments")
    .select("id,recipient_first_name,recipient_last_name,recipient_email,test_key,dsm_version,asq_role,patient_id,connected_source_hash,dsm_source_hash,dsm_format:dsm_source->>format,status,created_at,expires_at,sent_at")
-   .order("created_at",{ascending:false}).limit(60);
+   .eq('assigned_by',ctx.user.id).order("created_at",{ascending:false});
+  const {data,error}=await (patient?query.eq('patient_id',patient):query.is('invitation_removed_at',null)
+   .or('sent_at.gte.'+cutoff+',and(sent_at.is.null,created_at.gte.'+cutoff+')'));
   if(error)return NextResponse.json({error:"Assignments cannot be loaded."},{status:503});
   const visibleAssignments=(data??[]).filter(a=>assignedTestOptions.some(t=>t.value===a.test_key));
   const ids=visibleAssignments.map(a=>a.id);
@@ -92,7 +98,16 @@ export async function POST(request:NextRequest) {
     if(error||!data)return NextResponse.json({error:"Unable to save assignment. Verify your MFA session."},{status:503});
     return NextResponse.json({id:data.id,created:true,emailed:false},{status:201});
   }
-  if(body.action==="send") {
+  if(body.action==='remove'){
+    if(!uuid(body.id))return NextResponse.json({error:'Invalid assignment.'},{status:400});
+    const {data,error}=await ctx.supabase.from('psych_test_assignments')
+     .update({invitation_removed_at:new Date().toISOString()}).eq('id',body.id).eq('assigned_by',ctx.user.id)
+     .is('invitation_removed_at',null).select('id').maybeSingle();
+    if(error||!data)return NextResponse.json({error:'Invitation could not be removed.'},{status:409});
+    return NextResponse.json({removed:true});
+  }
+  if(body.action==="send"||body.action==="resend") {
+    const resend=body.action==='resend';
     if(!EMAIL_READY())return NextResponse.json(
       {error:"Secure patient invitations are not active. Configure Paubox Email API, confirm the BAA, verify the sending domain, and complete patient testing approval. No email was sent."},
       {status:503});
@@ -100,10 +115,15 @@ export async function POST(request:NextRequest) {
     if(!/^[a-f\d]{8}(-[a-f\d]{4}){3}-[a-f\d]{12}$/i.test(id))
       return NextResponse.json({error:"Invalid assignment."},{status:400});
     const {data:record,error}=await ctx.supabase.from("psych_test_assignments")
-      .select("id,recipient_email,test_key,dsm_version,asq_role,asq_definition_hash,patient_id,connected_source,connected_source_hash,dsm_source,dsm_source_hash,status,expires_at").eq("id",id).maybeSingle();
+      .select("id,recipient_email,test_key,dsm_version,asq_role,asq_definition_hash,patient_id,connected_source,connected_source_hash,dsm_source,dsm_source_hash,status,expires_at").eq("id",id).eq("assigned_by",ctx.user.id).is("invitation_removed_at",null).maybeSingle();
     if(error||!record)return NextResponse.json({error:"Assignment not found."},{status:404});
-    if(record.status!=="draft")return NextResponse.json({error:"This assignment has already been sent or revoked."},{status:409});
-    if(!isConnectedKey(record.test_key)&&Date.parse(record.expires_at)<=Date.now())return NextResponse.json({error:"This invitation expired. Create a new assignment."},{status:409});
+    if(resend?(record.status!=='sent'||Date.parse(record.expires_at)>Date.now()):record.status!=='draft')
+      return NextResponse.json({error:'Only expired, incomplete invitations can be resent.'},{status:409});
+    if(resend){
+      const table=isConnectedKey(record.test_key)?'connected_assignment_responses':record.test_key==='dsm'?'dsm_assignment_responses':'asq_assignment_responses';
+      const {data:progress,error:readError}=await ctx.supabase.from(table).select('status').eq('assignment_id',id).maybeSingle();
+      if(readError||progress?.status==='submitted')return NextResponse.json({error:'This invitation cannot be resent.'},{status:409});
+    }
     if(record.test_key==='asq'&&(!record.asq_role||!record.asq_definition_hash||!record.patient_id))return NextResponse.json({error:'This legacy ASQ assignment has no fixed respondent version and patient link. Create a new Student / Self, Parent or Teacher assignment.'},{status:409});
     if(record.test_key==='dsm'){try{if(!record.patient_id)throw Error();checkedDsmSource(record.dsm_source,record.dsm_source_hash);}catch{return NextResponse.json({error:'This DSM draft predates the connected recipient workflow. Create a new DSM assignment with a central patient record and fixed version.'},{status:409});}}
     if(isConnectedKey(record.test_key)){try{if(!record.patient_id)throw Error();checkedSource(record.connected_source,record.connected_source_hash);}catch{return NextResponse.json({error:'Create a new assignment with the central patient and current questionnaire version.'},{status:409});}}
@@ -119,11 +139,11 @@ export async function POST(request:NextRequest) {
         assignmentUrl: link,
       });
     } catch {
-      return NextResponse.json({error:"The email provider did not confirm acceptance. Assignment is still a draft; check provider status before retrying."},{status:502});
+      return NextResponse.json({error:"The email provider did not confirm acceptance. The invitation status was not updated. Check provider status before retrying."},{status:502});
     }
     const {data:updated,error:updateError}=await ctx.supabase.from("psych_test_assignments")
       .update({status:"sent",sent_at:new Date().toISOString(),email_provider_id:acceptedId})
-      .eq("id",id).eq("status","draft").select("id").maybeSingle();
+      .eq("id",id).eq("status",record.status).eq("expires_at",record.expires_at).is("invitation_removed_at",null).select("id").maybeSingle();
     if(updateError||!updated)return NextResponse.json({error:"Email accepted by provider, but assignment status could not be confirmed. Check with the office before retrying."},{status:503});
     return NextResponse.json({sent:true,id,providerAccepted:true});
   }

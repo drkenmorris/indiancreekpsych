@@ -24,7 +24,7 @@ jobs:
       - run: node --test tests/supabase-clean-replay.test.mjs
       - run: npm run test:intake
       - run: node --test tests/scheduling.test.mjs
-      - run: npx vitest run tests/office-hours.test.ts tests/appointments-ui.test.tsx tests/appointments-calendar-receipt.test.tsx tests/registered-toggle.test.ts
+      - run: npx vitest run tests/office-hours.test.ts tests/appointments-ui.test.tsx tests/appointments-blackout-timezone.test.ts tests/appointments-calendar-receipt.test.tsx tests/registered-toggle.test.ts
       - run: npm run test:attestations
       - run: npm run build
       - run: npx vitest run tests/kiosk-intake.test.tsx

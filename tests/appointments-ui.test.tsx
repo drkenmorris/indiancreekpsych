@@ -181,3 +181,21 @@ test('pending blackout insert locks its submit control against repeat writes',as
  expect((screen.getByRole('button',{name:'Block time'}) as HTMLButtonElement).disabled).toBe(false);
  expect(insert).toHaveBeenCalledTimes(1);
 });
+
+test('unsaved timezone edits cannot silently move a patient-calendar blackout',async()=>{
+ const insert=vi.fn((payload:any)=>({select:()=>({single:async()=>({data:{...payload,id:'fictional-block'},error:null})})}));
+ mocks.from.mockReturnValue({insert});
+ render(<AppointmentsClient {...props}/>);
+ fireEvent.click(screen.getByRole('button',{name:'Online scheduling rules'}));
+ fireEvent.change(screen.getByLabelText('Time zone'),{target:{value:'America/New_York'}});
+ // Do not save settings; the schedule is still based on persisted Chicago time.
+ fireEvent.click(screen.getByRole('button',{name:'Blackout periods'}));
+ fireEvent.change(screen.getByLabelText('Starts'),{target:{value:'2026-12-01T10:00'}});
+ fireEvent.change(screen.getByLabelText('Ends'),{target:{value:'2026-12-01T11:00'}});
+ fireEvent.click(screen.getByRole('button',{name:'Block time'}));
+ await screen.findByText('Blocked time saved and verified.');
+ expect(insert).toHaveBeenCalledWith(expect.objectContaining({
+  starts_at:'2026-12-01T16:00:00.000Z',ends_at:'2026-12-01T17:00:00.000Z'
+ }));
+ expect(screen.getByText(/saved practice time zone \(America\/Chicago\)/)).toBeTruthy();
+});

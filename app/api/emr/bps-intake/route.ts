@@ -27,6 +27,14 @@ async function linkedSource(supabase:NonNullable<Awaited<ReturnType<typeof emrAc
    !Number.isSafeInteger(intake.data.version)||intake.data.version<1||
    !validBpsTimestamp(intake.data.updated_at))
   return {code:409 as const,error:'Linked intake source metadata is invalid; reopen the protected original intake.'};
+ // A malformed JSONB answer payload must not silently turn a 21-section
+ // clinical intake into an apparently valid blank questionnaire. Only the
+ // versioned flat string-answer format is safe for this clinical mapping.
+ // Reject the entire source before reading or disclosing clinician history.
+ const answers=intake.data.answers;
+ if(!answers||typeof answers!=='object'||Array.isArray(answers)||
+   Object.values(answers).some(value=>typeof value!=='string'))
+  return {code:409 as const,error:'Linked intake answers are malformed; reopen the protected original intake.'};
  return {patient:patient.data,intake:intake.data};
 }
 export async function GET(request:Request){

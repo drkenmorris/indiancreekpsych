@@ -92,6 +92,7 @@ test.each([
  'missing section fields',
  'non-string patient response',
  'unsupported section routing',
+ 'impossible answered field count',
  'malformed unmapped source audit'
 ])('clinician BPS never renders source PHI or offers save for %s',async(variant)=>{
  const patient='00000000-0000-4000-8000-000000000851';
@@ -111,6 +112,7 @@ test.each([
   reported:true,sourceOnly:false,value:{secret:'PRIVATE_NESTED_PHI'}
  }];
  if(variant==='unsupported section routing')sections[0].disposition='legal-consent';
+ if(variant==='impossible answered field count')sections[0].answered=99;
  if(variant==='malformed unmapped source audit')unmappedKeys=['ok',{secret:'PRIVATE_AUDIT_PHI'}];
  let posts=0;
  vi.stubGlobal('fetch',vi.fn(async(_url:string,options?:RequestInit)=>{
@@ -183,6 +185,8 @@ test('idle linked-intake refresh is source-scoped, stops during clinician review
 test.each([
  ['invalid historical review ID',{id:'not-a-uuid'}],
  ['invalid historical source version',{source_version:0}],
+ ['missing clinician review attestation',{reviewed:undefined}],
+ ['nonboolean clinician review attestation',{reviewed:'yes'}],
  ['unsupported historical source status',{source_status:'revoked'}],
  ['invalid historical source date',{source_updated_at:'2026-02-30T09:00:00Z'}],
  ['invalid review creation date',{created_at:'not-a-date'}],

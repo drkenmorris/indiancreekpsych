@@ -325,3 +325,61 @@ test.each([
   .toContain('Original BPS clinical form remains available');
  dom.window.close();
 });
+
+
+test.each([
+ ['symptoms','Current symptom checklist','Fictional patient-reported concern'],
+ ['treatment_history','Counseling and psychiatric history','FICTIONAL_TREATMENT_CONTEXT'],
+ ['medications','Psychiatric medications',null],
+ ['family_origin','Family of origin','FICTIONAL_FAMILY_CONTEXT'],
+ ['medical_substance','Medical and substance-use history',null],
+ ['developmental_personal','Developmental and personal history','FICTIONAL_FAMILY_CONTEXT'],
+ ['trauma_history','Trauma history','FICTIONAL_FAMILY_CONTEXT']
+])('original BPS page %s provides page-scoped read-only linked intake without changing clinical fields',async(page,label,expected)=>{
+ const current=report(firstPatient);
+ // Every page stays within the existing 21-section protected intake. New values
+ // are fictional, and dedicated medication/medical/legal source values stay
+ // unavailable to the BPS summary even when an API response is malformed.
+ current.sections[3]={...current.sections[3],title:'Mental health treatment history',disposition:'clinical',
+  fields:[{key:'prior_mental_health_treatment',label:'Prior treatment',type:'text',reported:true,sourceOnly:false,value:'FICTIONAL_TREATMENT_CONTEXT'}]};
+ current.sections[4]={...current.sections[4],title:'Safety and risk screening',disposition:'clinical',
+  fields:[{key:'suicidal_thoughts_current',label:'Risk report',type:'text',reported:true,sourceOnly:false,value:'FICTIONAL_SAFETY_CONTEXT'}]};
+ current.sections[5]={...current.sections[5],title:'Emergency contact, guardian, and responsible party',disposition:'clinical',
+  fields:[{key:'guardian_relationship',label:'Family relationship',type:'text',reported:true,sourceOnly:false,value:'FICTIONAL_GUARDIAN_CONTEXT'}]};
+ current.sections[6]={...current.sections[6],title:'Medical & Substance Use History',disposition:'separate-review',
+  fields:[{key:'medical_history',label:'Medical history',type:'medical-substance',reported:true,sourceOnly:false,value:'DO_NOT_LEAK_MEDICAL'}]};
+ current.sections[7]={...current.sections[7],title:'Trauma, family, social, educational, and occupational history',disposition:'clinical',
+  fields:[
+   {key:'family_household',label:'Family narrative',type:'historical-patient-report',reported:true,sourceOnly:false,value:'FICTIONAL_FAMILY_CONTEXT'},
+   {key:'trauma_entries',label:'Structured trauma',type:'trauma-history',reported:true,sourceOnly:false,value:'DO_NOT_LEAK_TRAUMA'}
+  ]};
+ const {ctx,dom}=harness(async()=>Response.json(current));
+ dom.window.history.replaceState({},'', '/emr/workspace?module=assessment&section=assessment%3Abiopsychosocial&bps_page='+page);
+ ctx.render();
+ const source=await vi.waitFor(()=>{
+  const value=dom.window.document.querySelector('section[aria-label="Source context for selected original BPS page"]');
+  expect(value).not.toBeNull();
+  return value!;
+ });
+ expect(source.textContent).toContain('Patient-reported source context for '+label);
+ expect(source.textContent).toContain('not a clinician finding or form entry');
+ if(expected)expect(source.textContent).toContain(expected);
+ if(page==='medications'||page==='medical_substance')expect(source.textContent).toContain('Dedicated protected reconciliation required');
+ for(const secret of ['SECRET MEDICATION DATA','SECRET LEGAL DATA','DO_NOT_LEAK_MEDICAL','DO_NOT_LEAK_TRAUMA'])
+  expect(source.textContent).not.toContain(secret);
+ if(page!=='symptoms')expect(source.textContent).not.toContain('Fictional patient-reported concern');
+ expect(dom.window.document.querySelector('#clinical-form')?.textContent).toContain('Original BPS clinical form remains available');
+ expect(dom.window.document.querySelector('section[aria-label="Patient intake context in original biopsychosocial workspace"] > details')).not.toBeNull();
+ dom.window.close();
+});
+
+test('unrecognized original BPS page never creates a misleading page-specific clinical mapping',async()=>{
+ const {ctx,dom}=harness(async()=>Response.json(report(firstPatient)));
+ dom.window.history.replaceState({},'', '/emr/workspace?module=assessment&section=assessment%3Abiopsychosocial&bps_page=unapproved_section');
+ ctx.render();
+ await vi.waitFor(()=>expect(dom.window.document.querySelector(
+  'section[aria-label="Patient intake context in original biopsychosocial workspace"]')?.textContent).toContain('source version 6'));
+ expect(dom.window.document.querySelector('section[aria-label="Source context for selected original BPS page"]')).toBeNull();
+ expect(dom.window.document.querySelector('#clinical-form')).not.toBeNull();
+ dom.window.close();
+});

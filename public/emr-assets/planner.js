@@ -12,8 +12,10 @@ function seedBranch(kind,source){const n={id:uid(),source_id:source.id,text:sour
 function resetCareDraft(a){careDraft={patient_id:patientId,assessment_id:a.id,nodes:a.problems.map(p=>({id:uid(),assessment_problem_id:p.id,role:p.role||'unassigned',included:true,definitions:[seedBranch('definitions',p.source_problem.definitions.find(d=>d.id===p.definitions[0].id))]}))};}
 function hierarchyAssessments(){return records('assessment').filter(a=>a.problems.every(p=>p.source_problem));}
 function libraryPlanView(){
+ const steps={problems:"Problems",definitions:"Definitions",goals:"Goals",objectives:"Objectives/Interventions"};
+ const step=activeSection?.module==="plan"?steps[activeSection.key]:"";
  const builder=patientId
-  ?`<a class="button-link" href="/emr/treatment-plan?patient=${encodeURIComponent(patientId)}">Open patient plan with shared dropdowns</a>`
+  ?`<a class="button-link" href="/emr/treatment-plan?patient=${encodeURIComponent(patientId)}${step?"&amp;step="+encodeURIComponent(step):""}">Open patient plan with shared dropdowns</a>`
   :'<p>Select a patient to build a plan with the shared dropdowns.</p>';
  return `<section class="card"><h2>Patient Treatment Plan</h2>${builder}</section>`+legacyLibraryPlanView();
 }

@@ -84,6 +84,30 @@ test('protected BPS API fails closed on malformed linked source before any quest
  expect(m.from).not.toHaveBeenCalledWith('patient_intakes');
 });
 
+test('malformed linked JSONB answers cannot impersonate an empty but valid 21-section clinical intake',async()=>{
+ const safe={...data,counseling_reason:'PRIVATE_FICTIONAL_STATEMENT'};
+ const invalidSources:unknown[]=[
+  null,[], 'incorrect-shape', 42,
+  {...safe,counseling_reason:null},
+  {...safe,counseling_reason:['PRIVATE_FICTIONAL_STATEMENT']},
+  {...safe,counseling_reason:{text:'PRIVATE_FICTIONAL_STATEMENT'}},
+  {...safe,suicidal_thoughts_current:false}
+ ];
+ for(const malformed of invalidSources){
+  data=malformed as Record<string,string>;
+  m.from.mockClear();
+  const response=await GET(request());
+  expect(response.status).toBe(409);
+  expect(response.headers.get('Cache-Control')).toContain('no-store');
+  const wire=JSON.stringify(await response.json());
+  expect(wire).not.toContain('PRIVATE_FICTIONAL_STATEMENT');
+  expect(wire).not.toContain('"sections"');
+  expect(m.from).not.toHaveBeenCalledWith('emr_bps_intake_reviews');
+ }
+ data=safe;
+ expect((await GET(request())).status).toBe(200);
+});
+
 test('21-section review distinguishes risk, legal references and structured reconciliation',async()=>{
  const response=await GET(request());expect(response.status).toBe(200);
  expect(response.headers.get('Cache-Control')).toContain('no-store');

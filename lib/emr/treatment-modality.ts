@@ -31,3 +31,33 @@ export type ModalitySession = {
  frequency: string;
  providerId: string;
 };
+
+export const careLevelLabels = {
+ outpatient: 'Outpatient',
+ intensive_outpatient: 'Intensive Outpatient',
+ day_treatment: 'Day Treatment',
+ partial_hospitalization: 'Partial Hospitalization',
+ inpatient: 'Inpatient',
+} as const;
+
+export const maxCarePeriods = 50;
+
+export type CarePeriod = {
+ level: keyof typeof careLevelLabels | '';
+ agreement: boolean | null;
+ startDate: string;
+ endDate: string;
+};
+
+function isCalendarDate(value: unknown): value is string {
+ if (typeof value !== 'string' || !/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(value) || value.startsWith('0000-')) return false;
+ const date = new Date(value);
+ return Number.isFinite(date.valueOf()) && date.toISOString().slice(0, 10) === value;
+}
+
+export function validCarePeriod(period: CarePeriod): boolean {
+ return !!period && typeof period.level === 'string' && Object.hasOwn(careLevelLabels, period.level) &&
+  (period.agreement === null || typeof period.agreement === 'boolean') &&
+  isCalendarDate(period.startDate) &&
+  (period.endDate === '' || (isCalendarDate(period.endDate) && period.endDate >= period.startDate));
+}

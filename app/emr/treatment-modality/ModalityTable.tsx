@@ -1,15 +1,17 @@
 'use client';
 
 import { useEffect, useState, type FormEvent } from 'react';
-import { maxExpectedSessions, maxSessionRows, sessionFrequencies, sessionTypes, type ModalitySession } from '@/lib/emr/treatment-modality';
+import { careLevelLabels, maxCarePeriods, maxExpectedSessions, maxSessionRows, sessionFrequencies, sessionTypes, validCarePeriod, type CarePeriod, type ModalitySession } from '@/lib/emr/treatment-modality';
 
 type Provider = { id: string; name: string; enrolled: boolean };
+type CareRow = CarePeriod & { key: string };
 type SessionRow = ModalitySession & { key: string };
 const sessionCounts = Array.from({ length: maxExpectedSessions }, (_, index) => index + 1);
 
 export default function ModalityTable({ patientId }: { patientId: string }) {
  const endpoint = '/api/emr/treatment-modality';
  const [rows, setRows] = useState<SessionRow[]>([]);
+ const [careRows, setCareRows] = useState<CareRow[]>([]);
  const [providers, setProviders] = useState<Provider[]>([]);
  const [admin, setAdmin] = useState(false);
  const [userId, setUserId] = useState('');
@@ -36,6 +38,7 @@ export default function ModalityTable({ patientId }: { patientId: string }) {
     setAssigned(data.record?.assigned_provider_id ?? '');
     setRevision(data.record?.revision ?? 0);
     setRows((data.record?.sessions ?? []).map((session: ModalitySession) => ({ ...session, key: crypto.randomUUID() })));
+    setCareRows((data.record?.care_periods ?? []).map((period: CarePeriod) => ({ ...period, key: crypto.randomUUID() })));
     setLoaded(true);
     setStatus('');
    } catch (error) {
@@ -73,6 +76,7 @@ export default function ModalityTable({ patientId }: { patientId: string }) {
   try {
    const data = await post({
     patientId, revision, assignedProviderId: assigned || null,
+    carePeriods: careRows.map(({ level, agreement, startDate, endDate }) => ({ level, agreement, startDate, endDate })),
     sessions: rows.map(({ code, count, frequency, providerId }) => ({ code, count, frequency, providerId })),
    });
    setRevision(data.record.revision);
@@ -104,6 +108,11 @@ export default function ModalityTable({ patientId }: { patientId: string }) {
   setDirty(true);
  }
 
+ function updateCare(key: string, patch: Partial<CarePeriod>) {
+  setCareRows(previous => previous.map(row => row.key === key ? { ...row, ...patch } : row));
+  setDirty(true);
+ }
+
  function providerOptions(value: string) {
   return <>
    <option value="">Select provider</option>
@@ -116,7 +125,7 @@ export default function ModalityTable({ patientId }: { patientId: string }) {
   <h1>Modality</h1>
   <p>Plan session types, expected attendance, and providers for this patient.</p>
   <p>Confirm coverage and provider eligibility for the patient’s plan. For technician-administered testing, select the responsible supervising clinician.</p>
-  {status && <p role="status">{status}</p>}
+  {!loaded && status && <p role="status">{status}</p>}
   {loaded && <>
    <form onSubmit={save}>
     <fieldset disabled={busy}>
@@ -167,10 +176,56 @@ export default function ModalityTable({ patientId }: { patientId: string }) {
        setRows(previous => [...previous, { key: crypto.randomUUID(), code: '', count: 0, frequency: '', providerId: assigned || userId }]);
        setDirty(true);
       }}>Add session type</button>
-      <button type="submit" disabled={!dirty || rows.some(row => !row.code || !row.count || !row.frequency ||
-       !available.some(provider => provider.id === row.providerId))}>Save Modality</button>
      </div>
     </fieldset>
+    <fieldset disabled={busy}>
+     <legend>Recommended level of care</legend>
+     {!careRows.length && <p>No care periods recorded.</p>}
+     {careRows.map((row, index) => <fieldset key={row.key}>
+      <legend>Care period {index + 1}</legend>
+      <p>Choose one level for this period.</p>
+      <div className="treatmentFields">
+       {(Object.keys(careLevelLabels) as Array<keyof typeof careLevelLabels>).map(level => (
+        <label className="treatmentCheck" key={level}>
+         <input type="checkbox" checked={row.level === level}
+          onChange={event => updateCare(row.key, { level: event.target.checked ? level : '' })} />
+         {careLevelLabels[level]}
+        </label>
+       ))}
+      </div>
+      <div className="treatmentFields">
+       <label>Patient agreement
+        <select value={row.agreement === null ? '' : String(row.agreement)}
+         onChange={event => updateCare(row.key, { agreement: event.target.value === '' ? null : event.target.value === 'true' })}>
+         <option value="">Not recorded</option>
+         <option value="true">Agrees</option>
+         <option value="false">Does not agree</option>
+        </select>
+       </label>
+       <label>Planned start date
+        <input type="date" required max="9999-12-31" value={row.startDate}
+         onChange={event => updateCare(row.key, { startDate: event.target.value })} />
+       </label>
+       <label>Planned end date
+        <input type="date" min={row.startDate || undefined} max="9999-12-31" value={row.endDate}
+         onChange={event => updateCare(row.key, { endDate: event.target.value })} />
+       </label>
+      </div>
+      {row.startDate && row.endDate && row.endDate < row.startDate && <p role="alert">End date must be on or after the start date.</p>}
+      <button type="button" aria-label={'Remove care period ' + (index + 1)} onClick={() => {
+       setCareRows(previous => previous.filter(period => period.key !== row.key));
+       setDirty(true);
+      }}>Remove care period</button>
+     </fieldset>)}
+     <button type="button" disabled={careRows.length >= maxCarePeriods} onClick={() => {
+      setCareRows(previous => [...previous, { key: crypto.randomUUID(), level: '', agreement: null, startDate: '', endDate: '' }]);
+      setDirty(true);
+     }}>Add care period</button>
+    </fieldset>
+    <button type="submit" disabled={busy || !dirty || careRows.some(period => !validCarePeriod(period)) ||
+     rows.some(row => !row.code || !row.count || !row.frequency ||
+      !available.some(provider => provider.id === row.providerId))}>Save Modality</button>
+    {status && <p role="status">{status}</p>}
    </form>
    {admin && <details>
     <summary>Manage provider roster</summary>

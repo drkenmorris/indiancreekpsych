@@ -97,4 +97,26 @@ await test('accepts the added base codes and rejects standalone add-on codes', a
  }
 });
 
+await db.exec('reset role');
+await db.exec(readFileSync(new URL('../supabase/migrations/20261113210013_modality_levels_of_care.sql', import.meta.url), 'utf8'));
+
+await test('existing plans start with empty care periods and assigned therapists can save dated periods', async () => {
+ await signIn(admin);
+ assert.deepEqual((await read()).rows[0].care_periods, []);
+ await db.query('update emr_treatment_modalities set assigned_provider_id=$1,revision=revision+1 where patient_id=$2', [therapist, chart]);
+ const periods = [
+  {level:'intensive_outpatient',agreement:true,startDate:'2026-11-16',endDate:'2026-12-03'},
+  {level:'outpatient',agreement:false,startDate:'2026-12-04',endDate:''},
+ ];
+ await signIn(therapist);
+ await db.query('update emr_treatment_modalities set care_periods=$1,revision=revision+1 where patient_id=$2', [JSON.stringify(periods), chart]);
+ assert.deepEqual((await read()).rows[0].care_periods, periods);
+ for (const change of [{endDate:'2026-11-15'},{startDate:'2026-02-30'},{agreement:'yes'},{level:'unknown'}]) {
+  await assert.rejects(db.query('update emr_treatment_modalities set care_periods=$1,revision=revision+1 where patient_id=$2',
+   [JSON.stringify([{...periods[0],...change}]),chart]), /emr_modality_valid_care_periods/);
+ }
+ await signIn(otherStaff);
+ assert.equal((await db.query("update emr_treatment_modalities set care_periods='[]',revision=revision+1 returning revision")).rows.length, 0);
+});
+
 await db.close();

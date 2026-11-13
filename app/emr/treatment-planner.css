@@ -2,7 +2,12 @@
 
 @media print{.treatmentReport li:has(>ol){break-inside:auto}}
 
+html:has(.treatmentEmbedded) {
+ scroll-behavior: auto;
+}
 body:has(.treatmentEmbedded) {
+ overflow-y: auto;
+ overflow-x: hidden;
  margin: 0;
  background: #f4f6f2;
  color: #243d39;

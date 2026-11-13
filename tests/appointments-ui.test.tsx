@@ -146,6 +146,10 @@ test('blackout INSERT confirms a matching saved row before adding it to the sche
  fireEvent.click(screen.getByRole('button',{name:'Block time'}));
  await screen.findByText('Blocked time saved and verified.');
  expect(screen.getByText('Synthetic blackout')).toBeTruthy();
+ // The UI must send actual Chicago wall time, not the browser's local timezone.
+ expect(insert).toHaveBeenCalledWith(expect.objectContaining({
+  starts_at:'2026-12-01T16:00:00.000Z',ends_at:'2026-12-01T17:00:00.000Z'
+ }));
  expect(insert).toHaveBeenCalledTimes(1);
 });
 

@@ -13,7 +13,7 @@ await db.query('insert into clinical_patients values($1,$2)',[patient,{first_nam
 await db.exec(readFileSync('supabase/migrations/20261104194959_treatment_planner_library.sql','utf8'));
 const seed=JSON.parse(readFileSync('lib/emr/treatment-planner-seed.json','utf8'));const q=(s,a=[])=>db.query(s,a);
 async function as(id,aal='aal2'){await db.exec('reset role');await q("select set_config('request.user',$1,false),set_config('request.aal',$2,false)",[id,aal]);await db.exec('set role authenticated');}
-await db.exec(readFileSync('supabase/migrations/20261113091827_treatment_planner_problem_level.sql','utf8'));
+await db.exec(readFileSync('supabase/migrations/20261113092344_treatment_planner_problem_level.sql','utf8'));
 let migrated;
 const input=()=>({title:'Fictional treatment plan',notes:'Artificial workflow check',status:'finalized',reviewed:true,review_date:'2026-12-01',problems:[branch(migrated[0])]});
 function branch(problem){

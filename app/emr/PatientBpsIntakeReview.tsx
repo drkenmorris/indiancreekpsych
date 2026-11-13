@@ -4,7 +4,7 @@ import {bpsNoteDomains,emptyBpsNotes,mapSavedBpsReportedFields,bpsVisibleSourceK
 type Field={key:string;label:string;type:string;value:string;sourceOnly?:boolean;reported?:boolean};
 type Section={title:string;domain:string;disposition:'clinical'|'separate-review'|'reference';fields:Field[];answered:number};
 type Review={id:string;reviewed:boolean;source_version:number;source_status:string;source_updated_at:string;created_at:string;clinical_answers:Record<string,string>;clinician_notes:BpsNotes;excluded_clinical_fields?:number;excluded_clinician_notes?:number};
-type ResponseData={patientId:string;source:{accountId:string;status:string;version:number;updatedAt:string};sections:Section[];unmappedKeys:string[];reviews:Review[]};
+type ResponseData={patientId:string;source:{accountId:string;status:string;version:number;updatedAt:string;submittedAt?:string|null};sections:Section[];unmappedKeys:string[];reviews:Review[]};
 const focusedReviewLinks:Record<string,{label:string;anchor:string}[]>={
  'Mental health treatment history':[
   {label:'Review reported counseling and psychiatric treatment history in the central chart',anchor:'emr-intake-treatment-history-review'}],
@@ -59,6 +59,10 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
    (source.status!=='draft'&&source.status!=='submitted')||
    !Number.isSafeInteger(source.version)||source.version<1||
    !validBpsTimestamp(source.updatedAt)||
+   // A submitted intake without a valid submission receipt is not a
+   // verifiable clinical source, even when the protected API is stale.
+   (source.status==='submitted'&&!validBpsTimestamp(source.submittedAt))||
+   (source.submittedAt!=null&&!validBpsTimestamp(source.submittedAt))||
    !Array.isArray(value.reviews)||!Array.isArray(value.unmappedKeys))
    throw Error('Linked patient intake provenance or clinical review history could not be verified. Reopen the protected source.');
   // A correct patient ID does not make a malformed 21-section source safe to

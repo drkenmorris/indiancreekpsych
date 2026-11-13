@@ -199,3 +199,12 @@ test('unsaved timezone edits cannot silently move a patient-calendar blackout',a
  }));
  expect(screen.getByText(/saved practice time zone \(America\/Chicago\)/)).toBeTruthy();
 });
+test('invalid IANA practice timezone must never be written into scheduler settings',async()=>{
+ render(<AppointmentsClient {...props}/>);
+ fireEvent.click(screen.getByRole('button',{name:'Online scheduling rules'}));
+ fireEvent.change(screen.getByLabelText('Time zone'),{target:{value:'Incorrect/Timezone'}});
+ fireEvent.click(screen.getByRole('button',{name:'Save scheduling settings'}));
+ await screen.findByText(/Enter a valid IANA practice time zone/);
+ expect(mocks.from).not.toHaveBeenCalledWith('appointment_settings');
+ expect(screen.queryByText('Scheduling settings saved and verified.')).toBeNull();
+});

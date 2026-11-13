@@ -1,4 +1,5 @@
 'use client';
+import IntakeNarrative from './IntakeNarrative';
 import {useId} from 'react';
 import {emptyTreatmentEntry,hasTreatmentEntry,MAX_TREATMENT_ENTRIES,parseTreatmentHistory,TreatmentHistoryEntry} from '@/lib/patient/treatment-history';
 
@@ -16,10 +17,11 @@ export default function IntakeTreatmentHistory({value,onChange,readOnly=false,di
    <label htmlFor={`${id}-${index}-start`}>Start Date<input id={`${id}-${index}-start`} name={`history_${index}_start_date`} type="date" value={entry.start_date} onChange={e=>update(index,{start_date:e.target.value})}/></label>
    <label htmlFor={`${id}-${index}-end`}>End Date<input id={`${id}-${index}-end`} name={`history_${index}_end_date`} type="date" disabled={entry.ongoing} value={entry.end_date} onChange={e=>update(index,{end_date:e.target.value})}/></label>
   </div><label className="intakeTreatmentOngoing" htmlFor={`${id}-${index}-ongoing`}><input id={`${id}-${index}-ongoing`} name={`history_${index}_ongoing`} type="checkbox" checked={entry.ongoing} onChange={e=>update(index,{ongoing:e.target.checked,...(e.target.checked?{end_date:''}:{})})}/>Treatment is ongoing</label>
-  <label htmlFor={`${id}-${index}-reason`}>Reason for Treatment<textarea id={`${id}-${index}-reason`} name={`history_${index}_reason`} rows={2} maxLength={2000} value={entry.reason} onChange={e=>update(index,{reason:e.target.value})}/></label>
-  <label htmlFor={`${id}-${index}-outcome`}>Outcome / Notes<textarea id={`${id}-${index}-outcome`} name={`history_${index}_outcome_notes`} rows={2} maxLength={4000} value={entry.outcome_notes} onChange={e=>update(index,{outcome_notes:e.target.value})}/></label>
+  <IntakeNarrative label="Reason for Treatment" rows={2} maxLength={2000} value={entry.reason} onChange={reason=>update(index,{reason})}/>
+  <IntakeNarrative label="Outcome / Notes" rows={2} maxLength={4000} value={entry.outcome_notes} onChange={outcome_notes=>update(index,{outcome_notes})}/>
   <button type="button" className="secondaryAction" onClick={()=>{if(!hasTreatmentEntry(entry)||window.confirm('Remove this treatment entry from the draft? Save the draft to keep this change.'))onChange?.(JSON.stringify(displayed.filter((_,i)=>i!==index)));}}>Remove treatment entry {index+1}</button>
  </fieldset>)}
+ <label className="checkRow"><input type="checkbox" disabled={disabled||displayed.some(hasTreatmentEntry)} checked={value==='[]'} onChange={event=>onChange?.(event.target.checked?'[]':'')}/> I have no treatment entries to report</label>
  <button type="button" disabled={disabled||displayed.length>=MAX_TREATMENT_ENTRIES} onClick={()=>onChange?.(JSON.stringify([...displayed,emptyTreatmentEntry()]))}>Add another treatment entry</button><p>These entries save with the questionnaire when you select Save draft or Save.</p>
  </section>;
 }

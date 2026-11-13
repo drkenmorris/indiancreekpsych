@@ -22,6 +22,7 @@ export default function IntakeMedications({value,onChange,readOnly=false,disable
   </label>)}
  </div><fieldset className="intakeMedicationBenefit"><legend>Was the medication beneficial?</legend>{['Beneficial','Not beneficial'].map(benefit=><label key={benefit} className="intakeTreatmentOngoing"><input type="checkbox" name={`medication_${index}_benefit`} value={benefit} checked={entry.benefit===benefit} onChange={e=>update(index,{benefit:e.target.checked?benefit:''})}/>{benefit}</label>)}<p>Choose one, or leave both unchecked if not recorded.</p></fieldset>
  <button type="button" className="secondaryAction" onClick={()=>{if(!hasMedication(entry)||window.confirm('Remove this medication from the draft? Save the draft to keep this change.'))onChange?.(JSON.stringify(displayed.filter((_,i)=>i!==index)));}}>Remove medication {index+1}</button></fieldset>)}
+ <label className="checkRow"><input type="checkbox" disabled={disabled||displayed.some(hasMedication)} checked={value==='[]'} onChange={event=>onChange?.(event.target.checked?'[]':'')}/> I do not currently take any medications</label>
  <button type="button" disabled={disabled||displayed.length>=20} onClick={()=>onChange?.(JSON.stringify([...displayed,emptyMedication()]))}>Add another medication</button><p>If an entry is completed, the medication name is required before submitting. Entries save with the questionnaire using Save draft or Save.</p>
  </section>;
 }

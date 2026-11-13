@@ -186,7 +186,7 @@ export const intakeSections=[originalIntakeSections[0],{...originalIntakeSection
 export function intakeSectionsForVersion(version:string){return version==='2026-11-02-directory-1'?intakeSections:originalIntakeSections;}
 
 export type IntakeAnswers=Record<string,string>;
-export type IntakeRecord={patient_id:string;answers:IntakeAnswers;status:'draft'|'submitted';version:number;updated_at:string;submitted_at:string|null};
+export type IntakeRecord={completed_pages?:number[];patient_id:string;answers:IntakeAnswers;status:'draft'|'submitted';version:number;updated_at:string;submitted_at:string|null};
 export const costFields=['deductible','deductible_met','copay','coinsurance'];
 export const intakeKeys=intakeSections.flatMap(section=>section.fields.map(field=>field[0]));
 export const requiredIntakeKeys=intakeSections.flatMap(section=>section.fields.filter(field=>field[3]).map(field=>field[0]));

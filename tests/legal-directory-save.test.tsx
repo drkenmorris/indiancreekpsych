@@ -15,8 +15,14 @@ test('patient page-10 answers save, preserve other answers and reload',async()=>
  const {unmount}=render(<IntakeForm userId="fictional" initial={saved} defaults={{}}/>);
  fireEvent.click(screen.getByRole('tab',{name:'10'}));
  fireEvent.click(within(screen.getByRole('group',{name:D.questions[0].label})).getByRole('radio',{name:'Yes'}));
- fireEvent.click(screen.getByRole('button',{name:'Save draft'}));
+ for(const question of D.questions.slice(1))fireEvent.click(within(screen.getByRole('group',{name:question.label})).getByRole('radio',{name:'No'}));
+ expect(screen.getByRole('tab',{name:'15'}).getAttribute('data-page-status')).toBe('optional');
+ fireEvent.click(screen.getByRole('button',{name:'Save page'}));
  await screen.findByText('Draft saved securely.');
+ expect(screen.getByRole('tab',{name:'15'}).getAttribute('data-page-status')).toBe('required');
+ expect(screen.getByRole('button',{name:'Open page 15'}).closest('article')?.getAttribute('data-page-status')).toBe('required');
+ fireEvent.click(screen.getByRole('tab',{name:'1'}));
+ expect(screen.getByRole('tab',{name:'10'}).getAttribute('data-page-status')).toBe('saved');
  expect(saved.answers.prior_therapists).toBe('Existing narrative');
  expect(JSON.parse(saved.answers.legal_routing_answers).answers.telehealth).toBe('Yes');
  expect(query.eq).toHaveBeenCalledWith('patient_id','fictional');expect(query.eq).toHaveBeenCalledWith('version',1);

@@ -1,0 +1,24 @@
+.intakeWizard .intakeSectionTabs [data-page-status],
+.intakeWizard .legalDirectoryCards [data-page-status] {
+  background: var(--intake-status-background);
+  color: var(--intake-status-text);
+}
+.intakeWizard [data-page-status="required"] {
+  --intake-status-background: #a52027;
+  --intake-status-text: #fff;
+}
+.intakeWizard [data-page-status="optional"] {
+  --intake-status-background: #f6d651;
+  --intake-status-text: #141414;
+}
+.intakeWizard [data-page-status="saved"] {
+  --intake-status-background: #166943;
+  --intake-status-text: #fff;
+}
+.intakeWizard .intakeSectionTabs [aria-selected="true"] {
+  --intake-status-background: #353941;
+  --intake-status-text: #fff;
+}
+.intakeWizard .legalDirectoryCards [data-page-status] :is(h4,p) {
+  color: inherit;
+}

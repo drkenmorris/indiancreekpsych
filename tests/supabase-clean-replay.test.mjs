@@ -220,6 +220,32 @@ test('clinic migrations replay in order on an empty application database', async
     assert.equal((await db.query('select id from public.emr_bps_intake_reviews')).rows.length,0,
       'Unrelated accounts cannot see either saved review');
 
+    // The patient directory's reversible archive flag must not permit new BPS
+    // clinical attestations even when an MFA-verified administrator bypasses the
+    // UI and invokes the existing SECURITY DEFINER RPC directly. Exercise the
+    // new trigger in this isolated full-migration database, not production.
+    await db.exec('reset role');
+    const {rows:archived}=await db.query(
+      'update public.clinical_patients set directory_deleted_at=now() where id=$1 returning id',
+      [chart.id]);
+    assert.equal(archived.length,1,'Fictional chart must be archived for this regression');
+    await as(adminId,'aal2');
+    await assert.rejects(
+      db.query('select public.save_emr_bps_intake_review($1) as id',[submittedPayload]),
+      /active, explicitly linked central patient chart/,
+      'Archived charts must be rejected by the database even for MFA-verified admins');
+    await db.exec('reset role');
+    const {rows:[historyCount]}=await db.query(
+      'select count(*)::integer as total from public.emr_bps_intake_reviews where patient_id=$1',
+      [chart.id]);
+    assert.equal(historyCount.total,2,'Existing immutable clinician reviews survive directory archiving');
+    await db.query('update public.clinical_patients set directory_deleted_at=null where id=$1',[chart.id]);
+    await as(adminId,'aal2');
+    await assert.rejects(
+      db.query('select public.save_emr_bps_intake_review($1) as id',[submittedPayload]),
+      /duplicate key/,
+      'Restoring an archived chart retains prior unique immutable BPS reviews');
+
   } finally {
     await db.close();
   }

@@ -68,7 +68,9 @@ export async function GET(request:Request){
   // scope filter cannot establish that a returned row is an identifiable,
   // versioned clinical snapshot. Withhold the entire response if any returned
   // row is malformed rather than expose its answers under a fabricated date.
-  if((reviews??[]).some(review=>!uuid(review.id)||
+  // Missing or malformed attestation is not an explicitly unreviewed clinical row.
+  // Withhold the entire history rather than silently converting unknown to false.
+  if((reviews??[]).some(review=>typeof review.reviewed!=='boolean'||!uuid(review.id)||
     !Number.isSafeInteger(review.source_version)||review.source_version<1||
     (review.source_status!=='draft'&&review.source_status!=='submitted')||
     !validBpsTimestamp(review.source_updated_at)||

@@ -287,18 +287,23 @@ test('protected BPS source API never returns unapproved raw emergency-contact PI
 });
 
 
-test('stored BPS row without true clinician-review attestation is never represented as verified',async()=>{
- reviewRows=[{id:'00000000-0000-0000-0000-000000000600',patient_id:patient,source_account_id:account,
-  source_version:2,source_status:'submitted',source_updated_at:stamp,created_at:stamp,
-  reviewed:false,clinical_answers:{counseling_reason:'Fictional report'},clinician_notes:{}}];
- const response=await GET(request());expect(response.status).toBe(200);
- const payload=await response.json();expect(payload.reviews).toHaveLength(1);
- expect(payload.reviews[0].reviewed).toBe(false);
- reviewRows=[{...reviewRows[0],reviewed:null}];
- const missing=await GET(request());expect(missing.status).toBe(200);
- expect((await missing.json()).reviews[0].reviewed).toBe(false);
+test('explicit false historical attestation stays unreviewed, but missing or malformed attestation blocks the entire clinical response',async()=>{
+  const confidential='PRIVATE_FICTIONAL_HISTORICAL_CLINICAL_STATEMENT';
+  reviewRows=[{id:'00000000-0000-0000-0000-000000000600',patient_id:patient,source_account_id:account,
+   source_version:2,source_status:'submitted',source_updated_at:stamp,created_at:stamp,
+   reviewed:false,clinical_answers:{counseling_reason:confidential},clinician_notes:{}}];
+  const response=await GET(request());expect(response.status).toBe(200);
+  const payload=await response.json();expect(payload.reviews).toHaveLength(1);
+  expect(payload.reviews[0].reviewed).toBe(false);
+  for(const marker of [null,undefined,'false',1]){
+   reviewRows=[{...reviewRows[0],reviewed:marker}];
+   const invalid=await GET(request());expect(invalid.status).toBe(409);
+   expect(invalid.headers.get('Cache-Control')).toContain('no-store');
+   const body=JSON.stringify(await invalid.json());
+   expect(body).not.toContain(confidential);
+   expect(body).not.toContain('"reviews"');
+  }
 });
-
 
 test('missing or malformed review-history results cannot masquerade as an empty clinical history',async()=>{
  data={counseling_reason:'PRIVATE_FICTIONAL_PATIENT_STATEMENT'};

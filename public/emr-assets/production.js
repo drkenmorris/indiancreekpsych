@@ -29,7 +29,11 @@ async function populateOriginalBpsIntake(panel,id,generation){
    !/^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(source.accountId)||
    !['draft','submitted'].includes(source.status)||
    !Number.isSafeInteger(source.version)||source.version<1||
-   !validOriginalBpsTimestamp(source.updatedAt))
+   !validOriginalBpsTimestamp(source.updatedAt)||
+   // Submitted intake must carry a verifiable submission receipt at the
+   // original seven-page BPS boundary, even if a stale API omits it.
+   (source.status==='submitted'&&!validOriginalBpsTimestamp(source.submittedAt))||
+   (source.submittedAt!=null&&!validOriginalBpsTimestamp(source.submittedAt)))
    throw Error('Linked intake source identity, status, version or timestamp could not be verified.');
   // The original seven-page BPS workspace must reject malformed mapped sections,
   // independently of the newer React clinician review. A missing fields array,

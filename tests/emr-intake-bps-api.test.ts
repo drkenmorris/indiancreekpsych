@@ -17,14 +17,15 @@ let historyResultOverride:unknown;
 let version:number;
 let intakeStatus:string;
 let intakeUpdatedAt:string;
+let intakeSubmittedAt:string|null;
 let data:Record<string,string>;
 beforeEach(()=>{
- vi.clearAllMocks();linked=account;directoryDeletedAt=null;returnedPatientId=patient;returnedIntakeAccountId=account;version=2;intakeStatus='submitted';intakeUpdatedAt=stamp;reviewRows=[];historyResultOverride=undefined;
+ vi.clearAllMocks();linked=account;directoryDeletedAt=null;returnedPatientId=patient;returnedIntakeAccountId=account;version=2;intakeStatus='submitted';intakeUpdatedAt=stamp;intakeSubmittedAt=stamp;reviewRows=[];historyResultOverride=undefined;
  data={counseling_reason:'Reports sadness',suicidal_thoughts_current:'Yes',roi_authorize:'Yes',medication_entries:'structured original'};
  m.sameOrigin.mockReturnValue(true);m.rpc.mockResolvedValue({data:'00000000-0000-0000-0000-000000000500',error:null});
  m.from.mockImplementation((table:string)=>{
   if(table==='clinical_patients'){const q={select:()=>q,eq:vi.fn(()=>q),is:vi.fn(()=>q),maybeSingle:async()=>({data:{id:returnedPatientId,account_id:linked,directory_deleted_at:directoryDeletedAt},error:null})};return q;}
-  if(table==='patient_intakes'){const q={select:()=>q,eq:vi.fn(()=>q),maybeSingle:async()=>({data:{patient_id:returnedIntakeAccountId,answers:data,status:intakeStatus,version,updated_at:intakeUpdatedAt},error:null})};return q;}
+  if(table==='patient_intakes'){const q={select:()=>q,eq:vi.fn(()=>q),maybeSingle:async()=>({data:{patient_id:returnedIntakeAccountId,answers:data,status:intakeStatus,version,updated_at:intakeUpdatedAt,submitted_at:intakeSubmittedAt},error:null})};return q;}
   if(table==='emr_bps_intake_reviews'){const q={select:()=>q,eq:vi.fn(()=>q),order:()=>q,limit:async()=>({data:historyResultOverride===undefined?reviewRows:historyResultOverride,error:null})};return q;}
   throw Error('Unexpected '+table);
  });
@@ -95,6 +96,32 @@ test('protected BPS API fails closed on malformed linked source before any quest
  expect(unlinked.status).toBe(409);
  expect(JSON.stringify(await unlinked.json())).not.toContain('PRIVATE_FICTIONAL_PATIENT_STATEMENT');
  expect(m.from).not.toHaveBeenCalledWith('patient_intakes');
+});
+
+test('a submitted linked BPS intake requires a verified source submission receipt, but unsent drafts remain reviewable',async()=>{
+ const protectedSource='PRIVATE_FICTIONAL_SOURCE_REPORT';
+ data={counseling_reason:protectedSource};
+ intakeSubmittedAt=null;
+ let response=await GET(request());
+ expect(response.status).toBe(409);
+ expect(JSON.stringify(await response.json())).not.toContain(protectedSource);
+ expect(m.from).not.toHaveBeenCalledWith('emr_bps_intake_reviews');
+ intakeSubmittedAt='2026-02-30T09:00:00Z';
+ response=await GET(request());
+ expect(response.status).toBe(409);
+ expect(JSON.stringify(await response.json())).not.toContain(protectedSource);
+ intakeStatus='draft';intakeSubmittedAt=null;
+ response=await GET(request());
+ expect(response.status).toBe(200);
+ const draft=await response.json();
+ expect(draft.source.status).toBe('draft');
+ expect(draft.source.submittedAt).toBeNull();
+ intakeStatus='submitted';intakeSubmittedAt=stamp;
+ response=await GET(request());
+ expect(response.status).toBe(200);
+ const submitted=await response.json();
+ expect(submitted.source.submittedAt).toBe(stamp);
+ expect(submitted.source.updatedAt).toBe(stamp);
 });
 
 test('malformed linked JSONB answers cannot impersonate an empty but valid 21-section clinical intake',async()=>{

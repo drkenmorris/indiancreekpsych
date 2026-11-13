@@ -26,7 +26,14 @@ await test('actual hosted forms and global navigation render against central pat
  assert.equal(w.document.querySelector('#content a[href="/emr/patients"]')?.getAttribute('href'),'/emr/patients','central directory replaces synthetic assigned patient list');
  assert.equal(w.document.querySelector('#assigned-patient-results'),null,'no demo chart lookup is rendered');
  runInContext("chooseSection('personal','assigned_provider');render();",dom.getInternalVMContext());
- assert.match(w.document.querySelector('#content').textContent,/Fictional provider accounts are disabled/);
+ assert.ok(w.document.querySelector('#content [data-submenu="plan:modality"]'));
+ runInContext("chooseSection('plan','modality');render();",dom.getInternalVMContext());
+ const modalityUrl=new URL(w.document.querySelector('iframe[title="Treatment Plan Modality"]').src);
+ assert.equal(modalityUrl.pathname,'/emr/treatment-modality');
+ assert.equal(modalityUrl.searchParams.get('patient'),fixture.pid);
+ assert.doesNotMatch(w.document.querySelector('#content').textContent,/Select library problems/);
+ w.document.querySelector('[data-submenu="plan:goals"]').click();
+ assert.equal(new URL(w.document.querySelector('iframe[title="Patient Treatment Plan"]').src).searchParams.get('step'),'Goals');
  assert.equal(w.document.querySelector('#module-section-form'),null,'no provider assignment can be saved against a fictitious identity');
 
 

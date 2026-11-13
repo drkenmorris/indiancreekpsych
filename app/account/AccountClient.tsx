@@ -80,6 +80,7 @@ export default function AccountClient({
       <h1>Your Account</h1>
       <p className="accountEmail">{email}</p>
       <p><strong>Account type:</strong> {accountType === "patient" ? "Patient" : accountType === "guest" ? "Guest" : accountType === "staff" ? "Office Staff" : "Administrator"}</p>
+      {(accountType === "staff" || accountType === "admin") && <p><Link href="/emr/treatment-modality">Assigned patient charts · Treatment Plan Modality</Link></p>}
       {!emailVerified && <p className="authMessage">Please verify your email before using Patient services or adding a passkey. MFA enrollment is optional for patients.</p>}
       <form className="authForm" onSubmit={save}>
         <div className="accountNameFields">

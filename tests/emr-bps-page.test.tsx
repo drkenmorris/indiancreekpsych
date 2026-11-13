@@ -15,8 +15,8 @@ const props=(id=patient,bps_page?:string)=>({searchParams:Promise.resolve({patie
 let lookup:ReturnType<typeof vi.fn>;
 beforeEach(()=>{
  vi.clearAllMocks();m.patientAccess.mockResolvedValue({});
- lookup=vi.fn(async()=>({data:{id:patient},error:null}));
- const query={select:vi.fn(),eq:vi.fn(),maybeSingle:lookup};query.select.mockReturnValue(query);query.eq.mockReturnValue(query);
+ lookup=vi.fn(async()=>({data:{id:patient,directory_deleted_at:null},error:null}));
+ const query={select:vi.fn(),eq:vi.fn(),is:vi.fn(),maybeSingle:lookup};query.select.mockReturnValue(query);query.eq.mockReturnValue(query);query.is.mockReturnValue(query);
  m.from.mockReturnValue(query);m.emrAccess.mockResolvedValue({supabase:{from:m.from}});
 });
 test('authorized linked central patient opens original BPS and 21-section source review',async()=>{
@@ -52,10 +52,17 @@ test('missing or unlinked chart cannot render a different patient',async()=>{
 
 test('a returned central chart ID must match the selected patient even if the database query was filtered',async()=>{
  const anotherPatient='00000000-0000-4000-8000-000000000102';
- lookup.mockResolvedValue({data:{id:anotherPatient},error:null});
+ lookup.mockResolvedValue({data:{id:anotherPatient,directory_deleted_at:null},error:null});
  await expect(EmrBpsIntakePage(props())).rejects.toThrow('not-found');
  const query=m.from.mock.results[0]?.value;
  expect(query?.eq).toHaveBeenCalledWith('id',patient);
+});
+
+test('archived central chart cannot open clinician intake reconciliation',async()=>{
+ lookup.mockResolvedValue({data:{id:patient,directory_deleted_at:'2026-11-13T00:00:00Z'},error:null});
+ await expect(EmrBpsIntakePage(props())).rejects.toThrow('not-found');
+ const q=m.from.mock.results[0]?.value;
+ expect(q?.is).toHaveBeenCalledWith('directory_deleted_at',null);
 });
 
 test('login and MFA preserve the exact BPS patient and allowed subpage through clinician source review',async()=>{

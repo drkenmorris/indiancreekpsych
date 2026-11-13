@@ -34,11 +34,11 @@ export default async function EmrBpsIntakePage({searchParams}:Props){
  const ctx=await emrAccess();
  if(!ctx)redirect('/account/security?next='+encodeURIComponent(returnTo));
  if(!uuid(patient))redirect('/emr');
- const {data,error}=await ctx.supabase.from('clinical_patients').select('id').eq('id',patient).maybeSingle();
+ const {data,error}=await ctx.supabase.from('clinical_patients').select('id,directory_deleted_at').eq('id',patient).is('directory_deleted_at',null).maybeSingle();
  if(error)throw Error('The central patient could not be verified.');
  // Never trust the query predicate alone: a stale, incorrectly scoped or mocked
  // result must not let a clinician open another patient's protected BPS page.
- if(!data||data.id!==patient)notFound();
+ if(!data||data.id!==patient||data.directory_deleted_at!==null)notFound();
  const params=new URLSearchParams({patient,module:'assessment',section:'assessment:biopsychosocial'});
  if(bps_page&&bpsPages.has(bps_page))params.set('bps_page',bps_page);
  return <AdministrativeShell><main className="centralEmr" aria-label="Protected clinician-reviewed biopsychosocial intake">

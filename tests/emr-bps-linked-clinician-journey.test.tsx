@@ -43,12 +43,13 @@ test('fictional 21-section linked intake traverses the protected BPS API, clinic
    const query:any={
     select:()=>query,
     eq:(column:string,value:unknown)=>{record.filters.push([column,value]);return query;},
+    is:(column:string,value:unknown)=>{record.filters.push([column,value]);return query;},
     order:()=>query,
     maybeSingle:async()=>{
      if(table==='clinical_patients'){
       const id=record.filters.find(([key])=>key==='id')?.[1];
-      const row=id===patient?{id:patient,account_id:account}:id===otherPatient?
-       {id:otherPatient,account_id:otherAccount}:null;
+      const row=id===patient?{id:patient,account_id:account,directory_deleted_at:null}:id===otherPatient?
+       {id:otherPatient,account_id:otherAccount,directory_deleted_at:null}:null;
       return {data:row,error:null};
      }
      if(table==='patient_intakes'){

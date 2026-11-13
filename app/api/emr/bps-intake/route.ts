@@ -6,12 +6,15 @@ export const dynamic='force-dynamic';
 const reply=(data:unknown,status=200)=>NextResponse.json(data,{status,headers:privateHeaders});
 const sourceFields='patient_id,answers,status,version,updated_at';
 async function linkedSource(supabase:NonNullable<Awaited<ReturnType<typeof emrAccess>>>['supabase'],id:string){
- const patient=await supabase.from('clinical_patients').select('id,account_id').eq('id',id).maybeSingle();
+ const patient=await supabase.from('clinical_patients').select('id,account_id,directory_deleted_at').eq('id',id).is('directory_deleted_at',null).maybeSingle();
  if(patient.error)throw Error('Central patient repository unavailable.');
  if(!patient.data)return {code:404 as const,error:'Central patient not found.'};
  // Do not trust a filtered database response unless the returned central row
  // actually belongs to the requested chart. Never fall back to name matching.
  if(patient.data.id!==id)return {code:409 as const,error:'Central patient source does not match the requested chart.'};
+ // Archived central charts retain their records, but no new BPS source may be disclosed.
+ // The returned row must also be checked if a stale adapter ignores the filter.
+ if(patient.data.directory_deleted_at!==null)return {code:409 as const,error:'This central patient chart is archived; BPS intake reconciliation is unavailable.'};
  if(!uuid(patient.data.account_id))return {code:409 as const,error:'Patient account is not explicitly and validly linked; name matching is prohibited.'};
  const intake=await supabase.from('patient_intakes').select(sourceFields).eq('patient_id',patient.data.account_id).maybeSingle();
  if(intake.error)throw Error('Linked intake source unavailable.');

@@ -9,6 +9,7 @@ const submit=(details:Record<string,unknown>)=>new Request('https://www.indiancr
  body:JSON.stringify(details)});
 const payload={patientId:patient,sourceAccountId:account,sourceVersion:2,sourceStatus:'submitted',sourceUpdatedAt:stamp,reviewed:true,notes:{presenting:'Reported changes'}};
 let linked:string|null;
+let directoryDeletedAt:string|null;
 let returnedPatientId:string;
 let returnedIntakeAccountId:string;
 let reviewRows:Record<string,unknown>[];
@@ -18,11 +19,11 @@ let intakeStatus:string;
 let intakeUpdatedAt:string;
 let data:Record<string,string>;
 beforeEach(()=>{
- vi.clearAllMocks();linked=account;returnedPatientId=patient;returnedIntakeAccountId=account;version=2;intakeStatus='submitted';intakeUpdatedAt=stamp;reviewRows=[];historyResultOverride=undefined;
+ vi.clearAllMocks();linked=account;directoryDeletedAt=null;returnedPatientId=patient;returnedIntakeAccountId=account;version=2;intakeStatus='submitted';intakeUpdatedAt=stamp;reviewRows=[];historyResultOverride=undefined;
  data={counseling_reason:'Reports sadness',suicidal_thoughts_current:'Yes',roi_authorize:'Yes',medication_entries:'structured original'};
  m.sameOrigin.mockReturnValue(true);m.rpc.mockResolvedValue({data:'00000000-0000-0000-0000-000000000500',error:null});
  m.from.mockImplementation((table:string)=>{
-  if(table==='clinical_patients'){const q={select:()=>q,eq:vi.fn(()=>q),maybeSingle:async()=>({data:{id:returnedPatientId,account_id:linked},error:null})};return q;}
+  if(table==='clinical_patients'){const q={select:()=>q,eq:vi.fn(()=>q),is:vi.fn(()=>q),maybeSingle:async()=>({data:{id:returnedPatientId,account_id:linked,directory_deleted_at:directoryDeletedAt},error:null})};return q;}
   if(table==='patient_intakes'){const q={select:()=>q,eq:vi.fn(()=>q),maybeSingle:async()=>({data:{patient_id:returnedIntakeAccountId,answers:data,status:intakeStatus,version,updated_at:intakeUpdatedAt},error:null})};return q;}
   if(table==='emr_bps_intake_reviews'){const q={select:()=>q,eq:vi.fn(()=>q),order:()=>q,limit:async()=>({data:historyResultOverride===undefined?reviewRows:historyResultOverride,error:null})};return q;}
   throw Error('Unexpected '+table);
@@ -52,6 +53,18 @@ test('cross-chart central-row or intake-account mismatches fail closed without e
  expect(wrongIntake.status).toBe(409);
  expect(JSON.stringify(await wrongIntake.json())).not.toContain('Reports sadness');
  expect(m.from).not.toHaveBeenCalledWith('emr_bps_intake_reviews');
+});
+
+test('archived charts never disclose BPS answers or existing review history',async()=>{
+ directoryDeletedAt=stamp;
+ data={counseling_reason:'PRIVATE_ARCHIVED_FICTIONAL_PATIENT_STATEMENT'};
+ const response=await GET(request());
+ expect(response.status).toBe(409);
+ expect(JSON.stringify(await response.json())).not.toContain('PRIVATE_ARCHIVED_FICTIONAL_PATIENT_STATEMENT');
+ expect(m.from).not.toHaveBeenCalledWith('patient_intakes');
+ expect(m.from).not.toHaveBeenCalledWith('emr_bps_intake_reviews');
+ const q=m.from.mock.results.find((entry:any)=>entry.value?.is)?.value;
+ expect(q?.is).toHaveBeenCalledWith('directory_deleted_at',null);
 });
 
 test('protected BPS API fails closed on malformed linked source before any questionnaire or history disclosure',async()=>{

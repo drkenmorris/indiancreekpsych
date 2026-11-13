@@ -3,17 +3,20 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { modalityAccess } from '@/lib/emr/modality-access';
 import { uuid } from '@/lib/emr/demographics';
+import ApproachChecklist from '../treatment-approach/ApproachChecklist';
 import ModalityTable from './ModalityTable';
 import '../treatment-planner.css';
 
 export const dynamic = 'force-dynamic';
 
-export default async function Page({ searchParams }: { searchParams: Promise<{ patient?: string; embedded?: string }> }) {
- const { patient, embedded } = await searchParams;
+export default async function Page({ searchParams }: { searchParams: Promise<{ patient?: string; embedded?: string; section?: string }> }) {
+ const { patient, embedded, section } = await searchParams;
  const patientId = uuid(patient) ? patient : null;
  const query = new URLSearchParams();
  if (patientId) query.set('patient', patientId);
  if (embedded === '1') query.set('embedded', '1');
+ const approach = section === 'approach';
+ if (approach) query.set('section', 'approach');
  const next = '/emr/treatment-modality' + (query.size ? '?' + query : '');
 
  const ctx = await modalityAccess();
@@ -28,7 +31,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ p
 
  if (patientId) return <main className="treatmentWorkspace treatmentEmbedded">
   {embedded !== '1' && <Link href="/emr/treatment-modality">Assigned patient charts</Link>}
-  <ModalityTable key={patientId} patientId={patientId} />
+  {embedded !== '1' && <nav aria-label="Treatment plan options"><Link href={'/emr/treatment-modality?patient=' + patientId + (approach ? '' : '&section=approach')}>{approach ? 'Modality' : 'Approach'}</Link></nav>}
+  {approach ? <ApproachChecklist key={patientId} patientId={patientId} /> : <ModalityTable key={patientId} patientId={patientId} />}
  </main>;
 
  const charts = await ctx.supabase.rpc('emr_modality_assigned_charts');

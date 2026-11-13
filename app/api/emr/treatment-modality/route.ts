@@ -4,8 +4,10 @@ import { uuid } from '@/lib/emr/demographics';
 import { modalityAccess } from '@/lib/emr/modality-access';
 import { maxCarePeriods, maxExpectedSessions, maxSessionRows, sessionFrequencies, sessionTypes, validCarePeriod, type CarePeriod } from '@/lib/emr/treatment-modality';
 
+import { approachGroups, maxApproaches, validApproachLabel } from '@/lib/emr/treatment-approaches';
+
 export const dynamic = 'force-dynamic';
-const columns = 'patient_id,assigned_provider_id,revision,sessions,care_periods';
+const columns = 'patient_id,assigned_provider_id,revision,sessions,care_periods,approaches';
 const reply = (data: unknown, status = 200) => NextResponse.json(data, { status, headers: privateHeaders });
 const denied = () => reply({ error: 'Clinic sign-in and MFA required.' }, 403);
 const unavailable = () => reply({ error: 'Patient unavailable or outside your assigned charts.' }, 404);
@@ -24,10 +26,16 @@ export async function GET(request: Request) {
  if (!uuid(patientId)) return reply({ error: 'Select a patient.' }, 400);
  if (ctx.admin && !await activePatient(ctx, patientId)) return unavailable();
 
+ const approachOnly = new URL(request.url).searchParams.get('section') === 'approach';
  const record = await ctx.supabase.from('emr_treatment_modalities').select(columns)
   .eq('patient_id', patientId).maybeSingle();
  if (record.error) return reply({ error: 'Modality could not be loaded.' }, 503);
  if (!ctx.admin && !record.data) return unavailable();
+ if (approachOnly) {
+  const options = await ctx.supabase.from('emr_treatment_approach_options').select('label').order('label');
+  if (options.error) return reply({ error: 'Approach options could not be loaded.' }, 503);
+  return reply({ revision: record.data?.revision ?? 0, approaches: record.data?.approaches ?? [], options: options.data.map(option => option.label) });
+ }
 
  const directory = await ctx.supabase.rpc('emr_modality_directory', { p_include_staff: ctx.admin });
  if (directory.error) return reply({ error: 'Provider roster could not be loaded.' }, 503);
@@ -46,6 +54,41 @@ export async function POST(request: Request) {
    if (!uuid(body.providerId)) return reply({ error: 'Select a provider account.' }, 400);
    const { error } = await ctx.supabase.from('emr_modality_providers').insert({ provider_id: body.providerId });
    return error ? reply({ error: 'Provider could not be added. Reload the roster and try again.' }, 409) : reply({ saved: true });
+  }
+
+  if (body?.action === 'saveApproaches' || body?.action === 'addApproach') {
+   const { patientId, revision, approaches, label } = body;
+   if (!uuid(patientId)) return unavailable();
+   if (ctx.admin && !await activePatient(ctx, patientId)) return unavailable();
+
+   if (body.action === 'addApproach') {
+    if (!validApproachLabel(label)) return reply({ error: 'Enter an approach name up to 120 characters.' }, 400);
+    if (Object.values(approachGroups).flat().some(option => option.toLowerCase() === label.toLowerCase())) {
+     return reply({ error: 'This approach is already on the checklist.' }, 409);
+    }
+    if (!ctx.admin) {
+     const chart = await ctx.supabase.from('emr_treatment_modalities').select('patient_id').eq('patient_id', patientId).maybeSingle();
+     if (!chart.data || chart.error) return unavailable();
+    }
+    const added = await ctx.supabase.from('emr_treatment_approach_options').insert({ label });
+    if (added.error) return reply({ error: added.error.code === '23505' ? 'This approach is already on the shared checklist. Reload to see it.' : 'The approach could not be added.' }, added.error.code === '23505' ? 409 : 400);
+    return reply({ label });
+   }
+
+   if (!Number.isSafeInteger(revision) || revision < 0 || !Array.isArray(approaches) ||
+    approaches.length > maxApproaches || !approaches.every(validApproachLabel) ||
+    new Set(approaches.map(label => label.toLowerCase())).size !== approaches.length) {
+    return reply({ error: 'Select up to 100 different approaches.' }, 400);
+   }
+   const patch = { approaches, revision: revision + 1 };
+   const saved = revision === 0 && ctx.admin
+    ? await ctx.supabase.from('emr_treatment_modalities').insert({ ...patch, patient_id: patientId }).select('revision').maybeSingle()
+    : await ctx.supabase.from('emr_treatment_modalities').update(patch).eq('patient_id', patientId).eq('revision', revision).select('revision').maybeSingle();
+   if (!saved.data && (!saved.error || ['40001','23505'].includes(saved.error.code))) {
+    return reply({ error: 'The plan or assignment changed. Reload Approach and review before saving again.' }, 409);
+   }
+   if (saved.error || !saved.data) return reply({ error: 'Approaches could not be saved.' }, 400);
+   return reply({ revision: saved.data.revision });
   }
 
   const { patientId, revision, assignedProviderId, sessions, carePeriods } = body;

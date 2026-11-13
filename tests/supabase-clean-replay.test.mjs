@@ -176,7 +176,7 @@ test('clinic migrations replay in order on an empty application database', async
     // original central chart. The earlier draft snapshot must stay unchanged.
     await as(patientId);
     const {rows:[submitted]}=await db.query(
-      "update public.patient_intakes set status='submitted' where patient_id=$1 returning version,status,updated_at",
+      "update public.patient_intakes set status='submitted' where patient_id=$1 returning version,status,updated_at,submitted_at",
       [patientId]);
     assert.equal(submitted.status,'submitted');
     assert.ok(submitted.version>source.version,'Submission must advance the DB-owned source version');
@@ -190,6 +190,34 @@ test('clinic migrations replay in order on an empty application database', async
 
     const submittedPayload={...payload,source_version:submitted.version,
       source_status:submitted.status,source_updated_at:new Date(submitted.updated_at).toISOString()};
+    // Simulate a malformed historical submission receipt in the isolated
+    // replay database only. The existing patient trigger normally ensures
+    // submitted_at is populated; a direct privileged RPC must still reject a
+    // migrated/imported submitted row whose receipt is missing. Restore the
+    // synthetic row before running the normal submission acceptance.
+    assert.ok(submitted.submitted_at,'A genuine submitted fixture must have a DB receipt');
+    await db.exec('reset role');
+    await db.exec('alter table public.patient_intakes disable trigger user');
+    try {
+      const {rows:[invalidReceipt]}=await db.query(
+        'update public.patient_intakes set submitted_at=null where patient_id=$1 returning submitted_at',[patientId]);
+      assert.equal(invalidReceipt.submitted_at,null,'Only the fictional source receipt is corrupted');
+    } finally {
+      await db.exec('alter table public.patient_intakes enable trigger user');
+    }
+    await as(adminId,'aal2');
+    await assert.rejects(
+      db.query('select public.save_emr_bps_intake_review($1) as id',[submittedPayload]),
+      /verified intake submission receipt/,
+      'A submitted intake without a receipt cannot be clinician-attested via privileged RPC');
+    await db.exec('reset role');
+    await db.exec('alter table public.patient_intakes disable trigger user');
+    try {
+      await db.query('update public.patient_intakes set submitted_at=$2 where patient_id=$1',
+        [patientId,submitted.submitted_at]);
+    } finally {
+      await db.exec('alter table public.patient_intakes enable trigger user');
+    }
     await as(adminId,'aal1');
     await assert.rejects(db.query('select public.save_emr_bps_intake_review($1) as id',[submittedPayload]),
       /MFA|Administrator sign-in/,'AAL1 must not approve a submitted patient intake');

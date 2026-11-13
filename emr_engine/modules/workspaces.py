@@ -3,7 +3,10 @@ from datetime import date,datetime
 from zoneinfo import ZoneInfo
 from modules.patients import calendar,string
 
-SECTIONS={'assigned_provider','general_notes','strengths','mental_status','recovery_criteria','session_details','objective_rating','psychotherapy_notes','session_custom_fields','scheduled_review'}
+RISK_CHOICES={'suicidal_thoughts_current','suicidal_plan_current','homicidal_thoughts_current','abuse_neglect_current','weapons_access'}
+RISK_NARRATIVES={'violence_risk_details','protective_factors'}
+
+SECTIONS={'risk_assessment','assigned_provider','general_notes','strengths','mental_status','recovery_criteria','session_details','objective_rating','psychotherapy_notes','session_custom_fields','scheduled_review'}
 def section(data):
  key=data.get('section')
  if key not in SECTIONS:raise ValueError('Choose a supported patient workspace section.')
@@ -14,6 +17,8 @@ def section(data):
  import re
  if any(not isinstance(k,str) or not re.fullmatch(r'[a-zA-Z0-9_-]{1,80}',k) or not isinstance(v,str) or len(v)>8000 for k,v in fields.items()):raise ValueError('Invalid section fields.')
  if sum(len(v) for v in fields.values())>24000:raise ValueError('Section fields are too long.')
+ if key=='risk_assessment':
+  if fields.keys()-RISK_CHOICES-RISK_NARRATIVES or any(fields.get(k,'') not in ('','Yes','No') for k in RISK_CHOICES):raise ValueError('Invalid risk assessment fields.')
  result['fields']=fields
  return result
 

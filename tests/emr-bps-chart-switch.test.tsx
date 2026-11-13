@@ -88,6 +88,47 @@ test.each([
  expect(posts).toBe(0);
 });
 
+test.each([
+ 'missing section fields',
+ 'non-string patient response',
+ 'unsupported section routing',
+ 'malformed unmapped source audit'
+])('clinician BPS never renders source PHI or offers save for %s',async(variant)=>{
+ const patient='00000000-0000-4000-8000-000000000851';
+ const account='00000000-0000-4000-8000-000000000852';
+ const sections:any[]=Array.from({length:21},(_,i)=>({
+  title:'Intake section '+i,domain:'Clinical context',disposition:'clinical',
+  answered:i===1?1:0,
+  fields:i===1?[{
+   key:'counseling_reason',label:'Patient report',type:'text',sourceOnly:false,
+   reported:true,value:'PRIVATE_FICTIONAL_SOURCE_MUST_NOT_RENDER'
+  }]:[]
+ }));
+ let unmappedKeys:any[]=[];
+ if(variant==='missing section fields')sections[0].fields=null;
+ if(variant==='non-string patient response')sections[0].fields=[{
+  key:'counseling_reason',label:'Malformatted response',type:'text',
+  reported:true,sourceOnly:false,value:{secret:'PRIVATE_NESTED_PHI'}
+ }];
+ if(variant==='unsupported section routing')sections[0].disposition='legal-consent';
+ if(variant==='malformed unmapped source audit')unmappedKeys=['ok',{secret:'PRIVATE_AUDIT_PHI'}];
+ let posts=0;
+ vi.stubGlobal('fetch',vi.fn(async(_url:string,options?:RequestInit)=>{
+  if(options?.method==='POST')posts++;
+  return Response.json({patientId:patient,source:{accountId:account,status:'submitted',
+   version:3,updatedAt:'2026-11-12T12:00:00Z'},sections,unmappedKeys,reviews:[]});
+ }));
+ render(<PatientBpsIntakeReview patientId={patient}/>);
+ const alert=await screen.findByRole('alert');
+ expect(alert.textContent).toContain('21-section intake mapping is malformed');
+ expect(document.body.textContent).not.toContain('PRIVATE_FICTIONAL_SOURCE_MUST_NOT_RENDER');
+ expect(document.body.textContent).not.toContain('PRIVATE_NESTED_PHI');
+ expect(document.body.textContent).not.toContain('PRIVATE_AUDIT_PHI');
+ expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
+ expect(screen.queryByRole('button',{name:/Save reviewed BPS history snapshot/i})).toBeNull();
+ expect(posts).toBe(0);
+});
+
 test('idle linked-intake refresh is source-scoped, stops during clinician review, and fails closed on invalid refreshed provenance',async()=>{
  const patient='00000000-0000-4000-8000-000000000811';
  const account='00000000-0000-4000-8000-000000000812';

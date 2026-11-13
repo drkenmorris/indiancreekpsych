@@ -119,4 +119,25 @@ await test('existing plans start with empty care periods and assigned therapists
  assert.equal((await db.query("update emr_treatment_modalities set care_periods='[]',revision=revision+1 returning revision")).rows.length, 0);
 });
 
+await db.exec('reset role');
+await db.exec(readFileSync(new URL('../supabase/migrations/20261113211255_treatment_approaches.sql', import.meta.url), 'utf8'));
+
+await test('assigned clinicians can extend the shared checklist and save private chart selections', async () => {
+ await signIn(therapist);
+ const label = 'Fictional clinical technique';
+ await db.query('insert into public.emr_treatment_approach_options(label) values($1)', [label]);
+ await assert.rejects(db.query('insert into public.emr_treatment_approach_options(label) values($1)', [label.toUpperCase()]), /duplicate key/);
+ const before = (await read()).rows[0];
+ const result = await db.query('update public.emr_treatment_modalities set approaches=$1,revision=revision+1 where patient_id=$2 returning *',
+  [[label,'Cognitive Behavioral Techniques'],chart]);
+ assert.deepEqual(result.rows[0].approaches, [label,'Cognitive Behavioral Techniques']);
+ assert.deepEqual(result.rows[0].sessions, before.sessions);
+ assert.deepEqual(result.rows[0].care_periods, before.care_periods);
+ await signIn(otherStaff);
+ assert.equal((await db.query('select label from public.emr_treatment_approach_options')).rows.length, 0);
+ assert.equal((await read()).rows.length, 0);
+ await signIn(admin);
+ assert.deepEqual((await db.query('select label from public.emr_treatment_approach_options')).rows, [{label}]);
+});
+
 await db.close();

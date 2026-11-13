@@ -69,7 +69,7 @@ test('reopening an immutable BPS review shows stored patient reports separately 
  const calls:string[]=[];
  vi.stubGlobal('fetch',vi.fn(async(url:string)=>{calls.push(url);return {ok:true,json:async()=>({
   patientId:patient,source:{accountId:patient,status:'draft',version:5,updatedAt:'2026-11-10T12:00:00Z'},
-  sections,unmappedKeys:[],reviews:[{id:'00000000-0000-0000-0000-000000000610',
+  sections,unmappedKeys:[],reviews:[{id:'00000000-0000-0000-0000-000000000610',reviewed:true,
    source_version:4,source_status:'submitted',source_updated_at:'2026-11-10T10:00:00Z',
    created_at:'2026-11-10T10:05:00Z',
    clinical_answers:{counseling_reason:'Historical patient report',suicidal_thoughts_current:'Yes',

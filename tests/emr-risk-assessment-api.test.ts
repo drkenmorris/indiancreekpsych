@@ -49,3 +49,47 @@ test('missing or non-object safety source payload is withheld, not translated to
   intake=original;
  }
 });
+
+test('malformed flat-string intake answers are withheld instead of becoming false negative risk findings',async()=>{
+ const valid=intake;
+ const invalid=[
+  {...valid.answers,suicidal_plan_current:['PRIVATE_FICTIONAL_RISK_REPORT']},
+  {...valid.answers,protective_factors:{text:'PRIVATE_FICTIONAL_RISK_REPORT'}},
+  {...valid.answers,homicidal_thoughts_current:false},
+  {...valid.answers,insurance_member:{text:'PRIVATE_FICTIONAL_OTHER_SECTION'}}
+ ];
+ for(const answers of invalid){
+  intake={...valid,answers};
+  const response=await GET(request());
+  expect(response.status).toBe(409);
+  expect(response.headers.get('cache-control')).toBe('private, no-store');
+  const wire=JSON.stringify(await response.json());
+  expect(wire).not.toContain('PRIVATE_FICTIONAL');
+  expect(wire).not.toContain('"fields"');
+ }
+ intake=valid;
+ expect((await GET(request())).status).toBe(200);
+});
+
+test('a submitted safety source requires a valid submission timestamp while drafts remain usable',async()=>{
+ const submitted=intake;
+ intake={...submitted,submitted_at:null};
+ const response=await GET(request());
+ expect(response.status).toBe(409);
+ expect((await response.json()).fields).toBeUndefined();
+ intake={...submitted,status:'draft',submitted_at:null};
+ expect((await GET(request())).status).toBe(200);
+});
+
+test('unexpected authentication or database exceptions cannot expose clinical or SQL details',async()=>{
+ const privateMessage='PRIVATE_FICTIONAL_CLINICAL_SQL_DIAGNOSTIC';
+ m.access.mockRejectedValueOnce(Error(privateMessage));
+ const failedAuth=await GET(request());
+ expect(failedAuth.status).toBe(503);
+ expect(failedAuth.headers.get('cache-control')).toBe('private, no-store');
+ expect(JSON.stringify(await failedAuth.json())).not.toContain(privateMessage);
+ m.access.mockResolvedValueOnce({supabase:{from:()=>{throw Error(privateMessage);}}});
+ const failedRead=await GET(request());
+ expect(failedRead.status).toBe(503);
+ expect(JSON.stringify(await failedRead.json())).not.toContain(privateMessage);
+});

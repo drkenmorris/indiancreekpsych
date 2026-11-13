@@ -78,7 +78,7 @@ export default function IntakeForm({userId,initial,defaults,preview=false}:{user
   <section className="intakeProgress" aria-label="Questionnaire progress">
    <div><strong>Section {sectionIndex+1} of {sections.length}</strong><span>{requiredPages.filter(number=>completed.includes(number)).length} of {requiredPages.length} required pages saved</span></div>
    <progress max={requiredPages.length} value={requiredPages.filter(number=>completed.includes(number)).length}/>
-   <p className="intakeStatusLegend">Red: required · Yellow: optional · Dark gray: current page · Green: saved</p>
+   <p className="intakeStatusLegend">Red: required and unfinished · Green: optional or saved · Dark gray: current page</p>
    <div className="intakeSectionTabs" role="tablist" aria-label="Intake sections">
     {sections.map((item,index)=><button key={item.title} type="button" role="tab" aria-selected={index===sectionIndex} data-page-status={pageStatus(index+1)} aria-description={pageStatus(index+1)} disabled={busy} onClick={()=>{setSectionIndex(index);setConfirm(false);setError('');setMessage('');}}>{index+1}</button>)}
    </div>

@@ -43,11 +43,12 @@ await test('actual hosted forms and global navigation render against central pat
  fixture.chart.records.push({id:'fictional-assessment-for-form-test',kind:'assessment',created:'2026-11-10T00:00:01.000Z',problems:[]});
  for(const [key,step] of [['problems','Problems'],['definitions','Definitions'],['goals','Goals'],['objectives','Objectives/Interventions']]){
   runInContext(`chooseSection('plan','${key}');render();`,dom.getInternalVMContext());
-  const link=w.document.querySelector('#content a[href^="/emr/treatment-plan?"]');
+  const link=w.document.querySelector('#patient-plan-editor');
   assert.ok(link);
-  const target=new URL(link.href);
+  const target=new URL(link.src);
   assert.equal(target.searchParams.get('patient'),fixture.pid);
   assert.equal(target.searchParams.get('step'),step);
+  assert.equal(target.searchParams.get('embedded'),'1');
   assert.equal(w.document.querySelector('#plan-hierarchy'),null);
  }
  runInContext("chooseSection('plan','diagnosis');render();",dom.getInternalVMContext());

@@ -17,7 +17,7 @@ test('all 21 linked BPS sections provide patient-scoped access to existing clini
  vi.stubGlobal('fetch',vi.fn(async(url:string,init?:RequestInit)=>{
   calls.push({url,method:init?.method||'GET'});
   return {ok:true,json:async()=>({
-   patientId:patient,source:{accountId:patient,status:'submitted',version:4,updatedAt:'2026-11-10T11:00:00Z'},
+   patientId:patient,source:{accountId:patient,status:'submitted',version:4,updatedAt:'2026-11-10T11:00:00Z',submittedAt:'2026-11-10T11:00:00Z'},
    sections,unmappedKeys:[],reviews:[]
   })};
  }));
@@ -100,7 +100,7 @@ test('acknowledged BPS save is never reported as unsaved when subsequent history
   reads++;
   if(reads>1)return {ok:false,json:async()=>({error:'History refresh temporarily unavailable'})};
   return {ok:true,json:async()=>({patientId:patient,
-   source:{accountId:patient,status:'submitted',version:2,updatedAt:'2026-11-10T12:00:00Z'},
+   source:{accountId:patient,status:'submitted',version:2,updatedAt:'2026-11-10T12:00:00Z',submittedAt:'2026-11-10T12:00:00Z'},
    sections,unmappedKeys:[],reviews:[]})};
  }));
  render(<PatientBpsIntakeReview patientId={patient}/>);

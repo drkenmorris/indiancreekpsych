@@ -3,7 +3,7 @@
 import FirewallCheck from "./FirewallCheck";
 import CalendarClient from "./calendar/CalendarClient";
 import MonthSchedule from "./calendar/MonthSchedule";
-import { localParts } from "@/lib/scheduling/calendar";
+import { localParts, practiceWallTimeToIso } from "@/lib/scheduling/calendar";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -14,7 +14,7 @@ type Block = { id:string; starts_at:string; ends_at:string; label:string|null };
 type Patient = { id:string; full_name:string|null; preferred_name:string|null };
 
 const weekdays=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-const dateInput=(d:Date)=>{const p=(n:number)=>String(n).padStart(2,"0");return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;};
+const practiceDateInput=(instant:string,timezone:string)=>{const {date,time}=localParts(instant,timezone);return `${date}T${time}`;};
 
 export default function AppointmentsClient({userId,accountType,preferredName,initialSettings,initialRules,initialBlocks}:{userId:string;accountType:AccountType;preferredName:string;initialSettings:Settings|null;initialRules:Rule[];initialBlocks:Block[]}) {
   const supabase=useMemo(()=>createClient(),[]);
@@ -34,7 +34,7 @@ export default function AppointmentsClient({userId,accountType,preferredName,ini
   const [busy,setBusy]=useState(false);
   const [editingRuleId,setEditingRuleId]=useState<string|null>(null);
   const [rule,setRule]=useState({weekday:1,start_time:"09:00",end_time:"17:00",anchor_time:""});
-  const [block,setBlock]=useState(()=>{const s=new Date();s.setHours(s.getHours()+1,0,0,0);const e=new Date(s);e.setHours(e.getHours()+1);return{starts_at:dateInput(s),ends_at:dateInput(e),label:""};});
+  const [block,setBlock]=useState(()=>{const nextHour=Math.ceil(Date.now()/3600000)*3600000;return{starts_at:practiceDateInput(new Date(nextHour).toISOString(),settings.timezone),ends_at:practiceDateInput(new Date(nextHour+3600000).toISOString(),settings.timezone),label:""};});
 
   const loadSlots=async()=>{setRevision(v=>v+1);};
   useEffect(()=>{if(accountType==="admin")void (async()=>{const {data,error}=await supabase.rpc("scheduling_patients").abortSignal(AbortSignal.timeout(15000));if(error)setPatientError("Patient list could not be loaded. Refresh the page or contact support.");else setPatients((data??[]) as Patient[]);setPatientsLoading(false);})();},[]);
@@ -105,7 +105,9 @@ export default function AppointmentsClient({userId,accountType,preferredName,ini
   const addBlock=async(e:FormEvent)=>{
     e.preventDefault();if(busy)return;setBusy(true);setMessage("");
     try{
-      const starts=new Date(block.starts_at),ends=new Date(block.ends_at);
+      // datetime-local has no timezone; always interpret it in the persisted practice timezone.
+      const starts=new Date(practiceWallTimeToIso(block.starts_at,settings.timezone));
+      const ends=new Date(practiceWallTimeToIso(block.ends_at,settings.timezone));
       if(!Number.isFinite(starts.getTime())||!Number.isFinite(ends.getTime())||ends.getTime()<=starts.getTime())
         throw new Error("Choose valid blocked-time dates with an end later than the start.");
       const payload={starts_at:starts.toISOString(),ends_at:ends.toISOString(),label:block.label||null};
@@ -209,8 +211,8 @@ export default function AppointmentsClient({userId,accountType,preferredName,ini
       </section>}
 
       {view==="blackouts"&&<section className="appointmentPanel"><p className="eyebrow">Blocked time</p><h2>Blackout periods</h2>
-        <form className="inlineSchedulerForm blockForm" onSubmit={addBlock}><label>Starts<input type="datetime-local" value={block.starts_at} onChange={e=>setBlock({...block,starts_at:e.target.value})}/></label><label>Ends<input type="datetime-local" value={block.ends_at} onChange={e=>setBlock({...block,ends_at:e.target.value})}/></label><label>Label<input placeholder="Vacation, meeting, personal time" value={block.label} onChange={e=>setBlock({...block,label:e.target.value})}/></label><button type="submit" disabled={busy}>{busy?"Working…":"Block time"}</button></form>
-        <div className="ruleList">{blocks.map(b=><article key={b.id}><div><strong>{b.label||"Blocked time"}</strong><span>{new Date(b.starts_at).toLocaleString()} – {new Date(b.ends_at).toLocaleString()}</span></div><button className="secondaryAction" type="button" disabled={busy} onClick={()=>void deleteBlock(b.id)}>Remove</button></article>)}</div>
+        <p>Enter blocked times in the practice time zone ({settings.timezone}), not the browser or computer time zone. Daylight-saving times that occur twice or do not exist must be adjusted before saving.</p><form className="inlineSchedulerForm blockForm" onSubmit={addBlock}><label>Starts<input type="datetime-local" value={block.starts_at} onChange={e=>setBlock({...block,starts_at:e.target.value})}/></label><label>Ends<input type="datetime-local" value={block.ends_at} onChange={e=>setBlock({...block,ends_at:e.target.value})}/></label><label>Label<input placeholder="Vacation, meeting, personal time" value={block.label} onChange={e=>setBlock({...block,label:e.target.value})}/></label><button type="submit" disabled={busy}>{busy?"Working…":"Block time"}</button></form>
+        <div className="ruleList">{blocks.map(b=><article key={b.id}><div><strong>{b.label||"Blocked time"}</strong><span>{new Date(b.starts_at).toLocaleString("en-US",{timeZone:settings.timezone})} – {new Date(b.ends_at).toLocaleString("en-US",{timeZone:settings.timezone})} ({settings.timezone})</span></div><button className="secondaryAction" type="button" disabled={busy} onClick={()=>void deleteBlock(b.id)}>Remove</button></article>)}</div>
       </section>}
     </>}
   </div>;

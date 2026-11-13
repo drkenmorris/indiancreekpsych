@@ -31,6 +31,7 @@ for (const patient of [chart, otherChart]) {
  await db.query("insert into public.clinical_patients values($1,'{}',null)", [patient]);
 }
 await db.exec(migration);
+await db.exec(readFileSync(new URL('../supabase/migrations/20261113181247_expand_modality_cpt.sql', import.meta.url), 'utf8'));
 
 async function signIn(user, assurance = 'aal2') {
  await db.exec('reset role');
@@ -80,6 +81,20 @@ await test('unassigned staff, patients, and sessions without MFA cannot read or 
  await db.query('update emr_treatment_modalities set assigned_provider_id=$1,revision=revision+1 where patient_id=$2', [admin, chart]);
  await signIn(therapist);
  assert.equal((await read()).rows.length, 0);
+});
+
+await test('accepts the added base codes and rejects standalone add-on codes', async () => {
+ await signIn(admin);
+ const added = ['90839','96130','96136','96138','96146'].map(code => ({
+  code, count:1, frequency:'weekly', providerId:admin,
+ }));
+ const saved = await db.query('update emr_treatment_modalities set sessions=$1,revision=revision+1 where patient_id=$2 returning sessions',
+  [JSON.stringify(added), chart]);
+ assert.deepEqual(saved.rows[0].sessions, added);
+ for (const code of ['90785','90840','96131','96137','96139']) {
+  await assert.rejects(db.query('update emr_treatment_modalities set sessions=$1,revision=revision+1 where patient_id=$2',
+   [JSON.stringify([{...added[0],code}]), chart]), /Invalid session row/);
+ }
 });
 
 await db.close();

@@ -31,7 +31,7 @@ test('clinician reconciliation independently withholds separate, structured, ref
  const id='00000000-0000-4000-8000-000000000801';
  const sections=Array.from({length:21},(_,i)=>({
   title:'Intake section '+i,domain:'Context',disposition:i===1?'reference':i===2?'separate-review':'clinical',
-  answered:i<3?3:0,fields:i===0?[
+  answered:i<3?3:i===3||i===4?1:0,fields:i===0?[
    {key:'counseling_reason',label:'Reported concern',type:'text',reported:true,sourceOnly:false,value:'SAFE PATIENT REPORTED CONCERN'},
    {key:'insurance_member',label:'Spoofed coverage field',type:'text',reported:true,sourceOnly:false,value:'DO_NOT_LEAK_SPOOFED_INSURANCE'},
    {key:'roi_authorize',label:'Spoofed authorization field',type:'text',reported:true,sourceOnly:false,value:'DO_NOT_LEAK_SPOOFED_LEGAL'},
@@ -40,13 +40,15 @@ test('clinician reconciliation independently withholds separate, structured, ref
    {key:'medication_entries',label:'Structured medication',type:'medications',reported:true,sourceOnly:false,value:'DO_NOT_LEAK_STRUCTURED'},
    {key:'unmarked',label:'Unmarked historical data',type:'text',reported:true,value:'DO_NOT_LEAK_UNMARKED'}]:
    i===1?[{key:'roi_authorize',label:'Authorization',type:'text',reported:true,sourceOnly:false,value:'DO_NOT_LEAK_LEGAL'}]:
-   i===2?[{key:'insurance_member',label:'Coverage',type:'text',reported:true,sourceOnly:false,value:'DO_NOT_LEAK_INSURANCE'}]:[]
+   i===2?[{key:'insurance_member',label:'Coverage',type:'text',reported:true,sourceOnly:false,value:'DO_NOT_LEAK_INSURANCE'}]:
+    i===3?[{key:'counseling_reason',label:'Falsely marked unreported',type:'text',reported:false,sourceOnly:false,value:'DO_NOT_LEAK_FALSE_REPORTED'}]:
+    i===4?[{key:'counseling_reason',label:'Missing patient-report attestation',type:'text',sourceOnly:false,value:'DO_NOT_LEAK_MISSING_REPORTED'}]:[]
  }));
  vi.stubGlobal('fetch',vi.fn(async()=>Response.json({patientId:id,source:{accountId:id,status:'submitted',version:2,updatedAt:'2026-11-11T12:00:00Z'},sections,unmappedKeys:[],reviews:[]})));
  render(<PatientBpsIntakeReview patientId={id}/>);
  await screen.findByText(/Version 2/);
  expect(screen.getByText('SAFE PATIENT REPORTED CONCERN')).toBeTruthy();
- for(const secret of ['DO_NOT_LEAK_STRUCTURED','DO_NOT_LEAK_UNMARKED','DO_NOT_LEAK_LEGAL','DO_NOT_LEAK_INSURANCE','DO_NOT_LEAK_SPOOFED_INSURANCE','DO_NOT_LEAK_SPOOFED_LEGAL','DO_NOT_LEAK_RETIRED_MEDICATION','DO_NOT_LEAK_RETIRED_LEGAL'])
+ for(const secret of ['DO_NOT_LEAK_STRUCTURED','DO_NOT_LEAK_UNMARKED','DO_NOT_LEAK_LEGAL','DO_NOT_LEAK_INSURANCE','DO_NOT_LEAK_SPOOFED_INSURANCE','DO_NOT_LEAK_SPOOFED_LEGAL','DO_NOT_LEAK_RETIRED_MEDICATION','DO_NOT_LEAK_RETIRED_LEGAL','DO_NOT_LEAK_FALSE_REPORTED','DO_NOT_LEAK_MISSING_REPORTED'])
   expect(screen.queryByText(secret)).toBeNull();
 });
 

@@ -17,7 +17,7 @@ function report(patientId:string){
    i===1?[{key:'medication_entries',label:'Medication',type:'medications',reported:true,sourceOnly:true,value:'SECRET MEDICATION DATA'}]:
    i===2?[{key:'roi_authorize',label:'Authorization',type:'text',reported:true,sourceOnly:false,value:'SECRET LEGAL DATA'}]:[]
  }));
- return {patientId,source:{accountId:'00000000-0000-4000-8000-000000000803',status:'submitted',version:6,updatedAt:'2026-11-10T12:00:00Z'},
+ return {patientId,source:{accountId:'00000000-0000-4000-8000-000000000803',status:'submitted',version:6,updatedAt:'2026-11-10T12:00:00Z',submittedAt:'2026-11-10T12:00:00Z'},
   sections,unmappedKeys:['unmapped_legacy_field'],reviews:[]};
 }
 function harness(fetchResponse:(url:string,options:any)=>Promise<Response>,id=firstPatient){
@@ -338,7 +338,11 @@ test.each([
  ['unparseable source timestamp',{updatedAt:'not-a-source-timestamp'}],
  ['impossible calendar source date',{updatedAt:'2026-02-30T12:00:00Z'}],
  ['ambiguous numeric source date',{updatedAt:'1'}],
- ['date-only source timestamp',{updatedAt:'2026-11-10'}]
+ ['date-only source timestamp',{updatedAt:'2026-11-10'}],
+ ['missing submitted intake receipt',{submittedAt:undefined}],
+ ['malformed submitted intake receipt',{submittedAt:'not-a-date'}],
+ ['impossible submitted intake date',{submittedAt:'2026-02-30T12:00:00Z'}],
+ ['invalid draft receipt',{status:'draft',submittedAt:'not-a-date'}]
 ])('original seven-page BPS refuses %s before displaying patient-reported intake',async(_case,change)=>{
  const unsafe=report(firstPatient);
  unsafe.sections[0].fields[0].value='PRIVATE_REPORTED_BPS_SOURCE';

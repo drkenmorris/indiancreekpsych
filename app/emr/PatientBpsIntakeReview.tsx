@@ -18,7 +18,9 @@ const focusedReviewLinks:Record<string,{label:string;anchor:string}[]>={
 };
 const protectedSourceTypes=new Set(['treatment-history','medications','medical-substance','trauma-history','legal-routing','dsm-version']);
 const readable=(field:Field,disposition:Section['disposition'])=>
- disposition!=='clinical'||field.sourceOnly!==false||!bpsVisibleSourceKeys.has(field.key)||protectedSourceTypes.has(field.type)?
+ // Only explicit patient-reported values may appear as clinical BPS source context.
+ // An allowed key or upstream sourceOnly:false flag alone is not evidence of a patient response.
+ disposition!=='clinical'||field.reported!==true||field.sourceOnly!==false||!bpsVisibleSourceKeys.has(field.key)||protectedSourceTypes.has(field.type)?
  'Structured questionnaire: use the protected original intake or the dedicated reconciliation module; raw content is not automatically imported.':field.value;
 async function json(response:Response){const data=await response.json();if(!response.ok)throw Error(data.error||'Protected BPS request failed.');return data;}
 export default function PatientBpsIntakeReview({patientId}:{patientId:string}){

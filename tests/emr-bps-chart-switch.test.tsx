@@ -135,3 +135,49 @@ test('idle linked-intake refresh is source-scoped, stops during clinician review
  expect(screen.queryByText('FICTIONAL_CONCERN_V4')).toBeNull();
  expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
 });
+
+
+test.each([
+ ['invalid historical review ID',{id:'not-a-uuid'}],
+ ['invalid historical source version',{source_version:0}],
+ ['unsupported historical source status',{source_status:'revoked'}],
+ ['invalid historical source date',{source_updated_at:'2026-02-30T09:00:00Z'}],
+ ['invalid review creation date',{created_at:'not-a-date'}],
+ ['malformed historical clinical answers',{clinical_answers:['PHI_NOT_A_RECORD']}],
+ ['missing historical clinician notes',{clinician_notes:null}],
+])('clinician BPS UI fails closed when %s cannot be verified',async(_label,change)=>{
+ const id='00000000-0000-4000-8000-000000000841';
+ const account='00000000-0000-4000-8000-000000000842';
+ const stamp='2026-11-12T12:00:00Z';
+ const review={
+  id:'00000000-0000-4000-8000-000000000843',
+  reviewed:true,source_version:3,source_status:'submitted',
+  source_updated_at:stamp,created_at:stamp,
+  clinical_answers:{counseling_reason:'PRIVATE_FICTIONAL_HISTORICAL_STATEMENT'},
+  clinician_notes:{presenting:'PRIVATE_FICTIONAL_CLINICIAN_OBSERVATION'}
+ };
+ let postCount=0;
+ vi.stubGlobal('fetch',vi.fn(async(_url:string,init?:RequestInit)=>{
+  if(init?.method==='POST')postCount++;
+  return Response.json({
+   patientId:id,
+   source:{accountId:account,status:'submitted',version:3,updatedAt:stamp},
+   sections:Array.from({length:21},(_,i)=>({
+    title:'Clinical source '+i,domain:'History',disposition:'clinical',
+    answered:i===0?1:0,
+    fields:i===0?[{key:'counseling_reason',label:'Reported concern',
+     type:'text',sourceOnly:false,reported:true,value:'PRIVATE_FICTIONAL_CURRENT_STATEMENT'}]:[]
+   })),
+   unmappedKeys:[],reviews:[{...review,...change}]
+  });
+ }));
+ render(<PatientBpsIntakeReview patientId={id}/>);
+ const alert=await screen.findByRole('alert');
+ expect(alert.textContent).toContain('invalid saved-row provenance');
+ const visible=document.body.textContent||'';
+ expect(visible).not.toContain('PRIVATE_FICTIONAL_HISTORICAL_STATEMENT');
+ expect(visible).not.toContain('PRIVATE_FICTIONAL_CLINICIAN_OBSERVATION');
+ expect(visible).not.toContain('PRIVATE_FICTIONAL_CURRENT_STATEMENT');
+ expect(screen.queryByRole('button',{name:/Save reviewed BPS history snapshot/i})).toBeNull();
+ expect(postCount).toBe(0);
+});

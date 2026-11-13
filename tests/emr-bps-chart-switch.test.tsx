@@ -241,7 +241,7 @@ test.each([
     reported:true,sourceOnly:false,value:'PRIVATE_FICTIONAL_REPORTED_SOURCE'}]:[],answered:i===0?1:0
   })),
   unmappedKeys:[],reviews:[]
- }))));
+ })));
  render(<PatientBpsIntakeReview patientId={patient}/>);
  await screen.findByText(/provenance or clinical review history could not be verified/i);
  expect(screen.queryByText('PRIVATE_FICTIONAL_REPORTED_SOURCE')).toBeNull();

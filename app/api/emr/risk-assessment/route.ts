@@ -28,7 +28,7 @@ export async function GET(request:Request){
     !Number.isSafeInteger(intake.version)||intake.version<1||
     !validBpsTimestamp(intake.updated_at)||
     (intake.status==='submitted'&&!validBpsTimestamp(intake.submitted_at))||
-    (intake.submitted_at!==null&&!validBpsTimestamp(intake.submitted_at))||
+    (intake.submitted_at!=null&&!validBpsTimestamp(intake.submitted_at))||
     !intake.answers||typeof intake.answers!=='object'||Array.isArray(intake.answers)||
     // Risk-screening must not silently turn malformed patient answers into
     // empty/negative findings, including errors in another intake section.

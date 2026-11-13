@@ -6,6 +6,7 @@ import {reportedRiskFields} from '@/lib/patient/risk-screening';
 export const dynamic='force-dynamic';
 const reply=(data:unknown,status=200)=>NextResponse.json(data,{status,headers:privateHeaders});
 export async function GET(request:Request){
+ try{
  const ctx=await emrAccess();if(!ctx)return reply({error:'Administrator sign-in and MFA required.'},403);
  const id=new URL(request.url).searchParams.get('patient');if(!uuid(id))return reply({error:'Valid central patient ID required.'},400);
  const {data:patient,error:patientError}=await ctx.supabase.from('clinical_patients').select('id,account_id,directory_deleted_at').eq('id',id).is('directory_deleted_at',null).maybeSingle();
@@ -26,8 +27,14 @@ export async function GET(request:Request){
  if((intake.status!=='draft'&&intake.status!=='submitted')||
     !Number.isSafeInteger(intake.version)||intake.version<1||
     !validBpsTimestamp(intake.updated_at)||
+    (intake.status==='submitted'&&!validBpsTimestamp(intake.submitted_at))||
     (intake.submitted_at!==null&&!validBpsTimestamp(intake.submitted_at))||
-    !intake.answers||typeof intake.answers!=='object'||Array.isArray(intake.answers))
+    !intake.answers||typeof intake.answers!=='object'||Array.isArray(intake.answers)||
+    // Risk-screening must not silently turn malformed patient answers into
+    // empty/negative findings, including errors in another intake section.
+    Object.values(intake.answers).some(value=>typeof value!=='string'))
   return reply({error:'Risk-screening source provenance or answers are invalid.'},409);
  return reply({patientId:id,source:{status:intake.status,version:intake.version,updatedAt:intake.updated_at,submittedAt:intake.submitted_at},fields:reportedRiskFields(intake.answers??{})});
+ // Never reflect backend exception details, which may contain identifiable clinical data.
+ }catch{return reply({error:'Protected risk-screening source unavailable; reopen the chart.'},503);}
 }

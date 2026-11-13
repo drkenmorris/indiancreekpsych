@@ -61,6 +61,29 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
    !validBpsTimestamp(source.updatedAt)||
    !Array.isArray(value.reviews)||!Array.isArray(value.unmappedKeys))
    throw Error('Linked patient intake provenance or clinical review history could not be verified. Reopen the protected source.');
+  // A correct patient ID does not make a malformed 21-section source safe to
+  // render. Reject an incomplete or incorrectly typed section before mapping
+  // any patient-reported statements into the clinician review interface.
+  // This is independent of the API contract and leaves original BPS forms intact.
+  const validSections=value.sections.every((entry:unknown)=>{
+   if(!entry||typeof entry!=='object'||Array.isArray(entry))return false;
+   const section=entry as Partial<Section>;
+   return typeof section.title==='string'&&section.title.length>0&&
+    typeof section.domain==='string'&&section.domain.length>0&&
+    (section.disposition==='clinical'||section.disposition==='separate-review'||section.disposition==='reference')&&
+    Number.isSafeInteger(section.answered)&&Number(section.answered)>=0&&
+    Array.isArray(section.fields)&&section.fields.every((candidate:unknown)=>{
+     if(!candidate||typeof candidate!=='object'||Array.isArray(candidate))return false;
+     const field=candidate as Partial<Field>;
+     return typeof field.key==='string'&&field.key.length>0&&
+      typeof field.label==='string'&&typeof field.type==='string'&&
+      typeof field.value==='string'&&
+      (field.reported===undefined||typeof field.reported==='boolean')&&
+      (field.sourceOnly===undefined||typeof field.sourceOnly==='boolean');
+    });
+  });
+  if(!validSections||!value.unmappedKeys.every((key:unknown)=>typeof key==='string'))
+   throw Error('Linked 21-section intake mapping is malformed; patient statements are withheld. Reopen the protected source.');
   // The protected API validates historical attestation provenance. Repeat the
   // identity/version/date checks at this UI trust boundary so a malformed,
   // stale or cross-chart history response cannot be displayed as clinical truth.

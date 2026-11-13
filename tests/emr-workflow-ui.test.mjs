@@ -31,6 +31,10 @@ await test('actual hosted forms and global navigation render against central pat
  const modalityUrl=new URL(w.document.querySelector('iframe[title="Treatment Plan Modality"]').src);
  assert.equal(modalityUrl.pathname,'/emr/treatment-modality');
  assert.equal(modalityUrl.searchParams.get('patient'),fixture.pid);
+ w.document.querySelector('[data-submenu="plan:approach"]').click();
+ const approachUrl=new URL(w.document.querySelector('iframe[title="Treatment Plan Approach"]').src);
+ assert.equal(approachUrl.searchParams.get('patient'),fixture.pid);
+ assert.equal(approachUrl.searchParams.get('section'),'approach');
  assert.doesNotMatch(w.document.querySelector('#content').textContent,/Select library problems/);
  w.document.querySelector('[data-submenu="plan:goals"]').click();
  assert.equal(new URL(w.document.querySelector('iframe[title="Patient Treatment Plan"]').src).searchParams.get('step'),'Goals');

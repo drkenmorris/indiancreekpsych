@@ -23,6 +23,8 @@ export default function AppointmentsClient({userId,accountType,preferredName,ini
   const [revision,setRevision]=useState(0);
   const [settings,setSettings]=useState<Settings>(initialSettings??{scheduling_enabled:false,timezone:"America/Chicago",appointment_duration_minutes:50,slot_interval_minutes:30,minimum_notice_hours:24,maximum_advance_days:60});
   const [rules,setRules]=useState(initialRules);
+  // Keep persisted practice timezone separate from unsaved settings form edits.
+  const [practiceTimezone,setPracticeTimezone]=useState(settings.timezone);
   const [blocks,setBlocks]=useState(initialBlocks);
   const [patients,setPatients]=useState<Patient[]>([]);
   const [patientError,setPatientError]=useState("");
@@ -34,7 +36,7 @@ export default function AppointmentsClient({userId,accountType,preferredName,ini
   const [busy,setBusy]=useState(false);
   const [editingRuleId,setEditingRuleId]=useState<string|null>(null);
   const [rule,setRule]=useState({weekday:1,start_time:"09:00",end_time:"17:00",anchor_time:""});
-  const [block,setBlock]=useState(()=>{const nextHour=Math.ceil(Date.now()/3600000)*3600000;return{starts_at:practiceDateInput(new Date(nextHour).toISOString(),settings.timezone),ends_at:practiceDateInput(new Date(nextHour+3600000).toISOString(),settings.timezone),label:""};});
+  const [block,setBlock]=useState(()=>{const nextHour=Math.ceil(Date.now()/3600000)*3600000;return{starts_at:practiceDateInput(new Date(nextHour).toISOString(),practiceTimezone),ends_at:practiceDateInput(new Date(nextHour+3600000).toISOString(),practiceTimezone),label:""};});
 
   const loadSlots=async()=>{setRevision(v=>v+1);};
   useEffect(()=>{if(accountType==="admin")void (async()=>{const {data,error}=await supabase.rpc("scheduling_patients").abortSignal(AbortSignal.timeout(15000));if(error)setPatientError("Patient list could not be loaded. Refresh the page or contact support.");else setPatients((data??[]) as Patient[]);setPatientsLoading(false);})();},[]);
@@ -63,6 +65,12 @@ export default function AppointmentsClient({userId,accountType,preferredName,ini
       if(error)throw error;
       if(!data||data.id!==true||Object.entries(submitted).some(([key,value])=>data[key]!==value))
         throw new Error("Scheduling settings were not verified in the database. Refresh before retrying.");
+      if(submitted.timezone!==practiceTimezone){
+        // Invalidate unsaved wall-clock blackout inputs when saved timezone changes.
+        const nextHour=Math.ceil(Date.now()/3600000)*3600000;
+        setPracticeTimezone(submitted.timezone);
+        setBlock({starts_at:practiceDateInput(new Date(nextHour).toISOString(),submitted.timezone),ends_at:practiceDateInput(new Date(nextHour+3600000).toISOString(),submitted.timezone),label:""});
+      }
       await loadSlots();setMessage("Scheduling settings saved and verified.");
     }catch(error){setMessage(error instanceof Error?error.message:"Scheduling settings were not verified. Refresh before retrying.");}
     finally{setBusy(false);}
@@ -106,8 +114,8 @@ export default function AppointmentsClient({userId,accountType,preferredName,ini
     e.preventDefault();if(busy)return;setBusy(true);setMessage("");
     try{
       // datetime-local has no timezone; always interpret it in the persisted practice timezone.
-      const starts=new Date(practiceWallTimeToIso(block.starts_at,settings.timezone));
-      const ends=new Date(practiceWallTimeToIso(block.ends_at,settings.timezone));
+      const starts=new Date(practiceWallTimeToIso(block.starts_at,practiceTimezone));
+      const ends=new Date(practiceWallTimeToIso(block.ends_at,practiceTimezone));
       if(!Number.isFinite(starts.getTime())||!Number.isFinite(ends.getTime())||ends.getTime()<=starts.getTime())
         throw new Error("Choose valid blocked-time dates with an end later than the start.");
       const payload={starts_at:starts.toISOString(),ends_at:ends.toISOString(),label:block.label||null};
@@ -211,8 +219,8 @@ export default function AppointmentsClient({userId,accountType,preferredName,ini
       </section>}
 
       {view==="blackouts"&&<section className="appointmentPanel"><p className="eyebrow">Blocked time</p><h2>Blackout periods</h2>
-        <p>Enter blocked times in the practice time zone ({settings.timezone}), not the browser or computer time zone. Daylight-saving times that occur twice or do not exist must be adjusted before saving.</p><form className="inlineSchedulerForm blockForm" onSubmit={addBlock}><label>Starts<input type="datetime-local" value={block.starts_at} onChange={e=>setBlock({...block,starts_at:e.target.value})}/></label><label>Ends<input type="datetime-local" value={block.ends_at} onChange={e=>setBlock({...block,ends_at:e.target.value})}/></label><label>Label<input placeholder="Vacation, meeting, personal time" value={block.label} onChange={e=>setBlock({...block,label:e.target.value})}/></label><button type="submit" disabled={busy}>{busy?"Working…":"Block time"}</button></form>
-        <div className="ruleList">{blocks.map(b=><article key={b.id}><div><strong>{b.label||"Blocked time"}</strong><span>{new Date(b.starts_at).toLocaleString("en-US",{timeZone:settings.timezone})} – {new Date(b.ends_at).toLocaleString("en-US",{timeZone:settings.timezone})} ({settings.timezone})</span></div><button className="secondaryAction" type="button" disabled={busy} onClick={()=>void deleteBlock(b.id)}>Remove</button></article>)}</div>
+        <p>Enter blocked times in the saved practice time zone ({practiceTimezone}), not the browser or computer time zone. Daylight-saving times that occur twice or do not exist must be adjusted before saving.</p><form className="inlineSchedulerForm blockForm" onSubmit={addBlock}><label>Starts<input type="datetime-local" value={block.starts_at} onChange={e=>setBlock({...block,starts_at:e.target.value})}/></label><label>Ends<input type="datetime-local" value={block.ends_at} onChange={e=>setBlock({...block,ends_at:e.target.value})}/></label><label>Label<input placeholder="Vacation, meeting, personal time" value={block.label} onChange={e=>setBlock({...block,label:e.target.value})}/></label><button type="submit" disabled={busy}>{busy?"Working…":"Block time"}</button></form>
+        <div className="ruleList">{blocks.map(b=><article key={b.id}><div><strong>{b.label||"Blocked time"}</strong><span>{new Date(b.starts_at).toLocaleString("en-US",{timeZone:practiceTimezone})} – {new Date(b.ends_at).toLocaleString("en-US",{timeZone:practiceTimezone})} ({practiceTimezone})</span></div><button className="secondaryAction" type="button" disabled={busy} onClick={()=>void deleteBlock(b.id)}>Remove</button></article>)}</div>
       </section>}
     </>}
   </div>;

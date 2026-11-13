@@ -60,6 +60,10 @@ export default function AppointmentsClient({userId,accountType,preferredName,ini
     // (e.g. stale authorizations/RLS). Require an exact persisted-settings receipt.
     const submitted={...settings};
     try{
+      // A malformed IANA zone would corrupt local blocked-time and DST calculations.
+      // Fail before writing scheduling settings, not after receiving a saved row.
+      try{new Intl.DateTimeFormat("en-US",{timeZone:submitted.timezone});}
+      catch{throw new Error("Enter a valid IANA practice time zone, such as America/Chicago.");}
       const {data,error}=await supabase.from("appointment_settings")
         .update(submitted).eq("id",true).select("*").maybeSingle();
       if(error)throw error;

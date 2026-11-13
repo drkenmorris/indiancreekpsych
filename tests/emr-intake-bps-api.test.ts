@@ -312,3 +312,14 @@ test('malformed BPS review JSON and unexpected save failures never echo confiden
  expect(failure.headers.get('Cache-Control')).toContain('no-store');
  expect(JSON.stringify(await failure.json())).not.toContain('PRIVATE_FICTIONAL_DATABASE_SECRET');
 });
+
+test('protected BPS read exceptions never reflect internal clinical data in HTTP responses',async()=>{
+ const confidential='PRIVATE_FICTIONAL_PATIENT_INFORMATION_FROM_BACKEND_ERROR';
+ m.from.mockImplementationOnce(()=>{throw new Error(confidential);});
+ const response=await GET(request());
+ expect(response.status).toBe(503);
+ expect(response.headers.get('Cache-Control')).toContain('no-store');
+ const wire=JSON.stringify(await response.json());
+ expect(wire).not.toContain(confidential);
+ expect(wire).not.toContain('stack');
+});

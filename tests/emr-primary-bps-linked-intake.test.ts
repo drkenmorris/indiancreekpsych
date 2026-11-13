@@ -223,6 +223,37 @@ test('original BPS redacts malformed structured, reference and missing-marker so
 });
 
 
+
+test.each([
+ ['missing section field list',(current:any)=>{current.sections[0].fields=null;}],
+ ['nested instead of string patient response',(current:any)=>{
+  current.sections[0].fields[0].value={secret:'PRIVATE_FICTIONAL_NESTED_SOURCE'};
+ }],
+ ['unapproved section routing',(current:any)=>{current.sections[0].disposition='legal-consent';}],
+ ['impossible answered field count',(current:any)=>{current.sections[0].answered=99;}],
+ ['non-boolean patient-reported marker',(current:any)=>{current.sections[0].fields[0].reported='yes';}],
+ ['non-boolean source protection marker',(current:any)=>{current.sections[0].fields[0].sourceOnly='false';}]
+])('original seven-page BPS withholds ALL linked patient statements for %s',async(_label,corrupt)=>{
+ const current:any=report(firstPatient);
+ current.sections[0].fields[0].value='PRIVATE_FICTIONAL_SOURCE_MUST_NOT_RENDER';
+ corrupt(current);
+ const {ctx,dom}=harness(async()=>Response.json(current));
+ ctx.render();
+ const panel=()=>dom.window.document.querySelector(
+  'section[aria-label="Patient intake context in original biopsychosocial workspace"]')!;
+ await vi.waitFor(()=>expect(panel()?.querySelector('[role="alert"]')?.textContent)
+  .toContain('21-section intake mapping is malformed'));
+ const body=panel().textContent||'';
+ expect(body).not.toContain('PRIVATE_FICTIONAL_SOURCE_MUST_NOT_RENDER');
+ expect(body).not.toContain('PRIVATE_FICTIONAL_NESTED_SOURCE');
+ expect(body).not.toContain('Fictional patient-reported concern');
+ expect(body).not.toContain('attested clinician review(s)');
+ expect(body).toContain('no intake data were imported');
+ expect(dom.window.document.querySelector('#clinical-form')?.textContent)
+  .toContain('Original BPS clinical form remains available');
+ dom.window.close();
+});
+
 test('original BPS browser allowlist is synchronized with the typed clinical source mapping',()=>{
  const source=readFileSync('public/emr-assets/production.js','utf8');
  const match=source.match(/const bpsVisibleSourceKeys=new Set\((\[[^\n]*\])\);/);

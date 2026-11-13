@@ -38,3 +38,24 @@ body:has(.treatmentEmbedded) {
 @media print {
  .treatmentWorkspace.treatmentEmbedded { padding: 0; }
 }
+
+.modalityTableScroll {
+ overflow-x: auto;
+}
+.modalityTable {
+ width: 100%;
+ min-width: 850px;
+ border-collapse: collapse;
+}
+.modalityTable th,
+.modalityTable td {
+ padding: .5rem;
+ border-bottom: 1px solid #cbd8d2;
+ text-align: left;
+}
+.modalityTable th {
+ background: #dceae3;
+}
+.modalityTable td:first-child { width: 27%; }
+.modalityTable td:nth-child(4),
+.modalityTable td:nth-child(5) { width: 20%; }

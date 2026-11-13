@@ -92,7 +92,7 @@ test('clinician BPS save cannot claim verified chart history when readback has m
   if(options?.method==='POST'){posts++;return Response.json({saved:true,id:savedId});}
   reads++;
   return Response.json(reads===1?source():source([{
-   id:savedId,source_version:6,source_status:'submitted',
+   id:savedId,reviewed:true,source_version:6,source_status:'submitted',
    source_updated_at:stamp,created_at:stamp,
    clinical_answers:{},clinician_notes:{}
   }]));
@@ -142,7 +142,7 @@ test('an acknowledged BPS save remains unverified until protected history readba
 test('clinician BPS history with malformed historical clinician notes fails closed in the rendered chart',async()=>{
  const withheld='PRIVATE_LEGAL_IN_HISTORICAL_NOTE';
  vi.stubGlobal('fetch',vi.fn(async()=>Response.json(source([{
-  id:'00000000-0000-4000-8000-000000000999',source_version:7,source_status:'submitted',
+  id:'00000000-0000-4000-8000-000000000999',reviewed:true,source_version:7,source_status:'submitted',
   source_updated_at:stamp,created_at:stamp,clinical_answers:{},
   clinician_notes:{presenting:'Allowed independent clinician observation',unknown_legal_field:withheld,
    medical:{raw:'PRIVATE_STRUCTURED_MEDICAL_NOTE'},safety:'S'.repeat(4001)}
@@ -237,10 +237,17 @@ test.each([false,undefined])('a saved row with review attestation %s cannot prov
  fireEvent.click(screen.getByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i}));
  fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed this intake/i}));
  fireEvent.click(screen.getByRole('button',{name:/Save reviewed BPS history snapshot/i}));
- await screen.findByText(/NOT verified in chart history/);
+ if(attestation===undefined){
+  // Malformed (absent) attestation withholds historical content rather than
+  // fabricating a false review; the acknowledged save remains locked.
+  await screen.findByText(/snapshot WAS saved, but its history could not be reloaded/);
+  expect(screen.queryByText(/Previously saved immutable clinician reviews/)).toBeNull();
+ }else{
+  await screen.findByText(/NOT verified in chart history/);
+  expect(screen.getAllByText(/lacks confirmed clinician-review attestation/).length).toBeGreaterThanOrEqual(2);
+  expect(screen.getByText(/A BPS history record for this source version lacks confirmed clinician-review attestation/)).toBeTruthy();
+ }
  expect(screen.queryByText(/saved AND independently verified/)).toBeNull();
- expect(screen.getAllByText(/lacks confirmed clinician-review attestation/).length).toBeGreaterThanOrEqual(2);
- expect(screen.getByText(/A BPS history record for this source version lacks confirmed clinician-review attestation/)).toBeTruthy();
  expect(screen.queryByRole('button',{name:/Save reviewed BPS history snapshot/i})).toBeNull();
  expect(reads).toBe(2);
 });

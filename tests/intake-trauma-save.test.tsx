@@ -15,7 +15,7 @@ test('patient draft saves trauma checklist, preserves old answers and reloads',a
  fireEvent.click(screen.getByRole('tab',{name:'9'}));
  fireEvent.click(screen.getByLabelText('Physical assault or abuse'));fireEvent.change(screen.getByLabelText('Significant trauma, abuse, loss, violence, or other adverse experiences you want your clinician to know about'),{target:{value:'Optional fictional narrative'}});
  fireEvent.click(screen.getByLabelText('Childhood'));
- fireEvent.click(screen.getByRole('button',{name:'Save draft'}));
+ fireEvent.click(screen.getByRole('button',{name:'Save page'}));
  await screen.findByText('Draft saved securely.');
  expect(saved.answers.prior_therapists).toBe('Existing narrative');
  expect(JSON.parse(saved.answers.trauma_history_checklist).selections.experiences).toEqual(['Physical assault or abuse']);expect(saved.answers.family_household).toBe('Earlier context answer');expect(saved.answers.trauma_history).toBe('Optional fictional narrative');

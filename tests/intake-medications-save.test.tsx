@@ -15,7 +15,11 @@ test('patient draft saves structured medications, preserves old answers and relo
  fireEvent.click(screen.getByRole('tab',{name:'6'}));
  fireEvent.change(screen.getByLabelText(/About how long/),{target:{value:'Less than 3 months'}});
  fireEvent.change(screen.getByLabelText('Medication'),{target:{value:'Fictional medication'}});
- fireEvent.click(screen.getByRole('button',{name:'Save draft'}));
+ fireEvent.change(screen.getByLabelText('Amount taken each time'),{target:{value:'One tablet'}});
+ fireEvent.change(screen.getByLabelText('Frequency'),{target:{value:'Daily'}});
+ fireEvent.change(screen.getByLabelText('Medication Allergy Status'),{target:{value:'No known medication allergies'}});
+ for(const checkbox of screen.getAllByRole('checkbox',{name:/^Not applicable —/i}))fireEvent.click(checkbox);
+ fireEvent.click(screen.getByRole('button',{name:'Save page'}));
  await screen.findByText('Draft saved securely.');
  expect(saved.answers.prior_therapists).toBe('Existing narrative');
  expect(JSON.parse(saved.answers.medication_entries)[0].medication).toBe('Fictional medication');

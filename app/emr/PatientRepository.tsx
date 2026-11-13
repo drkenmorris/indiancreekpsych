@@ -74,6 +74,7 @@ export default function PatientRepository(){const [emailEditing,setEmailEditing]
  {intake.answers[MEDICAL_SUBSTANCE_KEY]&&<IntakeMedicalSubstance value={intake.answers[MEDICAL_SUBSTANCE_KEY]} readOnly legacyAnswers={intake.answers}/>}
  </details>}
 <section id="emr-intake-medication-review" aria-label="Clinician medication reconciliation">
+ {intake?.answers?.prior_psychiatric_medications&&<section><h3>Medications that helped in the past</h3><p>{intake.answers.prior_psychiatric_medications}</p></section>}
  {intake?.answers?.[MEDICATION_ENTRIES_KEY]?<IntakeMedicationReconciliation key={selected.id} patientId={selected.id} intakeJson={intake.answers[MEDICATION_ENTRIES_KEY]} intakeUpdatedAt={intake.updated_at}/>:<p>No linked patient-reported medication entries are available for reconciliation.</p>}
  </section>
 <section id="emr-intake-medical-review" aria-label="Clinician medical and substance history reconciliation">

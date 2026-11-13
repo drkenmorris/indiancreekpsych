@@ -248,3 +248,24 @@ test('missing or malformed review-history results cannot masquerade as an empty 
   expect(wire).not.toContain('"reviews":[]');
  }
 });
+
+test('active medication history and structured medication records never leak through the clinical BPS review API',async()=>{
+ data={counseling_reason:'Fictional presenting concern',
+  medication_entries:'PRIVATE_FICTIONAL_MEDICATION_LIST',
+  prior_psychiatric_medications:'PRIVATE_FICTIONAL_HELPFUL_PAST_MEDICATIONS'};
+ const response=await GET(request());expect(response.status).toBe(200);
+ const body=await response.json();
+ // Raw medication details stay in dedicated reconciliation, not the BPS notes API.
+ expect(body).not.toHaveProperty('medicationEntries');
+ expect(body).not.toHaveProperty('helpfulPastMedications');
+ const wire=JSON.stringify(body);
+ expect(wire).not.toContain('PRIVATE_FICTIONAL_MEDICATION_LIST');
+ expect(wire).not.toContain('PRIVATE_FICTIONAL_HELPFUL_PAST_MEDICATIONS');
+ const medication=body.sections.find((section:{title:string})=>section.title==='Medications');
+ for(const key of ['medication_entries','prior_psychiatric_medications']){
+  const field=medication.fields.find((item:{key:string})=>item.key===key);
+  expect(field?.reported).toBe(true);
+  expect(field?.sourceOnly).toBe(true);
+  expect(field?.value).toContain('protected source');
+ }
+});

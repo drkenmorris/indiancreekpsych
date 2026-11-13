@@ -10,8 +10,8 @@ export type IntakeField = readonly [key:string,label:string,type:string,required
 
 // Retained for read-only review of older submissions; absent from active questionnaires.
 export const retiredMentalHealthFields:readonly IntakeField[]=[
- ['psychiatric_hospitalizations','Psychiatric hospitalizations, crisis stabilization, or emergency evaluations','textarea'],
  ['prior_psychiatric_medications','Past psychiatric medications and response / side effects','textarea'],
+ ['psychiatric_hospitalizations','Psychiatric hospitalizations, crisis stabilization, or emergency evaluations','textarea'],
  ['family_mental_health_history','Family history of mental health conditions, suicide, or substance-use problems','textarea']
 ];
 
@@ -25,6 +25,7 @@ export const retiredContextFields:readonly IntakeField[]=[
 const yesNo=['No','Yes'] as const;
 const yesNoUnsure=['No','Yes','Unsure'] as const;
 
+const impactChoices=['Not at all','A little','Moderately','Quite a bit','Extremely','I don’t know'] as const;
 const originalIntakeSections:{title:string;description?:string;fields:readonly IntakeField[]}[]=[
  {title:'Demographics and contact information',description:'Basic identifying and contact information used for your care and billing.',fields:[
   ['full_name','Full legal name','text',true],['preferred_name','Preferred name','text'],['date_of_birth','Date of birth','date',true],
@@ -53,13 +54,21 @@ const originalIntakeSections:{title:string;description?:string;fields:readonly I
   ['deductible','Annual deductible','text'],['deductible_met','Deductible met so far this plan year','text'],['copay','Copay per visit','text'],['coinsurance','Coinsurance percentage you pay','text'],
   ['insurance_notes','Other insurance, coordination-of-benefits, or billing information','textarea']
  ]},
- {title:'Presenting concerns and functional impact',description:'Describe the concerns that brought you to care and how they affect daily functioning.',fields:[
-  ['counseling_reason','What brings you to counseling now?','textarea',true],['concern_onset','Approximate onset / date problems began','text'],['concern_duration','How long have these concerns been present?','text'],
-  ['precipitating_events','Recent events or changes that contributed to seeking care','textarea'],['symptom_frequency','How often are the main symptoms occurring?','text'],
+ {title:'Presenting concerns and functional impact',description:'Choose the answers that best describe your main concern. Use the text boxes to tell us what brought you in and what you want from counseling.',fields:[
+  ['counseling_reason','What brings you to counseling now?','textarea',true],
+  ['concern_onset','How did your main concern begin?','select',false,['Suddenly','Gradually','It comes and goes','It has been present as long as I can remember','I don’t know']],
+  ['concern_duration','How long have these concerns been present?','select',false,['Less than 1 month','1 to less than 3 months','3 to less than 6 months','6 months to less than 1 year','1 to less than 2 years','2 years or more','I don’t know']],
+  ['precipitating_events','Was there a recent event or change related to seeking care?','select',false,['No clear event or change','Relationship or family change','Work or school change','Loss or bereavement','Health change or injury','Financial or housing stress','A distressing or traumatic event','Several events or changes','Other','I don’t know','Prefer to discuss in session']],
+  ['symptom_frequency','How often are the main symptoms occurring?','select',false,['Nearly all the time','Daily','Several days a week','About once a week','Less than once a week','Varies','I don’t know']],
   ['symptom_severity','How severe do the symptoms feel?','select',false,['Mild','Moderate','Severe','Varies / unsure']],
-  ['functional_impact','Describe how these concerns affect your functioning','textarea',true],['sleep','Sleep concerns','textarea'],['appetite','Appetite / weight changes','textarea'],
-  ['energy','Energy / motivation','textarea'],['concentration','Attention / concentration','textarea'],['work_school_impact','Impact on work or school','textarea'],
-  ['relationship_impact','Impact on relationships','textarea'],['daily_living_impact','Impact on self-care, household tasks, or other daily activities','textarea'],
+  ['functional_impact','Overall, how much do these concerns interfere with daily life?','select',true,impactChoices],
+  ['sleep','How has your sleep been affected?','select',false,['No change','Trouble falling asleep','Trouble staying asleep or waking too early','Sleeping more than usual','Sleep feels unrefreshing','Several changes','Other','I don’t know']],
+  ['appetite','How have your appetite or weight changed?','select',false,['No change','Eating less or losing weight','Eating more or gaining weight','Changes in both directions','Other','I don’t know']],
+  ['energy','How have your energy or motivation changed?','select',false,['No change','Less energy or motivation','More energy or restlessness','Varies','Other','I don’t know']],
+  ['concentration','How much difficulty are you having with attention or concentration?','select',false,impactChoices],
+  ['work_school_impact','How much do these concerns affect work or school?','select',false,[...impactChoices,'Not applicable']],
+  ['relationship_impact','How much do these concerns affect your relationships?','select',false,[...impactChoices,'Not applicable']],
+  ['daily_living_impact','How much do these concerns affect self-care, household tasks, or other daily activities?','select',false,impactChoices],
   ['counseling_goals','What would you like to achieve through counseling?','textarea',true]
  ]},
  {title:'Mental health treatment history',description:'Prior treatment and responses help your clinician understand what has and has not been useful.',fields:[
@@ -71,9 +80,10 @@ const originalIntakeSections:{title:string;description?:string;fields:readonly I
 
  ]},
  {title:'Medications',description:'Current and past medications, prescribing clinicians, and medication allergies or reactions.',fields:[
-  [MEDICATION_ENTRIES_KEY,'Current and Past Medications','medications'],
+  [MEDICATION_ENTRIES_KEY,'Medications you currently take','medications'],
   ['medication_allergy_status','Medication Allergy Status','select',false,allergyStatuses],
   ['medication_allergy_notes','Medication Allergies / Reactions','textarea'],
+  ['prior_psychiatric_medications','Medications that helped in the past and that you no longer take','textarea'],
   ['medications_current','Additional medication information / previously recorded medication list','textarea']
  ]},
  {title:'Medical & Substance Use History',description:'Your reported medical conditions, care, health impact, substance use, and treatment or recovery history.',fields:[[MEDICAL_SUBSTANCE_KEY,'Medical & Substance Use History','medical-substance']]},

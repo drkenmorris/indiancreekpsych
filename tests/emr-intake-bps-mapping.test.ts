@@ -130,16 +130,16 @@ test('directory-era 21-section intake fields receive the same source-only privac
 });
 
 
-test('all eleven retired psychiatric, family, social and legal context responses reach a clinical BPS source domain without becoming clinician facts',()=>{
- const retired=[...retiredMentalHealthFields,...retiredContextFields];
- expect(retired).toHaveLength(11);
+test('ten non-active retired clinical responses stay routed without duplicating active medication history',()=>{
+ const retired=[...retiredMentalHealthFields,...retiredContextFields].filter(([key])=>key!=='prior_psychiatric_medications');
+ expect(retired).toHaveLength(10);
  const answers:Record<string,string>={counseling_reason:'Current presenting concern',unexpected_code:'Unmapped private answer'};
  for(const [key] of retired)answers[key]='Historical patient report for '+key;
  const report=mapIntakeToBps(answers);
  expect(report.sections).toHaveLength(21);
  const historical=report.sections.flatMap(section=>section.fields.filter(field=>field.type==='historical-patient-report')
   .map(field=>({...field,domain:section.title,disposition:section.disposition})));
- expect(historical).toHaveLength(11);
+ expect(historical).toHaveLength(10);
  for(const [key] of retired){
   const item=historical.find(field=>field.key===key);
   expect(item,'Unrouted retired clinical field: '+key).toBeDefined();
@@ -152,7 +152,7 @@ test('all eleven retired psychiatric, family, social and legal context responses
   if(protectedLegacy)expect(JSON.stringify(report)).not.toContain('Historical patient report for '+key);
   expect(report.unmappedKeys).not.toContain(key);
  }
- expect(historical.filter(field=>field.domain==='Mental health treatment history')).toHaveLength(2);
+ expect(historical.filter(field=>field.domain==='Mental health treatment history')).toHaveLength(1);
  expect(historical.filter(field=>field.domain==='Trauma, family, social, educational, and occupational history')).toHaveLength(9);
  expect(report.unmappedKeys).toEqual(['unexpected_code']);
  // The database snapshot remains explicitly allowlisted: displaying historical
@@ -160,7 +160,7 @@ test('all eleven retired psychiatric, family, social and legal context responses
  const snapshot=sanitizeBpsSnapshotAnswers(answers);
  expect(snapshot.answers).toEqual({counseling_reason:'Current presenting concern'});
  for(const [key] of retired)expect(snapshot.answers).not.toHaveProperty(key);
- expect(snapshot.excludedCount).toBe(12);
+ expect(snapshot.excludedCount).toBe(11);
 });
 test('retired intake fields stay absent when not reported and blanks cannot imply a negative history',()=>{
  const report=mapIntakeToBps({psychiatric_hospitalizations:' ',legal_history:''});

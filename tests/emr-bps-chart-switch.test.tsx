@@ -12,7 +12,7 @@ test('a pending BPS save cannot reopen or message the wrong patient chart',async
   if(init?.method==='POST')return pending;
   const id=new URL(url,'https://www.indiancreekpsych.com').searchParams.get('patient')||'';
   reads.push(id);
-  return {ok:true,json:async()=>({patientId:id,source:{accountId:id,status:'submitted',version:id===a?2:9,updatedAt:'2026-11-10T12:00:00Z'},sections:Array.from({length:21},(_,i)=>({title:'Section '+i,domain:'History',disposition:'clinical',fields:[],answered:0})),unmappedKeys:[],reviews:[]})};
+  return {ok:true,json:async()=>({patientId:id,source:{accountId:id,status:'submitted',version:id===a?2:9,updatedAt:'2026-11-10T12:00:00Z',submittedAt:'2026-11-10T12:00:00Z'},sections:Array.from({length:21},(_,i)=>({title:'Section '+i,domain:'History',disposition:'clinical',fields:[],answered:0})),unmappedKeys:[],reviews:[]})};
  }));
  const {rerender}=render(<PatientBpsIntakeReview patientId={a}/>);
  await screen.findByText(/Version 2/);
@@ -44,7 +44,7 @@ test('clinician reconciliation independently withholds separate, structured, ref
     i===3?[{key:'counseling_reason',label:'Falsely marked unreported',type:'text',reported:false,sourceOnly:false,value:'DO_NOT_LEAK_FALSE_REPORTED'}]:
     i===4?[{key:'counseling_reason',label:'Missing patient-report attestation',type:'text',sourceOnly:false,value:'DO_NOT_LEAK_MISSING_REPORTED'}]:[]
  }));
- vi.stubGlobal('fetch',vi.fn(async()=>Response.json({patientId:id,source:{accountId:id,status:'submitted',version:2,updatedAt:'2026-11-11T12:00:00Z'},sections,unmappedKeys:[],reviews:[]})));
+ vi.stubGlobal('fetch',vi.fn(async()=>Response.json({patientId:id,source:{accountId:id,status:'submitted',version:2,updatedAt:'2026-11-11T12:00:00Z',submittedAt:'2026-11-11T12:00:00Z'},sections,unmappedKeys:[],reviews:[]})));
  render(<PatientBpsIntakeReview patientId={id}/>);
  await screen.findByText(/Version 2/);
  expect(screen.getByText('SAFE PATIENT REPORTED CONCERN')).toBeTruthy();
@@ -65,7 +65,7 @@ test.each([
  ['missing history array', {reviews:null}]
 ])('clinician BPS review withholds patient statements and save controls for %s',async(_reason,change)=>{
  const id='00000000-0000-4000-8000-000000000801';
- const source={accountId:'00000000-0000-4000-8000-000000000802',status:'submitted',version:7,updatedAt:'2026-11-10T12:00:00Z'};
+ const source={accountId:'00000000-0000-4000-8000-000000000802',status:'submitted',version:7,updatedAt:'2026-11-10T12:00:00Z',submittedAt:'2026-11-10T12:00:00Z'};
  const response={
   patientId:id,source,sections:Array.from({length:21},(_,i)=>({
    title:'Section '+i,domain:'Clinical context',disposition:'clinical',answered:i===0?1:0,
@@ -116,7 +116,7 @@ test.each([
  vi.stubGlobal('fetch',vi.fn(async(_url:string,options?:RequestInit)=>{
   if(options?.method==='POST')posts++;
   return Response.json({patientId:patient,source:{accountId:account,status:'submitted',
-   version:3,updatedAt:'2026-11-12T12:00:00Z'},sections,unmappedKeys,reviews:[]});
+   version:3,updatedAt:'2026-11-12T12:00:00Z',submittedAt:'2026-11-12T12:00:00Z'},sections,unmappedKeys,reviews:[]});
  }));
  render(<PatientBpsIntakeReview patientId={patient}/>);
  const alert=await screen.findByRole('alert');
@@ -204,7 +204,7 @@ test.each([
   if(init?.method==='POST')postCount++;
   return Response.json({
    patientId:id,
-   source:{accountId:account,status:'submitted',version:3,updatedAt:stamp},
+   source:{accountId:account,status:'submitted',version:3,updatedAt:stamp,submittedAt:stamp},
    sections:Array.from({length:21},(_,i)=>({
     title:'Clinical source '+i,domain:'History',disposition:'clinical',
     answered:i===0?1:0,

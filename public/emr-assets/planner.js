@@ -20,7 +20,7 @@ function patientPlanStepUrl(id,key){
 function libraryPlanView(){
  const key=activeSection?.module==='plan'?activeSection.key:'problems';
  const destination=patientPlanStepUrl(patientId,key);
- if(destination)return `<section class="card"><h2>${esc(patientPlanSteps[key])}</h2><p><a class="button-link" href="${esc(destination)}">Open patient plan with shared dropdowns</a></p></section>`;
+ if(destination)return `<iframe id="patient-plan-editor" title="Patient Treatment Plan" src="${esc(destination)}&amp;embedded=1"></iframe>`;
  if(Object.hasOwn(patientPlanSteps,key))return '<section class="card"><h2>Patient Treatment Plan</h2><p>Select a patient to build a plan with the shared dropdowns.</p><button type="button" data-open-plan-patient>Find/Add Patient</button></section>';
  return legacyLibraryPlanView();
 }

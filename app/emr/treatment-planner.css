@@ -1,3 +1,35 @@
 .treatmentWorkspace{max-width:1250px;margin:auto;padding:2rem 1rem 8rem;color:#173e35}.treatmentWorkspace header h1{font-size:2rem}.treatmentWorkspace section,.treatmentWorkspace fieldset{border:1px solid #a8c3b5;border-radius:.4rem;padding:1rem;margin-block:1rem;background:#fff;min-width:0}.treatmentWorkspace label{display:grid;gap:.4rem;margin-block:.8rem}.treatmentWorkspace input,.treatmentWorkspace select,.treatmentWorkspace textarea{font:inherit;font-size:1rem;max-width:100%;min-width:0;padding:.65rem;border:1px solid #7a9387;border-radius:.3rem}.treatmentWorkspace select{width:100%}.treatmentWorkspace textarea{resize:vertical;width:100%;box-sizing:border-box}.treatmentWorkspace button{font:inherit;min-height:46px;padding:.65rem .9rem;margin:.2rem;cursor:pointer}.treatmentWorkspace button:disabled{cursor:default;opacity:.6}.treatmentWorkspace .treatmentCheck{display:flex;align-items:center;gap:.65rem}.treatmentCheck input{width:1.2rem;height:1.2rem}.treatmentWorkspace [role=status]{padding:1rem;background:#e9f3ed}.treatmentActions{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap}.treatmentFields{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:.6rem 1rem}.treatmentBranch{border-inline-start:3px solid #6b9d83;padding-inline-start:1rem;margin-inline-start:.5rem}.treatmentWorkspace :focus-visible{outline:3px solid #25674d;outline-offset:2px}.treatmentReport h3,.treatmentReport h4{margin-bottom:.4rem}.treatmentReport ul{padding-left:1.4rem}.treatmentReport li{margin-block:.6rem}.treatmentReport p{white-space:pre-wrap}.treatmentReport{line-height:1.55}.treatmentPrintMessage{font-weight:600}@media print{body:has(.treatmentWorkspace){background:#fff}body:has(.treatmentWorkspace) .administrativeShell{display:block;height:auto;overflow:visible}body:has(.treatmentWorkspace) .administrativeScroll{height:auto;overflow:visible}body:has(.treatmentWorkspace) footer,body:has(.treatmentWorkspace) .noTreatmentPrint{display:none!important}.treatmentWorkspace{padding:0;max-width:none;color:#000}.treatmentReport{border:0!important;padding:0!important}.treatmentReport li{break-inside:avoid}.treatmentReport h2,.treatmentReport h3,.treatmentReport h4{break-after:avoid}.treatmentReport .treatmentPrintMessage{display:none}@page{margin:18mm}} 
 
 @media print{.treatmentReport li:has(>ol){break-inside:auto}}
+
+body:has(.treatmentEmbedded) {
+ margin: 0;
+ background: #f4f6f2;
+ color: #243d39;
+}
+.treatmentWorkspace.treatmentEmbedded {
+ max-width: none;
+ padding: 1rem;
+ color: #243d39;
+}
+.treatmentEmbedded fieldset {
+ background: #e8f2ec;
+ border-color: #cbd8d2;
+}
+.treatmentEmbedded .treatmentBranch fieldset {
+ background: #fbfdfb;
+}
+.treatmentEmbedded button {
+ border: 1px solid #166455;
+ border-radius: .35rem;
+ background: #166455;
+ color: white;
+}
+.treatmentEmbedded [aria-current="step"] {
+ background: #f3e7c8;
+ color: #654817;
+ border-color: #9c5a14;
+}
+@media print {
+ .treatmentWorkspace.treatmentEmbedded { padding: 0; }
+}

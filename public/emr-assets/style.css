@@ -137,3 +137,12 @@ form[data-action="biopsychosocial_trauma_history"] .check{min-height:44px}
 .medication-product-matches button {
   text-align: left;
 }
+
+#patient-plan-editor {
+ width: 100%;
+ height: max(560px, 72dvh);
+ display: block;
+ border: 1px solid var(--line);
+ border-radius: 8px;
+ background: var(--bg);
+}

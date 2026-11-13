@@ -224,3 +224,26 @@ test.each([
  expect(screen.queryByRole('button',{name:/Save reviewed BPS history snapshot/i})).toBeNull();
  expect(postCount).toBe(0);
 });
+
+
+test.each([
+ ['missing submitted receipt',undefined],
+ ['malformed submitted receipt','not-a-date'],
+ ['impossible submitted receipt','2026-02-30T12:00:00Z']
+])('protected clinician BPS refuses %s before rendering intake or permitting review',async(_description,submittedAt)=>{
+ const patient='00000000-0000-4000-8000-000000000876';
+ vi.stubGlobal('fetch',vi.fn(async()=>Response.json({
+  patientId:patient,source:{accountId:patient,status:'submitted',version:2,
+   updatedAt:'2026-11-10T12:00:00Z',submittedAt},
+  sections:Array.from({length:21},(_,i)=>({
+   title:'Section '+i,domain:'History',disposition:'clinical',
+   fields:i===0?[{key:'counseling_reason',label:'Reason',type:'text',
+    reported:true,sourceOnly:false,value:'PRIVATE_FICTIONAL_REPORTED_SOURCE'}]:[],answered:i===0?1:0
+  })),
+  unmappedKeys:[],reviews:[]
+ }))));
+ render(<PatientBpsIntakeReview patientId={patient}/>);
+ await screen.findByText(/provenance or clinical review history could not be verified/i);
+ expect(screen.queryByText('PRIVATE_FICTIONAL_REPORTED_SOURCE')).toBeNull();
+ expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
+});

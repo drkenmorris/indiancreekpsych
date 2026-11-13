@@ -31,7 +31,7 @@ test('clinician reconciliation independently withholds separate, structured, ref
  const id='00000000-0000-4000-8000-000000000801';
  const sections=Array.from({length:21},(_,i)=>({
   title:'Intake section '+i,domain:'Context',disposition:i===1?'reference':i===2?'separate-review':'clinical',
-  answered:i<3?3:i===3||i===4?1:0,fields:i===0?[
+  answered:i===0?7:i===1||i===2||i===3||i===4?1:0,fields:i===0?[
    {key:'counseling_reason',label:'Reported concern',type:'text',reported:true,sourceOnly:false,value:'SAFE PATIENT REPORTED CONCERN'},
    {key:'insurance_member',label:'Spoofed coverage field',type:'text',reported:true,sourceOnly:false,value:'DO_NOT_LEAK_SPOOFED_INSURANCE'},
    {key:'roi_authorize',label:'Spoofed authorization field',type:'text',reported:true,sourceOnly:false,value:'DO_NOT_LEAK_SPOOFED_LEGAL'},

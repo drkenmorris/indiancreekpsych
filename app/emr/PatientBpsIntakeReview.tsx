@@ -59,6 +59,22 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
    !validBpsTimestamp(source.updatedAt)||
    !Array.isArray(value.reviews)||!Array.isArray(value.unmappedKeys))
    throw Error('Linked patient intake provenance or clinical review history could not be verified. Reopen the protected source.');
+  // The protected API validates historical attestation provenance. Repeat the
+  // identity/version/date checks at this UI trust boundary so a malformed,
+  // stale or cross-chart history response cannot be displayed as clinical truth.
+  // Never silently discard a bad history row and imply that review never existed.
+  const validHistory=value.reviews.every((entry:unknown)=>{
+   if(!entry||typeof entry!=='object'||Array.isArray(entry))return false;
+   const review=entry as Partial<Review>;
+   return typeof review.id==='string'&&
+    /^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(review.id)&&
+    Number.isSafeInteger(review.source_version)&&Number(review.source_version)>=1&&
+    (review.source_status==='draft'||review.source_status==='submitted')&&
+    validBpsTimestamp(review.source_updated_at)&&validBpsTimestamp(review.created_at)&&
+    !!review.clinical_answers&&typeof review.clinical_answers==='object'&&!Array.isArray(review.clinical_answers)&&
+    !!review.clinician_notes&&typeof review.clinician_notes==='object'&&!Array.isArray(review.clinician_notes);
+  });
+  if(!validHistory)throw Error('Linked patient clinical review history has invalid saved-row provenance; answers are withheld. Reopen the chart and investigate.');
   return value as ResponseData;
  }
  useEffect(()=>{let active=true;

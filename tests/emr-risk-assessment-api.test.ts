@@ -81,6 +81,31 @@ test('a submitted safety source requires a valid submission timestamp while draf
  expect((await GET(request())).status).toBe(200);
 });
 
+test('draft source without an optional submission receipt remains readable; submitted source without one is rejected',async()=>{
+ const base=intake;
+ // A draft may legitimately have no submitted_at property in an older
+ // query adapter. This is not a risk-negative finding and must preserve
+ // the actual patient-reported safety answer.
+ const {submitted_at:_receipt,...draft}=base;
+ intake={...draft,status:'draft',answers:{suicidal_plan_current:'Yes',protective_factors:'Fictional support'}};
+ const response=await GET(request()),data=await response.json();
+ expect(response.status).toBe(200);
+ expect(data.source.status).toBe('draft');
+ expect(data.fields.find((field:any)=>field.key==='suicidal_plan_current').value).toBe('Yes');
+ expect(data.fields.find((field:any)=>field.key==='protective_factors').value).toBe('Fictional support');
+ // A submitted source has a stronger provenance requirement.
+ intake={...draft,status:'submitted'};
+ const denied=await GET(request());
+ expect(denied.status).toBe(409);
+ expect((await denied.json()).fields).toBeUndefined();
+ // Even drafts cannot carry malformed nonempty submission receipts.
+ intake={...draft,status:'draft',submitted_at:'invalid'};
+ const malformed=await GET(request());
+ expect(malformed.status).toBe(409);
+ expect((await malformed.json()).fields).toBeUndefined();
+ intake=base;
+});
+
 test('unexpected authentication or database exceptions cannot expose clinical or SQL details',async()=>{
  const privateMessage='PRIVATE_FICTIONAL_CLINICAL_SQL_DIAGNOSTIC';
  m.access.mockRejectedValueOnce(Error(privateMessage));

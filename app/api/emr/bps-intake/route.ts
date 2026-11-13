@@ -77,7 +77,8 @@ export async function GET(request:Request){
   });
   return reply({patientId:id,linked:true,source:{accountId:source.patient.account_id,status:source.intake.status,version:source.intake.version,
     updatedAt:source.intake.updated_at},...report,reviews:safeReviews});
- }catch(e){return reply({error:e instanceof Error?e.message:'Protected intake unavailable.'},503);}
+ // Never echo database/provider exception messages: they may include patient identifiers, clinical JSON or internal SQL details.
+ }catch{return reply({error:'Protected BPS intake unavailable; reopen the chart and try again.'},503);}
 }
 export async function POST(request:Request){
  const ctx=await emrAccess();

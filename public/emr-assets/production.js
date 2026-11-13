@@ -31,6 +31,25 @@ async function populateOriginalBpsIntake(panel,id,generation){
    !Number.isSafeInteger(source.version)||source.version<1||
    !validOriginalBpsTimestamp(source.updatedAt))
    throw Error('Linked intake source identity, status, version or timestamp could not be verified.');
+  // The original seven-page BPS workspace must reject malformed mapped sections,
+  // independently of the newer React clinician review. A missing fields array,
+  // nested PHI object or spoofed section routing is not a valid patient report.
+  // Withhold the entire source before rendering any source answer; leave existing
+  // clinician-authored BPS forms and their unsaved values untouched.
+  const validSections=result.sections.every(section=>section&&typeof section==='object'&&!Array.isArray(section)&&
+   typeof section.title==='string'&&section.title.length>0&&
+   typeof section.domain==='string'&&section.domain.length>0&&
+   ['clinical','separate-review','reference'].includes(section.disposition)&&
+   Number.isSafeInteger(section.answered)&&section.answered>=0&&
+   Array.isArray(section.fields)&&section.answered<=section.fields.length&&
+   section.fields.every(field=>field&&typeof field==='object'&&!Array.isArray(field)&&
+    typeof field.key==='string'&&field.key.length>0&&
+    typeof field.label==='string'&&typeof field.type==='string'&&
+    typeof field.value==='string'&&
+    (field.reported===undefined||typeof field.reported==='boolean')&&
+    (field.sourceOnly===undefined||typeof field.sourceOnly==='boolean')));
+  if(!validSections)
+   throw Error('Linked 21-section intake mapping is malformed; patient statements are withheld.');
   // A partial or malformed clinical history is NOT an empty review history. Refuse
   // to display source answers or claim an attested review until provenance is sound.
   if(!Array.isArray(result.reviews)||!Array.isArray(result.unmappedKeys)||

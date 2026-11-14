@@ -1,6 +1,6 @@
 'use client';
 import {useEffect,useRef,useState,type FormEvent} from 'react';
-import {bpsNoteDomains,emptyBpsNotes,mapSavedBpsReportedFields,bpsVisibleSourceKeys,sanitizeBpsClinicianNotes,validBpsTimestamp,type BpsNotes} from '@/lib/emr/intake-bps';
+import {bpsNoteDomains,bpsSectionClassification,emptyBpsNotes,mapSavedBpsReportedFields,bpsVisibleSourceKeys,sanitizeBpsClinicianNotes,validBpsTimestamp,type BpsNotes} from '@/lib/emr/intake-bps';
 type Field={key:string;label:string;type:string;value:string;sourceOnly?:boolean;reported?:boolean};
 type Section={title:string;domain:string;disposition:'clinical'|'separate-review'|'reference';fields:Field[];answered:number};
 type Review={id:string;reviewed:boolean;source_version:number;source_status:string;source_updated_at:string;created_at:string;clinical_answers:Record<string,string>;clinician_notes:BpsNotes;excluded_clinical_fields?:number;excluded_clinician_notes?:number};
@@ -69,12 +69,19 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
   // render. Reject an incomplete or incorrectly typed section before mapping
   // any patient-reported statements into the clinician review interface.
   // This is independent of the API contract and leaves original BPS forms intact.
+  const seenSectionTitles=new Set<string>();
   const validSections=value.sections.every((entry:unknown)=>{
    if(!entry||typeof entry!=='object'||Array.isArray(entry))return false;
    const section=entry as Partial<Section>;
-   return typeof section.title==='string'&&section.title.length>0&&
-    typeof section.domain==='string'&&section.domain.length>0&&
-    (section.disposition==='clinical'||section.disposition==='separate-review'||section.disposition==='reference')&&
+   // A count of 21 alone is insufficient: repeated, unknown, or reclassified
+   // sections can conceal missing patient questions or misroute protected data.
+   // Verify the independently approved identity and privacy disposition of
+   // every section before displaying any patient statement or enabling review.
+   if(typeof section.title!=='string'||!section.title||seenSectionTitles.has(section.title))return false;
+   const approved=bpsSectionClassification[section.title];
+   if(!approved||section.domain!==approved.domain||section.disposition!==approved.disposition)return false;
+   seenSectionTitles.add(section.title);
+   return
     Number.isSafeInteger(section.answered)&&Number(section.answered)>=0&&
     Array.isArray(section.fields)&&Number(section.answered)<=section.fields.length&&section.fields.every((candidate:unknown)=>{
      if(!candidate||typeof candidate!=='object'||Array.isArray(candidate))return false;

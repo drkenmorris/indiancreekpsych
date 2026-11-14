@@ -417,3 +417,14 @@ test('protected BPS read exceptions never reflect internal clinical data in HTTP
  expect(wire).not.toContain(confidential);
  expect(wire).not.toContain('stack');
 });
+
+test('protected BPS API withholds malformed unknown field names that contain fictional private identifiers',async()=>{
+ const malformedName='FICTIONAL_PATIENT 123-45-6789 confidential source';
+ data[malformedName]='A response was recorded';
+ const response=await GET(request());
+ expect(response.status).toBe(200);
+ expect(response.headers.get('Cache-Control')).toContain('no-store');
+ const body=JSON.stringify(await response.json());
+ expect(body).not.toContain(malformedName);
+ expect(body).toContain('[unrecognized source field name withheld]');
+});

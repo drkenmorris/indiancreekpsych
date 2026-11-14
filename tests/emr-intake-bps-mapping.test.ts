@@ -1,6 +1,6 @@
 import {expect,test} from 'vitest';
 import {intakeSections,intakeSectionsForVersion,retiredMentalHealthFields,retiredContextFields} from '@/lib/patient/intake';
-import {bpsNoteDomains,bpsSectionClassification,mapIntakeToBps,mapSavedBpsReportedFields,sanitizeBpsSnapshotAnswers,bpsSnapshotClinicalKeys,bpsVisibleSourceKeys} from '@/lib/emr/intake-bps';
+import {bpsNoteDomains,bpsSectionClassification,mapIntakeToBps,mapSavedBpsReportedFields,sanitizeBpsSnapshotAnswers,bpsSnapshotClinicalKeys,bpsVisibleSourceKeys,distinctBpsQuestionIdentities} from '@/lib/emr/intake-bps';
 test('all 21 current and historical sections receive deliberate BPS dispositions',()=>{
  for(const sections of [intakeSections,intakeSectionsForVersion('legacy')]){
   expect(sections).toHaveLength(21);
@@ -18,6 +18,16 @@ test('current and historical section mappings retain distinct question identitie
    const keys=section.fields.map(field=>field.key);
    expect(new Set(keys).size,section.title+' ('+version+')').toBe(keys.length);
   }
+ }
+});
+test('BPS rejects duplicated source question identities across separate sections',()=>{
+ // Each section is individually unique, but the same question is improperly
+ // credited to two sections. A clinical review cannot verify this topology.
+ const forged=[{fields:[{key:'counseling_reason'}]},{fields:[{key:'counseling_reason'}]}];
+ expect(distinctBpsQuestionIdentities(forged)).toBe(false);
+ for(const version of ['', '2026-10-11', '2026-11-02-directory-1']){
+  const sections=mapIntakeToBps({legal_packet_version:version}).sections;
+  expect(distinctBpsQuestionIdentities(sections),version||'legacy blank').toBe(true);
  }
 });
 test('patient answers are mapped to original question labels without implying clinical verification',()=>{

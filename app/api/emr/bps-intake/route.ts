@@ -58,11 +58,15 @@ export async function GET(request:Request){
   const {data:reviews,error}=await ctx.supabase.from('emr_bps_intake_reviews')
    .select('id,patient_id,source_account_id,source_version,source_status,source_updated_at,clinical_answers,clinician_notes,reviewed,created_at')
    .eq('patient_id',id).eq('source_account_id',source.patient.account_id)
-   .order('created_at',{ascending:false}).limit(20);
+   // Fetch one extra row as an overflow sentinel. A truncated review history
+   // can hide an existing same-version review and mislead a clinician into
+   // attempting another save. Never claim full chart-history verification then.
+   .order('created_at',{ascending:false}).limit(21);
   // A missing or malformed query result is NOT proof that this patient has no
   // prior clinician reviews. Do not fabricate an empty history or allow an
   // apparent first review when chart-history integrity is unverified.
   if(error||!Array.isArray(reviews))return reply({error:'BPS review history unavailable or invalid; cannot verify prior clinician review.'},503);
+   if(reviews.length>20)return reply({error:'BPS review history exceeds the verified retrieval window; reopen the full protected clinical history before any additional review.'},409);
   // A central chart may be relinked to another website account. Never display historical
   // snapshots from the former account under the newly linked patient's clinical source.
   if((reviews??[]).some(review=>review.patient_id!==id||review.source_account_id!==source.patient.account_id))

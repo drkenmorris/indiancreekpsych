@@ -11,7 +11,7 @@ test('all 21 current and historical sections receive deliberate BPS dispositions
  }
 });
 test('current and historical section mappings retain distinct question identities within each BPS section',()=>{
- for(const version of ['2026-11-02-directory-1', 'legacy']){
+ for(const version of ['2026-11-02-directory-1', '2026-10-11']){
   const report=mapIntakeToBps({legal_packet_version:version});
   expect(report.sections).toHaveLength(21);
   for(const section of report.sections){
@@ -19,6 +19,13 @@ test('current and historical section mappings retain distinct question identitie
    expect(new Set(keys).size,section.title+' ('+version+')').toBe(keys.length);
   }
  }
+});
+test('BPS never treats unknown explicit questionnaire packet markers as approved historical source versions',()=>{
+ for(const packet of ['legacy','2026-11-03-unknown','2030-future-questionnaire'])
+  expect(()=>mapIntakeToBps({legal_packet_version:packet,counseling_reason:'PRIVATE_FICTIONAL_REPORT'}))
+   .toThrow(/Unrecognized intake questionnaire version/);
+ for(const packet of ['', '2026-10-11', '2026-11-02-directory-1'])
+  expect(mapIntakeToBps({legal_packet_version:packet,counseling_reason:'Fictional concern'}).sections).toHaveLength(21);
 });
 test('BPS rejects duplicated source question identities across separate sections',()=>{
  // Each section is individually unique, but the same question is improperly

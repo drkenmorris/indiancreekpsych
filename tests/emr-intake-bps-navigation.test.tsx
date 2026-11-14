@@ -114,3 +114,66 @@ test('acknowledged BPS save is never reported as unsaved when subsequent history
  expect(saves).toBe(1);
  expect(reads).toBe(2);
 });
+
+
+
+// This intentionally bypasses the real API's history-order validation to verify
+// that a stale, incorrectly cached, or malformed response also fails closed in
+// the independent clinician UI. No production record is created.
+test.each(['duplicate ID','reversed timestamps','incorrect UUID tie-break'])(
+ 'clinician BPS withholds all history and save controls for %s',async(variant)=>{
+  const patient='00000000-0000-4000-8000-000000000970';
+  const idA='00000000-0000-4000-8000-000000000971';
+  const idB='00000000-0000-4000-8000-000000000972';
+  const sectionNames=Array.from({length:21},(_,i)=>({
+   title:'Clinical intake section '+i,domain:'Source audit',disposition:'clinical' as const,fields:[],answered:0
+  }));
+  const historical=(id:string,created_at:string)=>({
+   id,reviewed:true,source_version:2,source_status:'submitted',
+   source_updated_at:'2026-11-10T08:00:00Z',created_at,
+   clinical_answers:{counseling_reason:'PRIVATE_FICTIONAL_HISTORICAL_REPORT'},
+   clinician_notes:{presenting:'PRIVATE_FICTIONAL_CLINICIAN_CONTEXT'}
+  });
+  const newest=historical(idA,'2026-11-10T11:00:00Z');
+  const older=historical(idB,'2026-11-10T10:00:00Z');
+  const reviews=variant==='duplicate ID'?[newest,{...older,id:idA}]:
+   variant==='reversed timestamps'?[older,newest]:
+   [newest,{...older,created_at:newest.created_at}];
+  vi.stubGlobal('fetch',vi.fn(async()=>({ok:true,json:async()=>({
+   patientId:patient,source:{accountId:patient,status:'submitted',version:3,
+    updatedAt:'2026-11-10T12:00:00Z',submittedAt:'2026-11-10T12:00:00Z'},
+   sections:sectionNames,unmappedKeys:[],reviews
+  })})));
+  const {container}=render(<PatientBpsIntakeReview patientId={patient}/>);
+  await screen.findByRole('alert');
+  expect(container.textContent).toContain('invalid saved-row provenance');
+  expect(container.textContent).not.toContain('PRIVATE_FICTIONAL_HISTORICAL_REPORT');
+  expect(container.textContent).not.toContain('PRIVATE_FICTIONAL_CLINICIAN_CONTEXT');
+  expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
+  expect(screen.queryByRole('button',{name:/Save reviewed BPS history snapshot/i})).toBeNull();
+ }
+);
+
+test('clinician BPS retains two valid, strictly ordered historical reviews',async()=>{
+ const patient='00000000-0000-4000-8000-000000000973';
+ const sections=Array.from({length:21},(_,i)=>({
+  title:'Source section '+i,domain:'Clinical context',disposition:'clinical' as const,fields:[],answered:0
+ }));
+ const row=(id:string,created_at:string)=>({
+  id,reviewed:true,source_version:2,source_status:'submitted',
+  source_updated_at:'2026-11-10T08:00:00Z',created_at,
+  clinical_answers:{counseling_reason:'FICTIONAL_PRESERVED_REPORT'},clinician_notes:{}
+ });
+ vi.stubGlobal('fetch',vi.fn(async()=>({ok:true,json:async()=>({
+  patientId:patient,source:{accountId:patient,status:'submitted',version:3,
+   updatedAt:'2026-11-10T12:00:00Z',submittedAt:'2026-11-10T12:00:00Z'},
+  sections,unmappedKeys:[],reviews:[
+   row('00000000-0000-4000-8000-000000000975','2026-11-10T11:00:00Z'),
+   row('00000000-0000-4000-8000-000000000974','2026-11-10T10:00:00Z')
+  ]
+ })})));
+ const {container}=render(<PatientBpsIntakeReview patientId={patient}/>);
+ await screen.findByText(/Previously saved immutable clinician reviews \(2\)/);
+ expect(container.textContent).toContain('FICTIONAL_PRESERVED_REPORT');
+ expect(screen.queryByRole('alert')).toBeNull();
+});

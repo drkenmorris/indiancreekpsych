@@ -252,7 +252,7 @@ test.each([false,undefined])('a saved row with review attestation %s cannot prov
  if(attestation===undefined){
   // Malformed (absent) attestation withholds historical content rather than
   // fabricating a false review; the acknowledged save remains locked.
-  await screen.findByText(/save was acknowledged by the database, but the exact clinician review was NOT verified/);
+  await screen.findByText(/exact clinician review was NOT independently verified/);
   expect(screen.queryByText(/Previously saved immutable clinician reviews/)).toBeNull();
  }else{
   await screen.findByText(/NOT verified in chart history/);
@@ -281,7 +281,7 @@ test('matching BPS review ID is insufficient when chart history timestamp differ
  fireEvent.click(screen.getByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i}));
  fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed this intake/i}));
  fireEvent.click(screen.getByRole('button',{name:/Save reviewed BPS history snapshot/i}));
- await screen.findByText(/NOT verified in chart history/);
+ await screen.findByText(/exact clinician review was NOT independently verified/);
  expect(screen.queryByText(/snapshot saved AND independently verified in the protected chart history/)).toBeNull();
  expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
  expect(reads).toBe(2);

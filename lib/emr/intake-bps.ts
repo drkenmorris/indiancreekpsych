@@ -70,10 +70,17 @@ export function validBpsSubmissionChronology(status:unknown,updatedAt:unknown,su
 /** A clinician review receipt must not predate the patient source revision it
  * purports to preserve. Compare full database timestamp precision so that a
  * microsecond inversion cannot be hidden by JavaScript Date truncation. */
-export function validBpsReviewChronology(sourceUpdatedAt:unknown,reviewCreatedAt:unknown):boolean{
+/** For the CURRENT submitted version, the clinician review must also occur
+ * after the patient's submission attestation, not merely after the last edit.
+ * Do not compare older revisions against a newer packet's submission receipt. */
+export function validBpsReviewChronology(
+ sourceUpdatedAt:unknown,reviewCreatedAt:unknown,sourceSubmittedAt?:unknown
+):boolean{
  const source=bpsTimestampInstantNanoseconds(sourceUpdatedAt);
  const reviewed=bpsTimestampInstantNanoseconds(reviewCreatedAt);
- return source!==null&&reviewed!==null&&reviewed>=source;
+ const attested=sourceSubmittedAt===undefined?null:bpsTimestampInstantNanoseconds(sourceSubmittedAt);
+ return source!==null&&reviewed!==null&&reviewed>=source&&
+  (sourceSubmittedAt===undefined||(attested!==null&&reviewed>=attested));
 }
 /** Historical BPS review provenance may not claim a future intake revision. A
  * row for the CURRENT source version must also match its exact status and

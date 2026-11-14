@@ -45,6 +45,9 @@ export default function CalendarClient({timezone,duration,onBook}:{timezone:stri
        p_patient_name:selected.patient_id?null:edit.name,p_scope:edit.scope,p_action:action
      }).abortSignal(AbortSignal.timeout(20000));
      if(saveError)throw saveError;
+     // A transport-level success with no affected rows is not proof that an
+     // individual or recurring-series edit/cancellation was committed.
+     if(!Number.isSafeInteger(data)||data<1)throw new Error('Appointment change was not confirmed. Refresh the calendar before retrying.');
      setSelected(null);setNotice(`${data} appointment${data===1?'':'s'} ${action==='save'?'updated':'cancelled'}. Adjacent openings have been recalculated.`);
      if(action==='save'&&edit.date.slice(0,7)!==month)setMonth(edit.date.slice(0,7)); else await load();
    } catch(e){setEditError((e as {message?:string})?.message??'The change could not be confirmed. Refresh before retrying.');}

@@ -3,7 +3,7 @@
 import FirewallCheck from "./FirewallCheck";
 import CalendarClient from "./calendar/CalendarClient";
 import MonthSchedule from "./calendar/MonthSchedule";
-import { localParts } from "@/lib/scheduling/calendar";
+import { localParts, practiceWallTimeToIso } from "@/lib/scheduling/calendar";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -14,7 +14,7 @@ type Block = { id:string; starts_at:string; ends_at:string; label:string|null };
 type Patient = { id:string; full_name:string|null; preferred_name:string|null };
 
 const weekdays=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-const dateInput=(d:Date)=>{const p=(n:number)=>String(n).padStart(2,"0");return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;};
+const practiceDateInput=(instant:string,timezone:string)=>{const {date,time}=localParts(instant,timezone);return `${date}T${time}`;};
 
 export default function AppointmentsClient({userId,accountType,preferredName,initialSettings,initialRules,initialBlocks}:{userId:string;accountType:AccountType;preferredName:string;initialSettings:Settings|null;initialRules:Rule[];initialBlocks:Block[]}) {
   const supabase=useMemo(()=>createClient(),[]);
@@ -23,6 +23,8 @@ export default function AppointmentsClient({userId,accountType,preferredName,ini
   const [revision,setRevision]=useState(0);
   const [settings,setSettings]=useState<Settings>(initialSettings??{scheduling_enabled:false,timezone:"America/Chicago",appointment_duration_minutes:50,slot_interval_minutes:30,minimum_notice_hours:24,maximum_advance_days:60});
   const [rules,setRules]=useState(initialRules);
+  // Keep persisted practice timezone separate from unsaved settings form edits.
+  const [practiceTimezone,setPracticeTimezone]=useState(settings.timezone);
   const [blocks,setBlocks]=useState(initialBlocks);
   const [patients,setPatients]=useState<Patient[]>([]);
   const [patientError,setPatientError]=useState("");
@@ -34,7 +36,7 @@ export default function AppointmentsClient({userId,accountType,preferredName,ini
   const [busy,setBusy]=useState(false);
   const [editingRuleId,setEditingRuleId]=useState<string|null>(null);
   const [rule,setRule]=useState({weekday:1,start_time:"09:00",end_time:"17:00",anchor_time:""});
-  const [block,setBlock]=useState(()=>{const s=new Date();s.setHours(s.getHours()+1,0,0,0);const e=new Date(s);e.setHours(e.getHours()+1);return{starts_at:dateInput(s),ends_at:dateInput(e),label:""};});
+  const [block,setBlock]=useState(()=>{const nextHour=Math.ceil(Date.now()/3600000)*3600000;return{starts_at:practiceDateInput(new Date(nextHour).toISOString(),practiceTimezone),ends_at:practiceDateInput(new Date(nextHour+3600000).toISOString(),practiceTimezone),label:""};});
 
   const loadSlots=async()=>{setRevision(v=>v+1);};
   useEffect(()=>{if(accountType==="admin")void (async()=>{const {data,error}=await supabase.rpc("scheduling_patients").abortSignal(AbortSignal.timeout(15000));if(error)setPatientError("Patient list could not be loaded. Refresh the page or contact support.");else setPatients((data??[]) as Patient[]);setPatientsLoading(false);})();},[]);
@@ -43,12 +45,40 @@ export default function AppointmentsClient({userId,accountType,preferredName,ini
     try {
       const {data,error}=await supabase.rpc("book_patient_appointments",{p_patient_id:booking.patient_id||null,p_patient_name:booking.patient_id?null:booking.patient_name,p_first_date:booking.first_date,p_start_time:booking.start_time,p_repeat_weeks:booking.repeat_weeks,p_through:booking.repeat_weeks===0?booking.first_date:booking.through}).abortSignal(AbortSignal.timeout(20000));
       if(error)throw error;
+      // A successful HTTP/RPC response with zero, null or malformed affected rows
+      // is NOT evidence that a booking was committed. Never tell the clinician
+      // appointments exist unless the scheduler returns a positive integer receipt.
+      if(!Number.isSafeInteger(data)||data<1)throw new Error('Booking was not confirmed. Refresh the calendar to check the schedule before retrying.');
       setBookingMessage(`${data} appointment${data===1?"":"s"} booked. Adjacent openings updated.`);
       await loadSlots();
     }catch(error){setBookingMessage(error instanceof Error?error.message:(error as {message?:string})?.message??"Booking could not be confirmed. Refresh the schedule before retrying.");}finally{setBusy(false);}
   };
 
-  const saveSettings=async(e:FormEvent)=>{e.preventDefault();setBusy(true);const {error}=await supabase.from("appointment_settings").update(settings).eq("id",true);if(!error)await loadSlots();setMessage(error?error.message:"Scheduling settings saved.");setBusy(false);};
+  const saveSettings=async(e:FormEvent)=>{
+    e.preventDefault();if(busy)return;setBusy(true);setMessage("");
+    // PostgREST can successfully return from an UPDATE that matched zero rows
+    // (e.g. stale authorizations/RLS). Require an exact persisted-settings receipt.
+    const submitted={...settings};
+    try{
+      // A malformed IANA zone would corrupt local blocked-time and DST calculations.
+      // Fail before writing scheduling settings, not after receiving a saved row.
+      try{new Intl.DateTimeFormat("en-US",{timeZone:submitted.timezone});}
+      catch{throw new Error("Enter a valid IANA practice time zone, such as America/Chicago.");}
+      const {data,error}=await supabase.from("appointment_settings")
+        .update(submitted).eq("id",true).select("*").maybeSingle();
+      if(error)throw error;
+      if(!data||data.id!==true||Object.entries(submitted).some(([key,value])=>data[key]!==value))
+        throw new Error("Scheduling settings were not verified in the database. Refresh before retrying.");
+      if(submitted.timezone!==practiceTimezone){
+        // Invalidate unsaved wall-clock blackout inputs when saved timezone changes.
+        const nextHour=Math.ceil(Date.now()/3600000)*3600000;
+        setPracticeTimezone(submitted.timezone);
+        setBlock({starts_at:practiceDateInput(new Date(nextHour).toISOString(),submitted.timezone),ends_at:practiceDateInput(new Date(nextHour+3600000).toISOString(),submitted.timezone),label:""});
+      }
+      await loadSlots();setMessage("Scheduling settings saved and verified.");
+    }catch(error){setMessage(error instanceof Error?error.message:"Scheduling settings were not verified. Refresh before retrying.");}
+    finally{setBusy(false);}
+  };
   const addRule=async(e:FormEvent)=>{
     e.preventDefault();setRuleMessage("");
     if(!rule.start_time||!rule.end_time||rule.end_time<=rule.start_time){setRuleMessage("Choose an end time later than the start time on the same day.");return;}
@@ -72,9 +102,54 @@ export default function AppointmentsClient({userId,accountType,preferredName,ini
       setRules(v=>v.map(x=>x.id===r.id?result.rule as Rule:x));await loadSlots();
     }catch(error){setRuleMessage(error instanceof Error?error.message:"The update could not be confirmed. Refresh before retrying.");}finally{setBusy(false);}
   };
-  const deleteRule=async(id:string)=>{const {error}=await supabase.from("appointment_availability_rules").delete().eq("id",id);if(error)setMessage(error.message);else{setRules(v=>v.filter(x=>x.id!==id));await loadSlots();}};
-  const addBlock=async(e:FormEvent)=>{e.preventDefault();const payload={starts_at:new Date(block.starts_at).toISOString(),ends_at:new Date(block.ends_at).toISOString(),label:block.label||null};const {data,error}=await supabase.from("appointment_blocks").insert(payload).select().single();if(error)setMessage(error.message);else{setBlocks(v=>[...v,data as Block].sort((a,b)=>a.starts_at.localeCompare(b.starts_at)));await loadSlots();setMessage("Blocked time added.");}};
-  const deleteBlock=async(id:string)=>{const {error}=await supabase.from("appointment_blocks").delete().eq("id",id);if(error)setMessage(error.message);else{setBlocks(v=>v.filter(x=>x.id!==id));await loadSlots();}};
+  const deleteRule=async(id:string)=>{
+    if(busy)return;setBusy(true);setRuleMessage("");
+    try{
+      const {data,error}=await supabase.from("appointment_availability_rules").delete().eq("id",id).select("id");
+      if(error)throw error;
+      if(!Array.isArray(data)||data.length!==1||data[0]?.id!==id)
+        throw new Error("Removal of office hours was not verified. Refresh before retrying.");
+      setRules(v=>v.filter(x=>x.id!==id));await loadSlots();
+      setRuleMessage("Office hours removed and verified.");
+    }catch(error){setRuleMessage(error instanceof Error?error.message:"Removal was not verified. Refresh before retrying.");}
+    finally{setBusy(false);}
+  };
+  const addBlock=async(e:FormEvent)=>{
+    e.preventDefault();if(busy)return;setBusy(true);setMessage("");
+    try{
+      // datetime-local has no timezone; always interpret it in the persisted practice timezone.
+      const starts=new Date(practiceWallTimeToIso(block.starts_at,practiceTimezone));
+      const ends=new Date(practiceWallTimeToIso(block.ends_at,practiceTimezone));
+      if(!Number.isFinite(starts.getTime())||!Number.isFinite(ends.getTime())||ends.getTime()<=starts.getTime())
+        throw new Error("Choose valid blocked-time dates with an end later than the start.");
+      const payload={starts_at:starts.toISOString(),ends_at:ends.toISOString(),label:block.label||null};
+      const {data,error}=await supabase.from("appointment_blocks").insert(payload).select().single();
+      if(error)throw error;
+      // A non-error insert response is not a verified blackout. Require the
+      // returned persisted row to match the exact interval and label requested.
+      // On an ambiguous receipt, do not invite a blind retry: the row may exist.
+      if(!data||typeof data.id!=="string"||!data.id||
+        Date.parse(data.starts_at)!==starts.getTime()||
+        Date.parse(data.ends_at)!==ends.getTime()||data.label!==payload.label)
+        throw new Error("Blackout was not verified in the database. Refresh the schedule before retrying.");
+      setBlocks(v=>[...v,data as Block].sort((a,b)=>a.starts_at.localeCompare(b.starts_at)));
+      await loadSlots();setMessage("Blocked time saved and verified.");
+    }catch(error){
+      setMessage(error instanceof Error?error.message:"Blackout could not be verified. Refresh before retrying.");
+    }finally{setBusy(false);}
+  };
+  const deleteBlock=async(id:string)=>{
+    if(busy)return;setBusy(true);setMessage("");
+    try{
+      const {data,error}=await supabase.from("appointment_blocks").delete().eq("id",id).select("id");
+      if(error)throw error;
+      if(!Array.isArray(data)||data.length!==1||data[0]?.id!==id)
+        throw new Error("Blackout removal was not verified. Refresh before retrying.");
+      setBlocks(v=>v.filter(x=>x.id!==id));await loadSlots();
+      setMessage("Blackout removed and verified.");
+    }catch(error){setMessage(error instanceof Error?error.message:"Blackout removal was not verified. Refresh before retrying.");}
+    finally{setBusy(false);}
+  };
 
 
 
@@ -144,12 +219,12 @@ export default function AppointmentsClient({userId,accountType,preferredName,ini
         {editingRuleId&&<button className="secondaryAction" type="button" onClick={()=>{setEditingRuleId(null);setRuleMessage("");}}>Cancel editing</button>}
         {ruleMessage&&<p className="authMessage" role="status">{ruleMessage}</p>}
         <p>Office hours set the outer limits. Patient openings are one hour before or after booked appointments; a day needs a reserved starting hour or an existing booking to offer openings.</p>
-        <div className="ruleList">{rules.map(r=><article key={r.id}><div><strong>{weekdays[r.weekday]}</strong><span>{r.start_time.slice(0,5)}–{r.end_time.slice(0,5)} · {r.enabled?"Open":"Paused"}{r.anchor_time?` · Starting hour ${r.anchor_time.slice(0,5)} reserved`:""}</span></div><div><button className="secondaryAction" type="button" disabled={busy} onClick={()=>{setEditingRuleId(r.id);setRule({weekday:r.weekday,start_time:r.start_time.slice(0,5),end_time:r.end_time.slice(0,5),anchor_time:r.anchor_time?.slice(0,5)??""});setRuleMessage("Editing hours above. Set a reserved starting hour, then choose Save hours.");}}>Edit</button><button className="secondaryAction" type="button" onClick={()=>void toggleRule(r)}>{r.enabled?"Pause":"Enable"}</button><button className="secondaryAction" type="button" onClick={()=>void deleteRule(r.id)}>Delete</button></div></article>)}</div>
+        <div className="ruleList">{rules.map(r=><article key={r.id}><div><strong>{weekdays[r.weekday]}</strong><span>{r.start_time.slice(0,5)}–{r.end_time.slice(0,5)} · {r.enabled?"Open":"Paused"}{r.anchor_time?` · Starting hour ${r.anchor_time.slice(0,5)} reserved`:""}</span></div><div><button className="secondaryAction" type="button" disabled={busy} onClick={()=>{setEditingRuleId(r.id);setRule({weekday:r.weekday,start_time:r.start_time.slice(0,5),end_time:r.end_time.slice(0,5),anchor_time:r.anchor_time?.slice(0,5)??""});setRuleMessage("Editing hours above. Set a reserved starting hour, then choose Save hours.");}}>Edit</button><button className="secondaryAction" type="button" onClick={()=>void toggleRule(r)}>{r.enabled?"Pause":"Enable"}</button><button className="secondaryAction" type="button" disabled={busy} onClick={()=>void deleteRule(r.id)}>Delete</button></div></article>)}</div>
       </section>}
 
       {view==="blackouts"&&<section className="appointmentPanel"><p className="eyebrow">Blocked time</p><h2>Blackout periods</h2>
-        <form className="inlineSchedulerForm blockForm" onSubmit={addBlock}><label>Starts<input type="datetime-local" value={block.starts_at} onChange={e=>setBlock({...block,starts_at:e.target.value})}/></label><label>Ends<input type="datetime-local" value={block.ends_at} onChange={e=>setBlock({...block,ends_at:e.target.value})}/></label><label>Label<input placeholder="Vacation, meeting, personal time" value={block.label} onChange={e=>setBlock({...block,label:e.target.value})}/></label><button type="submit">Block time</button></form>
-        <div className="ruleList">{blocks.map(b=><article key={b.id}><div><strong>{b.label||"Blocked time"}</strong><span>{new Date(b.starts_at).toLocaleString()} – {new Date(b.ends_at).toLocaleString()}</span></div><button className="secondaryAction" type="button" onClick={()=>void deleteBlock(b.id)}>Remove</button></article>)}</div>
+        <p>Enter blocked times in the saved practice time zone ({practiceTimezone}), not the browser or computer time zone. Daylight-saving times that occur twice or do not exist must be adjusted before saving.</p><form className="inlineSchedulerForm blockForm" onSubmit={addBlock}><label>Starts<input type="datetime-local" value={block.starts_at} onChange={e=>setBlock({...block,starts_at:e.target.value})}/></label><label>Ends<input type="datetime-local" value={block.ends_at} onChange={e=>setBlock({...block,ends_at:e.target.value})}/></label><label>Label<input placeholder="Vacation, meeting, personal time" value={block.label} onChange={e=>setBlock({...block,label:e.target.value})}/></label><button type="submit" disabled={busy}>{busy?"Working…":"Block time"}</button></form>
+        <div className="ruleList">{blocks.map(b=><article key={b.id}><div><strong>{b.label||"Blocked time"}</strong><span>{new Date(b.starts_at).toLocaleString("en-US",{timeZone:practiceTimezone})} – {new Date(b.ends_at).toLocaleString("en-US",{timeZone:practiceTimezone})} ({practiceTimezone})</span></div><button className="secondaryAction" type="button" disabled={busy} onClick={()=>void deleteBlock(b.id)}>Remove</button></article>)}</div>
       </section>}
     </>}
   </div>;

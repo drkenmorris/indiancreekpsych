@@ -1,12 +1,64 @@
 import {expect,test} from 'vitest';
 import {intakeSections,intakeSectionsForVersion,retiredMentalHealthFields,retiredContextFields} from '@/lib/patient/intake';
-import {bpsNoteDomains,bpsSectionClassification,mapIntakeToBps,mapSavedBpsReportedFields,sanitizeBpsSnapshotAnswers,bpsSnapshotClinicalKeys} from '@/lib/emr/intake-bps';
+import {bpsNoteDomains,bpsSectionClassification,mapIntakeToBps,mapSavedBpsReportedFields,sanitizeBpsSnapshotAnswers,bpsSnapshotClinicalKeys,bpsVisibleSourceKeys,distinctBpsQuestionIdentities,equalBpsTimestampInstants,validBpsSubmissionChronology,validBpsHistoricalSourceBoundary} from '@/lib/emr/intake-bps';
+test('BPS review source boundary rejects future revisions and a same-version source rewritten without a new attestation',()=>{
+ const current='2026-11-12T12:00:00Z';
+ const match=(version:number,status:string,at:string)=>validBpsHistoricalSourceBoundary(version,status,at,3,'submitted',current);
+ expect(match(3,'submitted','2026-11-12T06:00:00-06:00')).toBe(true);
+ expect(match(2,'draft','2026-11-11T12:00:00Z')).toBe(true);
+ expect(match(4,'submitted',current)).toBe(false);
+ expect(match(3,'draft',current)).toBe(false);
+ expect(match(3,'submitted','2026-11-12T11:59:59Z')).toBe(false);
+ expect(match(3,'submitted','2026-11-12T12:00:00.000001Z')).toBe(false);
+ expect(match(2,'draft','2026-11-12T12:00:00.000001Z')).toBe(false);
+});
 test('all 21 current and historical sections receive deliberate BPS dispositions',()=>{
  for(const sections of [intakeSections,intakeSectionsForVersion('legacy')]){
   expect(sections).toHaveLength(21);
+  expect(new Set(sections.map(section=>section.title)).size).toBe(21);
   const report=mapIntakeToBps({});
   expect(report.sections).toHaveLength(21);
   for(const section of sections)expect(bpsSectionClassification[section.title]).toBeDefined();
+ }
+});
+test('current and historical section mappings retain distinct question identities within each BPS section',()=>{
+ for(const version of ['2026-11-02-directory-1', '2026-10-11']){
+  const report=mapIntakeToBps({legal_packet_version:version});
+  expect(report.sections).toHaveLength(21);
+  for(const section of report.sections){
+   const keys=section.fields.map(field=>field.key);
+   expect(new Set(keys).size,section.title+' ('+version+')').toBe(keys.length);
+  }
+ }
+});
+test('BPS never treats unknown explicit questionnaire packet markers as approved historical source versions',()=>{
+ for(const packet of ['legacy','2026-11-03-unknown','2030-future-questionnaire'])
+  expect(()=>mapIntakeToBps({legal_packet_version:packet,counseling_reason:'PRIVATE_FICTIONAL_REPORT'}))
+   .toThrow(/Unrecognized intake questionnaire version/);
+ for(const packet of ['', '2026-10-11', '2026-11-02-directory-1'])
+  expect(mapIntakeToBps({legal_packet_version:packet,counseling_reason:'Fictional concern'}).sections).toHaveLength(21);
+});
+test('approved packet-version routing metadata is not reported as an unmapped clinical answer',()=>{
+ for(const version of ['2026-10-11','2026-11-02-directory-1']){
+  const mapped=mapIntakeToBps({legal_packet_version:version,counseling_reason:'Fictional concern'});
+  expect(mapped.sections).toHaveLength(21);
+  expect(mapped.unmappedKeys).toEqual([]);
+ }
+ // Unknown answers still count, but neither schema-shaped nor malformed
+ // field identities are returned to the protected BPS review.
+ const extra=mapIntakeToBps({legal_packet_version:'2026-11-02-directory-1',
+  extra_patient_jane_doe:'fictional report'});
+ expect(extra.unmappedKeys).toEqual(['[unrecognized source field name withheld]']);
+});
+
+test('BPS rejects duplicated source question identities across separate sections',()=>{
+ // Each section is individually unique, but the same question is improperly
+ // credited to two sections. A clinical review cannot verify this topology.
+ const forged=[{fields:[{key:'counseling_reason'}]},{fields:[{key:'counseling_reason'}]}];
+ expect(distinctBpsQuestionIdentities(forged)).toBe(false);
+ for(const version of ['', '2026-10-11', '2026-11-02-directory-1']){
+  const sections=mapIntakeToBps({legal_packet_version:version}).sections;
+  expect(distinctBpsQuestionIdentities(sections),version||'legacy blank').toBe(true);
  }
 });
 test('patient answers are mapped to original question labels without implying clinical verification',()=>{
@@ -18,7 +70,7 @@ test('patient answers are mapped to original question labels without implying cl
  expect(report.sections.find(section=>section.title==='Safety and risk screening')?.domain).toContain('safety');
  expect(report.sections.find(section=>section.title==='Authorization to share health information')?.disposition).toBe('reference');
  expect(report.sections.find(section=>section.title==='Trauma, family, social, educational, and occupational history')?.fields.some(f=>f.key==='trauma_history_checklist')).toBe(true);
- expect(report.unmappedKeys).toContain('private_extra');
+ expect(report.unmappedKeys).toEqual(['[unrecognized source field name withheld]']);
 });
 test('separate review for medications and medical/substance use prevents silent BPS chart copying',()=>{
  const report=mapIntakeToBps({medication_entries:'{"sample":"reported"}',medical_substance_history:'{"sample":"reported"}'});
@@ -41,7 +93,7 @@ test('saved BPS read-back groups only permitted patient-reported clinical histor
  expect(readBack).not.toContain('Do not expose a medication record');
  expect(readBack).not.toContain('Private insurance ID');
  expect(readBack).not.toContain('roi_authorize');
- expect(saved.unmappedKeys).toContain('unapproved_history');
+ expect(saved.unmappedKeys).toEqual(['[unrecognized source field name withheld]']);
 });
 
 
@@ -76,7 +128,7 @@ test('all 21 intake sections audit source presence without exposing separately r
   expect(audited.fields.map(field=>field.key)).toEqual(original.fields.map(([key])=>key));
   for(const field of audited.fields){
    expect(field.reported).toBe(true);
-   if(audited.disposition!=='clinical'||['treatment-history','medications','medical-substance','trauma-history','legal-routing','dsm-version'].includes(field.type)){
+   if(audited.disposition!=='clinical'||!bpsVisibleSourceKeys.has(field.key)||['treatment-history','medications','medical-substance','trauma-history','legal-routing','dsm-version'].includes(field.type)){
     expect(field.sourceOnly).toBe(true);
     expect(field.value).toBe('Recorded in protected source; not copied into BPS.');
     expect(field.value).not.toContain('PRIVATE_SOURCE_');
@@ -117,7 +169,7 @@ test('directory-era 21-section intake fields receive the same source-only privac
   expect(report.sections[i].fields.map(field=>field.key)).toEqual(sections[i].fields.map(([key])=>key));
   expect(report.sections[i].answered).toBe(sections[i].fields.length);
   for(const field of report.sections[i].fields){
-   const separate=report.sections[i].disposition!=='clinical'||
+   const separate=report.sections[i].disposition!=='clinical'||!bpsVisibleSourceKeys.has(field.key)||
     ['treatment-history','medications','medical-substance','trauma-history','legal-routing','dsm-version'].includes(field.type);
    expect(field.sourceOnly).toBe(separate);
    expect(field.value).toBe(separate?'Recorded in protected source; not copied into BPS.':'PRIVATE_DIRECTORY_'+field.key);
@@ -130,7 +182,7 @@ test('directory-era 21-section intake fields receive the same source-only privac
 });
 
 
-test('all ten retired psychiatric, family, social and legal context responses reach a clinical BPS source domain without becoming clinician facts',()=>{
+test('ten non-active retired clinical responses stay routed without duplicating active medication history',()=>{
  const retired=[...retiredMentalHealthFields,...retiredContextFields].filter(([key])=>key!=='prior_psychiatric_medications');
  expect(retired).toHaveLength(10);
  const answers:Record<string,string>={counseling_reason:'Current presenting concern',unexpected_code:'Unmapped private answer'};
@@ -145,14 +197,16 @@ test('all ten retired psychiatric, family, social and legal context responses re
   expect(item,'Unrouted retired clinical field: '+key).toBeDefined();
   expect(item?.disposition).toBe('clinical');
   expect(item?.reported).toBe(true);
-  expect(item?.sourceOnly).toBe(false);
+  const protectedLegacy=key==='prior_psychiatric_medications'||key==='legal_history';
+  expect(item?.sourceOnly).toBe(protectedLegacy);
   expect(item?.label).toContain('Historical patient report');
-  expect(item?.value).toBe('Historical patient report for '+key);
+  expect(item?.value).toBe(protectedLegacy?'Recorded in protected source; not copied into BPS.':'Historical patient report for '+key);
+  if(protectedLegacy)expect(JSON.stringify(report)).not.toContain('Historical patient report for '+key);
   expect(report.unmappedKeys).not.toContain(key);
  }
  expect(historical.filter(field=>field.domain==='Mental health treatment history')).toHaveLength(1);
  expect(historical.filter(field=>field.domain==='Trauma, family, social, educational, and occupational history')).toHaveLength(9);
- expect(report.unmappedKeys).toEqual(['unexpected_code']);
+ expect(report.unmappedKeys).toEqual(['[unrecognized source field name withheld]']);
  // The database snapshot remains explicitly allowlisted: displaying historical
  // patient testimony never silently creates a clinician fact or signed BPS record.
  const snapshot=sanitizeBpsSnapshotAnswers(answers);
@@ -165,4 +219,63 @@ test('retired intake fields stay absent when not reported and blanks cannot impl
  expect(report.sections).toHaveLength(21);
  expect(report.sections.flatMap(section=>section.fields).filter(field=>field.type==='historical-patient-report')).toHaveLength(0);
  expect(report.unmappedKeys).toEqual([]);
+});
+
+
+test('the server BPS mapper withholds unexpected emergency contact and administrative raw values even when inside a clinical section',()=>{
+ const secretName='CONFIDENTIAL_EMERGENCY_CONTACT_NAME';
+ const secretPhone='CONFIDENTIAL_EMERGENCY_CONTACT_PHONE';
+ const report=mapIntakeToBps({
+  emergency_contact_name:secretName,emergency_contact_phone:secretPhone,
+  counseling_reason:'Fictional presenting concern',guardian_relationship:'Parent'
+ });
+ const fields=report.sections.flatMap(section=>section.fields);
+ for(const [key,secret] of [['emergency_contact_name',secretName],['emergency_contact_phone',secretPhone]]){
+  const field=fields.find(item=>item.key===key);
+  expect(field?.reported).toBe(true);
+  expect(field?.sourceOnly).toBe(true);
+  expect(field?.value).toContain('protected source');
+  expect(JSON.stringify(report)).not.toContain(secret);
+ }
+ expect(fields.find(field=>field.key==='guardian_relationship')?.value).toBe('Parent');
+ expect(fields.find(field=>field.key==='counseling_reason')?.value).toBe('Fictional presenting concern');
+});
+
+test('BPS attestation comparisons preserve microseconds and normalize timezone offsets',()=>{
+ const receipt='2026-11-10T09:00:00.000001Z';
+ const equivalent='2026-11-10T03:00:00.000001-06:00';
+ const editedLater='2026-11-10T09:00:00.000002Z';
+ expect(equalBpsTimestampInstants(receipt,equivalent)).toBe(true);
+ expect(equalBpsTimestampInstants(receipt,editedLater)).toBe(false);
+ expect(equalBpsTimestampInstants('not-a-date',receipt)).toBe(false);
+ expect(validBpsSubmissionChronology('submitted',equivalent,receipt)).toBe(true);
+ expect(validBpsSubmissionChronology('submitted',editedLater,receipt)).toBe(false);
+ expect(validBpsSubmissionChronology('submitted',receipt,editedLater)).toBe(true);
+ // RFC3339 fractions may contain more than six digits; never truncate a
+ // later source edit to the same JavaScript millisecond as its attestation.
+ expect(validBpsSubmissionChronology('submitted',
+  '2026-11-10T09:00:00.000000001Z','2026-11-10T09:00:00Z')).toBe(false);
+ expect(validBpsSubmissionChronology('draft','2026-11-10T09:00:00.000002Z',null)).toBe(true);
+});
+
+test('unknown BPS field identities containing fictional private text are counted but never echoed',()=>{
+ const malformedName='FICTIONAL_PERSON 123-45-6789 confidential source';
+ const report=mapIntakeToBps({counseling_reason:'Reported concern',[malformedName]:'Reported response'});
+ expect(report.unmappedKeys).toEqual(['[unrecognized source field name withheld]']);
+ expect(JSON.stringify(report)).not.toContain(malformedName);
+ const history=mapSavedBpsReportedFields({counseling_reason:'Reported concern',[malformedName]:'Historical value'});
+ expect(history.unmappedKeys).toEqual(['[unrecognized source field name withheld]']);
+ expect(JSON.stringify(history)).not.toContain(malformedName);
+ // Schema-shaped unknown names can contain a patient's identity or policy
+ // number. Neither the current source nor saved-history readback may echo them.
+ const shapedName='fictional_patient_jane_doe_birthdate_19800101';
+ const shapedPolicy='insurance_member_fictional_policy_1234';
+ const shaped=mapIntakeToBps({unknown_form_field_1:'yes',
+  [shapedName]:'fictional report',[shapedPolicy]:'fictional report'});
+ expect(shaped.unmappedKeys).toEqual(Array(3).fill('[unrecognized source field name withheld]'));
+ expect(JSON.stringify(shaped)).not.toContain(shapedName);
+ expect(JSON.stringify(shaped)).not.toContain(shapedPolicy);
+ const saved=mapSavedBpsReportedFields({[shapedName]:'fictional report'});
+ expect(saved.unmappedKeys).toEqual(['[unrecognized source field name withheld]']);
+ expect(JSON.stringify(saved)).not.toContain(shapedName);
 });

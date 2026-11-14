@@ -15,8 +15,8 @@ const props=(id=patient,bps_page?:string)=>({searchParams:Promise.resolve({patie
 let lookup:ReturnType<typeof vi.fn>;
 beforeEach(()=>{
  vi.clearAllMocks();m.patientAccess.mockResolvedValue({});
- lookup=vi.fn(async()=>({data:{id:patient},error:null}));
- const query={select:vi.fn(),eq:vi.fn(),maybeSingle:lookup};query.select.mockReturnValue(query);query.eq.mockReturnValue(query);
+ lookup=vi.fn(async()=>({data:{id:patient,directory_deleted_at:null},error:null}));
+ const query={select:vi.fn(),eq:vi.fn(),is:vi.fn(),maybeSingle:lookup};query.select.mockReturnValue(query);query.eq.mockReturnValue(query);query.is.mockReturnValue(query);
  m.from.mockReturnValue(query);m.emrAccess.mockResolvedValue({supabase:{from:m.from}});
 });
 test('authorized linked central patient opens original BPS and 21-section source review',async()=>{
@@ -32,7 +32,9 @@ test('round-trip from original BPS preserves allowed clinical subpage without ac
  const markup=renderToStaticMarkup(await EmrBpsIntakePage(props(patient,'medical_substance')));
  expect(markup).toContain('bps_page=medical_substance');
  const unsafe=renderToStaticMarkup(await EmrBpsIntakePage(props(patient,'https://example.com')));
- expect(unsafe).not.toContain('bps_page=');
+ expect(unsafe).not.toContain('https://example.com');
+ expect(unsafe).toContain('bps_page=symptoms');
+ expect(unsafe).toContain('href="/emr/workspace?patient='+patient+'&amp;module=assessment&amp;section=assessment%3Abiopsychosocial">Return to the original biopsychosocial assessment</a>');
 });
 test('no MFA denies page before reading central patient',async()=>{
  m.emrAccess.mockResolvedValue(null);
@@ -48,6 +50,21 @@ test('missing or unlinked chart cannot render a different patient',async()=>{
  await expect(EmrBpsIntakePage(props())).rejects.toThrow('not-found');
 });
 
+test('a returned central chart ID must match the selected patient even if the database query was filtered',async()=>{
+ const anotherPatient='00000000-0000-4000-8000-000000000102';
+ lookup.mockResolvedValue({data:{id:anotherPatient,directory_deleted_at:null},error:null});
+ await expect(EmrBpsIntakePage(props())).rejects.toThrow('not-found');
+ const query=m.from.mock.results[0]?.value;
+ expect(query?.eq).toHaveBeenCalledWith('id',patient);
+});
+
+test('archived central chart cannot open clinician intake reconciliation',async()=>{
+ lookup.mockResolvedValue({data:{id:patient,directory_deleted_at:'2026-11-13T00:00:00Z'},error:null});
+ await expect(EmrBpsIntakePage(props())).rejects.toThrow('not-found');
+ const q=m.from.mock.results[0]?.value;
+ expect(q?.is).toHaveBeenCalledWith('directory_deleted_at',null);
+});
+
 test('login and MFA preserve the exact BPS patient and allowed subpage through clinician source review',async()=>{
  await EmrBpsIntakePage(props(patient,'medical_substance'));
  const returnTo='/emr/bps-intake?patient='+patient+'&bps_page=medical_substance';
@@ -58,4 +75,17 @@ test('login and MFA preserve the exact BPS patient and allowed subpage through c
  const unsafe=renderToStaticMarkup(await EmrBpsIntakePage(props(patient,'https://outside.example/path')));
  expect(unsafe).not.toContain('outside.example');
  expect(m.patientAccess).toHaveBeenLastCalledWith(true,'/emr/bps-intake?patient='+patient);
+});
+
+test('clinician reconciliation provides direct patient-scoped navigation to the original seven BPS forms without importing answers',async()=>{
+ const markup=renderToStaticMarkup(await EmrBpsIntakePage(props()));
+ expect(markup).toContain('Original seven-page biopsychosocial forms');
+ expect(markup).toContain('do not auto-copy questionnaire responses');
+ for(const key of ['symptoms','treatment_history','medications','family_origin',
+  'medical_substance','developmental_personal','trauma_history']){
+  const expected='patient='+patient+'&amp;module=assessment&amp;section=assessment%3Abiopsychosocial&amp;bps_page='+key;
+  expect(markup, 'Missing original form link '+key).toContain(expected);
+ }
+ expect((markup.match(/bps_page=/g)||[]).length).toBe(7);
+ expect(markup).not.toContain('patient=undefined');
 });

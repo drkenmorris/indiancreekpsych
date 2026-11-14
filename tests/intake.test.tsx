@@ -5,6 +5,7 @@ vi.mock('@/lib/supabase/client',()=>({createClient:()=>({auth:{mfa:{listFactors:
 import IntakeForm from '../app/patient/intake/IntakeForm';
 import SecurityClient from '../app/account/security/SecurityClient';
 import {validateIntake,IntakeAnswers,intakeSections} from '../lib/patient/intake';
+import {narrativeMayBeSkipped} from '../lib/patient/intake-progress';
 import {LEGAL_PACKET_VERSION} from '../lib/patient/legal-documents';
 import {safeNext} from '../lib/patient/redirect';
 const complete:IntakeAnswers={legal_routing_answers:JSON.stringify({version:'1.0.0',answers:{telehealth:'No',electronic:'No',minor:'No',representative:'No',release:'No',part2:'No',sud_notes:'No',psychotherapy_notes:'No'}}),full_name:'Test Person',date_of_birth:'1990-01-01',address:'1 Example St',city:'Example',state:'KS',postal_code:'66000',phone:'5550100',email:'test@example.com',insurance_coverage:'self-pay',counseling_reason:'Test concern',
@@ -20,6 +21,23 @@ const complete:IntakeAnswers={legal_routing_answers:JSON.stringify({version:'1.0
  information_accuracy:'Yes',electronic_signature_consent:'Yes',patient_signature:'Test Person',patient_signature_date:'2026-01-01'};
 beforeEach(()=>{vi.clearAllMocks();vi.spyOn(window,'scrollTo').mockImplementation(()=>{});});afterEach(()=>{cleanup();vi.restoreAllMocks();});
 test('incomplete drafts allowed, submission requires demographics and reason',()=>{expect(validateIntake({},false)).toBeNull();expect(validateIntake({},true)).toContain('Full legal name');expect(validateIntake(complete,true)).toBeNull();});
+test('required clinical narratives cannot be skipped using Not applicable, including direct submission validation',()=>{
+ expect(narrativeMayBeSkipped('counseling_reason',complete)).toBe(false);
+ expect(narrativeMayBeSkipped('counseling_goals',complete)).toBe(false);
+ expect(narrativeMayBeSkipped('prior_therapists',complete)).toBe(true);
+ expect(validateIntake({...complete,counseling_reason:'Not applicable'},true)).toContain('What brings you to counseling');
+ expect(validateIntake({...complete,counseling_goals:' Not applicable '},true)).toContain('What would you like to achieve');
+ expect(validateIntake({...complete,counseling_reason:'Fictional reason',counseling_goals:'Fictional goal'},true)).toBeNull();
+});
+test('all positive safety flags require actual details rather than a Not applicable marker',()=>{
+ for(const key of ['suicidal_thoughts_current','suicidal_plan_current','homicidal_thoughts_current','abuse_neglect_current','weapons_access']){
+  const patient={...complete,[key]:'Yes',violence_risk_details:'Not applicable'};
+  expect(narrativeMayBeSkipped('violence_risk_details',patient)).toBe(false);
+  expect(validateIntake(patient,true)).toContain('current safety concern');
+  expect(validateIntake({...patient,violence_risk_details:'Fictional clinician-directed safety details'},true)).toBeNull();
+ }
+ expect(narrativeMayBeSkipped('violence_risk_details',complete)).toBe(true);
+});
 test('unknown benefit amounts allowed; invalid percentages blocked',()=>{expect(validateIntake({...complete,coinsurance:'I don’t know'},true)).toBeNull();expect(validateIntake({...complete,coinsurance:'101'},true)).toContain('Coinsurance');expect(validateIntake({...complete,deductible:'-1'},true)).toContain('non-negative');});
 test('external and script redirects rejected',()=>{for(const url of ['//evil.test','javascript:alert(1)','/\\evil.test','/\nevil'])expect(safeNext(url)).toBe('/account');expect(safeNext('/patient/intake')).toBe('/patient/intake');});
 test('unfinished required pages block submission and redirect to the first incomplete page',()=>{

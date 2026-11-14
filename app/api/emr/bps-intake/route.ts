@@ -55,18 +55,41 @@ export async function GET(request:Request){
   const source=await linkedSource(ctx.supabase,id);
   if('code' in source)return reply({error:source.error},source.code);
   const report=mapIntakeToBps(source.intake.answers as Record<string,string>);
-  const {data:reviews,error}=await ctx.supabase.from('emr_bps_intake_reviews')
-   .select('id,patient_id,source_account_id,source_version,source_status,source_updated_at,clinical_answers,clinician_notes,reviewed,created_at')
-   .eq('patient_id',id).eq('source_account_id',source.patient.account_id)
-   // Fetch one extra row as an overflow sentinel. A truncated review history
-   // can hide an existing same-version review and mislead a clinician into
-   // attempting another save. Never claim full chart-history verification then.
-   .order('created_at',{ascending:false}).limit(21);
-  // A missing or malformed query result is NOT proof that this patient has no
-  // prior clinician reviews. Do not fabricate an empty history or allow an
-  // apparent first review when chart-history integrity is unverified.
-  if(error||!Array.isArray(reviews))return reply({error:'BPS review history unavailable or invalid; cannot verify prior clinician review.'},503);
-   if(reviews.length>20)return reply({error:'BPS review history exceeds the verified retrieval window; reopen the full protected clinical history before any additional review.'},409);
+  // An append-only review can be older than the default query row limit.
+  // Verify the COMPLETE patient-scoped history, including exact count and stable
+  // ordering across pages, before allowing another clinician review.
+  const reviewFields='id,patient_id,source_account_id,source_version,source_status,source_updated_at,clinical_answers,clinician_notes,reviewed,created_at';
+  const reviewPageSize=100,maxReviewRows=1000;
+  const reviews: Array<Record<string,any>>=[];
+  const seenReviewIds=new Set<string>();
+  let expectedReviewCount:number|null=null;
+  for(let offset=0;offset<maxReviewRows;offset+=reviewPageSize){
+   const {data:page,error,count}=await ctx.supabase.from('emr_bps_intake_reviews')
+    .select(reviewFields,{count:'exact'})
+    .eq('patient_id',id).eq('source_account_id',source.patient.account_id)
+    .order('created_at',{ascending:false}).order('id',{ascending:false})
+    .range(offset,offset+reviewPageSize-1);
+   // Never interpret an absent count or a truncated page as an empty history.
+   if(error||!Array.isArray(page)||page.length>reviewPageSize||
+    count===null||!Number.isSafeInteger(count)||count<0)
+    return reply({error:'BPS review history unavailable or invalid; cannot verify prior clinician review.'},503);
+   if(count>maxReviewRows)
+    return reply({error:'BPS review history exceeds the 1,000-row verified retrieval cap; use the full protected clinical history before additional review.'},409);
+   if(expectedReviewCount!==null&&count!==expectedReviewCount)
+    return reply({error:'BPS review history changed during retrieval; reopen the chart before clinical review.'},409);
+   expectedReviewCount=count;
+   for(const row of page){
+    if(!row||typeof row!=='object'||!uuid(row.id)||seenReviewIds.has(row.id))
+     return reply({error:'BPS review history contains a repeated or invalid review identity; reopen the chart.'},409);
+    seenReviewIds.add(row.id);reviews.push(row);
+   }
+   if(reviews.length===expectedReviewCount)break;
+   // A partial page before the expected last row means omitted history.
+   if(page.length!==reviewPageSize)
+    return reply({error:'BPS review history retrieval was truncated; reopen the protected chart.'},409);
+  }
+  if(expectedReviewCount===null||reviews.length!==expectedReviewCount)
+   return reply({error:'BPS review history was not retrieved completely; reopen the protected chart.'},409);
   // A central chart may be relinked to another website account. Never display historical
   // snapshots from the former account under the newly linked patient's clinical source.
   if((reviews??[]).some(review=>review.patient_id!==id||review.source_account_id!==source.patient.account_id))

@@ -26,7 +26,10 @@ beforeEach(()=>{
  m.from.mockImplementation((table:string)=>{
   if(table==='clinical_patients'){const q={select:()=>q,eq:vi.fn(()=>q),is:vi.fn(()=>q),maybeSingle:async()=>({data:{id:returnedPatientId,account_id:linked,directory_deleted_at:directoryDeletedAt},error:null})};return q;}
   if(table==='patient_intakes'){const q={select:()=>q,eq:vi.fn(()=>q),maybeSingle:async()=>({data:{patient_id:returnedIntakeAccountId,answers:data,status:intakeStatus,version,updated_at:intakeUpdatedAt,submitted_at:intakeSubmittedAt},error:null})};return q;}
-  if(table==='emr_bps_intake_reviews'){const q={select:()=>q,eq:vi.fn(()=>q),order:()=>q,limit:vi.fn(async()=>({data:historyResultOverride===undefined?reviewRows:historyResultOverride,error:null}))};return q;}
+  if(table==='emr_bps_intake_reviews'){const q={select:()=>q,eq:vi.fn(()=>q),order:()=>q,
+    range:vi.fn(async(start:number,end:number)=>({data:historyResultOverride===undefined?
+      reviewRows.slice(start,end+1):typeof historyResultOverride==='function'?
+      historyResultOverride(start,end):historyResultOverride,count:reviewRows.length,error:null}))};return q;}
   throw Error('Unexpected '+table);
  });
  m.access.mockResolvedValue({supabase:{from:m.from,rpc:m.rpc}});
@@ -371,28 +374,80 @@ test('missing or malformed review-history results cannot masquerade as an empty 
  }
 });
 
-test('BPS review API never treats a truncated 21-row history as proof of no prior reviews',async()=>{
-  version=30;
-  const confidential='PRIVATE_FICTIONAL_OVERFLOW_HISTORY';
-  reviewRows=Array.from({length:21},(_,index)=>({
-    id:'00000000-0000-0000-0000-'+String(600+index).padStart(12,'0'),
-    patient_id:patient,source_account_id:account,
-    source_version:index+1,source_status:'draft',source_updated_at:stamp,created_at:stamp,
-    reviewed:true,clinical_answers:{counseling_reason:confidential},clinician_notes:{presenting:'Fictional saved note'}
+test('complete 221-row BPS history is retrieved in patient-scoped exact-count pages',async()=>{
+  version=300;
+  const confidential='PRIVATE_FICTIONAL_PAGED_HISTORY';
+  reviewRows=Array.from({length:221},(_,index)=>({
+   id:'00000000-0000-0000-0000-'+String(600+index).padStart(12,'0'),
+   patient_id:patient,source_account_id:account,
+   source_version:index+1,source_status:'draft',source_updated_at:stamp,created_at:stamp,
+   reviewed:true,clinical_answers:{counseling_reason:confidential},clinician_notes:{presenting:'Fictional note'}
   }));
-  const overflow=await GET(request());
-  expect(overflow.status).toBe(409);
-  expect(overflow.headers.get('Cache-Control')).toContain('no-store');
-  expect(JSON.stringify(await overflow.json())).not.toContain(confidential);
-  const q=m.from.mock.results.find((entry:any)=>entry.value?.limit)?.value;
-  expect(q.limit).toHaveBeenCalledWith(21);
-  // A fully retrieved 20-row history is still readable, with source provenance.
-  reviewRows=reviewRows.slice(0,20);
-  const withinWindow=await GET(request());
-  expect(withinWindow.status).toBe(200);
-  const packet=await withinWindow.json();
-  expect(packet.reviews).toHaveLength(20);
-  expect(packet.reviews.every((entry:any)=>entry.reviewed===true)).toBe(true);
+  const response=await GET(request());
+  expect(response.status).toBe(200);
+  const packet=await response.json();
+  expect(packet.reviews).toHaveLength(221);
+  expect(new Set(packet.reviews.map((row:any)=>row.id)).size).toBe(221);
+  expect(packet.reviews.every((row:any)=>row.reviewed===true)).toBe(true);
+  const queries=m.from.mock.results.filter((r:any)=>r.value?.range).map((r:any)=>r.value);
+  expect(queries).toHaveLength(3);
+  expect(queries[0].range).toHaveBeenCalledWith(0,99);
+  expect(queries[1].range).toHaveBeenCalledWith(100,199);
+  expect(queries[2].range).toHaveBeenCalledWith(200,299);
+  for(const q of queries){
+   expect(q.eq).toHaveBeenCalledWith('patient_id',patient);
+   expect(q.eq).toHaveBeenCalledWith('source_account_id',account);
+  }
+});
+
+test('history above 1,000 verified records is not partially disclosed or treated as complete',async()=>{
+  version=1200;
+  const confidential='PRIVATE_FICTIONAL_OVERFLOW_HISTORY';
+  reviewRows=Array.from({length:1001},(_,index)=>({
+   id:'00000000-0000-0000-0000-'+String(600+index).padStart(12,'0'),
+   patient_id:patient,source_account_id:account,
+   source_version:index+1,source_status:'draft',source_updated_at:stamp,created_at:stamp,
+   reviewed:true,clinical_answers:{counseling_reason:confidential},clinician_notes:{}
+  }));
+  const response=await GET(request());
+  expect(response.status).toBe(409);
+  expect(response.headers.get('Cache-Control')).toContain('no-store');
+  expect(JSON.stringify(await response.json())).not.toContain(confidential);
+  expect(m.from.mock.results.filter((r:any)=>r.value?.range)).toHaveLength(1);
+});
+
+test('duplicate review identities across pages fail closed without releasing historical PHI',async()=>{
+  version=300;
+  const confidential='PRIVATE_FICTIONAL_DUPLICATE_HISTORY';
+  reviewRows=Array.from({length:201},(_,index)=>({
+   id:'00000000-0000-0000-0000-'+String(600+index).padStart(12,'0'),
+   patient_id:patient,source_account_id:account,
+   source_version:index+1,source_status:'draft',source_updated_at:stamp,created_at:stamp,
+   reviewed:true,clinical_answers:{counseling_reason:confidential},clinician_notes:{}
+  }));
+  historyResultOverride=(start:number,end:number)=>{
+   const rows=reviewRows.slice(start,end+1);
+   if(start===100)rows[0]=reviewRows[99];
+   return rows;
+  };
+  const response=await GET(request());
+  expect(response.status).toBe(409);
+  expect(JSON.stringify(await response.json())).not.toContain(confidential);
+});
+
+test('partial review page is rejected when the exact count shows missing reviews',async()=>{
+  version=300;
+  const confidential='PRIVATE_FICTIONAL_TRUNCATED_HISTORY';
+  reviewRows=Array.from({length:120},(_,index)=>({
+   id:'00000000-0000-0000-0000-'+String(600+index).padStart(12,'0'),
+   patient_id:patient,source_account_id:account,
+   source_version:index+1,source_status:'draft',source_updated_at:stamp,created_at:stamp,
+   reviewed:true,clinical_answers:{counseling_reason:confidential},clinician_notes:{}
+  }));
+  historyResultOverride=(start:number,end:number)=>reviewRows.slice(start,Math.min(end+1,start+50));
+  const response=await GET(request());
+  expect(response.status).toBe(409);
+  expect(JSON.stringify(await response.json())).not.toContain(confidential);
 });
 
 test('active medication history and structured medication records never leak through the clinical BPS review API',async()=>{

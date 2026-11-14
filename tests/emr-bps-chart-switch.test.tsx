@@ -93,6 +93,7 @@ test.each([
  'non-string patient response',
  'unsupported section routing',
  'impossible answered field count',
+ 'duplicate source field identities',
  'malformed unmapped source audit'
 ])('clinician BPS never renders source PHI or offers save for %s',async(variant)=>{
  const patient='00000000-0000-4000-8000-000000000851';
@@ -113,6 +114,10 @@ test.each([
  }];
  if(variant==='unsupported section routing')sections[0].disposition='legal-consent';
  if(variant==='impossible answered field count')sections[0].answered=99;
+ if(variant==='duplicate source field identities')sections[1].fields.push({
+  key:'counseling_reason',label:'Conflicting duplicate patient statement',
+  type:'text',sourceOnly:false,reported:true,value:'PRIVATE_DUPLICATE_FICTIONAL_REPORT'
+ });
  if(variant==='malformed unmapped source audit')unmappedKeys=['ok',{secret:'PRIVATE_AUDIT_PHI'}];
  let posts=0;
  vi.stubGlobal('fetch',vi.fn(async(_url:string,options?:RequestInit)=>{
@@ -124,6 +129,7 @@ test.each([
  const alert=await screen.findByRole('alert');
  expect(alert.textContent).toContain('21-section intake mapping is malformed');
  expect(document.body.textContent).not.toContain('PRIVATE_FICTIONAL_SOURCE_MUST_NOT_RENDER');
+ expect(document.body.textContent).not.toContain('PRIVATE_DUPLICATE_FICTIONAL_REPORT');
  expect(document.body.textContent).not.toContain('PRIVATE_NESTED_PHI');
  expect(document.body.textContent).not.toContain('PRIVATE_AUDIT_PHI');
  expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();

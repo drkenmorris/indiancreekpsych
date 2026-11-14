@@ -111,7 +111,9 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
     Number.isSafeInteger(review.source_version)&&Number(review.source_version)>=1&&
     (review.source_status==='draft'||review.source_status==='submitted')&&
     validBpsTimestamp(review.source_updated_at)&&validBpsTimestamp(review.created_at)&&
-    validBpsReviewChronology(review.source_updated_at,review.created_at)&&
+    validBpsReviewChronology(review.source_updated_at,review.created_at,
+      review.source_version===source.version&&review.source_status==='submitted'
+       ?source.submittedAt:undefined)&&
     validBpsHistoricalSourceBoundary(review.source_version,review.source_status,review.source_updated_at,
      source.version,source.status,source.updatedAt)&&
     !!review.clinical_answers&&typeof review.clinical_answers==='object'&&!Array.isArray(review.clinical_answers)&&

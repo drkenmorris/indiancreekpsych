@@ -16,6 +16,9 @@ export default function CalendarClient({timezone,duration,onBook}:{timezone:stri
  const [edit,setEdit]=useState({date:'',time:'',name:'',scope:'one'});
  const [editError,setEditError]=useState(''); const [confirmCancel,setConfirmCancel]=useState(false);
  const heading=useRef<HTMLHeadingElement>(null); const request=useRef(0);
+ // A repeated save or cancellation can arrive before React paints the busy state.
+ // Protect the actual appointment mutation, not merely its disabled button.
+ const mutationInFlight=useRef(false);
  const load=useCallback(async()=>{
    const version=++request.current; setLoading(true);setError('');
    const range=monthQueryRange(month);
@@ -38,7 +41,8 @@ export default function CalendarClient({timezone,duration,onBook}:{timezone:stri
  appointments.forEach(a=>{const day=localParts(a.starts_at,timezone).date;if(!day.startsWith(month))return;groups.set(day,[...(groups.get(day)??[]),a]);});
  function open(a:CalendarAppointment){const local=localParts(a.starts_at,timezone);setSelected(a);setEdit({...local,name:name(a),scope:'one'});setEditError('');setConfirmCancel(false);setNotice('');}
  async function change(action:'save'|'cancel') {
-   if(!selected||busy)return;setBusy(true);setEditError('');
+   if(!selected||busy||mutationInFlight.current)return;
+   mutationInFlight.current=true;setBusy(true);setEditError('');
    try {
      const {data,error:saveError}=await supabase.rpc('edit_calendar_appointments',{
        p_id:selected.id,p_expected_start:selected.starts_at,p_date:edit.date,p_time:edit.time,
@@ -51,7 +55,7 @@ export default function CalendarClient({timezone,duration,onBook}:{timezone:stri
      setSelected(null);setNotice(`${data} appointment${data===1?'':'s'} ${action==='save'?'updated':'cancelled'}. Adjacent openings have been recalculated.`);
      if(action==='save'&&edit.date.slice(0,7)!==month)setMonth(edit.date.slice(0,7)); else await load();
    } catch(e){setEditError((e as {message?:string})?.message??'The change could not be confirmed. Refresh before retrying.');}
-   finally{setBusy(false);setConfirmCancel(false);}
+   finally{mutationInFlight.current=false;setBusy(false);setConfirmCancel(false);}
  }
  function save(e:FormEvent){e.preventDefault();void change('save');}
  const past=selected?Date.parse(selected.starts_at)<=Date.now():false;

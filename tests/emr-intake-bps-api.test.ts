@@ -124,6 +124,22 @@ test('a submitted linked BPS intake requires a verified source submission receip
  expect(submitted.source.updatedAt).toBe(stamp);
 });
 
+test('submitted BPS source edited after its attestation cannot be disclosed as immutable or reviewed',async()=>{
+ data={counseling_reason:'PRIVATE_FICTIONAL_POST_SUBMISSION_EDIT'};
+ intakeStatus='submitted';intakeUpdatedAt='2026-11-10T09:00:01Z';intakeSubmittedAt=stamp;
+ const rejected=await GET(request());
+ expect(rejected.status).toBe(409);
+ expect(rejected.headers.get('Cache-Control')).toContain('no-store');
+ expect(JSON.stringify(await rejected.json())).not.toContain('PRIVATE_FICTIONAL_POST_SUBMISSION_EDIT');
+ expect(m.from).not.toHaveBeenCalledWith('emr_bps_intake_reviews');
+ // Matching instants with different timezone offsets are valid receipts.
+ intakeUpdatedAt='2026-11-10T03:00:00-06:00';
+ const equalInstant=await GET(request());expect(equalInstant.status).toBe(200);
+ // A source update followed by a later attestation is also valid.
+ intakeUpdatedAt=stamp;intakeSubmittedAt='2026-11-10T09:01:00Z';
+ const submittedLater=await GET(request());expect(submittedLater.status).toBe(200);
+});
+
 test('malformed linked JSONB answers cannot impersonate an empty but valid 21-section clinical intake',async()=>{
  const safe={...data,counseling_reason:'PRIVATE_FICTIONAL_STATEMENT'};
  const invalidSources:unknown[]=[

@@ -1,5 +1,5 @@
 import {afterEach,beforeEach,expect,test,vi} from 'vitest';
-import {cleanup,fireEvent,render,screen} from '@testing-library/react';
+import {act,cleanup,fireEvent,render,screen} from '@testing-library/react';
 import {localParts,shiftMonth} from '@/lib/scheduling/calendar';
 import CalendarClient from '@/app/appointments/calendar/CalendarClient';
 
@@ -22,14 +22,20 @@ function prepare(receipt:unknown){
   data:name==='scheduling_patients'?[]:receipt,error:null
  })}));
 }
-async function openFutureRecurringBooking(){
+async function openFutureRecurringEditor(){
  render(<CalendarClient timezone={timezone} duration={50}/>);
  fireEvent.click(screen.getByRole('button',{name:'Next month'}));
  const open=await screen.findByRole('button',{name:/Synthetic Scheduling Patient/});
  fireEvent.click(open);
  expect(screen.getByLabelText('Apply to')).toBeTruthy();
  fireEvent.change(screen.getByLabelText('Apply to'),{target:{value:'future'}});
- fireEvent.click(screen.getByRole('button',{name:'Save changes'}));
+ const form=screen.getByLabelText('Apply to').closest('form');
+ expect(form).not.toBeNull();
+ return form!;
+}
+async function openFutureRecurringBooking(){
+ const form=await openFutureRecurringEditor();
+ fireEvent.submit(form);
 }
 beforeEach(()=>vi.clearAllMocks());
 afterEach(()=>cleanup());
@@ -48,4 +54,41 @@ test('positive calendar edit receipt confirms affected recurring occurrences',as
  await openFutureRecurringBooking();
  await screen.findByText('2 appointments updated. Adjacent openings have been recalculated.');
  expect(screen.queryByText(/Appointment change was not confirmed/)).toBeNull();
+});
+
+test('two edit submit events in one render batch create only one pending recurring-series write',async()=>{
+ prepare(2);
+ let finish!:(result:{data:number;error:null})=>void;
+ const pending=new Promise<{data:number;error:null}>(resolve=>{finish=resolve;});
+ m.rpc.mockImplementation((name:string)=>({
+  abortSignal:()=>name==='scheduling_patients'?Promise.resolve({data:[],error:null}):pending
+ }));
+ const form=await openFutureRecurringEditor();
+ // Batched submits reproduce a repeat before React can render disabled controls.
+ act(()=>{fireEvent.submit(form);fireEvent.submit(form);});
+ const mutations=m.rpc.mock.calls.filter(([name])=>name==='edit_calendar_appointments');
+ expect(mutations).toHaveLength(1);
+ expect(mutations[0][1]).toEqual(expect.objectContaining({p_scope:'future',p_action:'save'}));
+ finish({data:2,error:null});
+ await screen.findByText('2 appointments updated. Adjacent openings have been recalculated.');
+ expect(m.rpc.mock.calls.filter(([name])=>name==='edit_calendar_appointments')).toHaveLength(1);
+});
+
+test('confirmation and simultaneous edit submit cannot execute competing cancellation and save',async()=>{
+ prepare(2);
+ let finish!:(result:{data:number;error:null})=>void;
+ const pending=new Promise<{data:number;error:null}>(resolve=>{finish=resolve;});
+ m.rpc.mockImplementation((name:string)=>({
+  abortSignal:()=>name==='scheduling_patients'?Promise.resolve({data:[],error:null}):pending
+ }));
+ const form=await openFutureRecurringEditor();
+ fireEvent.click(screen.getByRole('button',{name:'Cancel appointment'}));
+ const confirm=screen.getByRole('button',{name:'Confirm cancellation'});
+ act(()=>{fireEvent.click(confirm);fireEvent.submit(form);});
+ const mutations=m.rpc.mock.calls.filter(([name])=>name==='edit_calendar_appointments');
+ expect(mutations).toHaveLength(1);
+ expect(mutations[0][1]).toEqual(expect.objectContaining({p_scope:'future',p_action:'cancel'}));
+ finish({data:2,error:null});
+ await screen.findByText('2 appointments cancelled. Adjacent openings have been recalculated.');
+ expect(m.rpc.mock.calls.filter(([name])=>name==='edit_calendar_appointments')).toHaveLength(1);
 });

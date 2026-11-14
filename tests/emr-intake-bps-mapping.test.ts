@@ -1,6 +1,17 @@
 import {expect,test} from 'vitest';
 import {intakeSections,intakeSectionsForVersion,retiredMentalHealthFields,retiredContextFields} from '@/lib/patient/intake';
-import {bpsNoteDomains,bpsSectionClassification,mapIntakeToBps,mapSavedBpsReportedFields,sanitizeBpsSnapshotAnswers,bpsSnapshotClinicalKeys,bpsVisibleSourceKeys,distinctBpsQuestionIdentities,equalBpsTimestampInstants,validBpsSubmissionChronology} from '@/lib/emr/intake-bps';
+import {bpsNoteDomains,bpsSectionClassification,mapIntakeToBps,mapSavedBpsReportedFields,sanitizeBpsSnapshotAnswers,bpsSnapshotClinicalKeys,bpsVisibleSourceKeys,distinctBpsQuestionIdentities,equalBpsTimestampInstants,validBpsSubmissionChronology,validBpsHistoricalSourceBoundary} from '@/lib/emr/intake-bps';
+test('BPS review source boundary rejects future revisions and a same-version source rewritten without a new attestation',()=>{
+ const current='2026-11-12T12:00:00Z';
+ const match=(version:number,status:string,at:string)=>validBpsHistoricalSourceBoundary(version,status,at,3,'submitted',current);
+ expect(match(3,'submitted','2026-11-12T06:00:00-06:00')).toBe(true);
+ expect(match(2,'draft','2026-11-11T12:00:00Z')).toBe(true);
+ expect(match(4,'submitted',current)).toBe(false);
+ expect(match(3,'draft',current)).toBe(false);
+ expect(match(3,'submitted','2026-11-12T11:59:59Z')).toBe(false);
+ expect(match(3,'submitted','2026-11-12T12:00:00.000001Z')).toBe(false);
+ expect(match(2,'draft','2026-11-12T12:00:00.000001Z')).toBe(false);
+});
 test('all 21 current and historical sections receive deliberate BPS dispositions',()=>{
  for(const sections of [intakeSections,intakeSectionsForVersion('legacy')]){
   expect(sections).toHaveLength(21);

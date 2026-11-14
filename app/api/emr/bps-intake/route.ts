@@ -1,7 +1,7 @@
 import {NextResponse} from 'next/server';
 import {emrAccess,privateHeaders,sameOrigin} from '@/lib/emr/access';
 import {uuid} from '@/lib/emr/demographics';
-import {bpsNoteDomains,mapIntakeToBps,sanitizeBpsClinicianNotes,sanitizeBpsSnapshotAnswers,validBpsTimestamp,validBpsSubmissionChronology,validBpsReviewChronology,validBpsHistoricalSourceBoundary,recognizedBpsQuestionnaireVersion} from '@/lib/emr/intake-bps';
+import {bpsNoteDomains,mapIntakeToBps,sanitizeBpsClinicianNotes,sanitizeBpsSnapshotAnswers,validBpsTimestamp,validBpsSubmissionChronology,validBpsReviewChronology,validBpsHistoricalSourceBoundary,recognizedBpsQuestionnaireVersion,bpsTimestampInstantNanoseconds} from '@/lib/emr/intake-bps';
 export const dynamic='force-dynamic';
 const reply=(data:unknown,status=200)=>NextResponse.json(data,{status,headers:privateHeaders});
 const sourceFields='patient_id,answers,status,version,updated_at,submitted_at';
@@ -62,6 +62,10 @@ export async function GET(request:Request){
   const reviewPageSize=100,maxReviewRows=1000;
   const reviews: Array<Record<string,any>>=[];
   const seenReviewIds=new Set<string>();
+  // Count and unique IDs alone do not prove page continuity: a stale or
+  // incorrectly ordered page may silently omit an older clinician review.
+  // Verify the exact descending (created_at, id) cursor order promised by SQL.
+  let previousReviewInstant:bigint|null=null,previousReviewId='';
   let expectedReviewCount:number|null=null;
   for(let offset=0;offset<maxReviewRows;offset+=reviewPageSize){
    const {data:page,error,count}=await ctx.supabase.from('emr_bps_intake_reviews')
@@ -81,6 +85,12 @@ export async function GET(request:Request){
    for(const row of page){
     if(!row||typeof row!=='object'||!uuid(row.id)||seenReviewIds.has(row.id))
      return reply({error:'BPS review history contains a repeated or invalid review identity; reopen the chart.'},409);
+    const instant=bpsTimestampInstantNanoseconds(row.created_at);
+    const rowId=row.id.toLowerCase();
+    if(instant===null||(previousReviewInstant!==null&&
+      (instant>previousReviewInstant||(instant===previousReviewInstant&&rowId>=previousReviewId))))
+     return reply({error:'BPS review history ordering could not be verified; reopen the chart before clinical review.'},409);
+    previousReviewInstant=instant;previousReviewId=rowId;
     seenReviewIds.add(row.id);reviews.push(row);
    }
    if(reviews.length===expectedReviewCount)break;

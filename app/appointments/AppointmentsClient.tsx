@@ -4,7 +4,7 @@ import FirewallCheck from "./FirewallCheck";
 import CalendarClient from "./calendar/CalendarClient";
 import MonthSchedule from "./calendar/MonthSchedule";
 import { localParts, practiceWallTimeToIso } from "@/lib/scheduling/calendar";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 type AccountType = "guest" | "patient" | "admin";
@@ -34,6 +34,9 @@ export default function AppointmentsClient({userId,accountType,preferredName,ini
   const [booking,setBooking]=useState({patient_id:"",patient_name:"",first_date:"",start_time:"10:00",repeat_weeks:0,through:""});
   const [message,setMessage]=useState("");
   const [busy,setBusy]=useState(false);
+  // Prevent two in-flight appointment-series RPCs even if the submit event is
+  // delivered twice before React has painted the disabled submit button.
+  const bookingInFlight=useRef(false);
   const [editingRuleId,setEditingRuleId]=useState<string|null>(null);
   const [rule,setRule]=useState({weekday:1,start_time:"09:00",end_time:"17:00",anchor_time:""});
   const [block,setBlock]=useState(()=>{const nextHour=Math.ceil(Date.now()/3600000)*3600000;return{starts_at:practiceDateInput(new Date(nextHour).toISOString(),practiceTimezone),ends_at:practiceDateInput(new Date(nextHour+3600000).toISOString(),practiceTimezone),label:""};});
@@ -41,7 +44,10 @@ export default function AppointmentsClient({userId,accountType,preferredName,ini
   const loadSlots=async()=>{setRevision(v=>v+1);};
   useEffect(()=>{if(accountType==="admin")void (async()=>{const {data,error}=await supabase.rpc("scheduling_patients").abortSignal(AbortSignal.timeout(15000));if(error)setPatientError("Patient list could not be loaded. Refresh the page or contact support.");else setPatients((data??[]) as Patient[]);setPatientsLoading(false);})();},[]);
   const bookForPatient=async(e:FormEvent)=>{
-    e.preventDefault();setBusy(true);setBookingMessage("");
+    e.preventDefault();
+    if(bookingInFlight.current||busy)return;
+    bookingInFlight.current=true;
+    setBusy(true);setBookingMessage("");
     try {
       const {data,error}=await supabase.rpc("book_patient_appointments",{p_patient_id:booking.patient_id||null,p_patient_name:booking.patient_id?null:booking.patient_name,p_first_date:booking.first_date,p_start_time:booking.start_time,p_repeat_weeks:booking.repeat_weeks,p_through:booking.repeat_weeks===0?booking.first_date:booking.through}).abortSignal(AbortSignal.timeout(20000));
       if(error)throw error;
@@ -51,7 +57,7 @@ export default function AppointmentsClient({userId,accountType,preferredName,ini
       if(!Number.isSafeInteger(data)||data<1)throw new Error('Booking was not confirmed. Refresh the calendar to check the schedule before retrying.');
       setBookingMessage(`${data} appointment${data===1?"":"s"} booked. Adjacent openings updated.`);
       await loadSlots();
-    }catch(error){setBookingMessage(error instanceof Error?error.message:(error as {message?:string})?.message??"Booking could not be confirmed. Refresh the schedule before retrying.");}finally{setBusy(false);}
+    }catch(error){setBookingMessage(error instanceof Error?error.message:(error as {message?:string})?.message??"Booking could not be confirmed. Refresh the schedule before retrying.");}finally{bookingInFlight.current=false;setBusy(false); }
   };
 
   const saveSettings=async(e:FormEvent)=>{

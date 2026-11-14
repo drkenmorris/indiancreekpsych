@@ -107,7 +107,8 @@ export function mapIntakeToBps(answers:Record<string,string>){
   return {title:section.title,domain:rule.domain,disposition:rule.disposition,fields,
    answered:fields.filter(field=>field.reported).length};
  });
- if(sections.length!==21)throw Error('The expected 21-section intake structure has changed. Review the source mapping.');
+ if(sections.length!==21||new Set(sections.map(section=>section.title)).size!==21)
+  throw Error('The expected 21 distinct intake sections have changed. Review the source mapping.');
  const mapped=new Set(sections.flatMap(s=>s.fields.map(f=>f.key)));
  const unmappedKeys=Object.keys(answers).filter(key=>!mapped.has(key)&&typeof answers[key]==='string'&&answers[key].trim());
  return {sections,unmappedKeys};

@@ -253,7 +253,7 @@ test('saved BPS history cannot follow a relinked patient account or cross into a
  expect(safe.clinical_answers).toEqual({counseling_reason:'Patient-reported history'});
  expect(safe.excluded_clinical_fields).toBe(4);
  expect(JSON.stringify(safe)).not.toContain('Do not disclose');
- const reviewQuery=m.from.mock.results.find((r:any)=>r.value?.limit)?.value;
+ const reviewQuery=m.from.mock.results.find((r:any)=>r.value?.range)?.value;
  expect(reviewQuery?.eq).toHaveBeenCalledWith('patient_id',patient);
  expect(reviewQuery?.eq).toHaveBeenCalledWith('source_account_id',account);
  // Fail closed even if a downstream database response violates the intended scope.

@@ -60,10 +60,10 @@ test('fictional 21-section linked intake traverses the protected BPS API, clinic
      }
      throw Error('Unexpected single-row table '+table);
     },
-    limit:async()=>{
+    range:async(from:number,to:number)=>{
      if(table!=='emr_bps_intake_reviews')throw Error('Unexpected review query');
      const selected=reviews.filter(row=>record.filters.every(([key,value])=>row[key]===value));
-     return {data:selected,error:null};
+     return {data:selected.slice(from,to+1),count:selected.length,error:null};
     }
    };
    return query;

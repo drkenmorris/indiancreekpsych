@@ -39,10 +39,10 @@ test('clinician reconciliation independently withholds separate, structured, ref
    {key:'legal_history',label:'Retired legal history spoof',type:'historical-patient-report',reported:true,sourceOnly:false,value:'DO_NOT_LEAK_RETIRED_LEGAL'},
    {key:'medication_entries',label:'Structured medication',type:'medications',reported:true,sourceOnly:false,value:'DO_NOT_LEAK_STRUCTURED'},
    {key:'unmarked',label:'Unmarked historical data',type:'text',reported:true,value:'DO_NOT_LEAK_UNMARKED'}]:
-   i===1?[{key:'roi_authorize',label:'Authorization',type:'text',reported:true,sourceOnly:false,value:'DO_NOT_LEAK_LEGAL'}]:
-   i===2?[{key:'insurance_member',label:'Coverage',type:'text',reported:true,sourceOnly:false,value:'DO_NOT_LEAK_INSURANCE'}]:
-    i===3?[{key:'counseling_reason',label:'Falsely marked unreported',type:'text',reported:false,sourceOnly:false,value:'DO_NOT_LEAK_FALSE_REPORTED'}]:
-    i===4?[{key:'counseling_reason',label:'Missing patient-report attestation',type:'text',sourceOnly:false,value:'DO_NOT_LEAK_MISSING_REPORTED'}]:[]
+   i===1?[{key:'roi_signature',label:'Authorization',type:'text',reported:true,sourceOnly:false,value:'DO_NOT_LEAK_LEGAL'}]:
+   i===2?[{key:'insurance_policy_number',label:'Coverage',type:'text',reported:true,sourceOnly:false,value:'DO_NOT_LEAK_INSURANCE'}]:
+    i===3?[{key:'counseling_goals',label:'Falsely marked unreported',type:'text',reported:false,sourceOnly:false,value:'DO_NOT_LEAK_FALSE_REPORTED'}]:
+    i===4?[{key:'prior_mental_health_treatment',label:'Missing patient-report attestation',type:'text',sourceOnly:false,value:'DO_NOT_LEAK_MISSING_REPORTED'}]:[]
  }));
  vi.stubGlobal('fetch',vi.fn(async()=>Response.json({patientId:id,source:{accountId:id,status:'submitted',version:2,updatedAt:'2026-11-11T12:00:00Z',submittedAt:'2026-11-11T12:00:00Z'},sections,unmappedKeys:[],reviews:[]})));
  render(<PatientBpsIntakeReview patientId={id}/>);
@@ -94,6 +94,7 @@ test.each([
  'unsupported section routing',
  'impossible answered field count',
  'duplicate source field identities',
+ 'cross-section duplicate source field identities',
  'malformed unmapped source audit'
 ])('clinician BPS never renders source PHI or offers save for %s',async(variant)=>{
  const patient='00000000-0000-4000-8000-000000000851';
@@ -118,6 +119,10 @@ test.each([
   key:'counseling_reason',label:'Conflicting duplicate patient statement',
   type:'text',sourceOnly:false,reported:true,value:'PRIVATE_DUPLICATE_FICTIONAL_REPORT'
  });
+ if(variant==='cross-section duplicate source field identities')sections[0].fields.push({
+  key:'counseling_reason',label:'Forged second section for same source question',
+  type:'text',sourceOnly:false,reported:true,value:'PRIVATE_CROSS_SECTION_FICTIONAL_REPORT'
+ });
  if(variant==='malformed unmapped source audit')unmappedKeys=['ok',{secret:'PRIVATE_AUDIT_PHI'}];
  let posts=0;
  vi.stubGlobal('fetch',vi.fn(async(_url:string,options?:RequestInit)=>{
@@ -130,6 +135,7 @@ test.each([
  expect(alert.textContent).toContain('21-section intake mapping is malformed');
  expect(document.body.textContent).not.toContain('PRIVATE_FICTIONAL_SOURCE_MUST_NOT_RENDER');
  expect(document.body.textContent).not.toContain('PRIVATE_DUPLICATE_FICTIONAL_REPORT');
+ expect(document.body.textContent).not.toContain('PRIVATE_CROSS_SECTION_FICTIONAL_REPORT');
  expect(document.body.textContent).not.toContain('PRIVATE_NESTED_PHI');
  expect(document.body.textContent).not.toContain('PRIVATE_AUDIT_PHI');
  expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();

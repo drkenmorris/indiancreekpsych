@@ -54,7 +54,11 @@ export async function GET(request:Request){
  try{
   const source=await linkedSource(ctx.supabase,id);
   if('code' in source)return reply({error:source.error},source.code);
-  const report=mapIntakeToBps(source.intake.answers as Record<string,string>);
+  // Freeze the response's answer set before asynchronous history reads.
+  // An out-of-band edit can alter answers without advancing source metadata.
+  // Metadata-only rereads must not certify stale clinical source text.
+  const originalAnswers={...(source.intake.answers as Record<string,string>)};
+  const report=mapIntakeToBps(originalAnswers);
   // An append-only review can be older than the default query row limit.
   // Verify the COMPLETE patient-scoped history, including exact count and stable
   // ordering across pages, before allowing another clinician review.
@@ -126,7 +130,12 @@ export async function GET(request:Request){
   // Re-read both protected scopes immediately before returning any patient text.
   // Do not release an earlier account's clinical report under a new chart link.
   const stable=await linkedSource(ctx.supabase,id);
-  if('code' in stable||stable.patient.account_id!==source.patient.account_id||
+  const stableAnswers='code' in stable?null:stable.intake.answers as Record<string,string>;
+  const originalAnswerKeys=Object.keys(originalAnswers);
+  const answersUnchanged=!!stableAnswers&&Object.keys(stableAnswers).length===originalAnswerKeys.length&&
+   originalAnswerKeys.every(key=>Object.prototype.hasOwnProperty.call(stableAnswers,key)&&
+    stableAnswers[key]===originalAnswers[key]);
+  if(!answersUnchanged||'code' in stable||stable.patient.account_id!==source.patient.account_id||
     stable.intake.patient_id!==source.intake.patient_id||
     stable.intake.version!==source.intake.version||
     stable.intake.status!==source.intake.status||

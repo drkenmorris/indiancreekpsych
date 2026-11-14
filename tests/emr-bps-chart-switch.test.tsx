@@ -202,6 +202,7 @@ test.each([
  ['unsupported historical source status',{source_status:'revoked'}],
  ['invalid historical source date',{source_updated_at:'2026-02-30T09:00:00Z'}],
  ['invalid review creation date',{created_at:'not-a-date'}],
+ ['review created before source revision',{source_updated_at:'2026-11-12T12:00:00.000001Z',created_at:'2026-11-12T12:00:00Z'}],
  ['malformed historical clinical answers',{clinical_answers:['PHI_NOT_A_RECORD']}],
  ['missing historical clinician notes',{clinician_notes:null}],
 ])('clinician BPS UI fails closed when %s cannot be verified',async(_label,change)=>{

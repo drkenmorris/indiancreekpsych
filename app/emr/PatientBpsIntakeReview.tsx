@@ -1,6 +1,6 @@
 'use client';
 import {useEffect,useRef,useState,type FormEvent} from 'react';
-import {bpsNoteDomains,emptyBpsNotes,mapSavedBpsReportedFields,bpsVisibleSourceKeys,sanitizeBpsClinicianNotes,validBpsTimestamp,equalBpsTimestampInstants,validBpsSubmissionChronology,validBpsReviewChronology,type BpsNotes} from '@/lib/emr/intake-bps';
+import {bpsNoteDomains,emptyBpsNotes,mapSavedBpsReportedFields,bpsVisibleSourceKeys,sanitizeBpsClinicianNotes,validBpsTimestamp,equalBpsTimestampInstants,validBpsSubmissionChronology,validBpsReviewChronology,validBpsHistoricalSourceBoundary,type BpsNotes} from '@/lib/emr/intake-bps';
 type Field={key:string;label:string;type:string;value:string;sourceOnly?:boolean;reported?:boolean};
 type Section={title:string;domain:string;disposition:'clinical'|'separate-review'|'reference';fields:Field[];answered:number};
 type Review={id:string;reviewed:boolean;source_version:number;source_status:string;source_updated_at:string;created_at:string;clinical_answers:Record<string,string>;clinician_notes:BpsNotes;excluded_clinical_fields?:number;excluded_clinician_notes?:number};
@@ -112,6 +112,8 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
     (review.source_status==='draft'||review.source_status==='submitted')&&
     validBpsTimestamp(review.source_updated_at)&&validBpsTimestamp(review.created_at)&&
     validBpsReviewChronology(review.source_updated_at,review.created_at)&&
+    validBpsHistoricalSourceBoundary(review.source_version,review.source_status,review.source_updated_at,
+     source.version,source.status,source.updatedAt)&&
     !!review.clinical_answers&&typeof review.clinical_answers==='object'&&!Array.isArray(review.clinical_answers)&&
     !!review.clinician_notes&&typeof review.clinician_notes==='object'&&!Array.isArray(review.clinician_notes);
   });

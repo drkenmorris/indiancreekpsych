@@ -162,12 +162,12 @@ export function mapIntakeToBps(answers:Record<string,string>){
  if(!distinctBpsQuestionIdentities(sections))
   throw Error('The intake-to-BPS question mapping contains duplicate field identities across sections.');
  const mapped=new Set(sections.flatMap(s=>s.fields.map(f=>f.key)));
- // Unknown answer object keys are untrusted content, not guaranteed field IDs.
- // Malformed keys can themselves contain names, identifiers or other private
- // patient text. Count them for reconciliation without echoing that text in
- // the protected API's unmapped-key audit or saved-history preview.
+ // Even schema-shaped unknown answer keys may contain patient names, dates
+ // of birth or coverage identifiers. Every unknown key is untrusted content.
+ // Preserve one constant placeholder for EACH reported unknown field so the
+ // reconciliation count remains correct without disclosing any key identity.
  const unmappedKeys=Object.keys(answers).filter(key=>!mapped.has(key)&&typeof answers[key]==='string'&&answers[key].trim())
-  .map(key=>/^[a-z][a-z0-9_]{0,63}$/.test(key)?key:'[unrecognized source field name withheld]');
+  .map(()=> '[unrecognized source field name withheld]');
  return {sections,unmappedKeys};
 }
 

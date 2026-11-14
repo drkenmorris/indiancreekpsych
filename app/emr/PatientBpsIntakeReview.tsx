@@ -189,8 +189,16 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
      else if(!sameSource)setStatus('BPS save was acknowledged, but the linked intake source changed during chart-history verification (account, version, status or timestamp). This source is NOT independently verified. Reopen the chart and reconcile the new intake before further review; do not resubmit the prior version.');
      else setStatus('BPS save was acknowledged, but the exact saved review and source provenance were NOT verified in chart history. Reopen this chart and investigate before relying on the new review; do not submit it again.');
     }
-   }catch{
-    if(stillOnChart())setStatus('BPS save was acknowledged by the database, but the exact clinician review was NOT verified in chart history because the readback failed. Reopen this patient chart and investigate; do not submit it again.');
+   }catch(e){
+    if(stillOnChart()){
+     // Source/review provenance can become inconsistent between a successful
+     // write receipt and readback. Do not expose the bad history or describe
+     // it as a successful verification, while retaining the version save lock.
+     const mismatchedHistory=e instanceof Error&&e.message.includes('invalid saved-row provenance');
+     setStatus(mismatchedHistory?
+      'BPS save was acknowledged, but the linked intake source changed during chart-history verification or saved history no longer matches its source. The exact clinician review was NOT independently verified. Reopen this chart and investigate; do not submit it again.':
+      'BPS save was acknowledged by the database, but the exact clinician review was NOT verified in chart history because the readback failed. Reopen this patient chart and investigate; do not submit it again.');
+    }
    }
   }catch(e){if(stillOnChart())setStatus((e instanceof Error?e.message:'BPS intake save was not confirmed.')+
    ' The outcome of this submission is unknown; no clinical save is claimed. Reopen this chart and inspect protected review history before considering another submission.');}

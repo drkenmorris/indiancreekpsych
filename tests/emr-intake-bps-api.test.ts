@@ -601,3 +601,32 @@ test('a current submitted BPS review cannot predate patient attestation, even wh
  expect(priorVersion.status).toBe(200);
  expect((await priorVersion.json()).reviews[0].source_version).toBe(1);
 });
+
+
+test('clinician BPS history API withholds unexpected database columns even when row identity and chronology are valid',async()=>{
+ const privateMarker='PRIVATE_FICTIONAL_EXTRANEOUS_PATIENT_DATA';
+ reviewRows=[{
+  id:'00000000-0000-0000-0000-000000000600',
+  patient_id:patient,source_account_id:account,source_version:2,
+  source_status:'submitted',source_updated_at:stamp,created_at:stamp,reviewed:true,
+  clinical_answers:{counseling_reason:'Fictional approved patient report'},
+  clinician_notes:{presenting:'Independent fictional review'},
+  // Simulate future schema columns or a stale/malformed database adapter.
+  // They must NOT be reflected just because the row passed RLS and provenance.
+  patient_name:privateMarker,insurance_member:privateMarker,
+  extra_clinical_data:{private_note:privateMarker},internal_audit:privateMarker
+ }];
+ const response=await GET(request());
+ expect(response.status).toBe(200);
+ expect(response.headers.get('Cache-Control')).toContain('no-store');
+ const body=await response.json();
+ expect(body.reviews).toHaveLength(1);
+ const review=body.reviews[0];
+ expect(Object.keys(review).sort()).toEqual([
+  'id','source_version','source_status','source_updated_at','created_at','reviewed',
+  'clinical_answers','clinician_notes','excluded_clinical_fields','excluded_clinician_notes'
+ ].sort());
+ expect(review.clinical_answers.counseling_reason).toBe('Fictional approved patient report');
+ expect(review.clinician_notes.presenting).toBe('Independent fictional review');
+ expect(JSON.stringify(body)).not.toContain(privateMarker);
+});

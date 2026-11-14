@@ -80,7 +80,17 @@ export function distinctBpsQuestionIdentities(sections:ReadonlyArray<{fields:Rea
  const keys=sections.flatMap(section=>section.fields.map(field=>field.key));
  return new Set(keys).size===keys.length;
 }
+/** Only known, versioned questionnaire layouts may authorize clinical source
+ * routing. The blank marker belongs to records predating packet-version capture;
+ * 2026-10-11 is the known original packet and the directory packet is current.
+ * Unknown future or corrupted markers must not silently fall back to legacy.
+ */
+export function recognizedBpsQuestionnaireVersion(version:unknown):boolean{
+ return version===undefined||version===''||version==='2026-10-11'||version==='2026-11-02-directory-1';
+}
 export function mapIntakeToBps(answers:Record<string,string>){
+ if(!recognizedBpsQuestionnaireVersion(answers.legal_packet_version))
+  throw Error('Unrecognized intake questionnaire version; verify original source before BPS review.');
  // Current intake questions can also appear in legacy retired field lists.
  // Audit each patient answer only once, and never broaden BPS raw disclosure.
  const intakeSections=intakeSectionsForVersion(answers.legal_packet_version||'');

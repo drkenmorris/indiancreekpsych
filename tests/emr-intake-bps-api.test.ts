@@ -463,6 +463,31 @@ test('duplicate review identities across pages fail closed without releasing his
   expect(JSON.stringify(await response.json())).not.toContain(confidential);
 });
 
+test('case-variant duplicate review IDs across pages are rejected before any clinical history is disclosed',async()=>{
+ // A malformed/stale database adapter can return the same UUID in mixed case.
+ // PostgreSQL normally canonicalizes UUIDs, but the protected API must still
+ // reject duplicate logical identities rather than relying on string casing.
+ version=200;
+ const confidential='PRIVATE_FICTIONAL_CASE_VARIANT_DUPLICATE';
+ reviewRows=Array.from({length:101},(_,index)=>({
+  id:'abcdefab-cdef-abcd-efab-'+String(900-index).padStart(12,'0'),
+  patient_id:patient,source_account_id:account,
+  source_version:index+1,source_status:'draft',
+  source_updated_at:'2026-11-10T08:00:00Z',
+  created_at:new Date(Date.parse(stamp)-index*1000).toISOString(),
+  reviewed:true,clinical_answers:{counseling_reason:confidential},
+  clinician_notes:{presenting:'PRIVATE_FICTIONAL_CLINICIAN_NOTE'}
+ }));
+ reviewRows[100]={...reviewRows[100],id:reviewRows[0].id.toUpperCase()};
+ const result=await GET(request());
+ expect(result.status).toBe(409);
+ expect(result.headers.get('Cache-Control')).toContain('no-store');
+ const wire=JSON.stringify(await result.json());
+ expect(wire).not.toContain(confidential);
+ expect(wire).not.toContain('PRIVATE_FICTIONAL_CLINICIAN_NOTE');
+ expect(m.from.mock.results.filter((r:any)=>r.value?.range)).toHaveLength(2);
+});
+
 test('partial review page is rejected when the exact count shows missing reviews',async()=>{
   version=300;
   const confidential='PRIVATE_FICTIONAL_TRUNCATED_HISTORY';

@@ -11,7 +11,7 @@ test('all 21 current and historical sections receive deliberate BPS dispositions
  }
 });
 test('current and historical section mappings retain distinct question identities within each BPS section',()=>{
- for(const version of ['', 'legacy']){
+ for(const version of ['2026-11-02-directory-1', 'legacy']){
   const report=mapIntakeToBps({legal_packet_version:version});
   expect(report.sections).toHaveLength(21);
   for(const section of report.sections){

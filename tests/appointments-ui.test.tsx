@@ -30,6 +30,30 @@ test('Pause/Enable uses the registered server operation and preserves state on a
  expect(fetch).toHaveBeenCalledWith('/api/scheduling/office-hours/toggle',expect.objectContaining({body:JSON.stringify({id:rule.id,enabled:false})}));
 });
 
+test('a duplicate form submission during an unresolved booking cannot create a second appointment series',async()=>{
+ let complete!: (result:{data:number;error:null})=>void;
+ const pending=new Promise<{data:number;error:null}>(resolve=>{complete=resolve;});
+ mocks.rpc.mockImplementation((name:string)=>{
+  if(name==='scheduling_patients')return {abortSignal:async()=>({data:[{id:'patient-1',full_name:'Synthetic Patient',preferred_name:null}],error:null})};
+  if(name==='book_patient_appointments')return {abortSignal:()=>pending};
+  throw Error('Unexpected scheduling RPC '+name);
+ });
+ render(<AppointmentsClient {...props}/>);
+ fireEvent.click(screen.getByRole('button',{name:'Place patient appointments'}));
+ await screen.findByRole('option',{name:/Synthetic Patient/});
+ fireEvent.change(screen.getByLabelText('Patient'),{target:{value:'patient-1'}});
+ fireEvent.change(screen.getByLabelText('First appointment date'),{target:{value:'2026-12-01'}});
+ const form=screen.getByRole('button',{name:'Book patient appointments'}).closest('form');
+ expect(form).not.toBeNull();
+ // Form submit can occur again before/without another clickable button.
+ fireEvent.submit(form!);
+ fireEvent.submit(form!);
+ expect(mocks.rpc.mock.calls.filter(([name])=>name==='book_patient_appointments')).toHaveLength(1);
+ complete({data:2,error:null});
+ await screen.findByText('2 appointments booked. Adjacent openings updated.');
+ expect(mocks.rpc.mock.calls.filter(([name])=>name==='book_patient_appointments')).toHaveLength(1);
+});
+
 test.each([0,null,'2'])('a %s booking receipt never claims appointments were placed',async receipt=>{
  mocks.rpc.mockImplementation((name:string)=>({abortSignal:async()=>({
   data:name==='scheduling_patients'?[{id:'patient-1',full_name:'Synthetic Patient',preferred_name:null}]:

@@ -433,3 +433,28 @@ test('protected BPS API withholds every unknown key identity, including schema-s
  const parsed=JSON.parse(body);
  expect(parsed.unmappedKeys).toEqual(Array(3).fill('[unrecognized source field name withheld]'));
 });
+
+test('clinician review history cannot predate its source even by one microsecond',async()=>{
+ const confidential='PRIVATE_FICTIONAL_REVIEW_SOURCE';
+ data={counseling_reason:confidential};
+ intakeUpdatedAt='2026-11-10T09:00:00.000001Z';
+ intakeSubmittedAt='2026-11-10T09:00:00.000001Z';
+ reviewRows=[{
+  id:'00000000-0000-4000-8000-000000000850',
+  patient_id:patient,source_account_id:account,source_version:2,source_status:'submitted',
+  source_updated_at:intakeUpdatedAt,created_at:'2026-11-10T09:00:00.000000Z',
+  reviewed:true,clinical_answers:{counseling_reason:confidential},clinician_notes:{presenting:'FICTIONAL_CLINICIAN_NOTE'}
+ }];
+ const invalid=await GET(request());
+ expect(invalid.status).toBe(409);
+ expect(invalid.headers.get('Cache-Control')).toContain('no-store');
+ const responseText=JSON.stringify(await invalid.json());
+ expect(responseText).not.toContain(confidential);
+ expect(responseText).not.toContain('FICTIONAL_CLINICIAN_NOTE');
+ // Same instant with another timezone offset is valid provenance.
+ reviewRows[0].created_at='2026-11-10T03:00:00.000001-06:00';
+ const valid=await GET(request());
+ expect(valid.status).toBe(200);
+ const source=await valid.json();
+ expect(source.reviews[0].clinical_answers.counseling_reason).toBe(confidential);
+});

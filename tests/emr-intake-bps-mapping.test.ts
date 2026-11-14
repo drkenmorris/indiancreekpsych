@@ -4,6 +4,7 @@ import {bpsNoteDomains,bpsSectionClassification,mapIntakeToBps,mapSavedBpsReport
 test('all 21 current and historical sections receive deliberate BPS dispositions',()=>{
  for(const sections of [intakeSections,intakeSectionsForVersion('legacy')]){
   expect(sections).toHaveLength(21);
+  expect(new Set(sections.map(section=>section.title)).size).toBe(21);
   const report=mapIntakeToBps({});
   expect(report.sections).toHaveLength(21);
   for(const section of sections)expect(bpsSectionClassification[section.title]).toBeDefined();

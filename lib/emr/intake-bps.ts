@@ -109,6 +109,11 @@ export function mapIntakeToBps(answers:Record<string,string>){
  });
  if(sections.length!==21||new Set(sections.map(section=>section.title)).size!==21)
   throw Error('The expected 21 distinct intake sections have changed. Review the source mapping.');
+ // A duplicated question identity can make a section appear more complete than
+ // its underlying patient responses. Do not build any BPS source from such
+ // definitions, including historical intake versions.
+ if(sections.some(section=>new Set(section.fields.map(field=>field.key)).size!==section.fields.length))
+  throw Error('The intake-to-BPS question mapping contains duplicate field identities.');
  const mapped=new Set(sections.flatMap(s=>s.fields.map(f=>f.key)));
  const unmappedKeys=Object.keys(answers).filter(key=>!mapped.has(key)&&typeof answers[key]==='string'&&answers[key].trim());
  return {sections,unmappedKeys};

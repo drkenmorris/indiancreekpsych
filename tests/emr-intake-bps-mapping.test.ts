@@ -10,6 +10,16 @@ test('all 21 current and historical sections receive deliberate BPS dispositions
   for(const section of sections)expect(bpsSectionClassification[section.title]).toBeDefined();
  }
 });
+test('current and historical section mappings retain distinct question identities within each BPS section',()=>{
+ for(const version of ['', 'legacy']){
+  const report=mapIntakeToBps({legal_packet_version:version});
+  expect(report.sections).toHaveLength(21);
+  for(const section of report.sections){
+   const keys=section.fields.map(field=>field.key);
+   expect(new Set(keys).size,section.title+' ('+version+')').toBe(keys.length);
+  }
+ }
+});
 test('patient answers are mapped to original question labels without implying clinical verification',()=>{
  const report=mapIntakeToBps({counseling_reason:'Patient says low mood',suicidal_thoughts_current:'Yes',guardian_relationship:'Parent',
   trauma_history_checklist:'{"test":true}',roi_authorize:'Yes',private_extra:'unapproved'});

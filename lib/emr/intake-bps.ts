@@ -43,10 +43,29 @@ export function validBpsTimestamp(value:unknown):value is string {
  * immutable submitted patient report. Compare instants, not timezone strings.
  * Drafts may legitimately lack submission receipts.
  */
+/** JavaScript Date.parse truncates fractions beyond milliseconds. Database source
+ * receipts use microseconds, so comparing Date.parse values alone can falsely
+ * treat a post-attestation edit as simultaneous with the patient submission.
+ * Preserve all supplied RFC3339 fractional digits (up to nanoseconds) while
+ * using Date.parse only to determine the timezone-adjusted whole second.
+ */
+export function bpsTimestampInstantNanoseconds(value:unknown):bigint|null{
+ if(!validBpsTimestamp(value))return null;
+ const fractional=/\\.(\\d{1,9})(?=Z$|[+-]\\d{2}:\\d{2}$)/.exec(value)?.[1]??'';
+ return BigInt(Math.floor(Date.parse(value)/1000))*1_000_000_000n+
+  BigInt(fractional.padEnd(9,'0')||'0');
+}
+/** Exact source equivalence, including microseconds and timezone offsets. */
+export function equalBpsTimestampInstants(left:unknown,right:unknown):boolean{
+ const a=bpsTimestampInstantNanoseconds(left),b=bpsTimestampInstantNanoseconds(right);
+ return a!==null&&b!==null&&a===b;
+}
 export function validBpsSubmissionChronology(status:unknown,updatedAt:unknown,submittedAt:unknown):boolean{
- if(!validBpsTimestamp(updatedAt))return false;
- if(submittedAt!=null&&!validBpsTimestamp(submittedAt))return false;
- return status!=='submitted'||(validBpsTimestamp(submittedAt)&&Date.parse(updatedAt)<=Date.parse(submittedAt));
+ const edited=bpsTimestampInstantNanoseconds(updatedAt);
+ if(edited===null)return false;
+ const attested=submittedAt==null?null:bpsTimestampInstantNanoseconds(submittedAt);
+ if(submittedAt!=null&&attested===null)return false;
+ return status!=='submitted'||(attested!==null&&edited<=attested);
 }
 export const bpsNoteDomains={
  presenting:'Presenting concerns and functional impact',

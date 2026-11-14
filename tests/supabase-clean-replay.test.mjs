@@ -253,6 +253,37 @@ test('clinic migrations replay in order on an empty application database', async
     } finally {
       await db.exec('alter table public.patient_intakes enable trigger user');
     }
+    // A submitted source edited at 09:00 and attested at 09:10 may not
+    // acquire a clinician-review timestamp at 09:05. Simulate only an
+    // invalid future-dated submission receipt in this isolated replay DB.
+    // The existing review table must not gain a fabricated submitted review.
+    await db.exec('reset role');
+    await db.exec('alter table public.patient_intakes disable trigger user');
+    try {
+      await db.query("update public.patient_intakes set submitted_at=now() + interval '1 day' where patient_id=$1",
+        [patientId]);
+    } finally {
+      await db.exec('alter table public.patient_intakes enable trigger user');
+    }
+    await as(adminId,'aal2');
+    await assert.rejects(
+      db.query('select public.save_emr_bps_intake_review($1) as id',[submittedPayload]),
+      /cannot predate patient submission attestation/,
+      'A direct privileged RPC must not create a review before patient submission');
+    await db.exec('reset role');
+    await db.exec('alter table public.patient_intakes disable trigger user');
+    try {
+      await db.query('update public.patient_intakes set submitted_at=$2 where patient_id=$1',
+        [patientId,submitted.submitted_at]);
+    } finally {
+      await db.exec('alter table public.patient_intakes enable trigger user');
+    }
+    const {rows:[beforeSubmittedReview]}=await db.query(
+      'select count(*)::integer as total from public.emr_bps_intake_reviews where patient_id=$1',
+      [chart.id]);
+    assert.equal(beforeSubmittedReview.total,1,
+      'Failed pre-submission attestation must not create a clinician review');
+
     await as(adminId,'aal1');
     await assert.rejects(db.query('select public.save_emr_bps_intake_review($1) as id',[submittedPayload]),
       /MFA|Administrator sign-in/,'AAL1 must not approve a submitted patient intake');

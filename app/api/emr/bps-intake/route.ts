@@ -83,7 +83,7 @@ export async function GET(request:Request){
     return reply({error:'BPS review history changed during retrieval; reopen the chart before clinical review.'},409);
    expectedReviewCount=count;
    for(const row of page){
-    if(!row||typeof row!=='object'||!uuid(row.id)||seenReviewIds.has(row.id))
+    if(!row||typeof row!=='object'||!uuid(row.id)||seenReviewIds.has(row.id.toLowerCase()))
      return reply({error:'BPS review history contains a repeated or invalid review identity; reopen the chart.'},409);
     const instant=bpsTimestampInstantNanoseconds(row.created_at);
     const rowId=row.id.toLowerCase();
@@ -91,7 +91,7 @@ export async function GET(request:Request){
       (instant>previousReviewInstant||(instant===previousReviewInstant&&rowId>=previousReviewId))))
      return reply({error:'BPS review history ordering could not be verified; reopen the chart before clinical review.'},409);
     previousReviewInstant=instant;previousReviewId=rowId;
-    seenReviewIds.add(row.id);reviews.push(row);
+    seenReviewIds.add(rowId);reviews.push(row);
    }
    if(reviews.length===expectedReviewCount)break;
    // A partial page before the expected last row means omitted history.

@@ -295,3 +295,33 @@ test('duplicate twenty-one-section titles fail closed before displaying patient 
  expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
  expect(writes).toBe(0);
 });
+
+test('clinician BPS withholds source and historical notes when a current review predates patient submission',async()=>{
+ const patient='00000000-0000-4000-8000-000000000897';
+ const updated='2026-11-10T09:00:00Z';
+ const submission='2026-11-10T09:10:00.000001Z';
+ let writes=0;
+ vi.stubGlobal('fetch',vi.fn(async(_url:string,options?:RequestInit)=>{
+  if(options?.method==='POST')writes++;
+  return Response.json({
+   patientId:patient,source:{accountId:patient,status:'submitted',version:2,updatedAt:updated,submittedAt:submission},
+   sections:Array.from({length:21},(_,i)=>({
+    title:'Historical source '+i,domain:'Clinical',disposition:'clinical',
+    fields:i===0?[{key:'counseling_reason',label:'Presenting concern',type:'text',
+     value:'PRIVATE_FICTIONAL_CURRENT_SOURCE',reported:true,sourceOnly:false}]:[],
+    answered:i===0?1:0
+   })),unmappedKeys:[],
+   reviews:[{id:'00000000-0000-4000-8000-000000000898',source_version:2,
+    source_status:'submitted',source_updated_at:updated,created_at:'2026-11-10T09:10:00Z',
+    reviewed:true,clinical_answers:{counseling_reason:'PRIVATE_FICTIONAL_HISTORY'},
+    clinician_notes:{presenting:'PRIVATE_FICTIONAL_CLINICIAN_NOTE'}}]
+  });
+ }));
+ render(<PatientBpsIntakeReview patientId={patient}/>);
+ const alert=await screen.findByRole('alert');
+ expect(alert.textContent).toContain('invalid saved-row provenance');
+ for(const secret of ['PRIVATE_FICTIONAL_CURRENT_SOURCE','PRIVATE_FICTIONAL_HISTORY','PRIVATE_FICTIONAL_CLINICIAN_NOTE'])
+  expect(document.body.textContent).not.toContain(secret);
+ expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
+ expect(writes).toBe(0);
+});

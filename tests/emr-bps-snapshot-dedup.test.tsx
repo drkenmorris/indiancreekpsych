@@ -11,6 +11,17 @@ function source(reviews:Record<string,unknown>[]=[]){
   sections:Array.from({length:21},(_,i)=>({title:'Section '+i,domain:'Context',disposition:'clinical',fields:[],answered:0})),
   unmappedKeys:[],reviews};
 }
+test('stale clinician API cannot present a post-attestation edit as a submitted BPS source',async()=>{
+ const forged=source();
+ forged.source.updatedAt='2026-11-10T12:00:01Z';
+ vi.stubGlobal('fetch',vi.fn(async()=>Response.json(forged)));
+ render(<PatientBpsIntakeReview patientId={patient}/>);
+ const alert=await screen.findByRole('alert');
+ expect(alert.textContent).toMatch(/provenance|reopen the protected source/i);
+ expect(screen.queryByText(/Sections audited:/)).toBeNull();
+ expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
+});
+
 test('the original clinician review never offers a duplicate save for an already reviewed source version',async()=>{
  vi.stubGlobal('fetch',vi.fn(async()=>Response.json(source([{
   id:'00000000-0000-4000-8000-000000000999',reviewed:true,source_version:7,source_status:'submitted',

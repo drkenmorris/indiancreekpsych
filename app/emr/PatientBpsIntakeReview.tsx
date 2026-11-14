@@ -33,6 +33,9 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
  // to update a different chart (including A → B → A navigation).
  // Prevent a background intake refresh from changing a clinician's source-version
  // context during preparation, an uncertain transmitted save, or chart-history verification.
+ // A duplicate submit event must not create a second clinical review RPC before
+ // React renders the saving state; only one source-version write may be in flight.
+ const reviewSaveInFlight=useRef(false);
  const reviewInProgress=useRef(false);
  reviewInProgress.current=prepared||saving||uncertainVersion!==null||acknowledgedVersion!==null;
  const chartScope=useRef({patientId,generation:0});
@@ -158,7 +161,8 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
   return ()=>{active=false;window.clearInterval(timer);window.removeEventListener('focus',onFocus);};
  },[patientId]);
  async function save(event:FormEvent<HTMLFormElement>){
-  event.preventDefault();if(!data||data.patientId!==patientId||!reviewed||saving||!prepared||versionAlreadyReviewed)return;
+  event.preventDefault();if(reviewSaveInFlight.current||!data||data.patientId!==patientId||!reviewed||saving||!prepared||versionAlreadyReviewed)return;
+  reviewSaveInFlight.current=true;
   const generation=chartScope.current.generation;
   const stillOnChart=()=>chartScope.current.patientId===patientId&&chartScope.current.generation===generation;
   setSaving(true);setStatus('');
@@ -220,7 +224,7 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
    }
   }catch(e){if(stillOnChart())setStatus((e instanceof Error?e.message:'BPS intake save was not confirmed.')+
    ' The outcome of this submission is unknown; no clinical save is claimed. Reopen this chart and inspect protected review history before considering another submission.');}
-  finally{if(stillOnChart())setSaving(false);}
+  finally{reviewSaveInFlight.current=false;if(stillOnChart())setSaving(false);}
  }
  return <article className="centralCard" aria-label="Intake biopsychosocial reconciliation">
   <h2>Biopsychosocial assessment — 21-section intake reconciliation</h2>

@@ -166,7 +166,9 @@ export function mapIntakeToBps(answers:Record<string,string>){
  // of birth or coverage identifiers. Every unknown key is untrusted content.
  // Preserve one constant placeholder for EACH reported unknown field so the
  // reconciliation count remains correct without disclosing any key identity.
- const unmappedKeys=Object.keys(answers).filter(key=>!mapped.has(key)&&typeof answers[key]==='string'&&answers[key].trim())
+ // The recognized questionnaire packet version is approved routing metadata,
+ // not a questionnaire answer or an extra unknown field.
+ const unmappedKeys=Object.keys(answers).filter(key=>key!=='legal_packet_version'&&!mapped.has(key)&&typeof answers[key]==='string'&&answers[key].trim())
   .map(()=> '[unrecognized source field name withheld]');
  return {sections,unmappedKeys};
 }

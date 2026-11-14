@@ -75,6 +75,25 @@ export function validBpsReviewChronology(sourceUpdatedAt:unknown,reviewCreatedAt
  const reviewed=bpsTimestampInstantNanoseconds(reviewCreatedAt);
  return source!==null&&reviewed!==null&&reviewed>=source;
 }
+/** Historical BPS review provenance may not claim a future intake revision. A
+ * row for the CURRENT source version must also match its exact status and
+ * timestamp; otherwise a source edited without a version increment could be
+ * mistaken for the clinician-reviewed patient attestation. Old versions remain
+ * visible only when their dates are no later than the current source.
+ */
+export function validBpsHistoricalSourceBoundary(
+ reviewVersion:unknown,reviewStatus:unknown,reviewUpdatedAt:unknown,
+ currentVersion:unknown,currentStatus:unknown,currentUpdatedAt:unknown
+):boolean{
+ if(!Number.isSafeInteger(reviewVersion)||!Number.isSafeInteger(currentVersion)||
+  (reviewVersion as number)<1||(currentVersion as number)<1)return false;
+ const oldInstant=bpsTimestampInstantNanoseconds(reviewUpdatedAt);
+ const nowInstant=bpsTimestampInstantNanoseconds(currentUpdatedAt);
+ return oldInstant!==null&&nowInstant!==null&&
+  (reviewVersion as number)<=(currentVersion as number)&&oldInstant<=nowInstant&&
+  (reviewVersion!==currentVersion||
+   (reviewStatus===currentStatus&&oldInstant===nowInstant));
+}
 export const bpsNoteDomains={
  presenting:'Presenting concerns and functional impact',
  treatment:'Prior psychiatric/psychotherapy history',

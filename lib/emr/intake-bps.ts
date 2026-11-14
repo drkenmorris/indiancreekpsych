@@ -52,7 +52,7 @@ export function validBpsTimestamp(value:unknown):value is string {
 export function bpsTimestampInstantNanoseconds(value:unknown):bigint|null{
  if(!validBpsTimestamp(value))return null;
  const fractional=/\.(\d{1,9})(?=Z$|[+-]\d{2}:\d{2}$)/.exec(value)?.[1]??'';
- return BigInt(Math.floor(Date.parse(value)/1000))*1_000_000_000n+
+ return BigInt(Math.floor(Date.parse(value)/1000))*BigInt(1_000_000_000)+
   BigInt(fractional.padEnd(9,'0')||'0');
 }
 /** Exact source equivalence, including microseconds and timezone offsets. */

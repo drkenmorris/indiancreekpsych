@@ -1,6 +1,6 @@
 'use client';
 import {useEffect,useRef,useState,type FormEvent} from 'react';
-import {bpsNoteDomains,emptyBpsNotes,mapSavedBpsReportedFields,bpsVisibleSourceKeys,sanitizeBpsClinicianNotes,validBpsTimestamp,equalBpsTimestampInstants,validBpsSubmissionChronology,validBpsReviewChronology,validBpsHistoricalSourceBoundary,type BpsNotes} from '@/lib/emr/intake-bps';
+import {bpsNoteDomains,emptyBpsNotes,mapSavedBpsReportedFields,bpsVisibleSourceKeys,sanitizeBpsClinicianNotes,validBpsTimestamp,bpsTimestampInstantNanoseconds,equalBpsTimestampInstants,validBpsSubmissionChronology,validBpsReviewChronology,validBpsHistoricalSourceBoundary,type BpsNotes} from '@/lib/emr/intake-bps';
 type Field={key:string;label:string;type:string;value:string;sourceOnly?:boolean;reported?:boolean};
 type Section={title:string;domain:string;disposition:'clinical'|'separate-review'|'reference';fields:Field[];answered:number};
 type Review={id:string;reviewed:boolean;source_version:number;source_status:string;source_updated_at:string;created_at:string;clinical_answers:Record<string,string>;clinician_notes:BpsNotes;excluded_clinical_fields?:number;excluded_clinician_notes?:number};
@@ -103,9 +103,20 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
   // identity/version/date checks at this UI trust boundary so a malformed,
   // stale or cross-chart history response cannot be displayed as clinical truth.
   // Never silently discard a bad history row and imply that review never existed.
+  const seenHistoryIds=new Set<string>();
+  let previousHistoryInstant:bigint|null=null,previousHistoryId='';
   const validHistory=value.reviews.every((entry:unknown)=>{
    if(!entry||typeof entry!=='object'||Array.isArray(entry))return false;
    const review=entry as Partial<Review>;
+   const id=typeof review.id==='string'?review.id.toLowerCase():'';
+   const instant=bpsTimestampInstantNanoseconds(review.created_at);
+   // Repeat the API's verified descending (created_at, id) ordering check
+   // at the clinician UI boundary. A stale/malformed API response must not
+   // duplicate or reorder append-only clinical history while appearing complete.
+   if(!id||instant===null||seenHistoryIds.has(id)||
+    (previousHistoryInstant!==null&&(instant>previousHistoryInstant||
+     (instant===previousHistoryInstant&&id>=previousHistoryId))))return false;
+   seenHistoryIds.add(id);previousHistoryInstant=instant;previousHistoryId=id;
    return typeof review.id==='string'&&typeof review.reviewed==='boolean'&&
     /^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(review.id)&&
     Number.isSafeInteger(review.source_version)&&Number(review.source_version)>=1&&

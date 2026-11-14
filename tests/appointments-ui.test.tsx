@@ -54,6 +54,61 @@ test('a duplicate form submission during an unresolved booking cannot create a s
  expect(mocks.rpc.mock.calls.filter(([name])=>name==='book_patient_appointments')).toHaveLength(1);
 });
 
+
+test.each([
+ {failure:'transport timeout',reject:true,error:{message:'Booking request timed out'}},
+ {failure:'PostgREST transport error',reject:false,error:{code:'PGRST000',message:'Connection lost after submit'}}
+])('uncertain $failure prevents a second appointment-series write even if the form is submitted directly',async ({reject,error})=>{
+ let attempts=0;
+ mocks.rpc.mockImplementation((name:string)=>({
+  abortSignal:async()=>{
+   if(name==='scheduling_patients')return {data:[{id:'patient-1',full_name:'Synthetic Patient',preferred_name:null}],error:null};
+   if(name!=='book_patient_appointments')throw Error('Unexpected scheduling RPC '+name);
+   attempts++;
+   if(reject)throw new Error(error.message);
+   return {data:null,error};
+  }
+ }));
+ render(<AppointmentsClient {...props}/>);
+ fireEvent.click(screen.getByRole('button',{name:'Place patient appointments'}));
+ await screen.findByRole('option',{name:/Synthetic Patient/});
+ fireEvent.change(screen.getByLabelText('Patient'),{target:{value:'patient-1'}});
+ fireEvent.change(screen.getByLabelText('First appointment date'),{target:{value:'2026-12-01'}});
+ const button=screen.getByRole('button',{name:'Book patient appointments'}) as HTMLButtonElement;
+ const form=button.closest('form')!;
+ fireEvent.submit(form);
+ await screen.findByText(/The write may have completed.*booking form is locked/);
+ expect(button.disabled).toBe(true);
+ fireEvent.submit(form);
+ expect(attempts).toBe(1);
+ expect(screen.queryByText(/appointments? booked\./)).toBeNull();
+});
+
+test('definitive SQLSTATE booking rejection permits correction and retry without claiming an appointment',async()=>{
+ let attempts=0;
+ mocks.rpc.mockImplementation((name:string)=>({
+  abortSignal:async()=>{
+   if(name==='scheduling_patients')return {data:[{id:'patient-1',full_name:'Synthetic Patient',preferred_name:null}],error:null};
+   if(name!=='book_patient_appointments')throw Error('Unexpected scheduling RPC '+name);
+   attempts++;
+   return {data:null,error:{code:'23505',message:'Appointment overlap rejected by database'}};
+  }
+ }));
+ render(<AppointmentsClient {...props}/>);
+ fireEvent.click(screen.getByRole('button',{name:'Place patient appointments'}));
+ await screen.findByRole('option',{name:/Synthetic Patient/});
+ fireEvent.change(screen.getByLabelText('Patient'),{target:{value:'patient-1'}});
+ fireEvent.change(screen.getByLabelText('First appointment date'),{target:{value:'2026-12-01'}});
+ const button=screen.getByRole('button',{name:'Book patient appointments'}) as HTMLButtonElement;
+ fireEvent.click(button);
+ await screen.findByText(/Appointment overlap rejected by database/);
+ expect(button.disabled).toBe(false);
+ expect(screen.queryByText(/write may have completed/)).toBeNull();
+ fireEvent.submit(button.closest('form')!);
+ await waitFor(()=>expect(attempts).toBe(2));
+ expect(screen.queryByText(/appointments? booked\./)).toBeNull();
+});
+
 test.each([0,null,'2'])('a %s booking receipt never claims appointments were placed',async receipt=>{
  mocks.rpc.mockImplementation((name:string)=>({abortSignal:async()=>({
   data:name==='scheduling_patients'?[{id:'patient-1',full_name:'Synthetic Patient',preferred_name:null}]:

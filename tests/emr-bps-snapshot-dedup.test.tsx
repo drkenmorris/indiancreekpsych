@@ -172,7 +172,8 @@ test.each([
  ['new source version',{version:8}],
  ['different linked account',{accountId:'00000000-0000-4000-8000-000000000803'}],
  ['changed source status',{status:'draft'}],
- ['new source timestamp',{updatedAt:'2026-11-10T12:05:00Z',submittedAt:'2026-11-10T12:05:00Z'}]
+ ['new source timestamp',{updatedAt:'2026-11-10T12:05:00Z',submittedAt:'2026-11-10T12:05:00Z'}],
+ ['microsecond source timestamp change',{updatedAt:'2026-11-10T12:00:00.000001Z',submittedAt:'2026-11-10T12:00:00.000001Z'}]
 ])('acknowledged BPS save cannot be independently verified after %s during readback',async(_reason,changed)=>{
  const savedId='00000000-0000-4000-8000-000000000999';
  let reads=0,posts=0;
@@ -260,5 +261,28 @@ test.each([false,undefined])('a saved row with review attestation %s cannot prov
  }
  expect(screen.queryByText(/saved AND independently verified/)).toBeNull();
  expect(screen.queryByRole('button',{name:/Save reviewed BPS history snapshot/i})).toBeNull();
+ expect(reads).toBe(2);
+});
+
+test('matching BPS review ID is insufficient when chart history timestamp differs by one microsecond',async()=>{
+ const savedId='00000000-0000-4000-8000-000000000999';
+ let reads=0;
+ vi.stubGlobal('fetch',vi.fn(async (_url:string,options?:RequestInit)=>{
+  if(options?.method==='POST')return Response.json({saved:true,id:savedId});
+  reads++;
+  return Response.json(reads===1?source():source([{
+   id:savedId,reviewed:true,source_version:7,source_status:'submitted',
+   source_updated_at:'2026-11-10T12:00:00.000001Z',created_at:stamp,
+   clinical_answers:{},clinician_notes:{}
+  }]));
+ }));
+ render(<PatientBpsIntakeReview patientId={patient}/>);
+ await screen.findByText(/Version 7/);
+ fireEvent.click(screen.getByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i}));
+ fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed this intake/i}));
+ fireEvent.click(screen.getByRole('button',{name:/Save reviewed BPS history snapshot/i}));
+ await screen.findByText(/NOT verified in chart history/);
+ expect(screen.queryByText(/snapshot saved AND independently verified in the protected chart history/)).toBeNull();
+ expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
  expect(reads).toBe(2);
 });

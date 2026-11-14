@@ -39,6 +39,15 @@ export function validBpsTimestamp(value:unknown):value is string {
  const year=Number(match[1]),month=Number(match[2]),day=Number(match[3]);
  return month>=1&&month<=12&&day>=1&&day<=new Date(Date.UTC(year,month,0)).getUTCDate();
 }
+/** Submission attestation cannot precede a later edit to the purportedly
+ * immutable submitted patient report. Compare instants, not timezone strings.
+ * Drafts may legitimately lack submission receipts.
+ */
+export function validBpsSubmissionChronology(status:unknown,updatedAt:unknown,submittedAt:unknown):boolean{
+ if(!validBpsTimestamp(updatedAt))return false;
+ if(submittedAt!=null&&!validBpsTimestamp(submittedAt))return false;
+ return status!=='submitted'||(validBpsTimestamp(submittedAt)&&Date.parse(updatedAt)<=Date.parse(submittedAt));
+}
 export const bpsNoteDomains={
  presenting:'Presenting concerns and functional impact',
  treatment:'Prior psychiatric/psychotherapy history',

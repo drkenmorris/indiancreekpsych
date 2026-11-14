@@ -172,7 +172,7 @@ test.each([
  ['new source version',{version:8}],
  ['different linked account',{accountId:'00000000-0000-4000-8000-000000000803'}],
  ['changed source status',{status:'draft'}],
- ['new source timestamp',{updatedAt:'2026-11-10T12:05:00Z'}]
+ ['new source timestamp',{updatedAt:'2026-11-10T12:05:00Z',submittedAt:'2026-11-10T12:05:00Z'}]
 ])('acknowledged BPS save cannot be independently verified after %s during readback',async(_reason,changed)=>{
  const savedId='00000000-0000-4000-8000-000000000999';
  let reads=0,posts=0;

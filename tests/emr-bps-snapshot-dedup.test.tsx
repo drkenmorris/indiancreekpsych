@@ -11,6 +11,29 @@ function source(reviews:Record<string,unknown>[]=[]){
   sections:Array.from({length:21},(_,i)=>({title:'Section '+i,domain:'Context',disposition:'clinical',fields:[],answered:0})),
   unmappedKeys:[],reviews};
 }
+test('two rapid clinician form submits transmit only one append-only BPS review request',async()=>{
+ let finish!: (result:Response)=>void;
+ const unresolved=new Promise<Response>(resolve=>{finish=resolve;});
+ let writes=0;
+ vi.stubGlobal('fetch',vi.fn(async (_url:string,options?:RequestInit)=>{
+  if(options?.method==='POST'){writes++;return unresolved;}
+  return Response.json(source());
+ }));
+ render(<PatientBpsIntakeReview patientId={patient}/>);
+ await screen.findByText(/Version 7/);
+ fireEvent.click(screen.getByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i}));
+ fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed this intake/i}));
+ const form=screen.getByRole('button',{name:/Save reviewed BPS history snapshot/i}).closest('form');
+ expect(form).not.toBeNull();
+ // The browser can dispatch an additional submit even when the button is disabled.
+ fireEvent.submit(form!);
+ fireEvent.submit(form!);
+ expect(writes).toBe(1);
+ finish(Response.json({error:'Fictional interrupted write'},{status:503}));
+ await screen.findByText(/outcome of this submission is unknown/i);
+ expect(writes).toBe(1);
+});
+
 test('stale clinician API cannot present a post-attestation edit as a submitted BPS source',async()=>{
  const forged=source();
  forged.source.updatedAt='2026-11-10T12:00:01Z';

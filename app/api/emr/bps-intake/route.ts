@@ -1,7 +1,7 @@
 import {NextResponse} from 'next/server';
 import {emrAccess,privateHeaders,sameOrigin} from '@/lib/emr/access';
 import {uuid} from '@/lib/emr/demographics';
-import {bpsNoteDomains,mapIntakeToBps,sanitizeBpsClinicianNotes,sanitizeBpsSnapshotAnswers,validBpsTimestamp,validBpsSubmissionChronology,recognizedBpsQuestionnaireVersion} from '@/lib/emr/intake-bps';
+import {bpsNoteDomains,mapIntakeToBps,sanitizeBpsClinicianNotes,sanitizeBpsSnapshotAnswers,validBpsTimestamp,validBpsSubmissionChronology,validBpsReviewChronology,recognizedBpsQuestionnaireVersion} from '@/lib/emr/intake-bps';
 export const dynamic='force-dynamic';
 const reply=(data:unknown,status=200)=>NextResponse.json(data,{status,headers:privateHeaders});
 const sourceFields='patient_id,answers,status,version,updated_at,submitted_at';
@@ -77,7 +77,8 @@ export async function GET(request:Request){
     !Number.isSafeInteger(review.source_version)||review.source_version<1||
     (review.source_status!=='draft'&&review.source_status!=='submitted')||
     !validBpsTimestamp(review.source_updated_at)||
-    !validBpsTimestamp(review.created_at)))
+    !validBpsTimestamp(review.created_at)||
+     !validBpsReviewChronology(review.source_updated_at,review.created_at)))
    return reply({error:'BPS historical review provenance could not be verified.'},409);
   const safeReviews=(reviews??[]).map(({patient_id:_patient,source_account_id:_account,...review})=>{
    // A malformed or historical review must never leak unapproved intake fields

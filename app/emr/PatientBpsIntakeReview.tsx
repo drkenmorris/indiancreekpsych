@@ -155,7 +155,9 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
     body:JSON.stringify({patientId,sourceAccountId:data.source.accountId,sourceVersion:data.source.version,sourceStatus:data.source.status,
      sourceUpdatedAt:data.source.updatedAt,notes,reviewed:true})}));
    if(!stillOnChart())return;
-   if(!result.saved)throw Error('The review was not confirmed.');
+   if(result?.saved!==true||typeof result.id!=='string'||
+    !/^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(result.id))
+    throw Error('BPS save response lacks a valid database acknowledgment and review ID.');
    // The database has acknowledged this append-only write. A subsequent read failure
    // must never be described as an unsaved review or invite a duplicate save.
    setAcknowledgedVersion(data.source.version);
@@ -186,7 +188,7 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
      else setStatus('BPS save was acknowledged, but the exact saved review and source provenance were NOT verified in chart history. Reopen this chart and investigate before relying on the new review; do not submit it again.');
     }
    }catch{
-    if(stillOnChart())setStatus('The clinician-reviewed BPS snapshot WAS saved, but its history could not be reloaded. Reopen this patient chart to check the saved review; do not submit it again.');
+    if(stillOnChart())setStatus('BPS save was acknowledged by the database, but the exact clinician review was NOT verified in chart history because the readback failed. Reopen this patient chart and investigate; do not submit it again.');
    }
   }catch(e){if(stillOnChart())setStatus((e instanceof Error?e.message:'BPS intake save was not confirmed.')+
    ' The outcome of this submission is unknown; no clinical save is claimed. Reopen this chart and inspect protected review history before considering another submission.');}

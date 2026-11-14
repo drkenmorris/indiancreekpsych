@@ -67,6 +67,14 @@ export function validBpsSubmissionChronology(status:unknown,updatedAt:unknown,su
  if(submittedAt!=null&&attested===null)return false;
  return status!=='submitted'||(attested!==null&&edited<=attested);
 }
+/** A clinician review receipt must not predate the patient source revision it
+ * purports to preserve. Compare full database timestamp precision so that a
+ * microsecond inversion cannot be hidden by JavaScript Date truncation. */
+export function validBpsReviewChronology(sourceUpdatedAt:unknown,reviewCreatedAt:unknown):boolean{
+ const source=bpsTimestampInstantNanoseconds(sourceUpdatedAt);
+ const reviewed=bpsTimestampInstantNanoseconds(reviewCreatedAt);
+ return source!==null&&reviewed!==null&&reviewed>=source;
+}
 export const bpsNoteDomains={
  presenting:'Presenting concerns and functional impact',
  treatment:'Prior psychiatric/psychotherapy history',

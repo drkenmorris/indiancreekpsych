@@ -270,6 +270,10 @@ test('historical review rows with invalid identity, version, status or dates nev
   {...row,id:'wrong-id'},
   {...row,source_version:0},
   {...row,source_version:Number.MAX_SAFE_INTEGER+1},
+  {...row,source_version:3}, // future compared with current intake version 2
+  {...row,source_status:'draft'}, // same-version patient attestation no longer matches
+  {...row,source_updated_at:'2026-11-10T08:59:59Z'}, // same-version silently rewritten source
+  {...row,source_updated_at:'2026-11-10T09:00:00.000001Z',created_at:'2026-11-10T09:00:00.000002Z'},
   {...row,source_status:'unknown'},
   {...row,source_updated_at:'not-a-date'},
   {...row,created_at:'not-a-date'},

@@ -1,7 +1,7 @@
 import {NextResponse} from 'next/server';
 import {emrAccess,privateHeaders,sameOrigin} from '@/lib/emr/access';
 import {uuid} from '@/lib/emr/demographics';
-import {bpsNoteDomains,mapIntakeToBps,sanitizeBpsClinicianNotes,sanitizeBpsSnapshotAnswers,validBpsTimestamp} from '@/lib/emr/intake-bps';
+import {bpsNoteDomains,mapIntakeToBps,sanitizeBpsClinicianNotes,sanitizeBpsSnapshotAnswers,validBpsTimestamp,recognizedBpsQuestionnaireVersion} from '@/lib/emr/intake-bps';
 export const dynamic='force-dynamic';
 const reply=(data:unknown,status=200)=>NextResponse.json(data,{status,headers:privateHeaders});
 const sourceFields='patient_id,answers,status,version,updated_at,submitted_at';
@@ -42,6 +42,10 @@ async function linkedSource(supabase:NonNullable<Awaited<ReturnType<typeof emrAc
  if(!answers||typeof answers!=='object'||Array.isArray(answers)||
    Object.values(answers).some(value=>typeof value!=='string'))
   return {code:409 as const,error:'Linked intake answers are malformed; reopen the protected original intake.'};
+ // An unknown packet marker is not proof that the legacy questionnaire applies.
+ // Reject before any source fields or clinician history can be disclosed.
+ if(!recognizedBpsQuestionnaireVersion(answers.legal_packet_version))
+  return {code:409 as const,error:'Unrecognized intake questionnaire version; verify the protected original source.'};
  return {patient:patient.data,intake:intake.data};
 }
 export async function GET(request:Request){

@@ -108,7 +108,7 @@ test('acknowledged BPS save is never reported as unsaved when subsequent history
  fireEvent.click(screen.getByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i}));
  fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed this intake/i}));
  fireEvent.click(screen.getByRole('button',{name:/Save reviewed BPS history snapshot/i}));
- await screen.findByText(/snapshot WAS saved, but its history could not be reloaded/i);
+ await screen.findByText(/save was acknowledged by the database, but the exact clinician review was NOT verified/i);
  expect(screen.getByText(/do not submit it again/i)).toBeTruthy();
  expect(screen.queryByRole('button',{name:/Save reviewed BPS history snapshot/i})).toBeNull();
  expect(saves).toBe(1);

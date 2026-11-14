@@ -478,7 +478,7 @@ test('case-variant duplicate review IDs across pages are rejected before any cli
   reviewed:true,clinical_answers:{counseling_reason:confidential},
   clinician_notes:{presenting:'PRIVATE_FICTIONAL_CLINICIAN_NOTE'}
  }));
- reviewRows[100]={...reviewRows[100],id:reviewRows[0].id.toUpperCase()};
+ reviewRows[100]={...reviewRows[100],id:String(reviewRows[0].id).toUpperCase()};
  const result=await GET(request());
  expect(result.status).toBe(409);
  expect(result.headers.get('Cache-Control')).toContain('no-store');

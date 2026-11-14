@@ -148,6 +148,20 @@ test('malformed linked JSONB answers cannot impersonate an empty but valid 21-se
  expect((await GET(request())).status).toBe(200);
 });
 
+test('unrecognized explicit questionnaire packet never falls back to legacy BPS and leaks protected source',async()=>{
+ data={counseling_reason:'PRIVATE_FICTIONAL_CLINICAL_SOURCE',legal_packet_version:'2026-12-unknown-packet'};
+ const response=await GET(request());
+ expect(response.status).toBe(409);
+ expect(response.headers.get('Cache-Control')).toContain('no-store');
+ const wire=JSON.stringify(await response.json());
+ expect(wire).not.toContain('PRIVATE_FICTIONAL_CLINICAL_SOURCE');
+ expect(wire).not.toContain('sections');
+ expect(m.from).not.toHaveBeenCalledWith('emr_bps_intake_reviews');
+ for(const packet of ['2026-10-11','2026-11-02-directory-1']){
+  data.legal_packet_version=packet;
+  expect((await GET(request())).status).toBe(200);
+ }
+});
 test('21-section review distinguishes risk, legal references and structured reconciliation',async()=>{
  const response=await GET(request());expect(response.status).toBe(200);
  expect(response.headers.get('Cache-Control')).toContain('no-store');

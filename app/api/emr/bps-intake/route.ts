@@ -1,7 +1,7 @@
 import {NextResponse} from 'next/server';
 import {emrAccess,privateHeaders,sameOrigin} from '@/lib/emr/access';
 import {uuid} from '@/lib/emr/demographics';
-import {bpsNoteDomains,mapIntakeToBps,sanitizeBpsClinicianNotes,sanitizeBpsSnapshotAnswers,validBpsTimestamp,recognizedBpsQuestionnaireVersion} from '@/lib/emr/intake-bps';
+import {bpsNoteDomains,mapIntakeToBps,sanitizeBpsClinicianNotes,sanitizeBpsSnapshotAnswers,validBpsTimestamp,validBpsSubmissionChronology,recognizedBpsQuestionnaireVersion} from '@/lib/emr/intake-bps';
 export const dynamic='force-dynamic';
 const reply=(data:unknown,status=200)=>NextResponse.json(data,{status,headers:privateHeaders});
 const sourceFields='patient_id,answers,status,version,updated_at,submitted_at';
@@ -28,11 +28,10 @@ async function linkedSource(supabase:NonNullable<Awaited<ReturnType<typeof emrAc
  // consumers and cannot make malformed historical rows safe to disclose.
  if((intake.data.status!=='draft'&&intake.data.status!=='submitted')||
    !Number.isSafeInteger(intake.data.version)||intake.data.version<1||
-   !validBpsTimestamp(intake.data.updated_at)||
-   // Submitted clinical provenance must have a real submission receipt, not
-   // merely a status label. Drafts may have no submission timestamp.
-   (intake.data.status==='submitted'&&!validBpsTimestamp(intake.data.submitted_at))||
-   (intake.data.submitted_at!=null&&!validBpsTimestamp(intake.data.submitted_at)))
+   // A submitted patient report edited AFTER its attestation receipt is not
+   // an immutable clinical source, even if status still says "submitted".
+   // Drafts may legitimately have no submission receipt.
+   !validBpsSubmissionChronology(intake.data.status,intake.data.updated_at,intake.data.submitted_at))
   return {code:409 as const,error:'Linked intake source metadata is invalid; reopen the protected original intake.'};
  // A malformed JSONB answer payload must not silently turn a 21-section
  // clinical intake into an apparently valid blank questionnaire. Only the

@@ -197,6 +197,9 @@ test('idle linked-intake refresh is source-scoped, stops during clinician review
 test.each([
  ['invalid historical review ID',{id:'not-a-uuid'}],
  ['invalid historical source version',{source_version:0}],
+ ['historical review refers to a future source version',{source_version:4}],
+ ['review status disagrees with current same-version attestation',{source_status:'draft'}],
+ ['review timestamp disagrees with current same-version revision',{source_updated_at:'2026-11-12T11:59:59Z'}],
  ['missing clinician review attestation',{reviewed:undefined}],
  ['nonboolean clinician review attestation',{reviewed:'yes'}],
  ['unsupported historical source status',{source_status:'revoked'}],

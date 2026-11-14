@@ -190,7 +190,12 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
      // its original version is NOT verification of the currently linked source.
      const sameSource=next.source.accountId===data.source.accountId&&
       next.source.version===data.source.version&&next.source.status===data.source.status&&
-      equalBpsTimestampInstants(next.source.updatedAt,data.source.updatedAt);
+      equalBpsTimestampInstants(next.source.updatedAt,data.source.updatedAt)&&
+      // The patient's actual submission attestation is part of the immutable
+      // source receipt. A changed receipt must not verify an earlier clinician
+      // review even when account, status, version and edit timestamp agree.
+      (data.source.submittedAt==null?next.source.submittedAt==null:
+       equalBpsTimestampInstants(next.source.submittedAt,data.source.submittedAt));
      // Retain the acknowledged old version and its duplicate-save lock if the
      // linked source changed mid-flight. Reopening the chart is required.
      if(sameSource)setData(next);

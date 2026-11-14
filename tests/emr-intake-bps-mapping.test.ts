@@ -233,3 +233,15 @@ test('BPS attestation comparisons preserve microseconds and normalize timezone o
   '2026-11-10T09:00:00.000000001Z','2026-11-10T09:00:00Z')).toBe(false);
  expect(validBpsSubmissionChronology('draft','2026-11-10T09:00:00.000002Z',null)).toBe(true);
 });
+
+test('unknown BPS field identities containing fictional private text are counted but never echoed',()=>{
+ const malformedName='FICTIONAL_PERSON 123-45-6789 confidential source';
+ const report=mapIntakeToBps({counseling_reason:'Reported concern',[malformedName]:'Reported response'});
+ expect(report.unmappedKeys).toEqual(['[unrecognized source field name withheld]']);
+ expect(JSON.stringify(report)).not.toContain(malformedName);
+ const history=mapSavedBpsReportedFields({counseling_reason:'Reported concern',[malformedName]:'Historical value'});
+ expect(history.unmappedKeys).toEqual(['[unrecognized source field name withheld]']);
+ expect(JSON.stringify(history)).not.toContain(malformedName);
+ // Ordinary schema-like unknown IDs still help clinicians reconcile the source.
+ expect(mapIntakeToBps({unknown_form_field_1:'yes'}).unmappedKeys).toEqual(['unknown_form_field_1']);
+});

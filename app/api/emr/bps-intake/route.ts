@@ -121,13 +121,18 @@ export async function GET(request:Request){
     !validBpsHistoricalSourceBoundary(review.source_version,review.source_status,review.source_updated_at,
      source.intake.version,source.intake.status,source.intake.updated_at)))
    return reply({error:'BPS historical review provenance could not be verified.'},409);
-  const safeReviews=(reviews??[]).map(({patient_id:_patient,source_account_id:_account,...review})=>{
-   // A malformed or historical review must never leak unapproved intake fields
-   // in the API payload, even if the browser also filters its visible content.
+  const safeReviews=reviews.map(review=>{
+   // Return an explicit allowlist, not a spread of the database adapter row.
+   // A stale adapter or future schema can add columns with unrelated patient
+   // identifiers, insurance details or PHI: none may cross this API boundary.
    const clean=sanitizeBpsSnapshotAnswers(review.clinical_answers);
    const safeNotes=sanitizeBpsClinicianNotes(review.clinician_notes);
-   return {...review,reviewed:review.reviewed===true,clinical_answers:clean.answers,clinician_notes:safeNotes.notes,
-    excluded_clinical_fields:clean.excludedCount,excluded_clinician_notes:safeNotes.excludedCount};
+   return {
+    id:review.id,source_version:review.source_version,source_status:review.source_status,
+    source_updated_at:review.source_updated_at,created_at:review.created_at,
+    reviewed:review.reviewed===true,clinical_answers:clean.answers,clinician_notes:safeNotes.notes,
+    excluded_clinical_fields:clean.excludedCount,excluded_clinician_notes:safeNotes.excludedCount
+   };
   });
   return reply({patientId:id,linked:true,source:{accountId:source.patient.account_id,status:source.intake.status,version:source.intake.version,
     updatedAt:source.intake.updated_at,submittedAt:source.intake.submitted_at??null},...report,reviews:safeReviews});

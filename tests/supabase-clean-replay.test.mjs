@@ -220,6 +220,39 @@ test('clinic migrations replay in order on an empty application database', async
     } finally {
       await db.exec('alter table public.patient_intakes enable trigger user');
     }
+    // A malformed historical row can have a source update after the patient
+    // submission receipt. The protected API denies this already; the direct
+    // privileged RPC must independently reject it at the database boundary.
+    // Corrupt and then restore this fictional row only in clean-replay storage.
+    await db.exec('reset role');
+    await db.exec('alter table public.patient_intakes disable trigger user');
+    let postAttestationSource;
+    try {
+      const {rows:[edited]}=await db.query(
+        "update public.patient_intakes set updated_at=submitted_at + interval '1 second' where patient_id=$1 returning version,status,updated_at",
+        [patientId]);
+      postAttestationSource=edited;
+    } finally {
+      await db.exec('alter table public.patient_intakes enable trigger user');
+    }
+    assert.ok(postAttestationSource?.updated_at,'Fictional post-attestation fixture must exist');
+    assert.equal(postAttestationSource.version,submitted.version,
+      'Direct source revision must retain version to test chronology, not stale-version rejection');
+    await as(adminId,'aal2');
+    await assert.rejects(
+      db.query('select public.save_emr_bps_intake_review($1) as id',[{
+        ...submittedPayload,source_updated_at:new Date(postAttestationSource.updated_at).toISOString(),
+      }]),
+      /modified after its attested submission receipt/,
+      'MFA-verified direct review RPC must refuse a post-attestation edited source');
+    await db.exec('reset role');
+    await db.exec('alter table public.patient_intakes disable trigger user');
+    try {
+      await db.query('update public.patient_intakes set updated_at=$2 where patient_id=$1',
+        [patientId,submitted.updated_at]);
+    } finally {
+      await db.exec('alter table public.patient_intakes enable trigger user');
+    }
     await as(adminId,'aal1');
     await assert.rejects(db.query('select public.save_emr_bps_intake_review($1) as id',[submittedPayload]),
       /MFA|Administrator sign-in/,'AAL1 must not approve a submitted patient intake');

@@ -78,12 +78,17 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
    // Independent field-level and separate-review privacy gates remain active.
    if(typeof section.title!=='string'||!section.title||seenSectionTitles.has(section.title))return false;
    seenSectionTitles.add(section.title);
+   // Repeated source field identities can conceal a missing question or
+   // conflicting patient reports despite a nominally complete 21-section audit.
+   const seenFieldKeys=new Set<string>();
    return typeof section.domain==='string'&&section.domain.length>0&&
     (section.disposition==='clinical'||section.disposition==='separate-review'||section.disposition==='reference')&&
     Number.isSafeInteger(section.answered)&&Number(section.answered)>=0&&
     Array.isArray(section.fields)&&Number(section.answered)<=section.fields.length&&section.fields.every((candidate:unknown)=>{
      if(!candidate||typeof candidate!=='object'||Array.isArray(candidate))return false;
      const field=candidate as Partial<Field>;
+     if(typeof field.key!=='string'||!field.key||seenFieldKeys.has(field.key))return false;
+     seenFieldKeys.add(field.key);
      return typeof field.key==='string'&&field.key.length>0&&
       typeof field.label==='string'&&typeof field.type==='string'&&
       typeof field.value==='string'&&

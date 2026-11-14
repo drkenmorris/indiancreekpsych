@@ -27,6 +27,19 @@ test('BPS never treats unknown explicit questionnaire packet markers as approved
  for(const packet of ['', '2026-10-11', '2026-11-02-directory-1'])
   expect(mapIntakeToBps({legal_packet_version:packet,counseling_reason:'Fictional concern'}).sections).toHaveLength(21);
 });
+test('approved packet-version routing metadata is not reported as an unmapped clinical answer',()=>{
+ for(const version of ['2026-10-11','2026-11-02-directory-1']){
+  const mapped=mapIntakeToBps({legal_packet_version:version,counseling_reason:'Fictional concern'});
+  expect(mapped.sections).toHaveLength(21);
+  expect(mapped.unmappedKeys).toEqual([]);
+ }
+ // Unknown answers still count, but neither schema-shaped nor malformed
+ // field identities are returned to the protected BPS review.
+ const extra=mapIntakeToBps({legal_packet_version:'2026-11-02-directory-1',
+  extra_patient_jane_doe:'fictional report'});
+ expect(extra.unmappedKeys).toEqual(['[unrecognized source field name withheld]']);
+});
+
 test('BPS rejects duplicated source question identities across separate sections',()=>{
  // Each section is individually unique, but the same question is improperly
  // credited to two sections. A clinical review cannot verify this topology.

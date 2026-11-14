@@ -57,7 +57,12 @@ export default function AppointmentsClient({userId,accountType,preferredName,ini
       const {data,error}=await supabase.rpc("book_patient_appointments",{p_patient_id:booking.patient_id||null,p_patient_name:booking.patient_id?null:booking.patient_name,p_first_date:booking.first_date,p_start_time:booking.start_time,p_repeat_weeks:booking.repeat_weeks,p_through:booking.repeat_weeks===0?booking.first_date:booking.through}).abortSignal(AbortSignal.timeout(20000));
       // A definitive database error is a rejected transaction; transport
       // failures and malformed success receipts cannot prove no write occurred.
-      if(error){outcomeUnknown=false;throw error;}
+      if(error){
+        // SQLSTATE means the database explicitly rejected the transaction.
+        // A PostgREST transport failure (or unknown error) may follow a commit.
+        if(typeof error.code==='string'&&/^[0-9A-Z]{5}$/.test(error.code))outcomeUnknown=false;
+        throw error;
+      }
       // A successful HTTP/RPC response with zero, null or malformed affected rows
       // is NOT evidence that a booking was committed. Never tell the clinician
       // appointments exist unless the scheduler returns a positive integer receipt.

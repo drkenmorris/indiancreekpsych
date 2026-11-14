@@ -1,6 +1,6 @@
 import {expect,test} from 'vitest';
 import {intakeSections,intakeSectionsForVersion,retiredMentalHealthFields,retiredContextFields} from '@/lib/patient/intake';
-import {bpsNoteDomains,bpsSectionClassification,mapIntakeToBps,mapSavedBpsReportedFields,sanitizeBpsSnapshotAnswers,bpsSnapshotClinicalKeys,bpsVisibleSourceKeys,distinctBpsQuestionIdentities} from '@/lib/emr/intake-bps';
+import {bpsNoteDomains,bpsSectionClassification,mapIntakeToBps,mapSavedBpsReportedFields,sanitizeBpsSnapshotAnswers,bpsSnapshotClinicalKeys,bpsVisibleSourceKeys,distinctBpsQuestionIdentities,equalBpsTimestampInstants,validBpsSubmissionChronology} from '@/lib/emr/intake-bps';
 test('all 21 current and historical sections receive deliberate BPS dispositions',()=>{
  for(const sections of [intakeSections,intakeSectionsForVersion('legacy')]){
   expect(sections).toHaveLength(21);
@@ -215,4 +215,21 @@ test('the server BPS mapper withholds unexpected emergency contact and administr
  }
  expect(fields.find(field=>field.key==='guardian_relationship')?.value).toBe('Parent');
  expect(fields.find(field=>field.key==='counseling_reason')?.value).toBe('Fictional presenting concern');
+});
+
+test('BPS attestation comparisons preserve microseconds and normalize timezone offsets',()=>{
+ const receipt='2026-11-10T09:00:00.000001Z';
+ const equivalent='2026-11-10T03:00:00.000001-06:00';
+ const editedLater='2026-11-10T09:00:00.000002Z';
+ expect(equalBpsTimestampInstants(receipt,equivalent)).toBe(true);
+ expect(equalBpsTimestampInstants(receipt,editedLater)).toBe(false);
+ expect(equalBpsTimestampInstants('not-a-date',receipt)).toBe(false);
+ expect(validBpsSubmissionChronology('submitted',equivalent,receipt)).toBe(true);
+ expect(validBpsSubmissionChronology('submitted',editedLater,receipt)).toBe(false);
+ expect(validBpsSubmissionChronology('submitted',receipt,editedLater)).toBe(true);
+ // RFC3339 fractions may contain more than six digits; never truncate a
+ // later source edit to the same JavaScript millisecond as its attestation.
+ expect(validBpsSubmissionChronology('submitted',
+  '2026-11-10T09:00:00.000000001Z','2026-11-10T09:00:00Z')).toBe(false);
+ expect(validBpsSubmissionChronology('draft','2026-11-10T09:00:00.000002Z',null)).toBe(true);
 });

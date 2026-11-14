@@ -140,6 +140,25 @@ test('submitted BPS source edited after its attestation cannot be disclosed as i
  const submittedLater=await GET(request());expect(submittedLater.status).toBe(200);
 });
 
+test('a post-attestation BPS edit one microsecond later is never exposed through the protected API',async()=>{
+ const patientReport='PRIVATE_FICTIONAL_HIGH_PRECISION_SOURCE';
+ data={counseling_reason:patientReport};
+ intakeStatus='submitted';
+ intakeUpdatedAt='2026-11-10T09:00:00.000001Z';
+ intakeSubmittedAt='2026-11-10T09:00:00.000000Z';
+ let response=await GET(request());
+ expect(response.status).toBe(409);
+ expect(JSON.stringify(await response.json())).not.toContain(patientReport);
+ expect(m.from).not.toHaveBeenCalledWith('emr_bps_intake_reviews');
+ // The same instant may be expressed using another timezone offset.
+ intakeSubmittedAt='2026-11-10T03:00:00.000001-06:00';
+ response=await GET(request());
+ expect(response.status).toBe(200);
+ const verified=await response.json();
+ expect(verified.source.updatedAt).toBe(intakeUpdatedAt);
+ expect(verified.source.submittedAt).toBe(intakeSubmittedAt);
+});
+
 test('malformed linked JSONB answers cannot impersonate an empty but valid 21-section clinical intake',async()=>{
  const safe={...data,counseling_reason:'PRIVATE_FICTIONAL_STATEMENT'};
  const invalidSources:unknown[]=[

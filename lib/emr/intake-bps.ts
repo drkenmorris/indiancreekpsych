@@ -73,6 +73,13 @@ const historicalBpsDomain:Record<string,string>={
 // not in BPS narrative previews, even when the upstream field type is mislabeled.
 const protectedHistoricalKeys=new Set(['prior_psychiatric_medications','legal_history']);
 const historicalClinicalFields=[...retiredMentalHealthFields,...retiredContextFields];
+/** Source question identities must be unique across the complete questionnaire,
+ * not just within one section. A collision could falsely attribute a response to
+ * two clinical domains while concealing a missing question. */
+export function distinctBpsQuestionIdentities(sections:ReadonlyArray<{fields:ReadonlyArray<{key:string}>}>):boolean{
+ const keys=sections.flatMap(section=>section.fields.map(field=>field.key));
+ return new Set(keys).size===keys.length;
+}
 export function mapIntakeToBps(answers:Record<string,string>){
  // Current intake questions can also appear in legacy retired field lists.
  // Audit each patient answer only once, and never broaden BPS raw disclosure.
@@ -114,6 +121,8 @@ export function mapIntakeToBps(answers:Record<string,string>){
  // definitions, including historical intake versions.
  if(sections.some(section=>new Set(section.fields.map(field=>field.key)).size!==section.fields.length))
   throw Error('The intake-to-BPS question mapping contains duplicate field identities.');
+ if(!distinctBpsQuestionIdentities(sections))
+  throw Error('The intake-to-BPS question mapping contains duplicate field identities across sections.');
  const mapped=new Set(sections.flatMap(s=>s.fields.map(f=>f.key)));
  const unmappedKeys=Object.keys(answers).filter(key=>!mapped.has(key)&&typeof answers[key]==='string'&&answers[key].trim());
  return {sections,unmappedKeys};

@@ -1,7 +1,7 @@
 import {NextResponse} from 'next/server';
 import {emrAccess,privateHeaders,sameOrigin} from '@/lib/emr/access';
 import {uuid} from '@/lib/emr/demographics';
-import {bpsNoteDomains,mapIntakeToBps,sanitizeBpsClinicianNotes,sanitizeBpsSnapshotAnswers,validBpsTimestamp,validBpsSubmissionChronology,validBpsReviewChronology,validBpsHistoricalSourceBoundary,recognizedBpsQuestionnaireVersion,bpsTimestampInstantNanoseconds} from '@/lib/emr/intake-bps';
+import {bpsNoteDomains,mapIntakeToBps,sanitizeBpsClinicianNotes,sanitizeBpsSnapshotAnswers,validBpsTimestamp,validBpsSubmissionChronology,validBpsReviewChronology,validBpsHistoricalSourceBoundary,recognizedBpsQuestionnaireVersion,bpsTimestampInstantNanoseconds,equalBpsTimestampInstants} from '@/lib/emr/intake-bps';
 export const dynamic='force-dynamic';
 const reply=(data:unknown,status=200)=>NextResponse.json(data,{status,headers:privateHeaders});
 const sourceFields='patient_id,answers,status,version,updated_at,submitted_at';
@@ -121,6 +121,19 @@ export async function GET(request:Request){
     !validBpsHistoricalSourceBoundary(review.source_version,review.source_status,review.source_updated_at,
      source.intake.version,source.intake.status,source.intake.updated_at)))
    return reply({error:'BPS historical review provenance could not be verified.'},409);
+  // Historical rows can be individually well-formed even if a central chart is
+  // relinked or its website intake changes while paginated history is loading.
+  // Re-read both protected scopes immediately before returning any patient text.
+  // Do not release an earlier account's clinical report under a new chart link.
+  const stable=await linkedSource(ctx.supabase,id);
+  if('code' in stable||stable.patient.account_id!==source.patient.account_id||
+    stable.intake.patient_id!==source.intake.patient_id||
+    stable.intake.version!==source.intake.version||
+    stable.intake.status!==source.intake.status||
+    !equalBpsTimestampInstants(stable.intake.updated_at,source.intake.updated_at)||
+    (source.intake.submitted_at==null?stable.intake.submitted_at!=null:
+      !equalBpsTimestampInstants(stable.intake.submitted_at,source.intake.submitted_at)))
+   return reply({error:'Linked intake or central patient association changed during clinical history retrieval; reopen the chart.'},409);
   const safeReviews=reviews.map(review=>{
    // Return an explicit allowlist, not a spread of the database adapter row.
    // A stale adapter or future schema can add columns with unrelated patient

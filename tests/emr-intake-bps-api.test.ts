@@ -655,3 +655,35 @@ test('clinician BPS history API withholds unexpected database columns even when 
  expect(review.clinician_notes.presenting).toBe('Independent fictional review');
  expect(JSON.stringify(body)).not.toContain(privateMarker);
 });
+
+test('BPS history denies disclosure when a central chart is relinked while the history query completes',async()=>{
+ const privateStatement='FICTIONAL_STALE_ACCOUNT_CLINICAL_STATEMENT';
+ data={counseling_reason:privateStatement};
+ let historyRead=false;
+ historyResultOverride=()=>{
+  historyRead=true;
+  linked='00000000-0000-4000-8000-000000000991';
+  return [];
+ };
+ const result=await GET(request());
+ expect(historyRead).toBe(true);
+ expect(result.status).toBe(409);
+ expect(result.headers.get('Cache-Control')).toContain('no-store');
+ expect(JSON.stringify(await result.json())).not.toContain(privateStatement);
+});
+
+test('BPS history denies disclosure if intake revision changes during the history query',async()=>{
+ const privateStatement='FICTIONAL_STALE_VERSION_CLINICAL_STATEMENT';
+ data={counseling_reason:privateStatement};
+ let historyRead=false;
+ historyResultOverride=()=>{
+  historyRead=true;
+  version=3;
+  return [];
+ };
+ const result=await GET(request());
+ expect(historyRead).toBe(true);
+ expect(result.status).toBe(409);
+ expect(result.headers.get('Cache-Control')).toContain('no-store');
+ expect(JSON.stringify(await result.json())).not.toContain(privateStatement);
+});

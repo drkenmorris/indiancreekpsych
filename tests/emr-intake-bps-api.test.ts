@@ -378,7 +378,7 @@ test('complete 221-row BPS history is retrieved in patient-scoped exact-count pa
   version=300;
   const confidential='PRIVATE_FICTIONAL_PAGED_HISTORY';
   reviewRows=Array.from({length:221},(_,index)=>({
-   id:'00000000-0000-0000-0000-'+String(600+index).padStart(12,'0'),
+   id:'00000000-0000-0000-0000-'+String(600+220-index).padStart(12,'0'),
    patient_id:patient,source_account_id:account,
    source_version:index+1,source_status:'draft',source_updated_at:stamp,created_at:stamp,
    reviewed:true,clinical_answers:{counseling_reason:confidential},clinician_notes:{presenting:'Fictional note'}
@@ -398,6 +398,34 @@ test('complete 221-row BPS history is retrieved in patient-scoped exact-count pa
    expect(q.eq).toHaveBeenCalledWith('patient_id',patient);
    expect(q.eq).toHaveBeenCalledWith('source_account_id',account);
   }
+});
+
+test('out-of-order BPS history fails closed even when total count and review IDs look complete',async()=>{
+  version=250;
+  const confidential='PRIVATE_FICTIONAL_OUT_OF_ORDER_HISTORY';
+  reviewRows=Array.from({length:201},(_,index)=>({
+   id:'00000000-0000-0000-0000-'+String(1000-index).padStart(12,'0'),
+   patient_id:patient,source_account_id:account,
+   source_version:index+1,source_status:'draft',source_updated_at:stamp,
+   created_at:stamp,reviewed:true,
+   clinical_answers:{counseling_reason:confidential},clinician_notes:{presenting:'PRIVATE_FICTIONAL_NOTES'}
+  }));
+  // A second page can contain a newer review without changing the exact count.
+  // Unique IDs and full-length pages alone would otherwise accept this history.
+  reviewRows[100]={...reviewRows[100],created_at:'2026-11-10T09:00:00.000001Z'};
+  const outOfOrder=await GET(request());
+  expect(outOfOrder.status).toBe(409);
+  expect(outOfOrder.headers.get('Cache-Control')).toContain('no-store');
+  expect(JSON.stringify(await outOfOrder.json())).not.toContain(confidential);
+  expect(JSON.stringify(await GET(request()).then(response=>response.json()))).not.toContain('PRIVATE_FICTIONAL_NOTES');
+  // Equal timestamps must also use descending UUID order, not arbitrary row order.
+  reviewRows[100]={...reviewRows[100],created_at:stamp};
+  const swapped=reviewRows[99];
+  reviewRows[99]=reviewRows[100];
+  reviewRows[100]=swapped;
+  const invalidTie=await GET(request());
+  expect(invalidTie.status).toBe(409);
+  expect(JSON.stringify(await invalidTie.json())).not.toContain(confidential);
 });
 
 test('history above 1,000 verified records is not partially disclosed or treated as complete',async()=>{

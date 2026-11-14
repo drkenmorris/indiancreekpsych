@@ -82,7 +82,9 @@ export async function GET(request:Request){
     (review.source_status!=='draft'&&review.source_status!=='submitted')||
     !validBpsTimestamp(review.source_updated_at)||
     !validBpsTimestamp(review.created_at)||
-     !validBpsReviewChronology(review.source_updated_at,review.created_at)||
+     !validBpsReviewChronology(review.source_updated_at,review.created_at,
+      review.source_version===source.intake.version&&review.source_status==='submitted'
+       ?source.intake.submitted_at:undefined)||
     !validBpsHistoricalSourceBoundary(review.source_version,review.source_status,review.source_updated_at,
      source.intake.version,source.intake.status,source.intake.updated_at)))
    return reply({error:'BPS historical review provenance could not be verified.'},409);

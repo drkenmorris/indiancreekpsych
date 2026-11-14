@@ -320,3 +320,57 @@ test.each([
  expect(reads).toBe(1);
  expect(posts).toBe(1);
 });
+
+
+test('clinician save cannot be independently verified if the patient submission attestation changes after its write',async()=>{
+ const savedId='00000000-0000-4000-8000-000000000971';
+ let reads=0,posts=0;
+ vi.stubGlobal('fetch',vi.fn(async (_url:string,options?:RequestInit)=>{
+  if(options?.method==='POST'){posts++;return Response.json({saved:true,id:savedId});}
+  reads++;
+  if(reads===1)return Response.json(source());
+  // This new receipt is chronologically valid, and the saved review is after
+  // both receipts. An unchanged source version/edit timestamp alone must NOT
+  // establish that the clinician reviewed the newer patient attestation.
+  const changed=source([{
+   id:savedId,reviewed:true,source_version:7,source_status:'submitted',
+   source_updated_at:stamp,created_at:'2026-11-10T12:00:00.000002Z',
+   clinical_answers:{},clinician_notes:{}
+  }]);
+  changed.source.submittedAt='2026-11-10T12:00:00.000001Z';
+  return Response.json(changed);
+ }));
+ render(<PatientBpsIntakeReview patientId={patient}/>);
+ await screen.findByText(/Version 7/);
+ fireEvent.click(screen.getByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i}));
+ fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed this intake/i}));
+ fireEvent.click(screen.getByRole('button',{name:/Save reviewed BPS history snapshot/i}));
+ await screen.findByText(/linked intake source changed during chart-history verification/i);
+ expect(screen.queryByText(/snapshot saved AND independently verified in the protected chart history/)).toBeNull();
+ expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
+ expect(posts).toBe(1);
+ expect(reads).toBe(2);
+});
+
+test('equivalent patient attestation instants in different timezone offsets still verify the same saved BPS source',async()=>{
+ const savedId='00000000-0000-4000-8000-000000000972';
+ let reads=0;
+ vi.stubGlobal('fetch',vi.fn(async (_url:string,options?:RequestInit)=>{
+  if(options?.method==='POST')return Response.json({saved:true,id:savedId});
+  reads++;
+  if(reads===1)return Response.json(source());
+  const equivalent=source([{
+   id:savedId,reviewed:true,source_version:7,source_status:'submitted',
+   source_updated_at:stamp,created_at:stamp,clinical_answers:{},clinician_notes:{}
+  }]);
+  equivalent.source.submittedAt='2026-11-10T06:00:00-06:00';
+  return Response.json(equivalent);
+ }));
+ render(<PatientBpsIntakeReview patientId={patient}/>);
+ await screen.findByText(/Version 7/);
+ fireEvent.click(screen.getByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i}));
+ fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed this intake/i}));
+ fireEvent.click(screen.getByRole('button',{name:/Save reviewed BPS history snapshot/i}));
+ await screen.findByText(/snapshot saved AND independently verified in the protected chart history/);
+ expect(reads).toBe(2);
+});

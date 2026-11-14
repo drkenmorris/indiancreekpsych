@@ -66,7 +66,7 @@ test('an acknowledged save stays locked if the history read-back fails',async()=
  fireEvent.click(screen.getByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i}));
  fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed this intake/i}));
  fireEvent.click(screen.getByRole('button',{name:/Save reviewed BPS history snapshot/i}));
- await screen.findByText(/snapshot WAS saved, but its history could not be reloaded/);
+ await screen.findByText(/save was acknowledged by the database, but the exact clinician review was NOT verified/);
  expect(screen.getByText(/A clinician-reviewed BPS snapshot for this source version has already been saved/)).toBeTruthy();
  expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
  expect(posts).toBe(1);
@@ -252,7 +252,7 @@ test.each([false,undefined])('a saved row with review attestation %s cannot prov
  if(attestation===undefined){
   // Malformed (absent) attestation withholds historical content rather than
   // fabricating a false review; the acknowledged save remains locked.
-  await screen.findByText(/snapshot WAS saved, but its history could not be reloaded/);
+  await screen.findByText(/save was acknowledged by the database, but the exact clinician review was NOT verified/);
   expect(screen.queryByText(/Previously saved immutable clinician reviews/)).toBeNull();
  }else{
   await screen.findByText(/NOT verified in chart history/);
@@ -295,4 +295,28 @@ test('stale clinical API cannot expose fictional private identifiers through unm
  await screen.findByText(/additional historical or unrecognized field\(s\) were recorded/i);
  expect(document.body.textContent).not.toContain(privateFieldName);
  expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeTruthy();
+});
+
+test.each([
+ {saved:'yes',id:'00000000-0000-4000-8000-000000000999'},
+ {saved:true,id:'not-a-review-uuid'},
+ {saved:true},
+ {saved:false,id:'00000000-0000-4000-8000-000000000999'}
+])('malformed BPS database receipt never authorizes a success claim or blind retry: %j',async(receipt)=>{
+ let reads=0,posts=0;
+ vi.stubGlobal('fetch',vi.fn(async(_url:string,options?:RequestInit)=>{
+  if(options?.method==='POST'){posts++;return Response.json(receipt);}
+  reads++;return Response.json(source());
+ }));
+ render(<PatientBpsIntakeReview patientId={patient}/>);
+ await screen.findByText(/Version 7/);
+ fireEvent.click(screen.getByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i}));
+ fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed this intake/i}));
+ fireEvent.click(screen.getByRole('button',{name:/Save reviewed BPS history snapshot/i}));
+ await screen.findByText(/outcome of this submission is unknown/i);
+ expect(screen.queryByText(/saved AND independently verified in the protected chart history/)).toBeNull();
+ expect(screen.queryByRole('button',{name:/Save reviewed BPS history snapshot/i})).toBeNull();
+ expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
+ expect(reads).toBe(1);
+ expect(posts).toBe(1);
 });

@@ -70,6 +70,9 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
   // any patient-reported statements into the clinician review interface.
   // This is independent of the API contract and leaves original BPS forms intact.
   const seenSectionTitles=new Set<string>();
+  // A question may not be attributed to more than one clinical section.
+  // Withhold the entire source if a stale API repeats an identity across sections.
+  const seenFieldKeys=new Set<string>();
   const validSections=value.sections.every((entry:unknown)=>{
    if(!entry||typeof entry!=='object'||Array.isArray(entry))return false;
    const section=entry as Partial<Section>;
@@ -80,7 +83,7 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
    seenSectionTitles.add(section.title);
    // Repeated source field identities can conceal a missing question or
    // conflicting patient reports despite a nominally complete 21-section audit.
-   const seenFieldKeys=new Set<string>();
+
    return typeof section.domain==='string'&&section.domain.length>0&&
     (section.disposition==='clinical'||section.disposition==='separate-review'||section.disposition==='reference')&&
     Number.isSafeInteger(section.answered)&&Number(section.answered)>=0&&

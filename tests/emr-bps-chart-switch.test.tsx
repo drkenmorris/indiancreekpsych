@@ -251,3 +251,31 @@ test.each([
  expect(screen.queryByText('PRIVATE_FICTIONAL_REPORTED_SOURCE')).toBeNull();
  expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
 });
+
+
+test('duplicate twenty-one-section titles fail closed before displaying patient reports or permitting a clinician save',async()=>{
+ const id='00000000-0000-4000-8000-000000000875';
+ const sections=Array.from({length:21},(_,i)=>({
+  title:'Fictional source section '+i,domain:'Clinical context',disposition:'clinical',
+  fields:i===0?[{key:'counseling_reason',label:'Presenting concern',type:'text',
+   value:'PRIVATE_FICTIONAL_PATIENT_REPORT',reported:true,sourceOnly:false}]:[],
+  answered:i===0?1:0
+ }));
+ // Exactly 21 array elements, but two claim the same original section. This
+ // cannot establish 21/21 questionnaire coverage and must not unlock review.
+ sections[1]={...sections[0],fields:[],answered:0};
+ let writes=0;
+ vi.stubGlobal('fetch',vi.fn(async(_url:string,options?:RequestInit)=>{
+  if(options?.method==='POST')writes++;
+  return Response.json({patientId:id,source:{
+   accountId:id,status:'submitted',version:4,
+   updatedAt:'2026-11-13T12:00:00Z',submittedAt:'2026-11-13T12:00:00Z'
+  },sections,unmappedKeys:[],reviews:[]});
+ }));
+ render(<PatientBpsIntakeReview patientId={id}/>);
+ const alert=await screen.findByRole('alert');
+ expect(alert.textContent).toContain('Linked 21-section intake mapping is malformed');
+ expect(document.body.textContent).not.toContain('PRIVATE_FICTIONAL_PATIENT_REPORT');
+ expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
+ expect(writes).toBe(0);
+});

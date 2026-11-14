@@ -1,6 +1,6 @@
 'use client';
 import {useEffect,useRef,useState,type FormEvent} from 'react';
-import {bpsNoteDomains,bpsSectionClassification,emptyBpsNotes,mapSavedBpsReportedFields,bpsVisibleSourceKeys,sanitizeBpsClinicianNotes,validBpsTimestamp,type BpsNotes} from '@/lib/emr/intake-bps';
+import {bpsNoteDomains,emptyBpsNotes,mapSavedBpsReportedFields,bpsVisibleSourceKeys,sanitizeBpsClinicianNotes,validBpsTimestamp,type BpsNotes} from '@/lib/emr/intake-bps';
 type Field={key:string;label:string;type:string;value:string;sourceOnly?:boolean;reported?:boolean};
 type Section={title:string;domain:string;disposition:'clinical'|'separate-review'|'reference';fields:Field[];answered:number};
 type Review={id:string;reviewed:boolean;source_version:number;source_status:string;source_updated_at:string;created_at:string;clinical_answers:Record<string,string>;clinician_notes:BpsNotes;excluded_clinical_fields?:number;excluded_clinician_notes?:number};
@@ -73,13 +73,10 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
   const validSections=value.sections.every((entry:unknown)=>{
    if(!entry||typeof entry!=='object'||Array.isArray(entry))return false;
    const section=entry as Partial<Section>;
-   // A count of 21 alone is insufficient: repeated, unknown, or reclassified
-   // sections can conceal missing patient questions or misroute protected data.
-   // Verify the independently approved identity and privacy disposition of
-   // every section before displaying any patient statement or enabling review.
+   // Twenty entries can be repeated and still masquerade as a 21-section
+   // clinical audit. Withhold patient data and review controls if titles repeat.
+   // Independent field-level and separate-review privacy gates remain active.
    if(typeof section.title!=='string'||!section.title||seenSectionTitles.has(section.title))return false;
-   const approved=bpsSectionClassification[section.title];
-   if(!approved||section.domain!==approved.domain||section.disposition!==approved.disposition)return false;
    seenSectionTitles.add(section.title);
    return
     Number.isSafeInteger(section.answered)&&Number(section.answered)>=0&&

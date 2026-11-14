@@ -78,7 +78,9 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
    // Independent field-level and separate-review privacy gates remain active.
    if(typeof section.title!=='string'||!section.title||seenSectionTitles.has(section.title))return false;
    seenSectionTitles.add(section.title);
-   return Number.isSafeInteger(section.answered)&&Number(section.answered)>=0&&
+   return typeof section.domain==='string'&&section.domain.length>0&&
+    (section.disposition==='clinical'||section.disposition==='separate-review'||section.disposition==='reference')&&
+    Number.isSafeInteger(section.answered)&&Number(section.answered)>=0&&
     Array.isArray(section.fields)&&Number(section.answered)<=section.fields.length&&section.fields.every((candidate:unknown)=>{
      if(!candidate||typeof candidate!=='object'||Array.isArray(candidate))return false;
      const field=candidate as Partial<Field>;

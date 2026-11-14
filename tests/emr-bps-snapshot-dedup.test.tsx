@@ -286,3 +286,13 @@ test('matching BPS review ID is insufficient when chart history timestamp differ
  expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
  expect(reads).toBe(2);
 });
+
+test('stale clinical API cannot expose fictional private identifiers through unmapped-field names in the BPS interface',async()=>{
+ const privateFieldName='FICTIONAL_PATIENT 123-45-6789 confidential source';
+ const report={...source(),unmappedKeys:[privateFieldName]};
+ vi.stubGlobal('fetch',vi.fn(async()=>Response.json(report)));
+ render(<PatientBpsIntakeReview patientId={patient}/>);
+ await screen.findByText(/additional historical or unrecognized field\(s\) were recorded/i);
+ expect(document.body.textContent).not.toContain(privateFieldName);
+ expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeTruthy();
+});

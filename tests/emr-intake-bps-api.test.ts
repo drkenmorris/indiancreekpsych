@@ -687,3 +687,35 @@ test('BPS history denies disclosure if intake revision changes during the histor
  expect(result.headers.get('Cache-Control')).toContain('no-store');
  expect(JSON.stringify(await result.json())).not.toContain(privateStatement);
 });
+
+test('BPS history refuses a linked source whose answers change without version or timestamp movement',async()=>{
+ const original='FICTIONAL_ORIGINAL_PRESENTING_CONCERN';
+ const changed='FICTIONAL_CHANGED_PRESENTING_CONCERN';
+ data={counseling_reason:original};
+ let historyRead=false;
+ historyResultOverride=()=>{
+  historyRead=true;
+  // Simulate an out-of-band or stale-adapter write that violates the expected
+  // version/timestamp discipline while the clinician history is retrieved.
+  data={counseling_reason:changed};
+  return [];
+ };
+ const response=await GET(request());
+ expect(historyRead).toBe(true);
+ expect(response.status).toBe(409);
+ expect(response.headers.get('Cache-Control')).toContain('no-store');
+ const wire=JSON.stringify(await response.json());
+ expect(wire).not.toContain(original);
+ expect(wire).not.toContain(changed);
+});
+
+test('BPS history accepts the same source answers in a different object-key order',async()=>{
+ data={counseling_reason:'Fictional concern',safety_plan:'Fictional plan'};
+ historyResultOverride=()=>{
+  data={safety_plan:'Fictional plan',counseling_reason:'Fictional concern'};
+  return [];
+ };
+ const response=await GET(request());
+ expect(response.status).toBe(200);
+ expect((await response.json()).patientId).toBe(patient);
+});

@@ -486,3 +486,35 @@ test('clinician review history cannot predate its source even by one microsecond
  const source=await valid.json();
  expect(source.reviews[0].clinical_answers.counseling_reason).toBe(confidential);
 });
+
+test('a current submitted BPS review cannot predate patient attestation, even when its source revision is older',async()=>{
+ const secret='PRIVATE_FICTIONAL_PREATTESTATION_HISTORY';
+ data={counseling_reason:secret};
+ intakeUpdatedAt='2026-11-10T09:00:00Z';
+ intakeSubmittedAt='2026-11-10T09:10:00.000001Z';
+ reviewRows=[{
+  id:'00000000-0000-4000-8000-000000000891',
+  patient_id:patient,source_account_id:account,source_version:2,source_status:'submitted',
+  source_updated_at:intakeUpdatedAt,created_at:'2026-11-10T09:10:00.000000Z',
+  reviewed:true,clinical_answers:{counseling_reason:secret},
+  clinician_notes:{presenting:'PRIVATE_FICTIONAL_PREATTESTATION_CLINICIAN_NOTE'}
+ }];
+ const preAttestation=await GET(request());
+ expect(preAttestation.status).toBe(409);
+ expect(preAttestation.headers.get('Cache-Control')).toContain('no-store');
+ expect(JSON.stringify(await preAttestation.json())).not.toContain(secret);
+ expect(JSON.stringify(await GET(request()).then(result=>result.json()))).not.toContain('PRIVATE_FICTIONAL_PREATTESTATION_CLINICIAN_NOTE');
+ // A different timezone that denotes precisely the attestation instant is valid.
+ reviewRows[0].created_at='2026-11-10T03:10:00.000001-06:00';
+ const attested=await GET(request());
+ expect(attested.status).toBe(200);
+ expect((await attested.json()).reviews[0].clinical_answers.counseling_reason).toBe(secret);
+ // Earlier submitted intake versions use their own historical attestation, not
+ // the CURRENT source's later submission time.
+ reviewRows[0].source_version=1;
+ reviewRows[0].source_updated_at='2026-11-10T08:00:00Z';
+ reviewRows[0].created_at='2026-11-10T08:05:00Z';
+ const priorVersion=await GET(request());
+ expect(priorVersion.status).toBe(200);
+ expect((await priorVersion.json()).reviews[0].source_version).toBe(1);
+});

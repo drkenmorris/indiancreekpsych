@@ -46,7 +46,7 @@ test('patient answers are mapped to original question labels without implying cl
  expect(report.sections.find(section=>section.title==='Safety and risk screening')?.domain).toContain('safety');
  expect(report.sections.find(section=>section.title==='Authorization to share health information')?.disposition).toBe('reference');
  expect(report.sections.find(section=>section.title==='Trauma, family, social, educational, and occupational history')?.fields.some(f=>f.key==='trauma_history_checklist')).toBe(true);
- expect(report.unmappedKeys).toContain('private_extra');
+ expect(report.unmappedKeys).toEqual(['[unrecognized source field name withheld]']);
 });
 test('separate review for medications and medical/substance use prevents silent BPS chart copying',()=>{
  const report=mapIntakeToBps({medication_entries:'{"sample":"reported"}',medical_substance_history:'{"sample":"reported"}'});
@@ -69,7 +69,7 @@ test('saved BPS read-back groups only permitted patient-reported clinical histor
  expect(readBack).not.toContain('Do not expose a medication record');
  expect(readBack).not.toContain('Private insurance ID');
  expect(readBack).not.toContain('roi_authorize');
- expect(saved.unmappedKeys).toContain('unapproved_history');
+ expect(saved.unmappedKeys).toEqual(['[unrecognized source field name withheld]']);
 });
 
 
@@ -182,7 +182,7 @@ test('ten non-active retired clinical responses stay routed without duplicating 
  }
  expect(historical.filter(field=>field.domain==='Mental health treatment history')).toHaveLength(1);
  expect(historical.filter(field=>field.domain==='Trauma, family, social, educational, and occupational history')).toHaveLength(9);
- expect(report.unmappedKeys).toEqual(['unexpected_code']);
+ expect(report.unmappedKeys).toEqual(['[unrecognized source field name withheld]']);
  // The database snapshot remains explicitly allowlisted: displaying historical
  // patient testimony never silently creates a clinician fact or signed BPS record.
  const snapshot=sanitizeBpsSnapshotAnswers(answers);
@@ -242,6 +242,16 @@ test('unknown BPS field identities containing fictional private text are counted
  const history=mapSavedBpsReportedFields({counseling_reason:'Reported concern',[malformedName]:'Historical value'});
  expect(history.unmappedKeys).toEqual(['[unrecognized source field name withheld]']);
  expect(JSON.stringify(history)).not.toContain(malformedName);
- // Ordinary schema-like unknown IDs still help clinicians reconcile the source.
- expect(mapIntakeToBps({unknown_form_field_1:'yes'}).unmappedKeys).toEqual(['unknown_form_field_1']);
+ // Schema-shaped unknown names can contain a patient's identity or policy
+ // number. Neither the current source nor saved-history readback may echo them.
+ const shapedName='fictional_patient_jane_doe_birthdate_19800101';
+ const shapedPolicy='insurance_member_fictional_policy_1234';
+ const shaped=mapIntakeToBps({unknown_form_field_1:'yes',
+  [shapedName]:'fictional report',[shapedPolicy]:'fictional report'});
+ expect(shaped.unmappedKeys).toEqual(Array(3).fill('[unrecognized source field name withheld]'));
+ expect(JSON.stringify(shaped)).not.toContain(shapedName);
+ expect(JSON.stringify(shaped)).not.toContain(shapedPolicy);
+ const saved=mapSavedBpsReportedFields({[shapedName]:'fictional report'});
+ expect(saved.unmappedKeys).toEqual(['[unrecognized source field name withheld]']);
+ expect(JSON.stringify(saved)).not.toContain(shapedName);
 });

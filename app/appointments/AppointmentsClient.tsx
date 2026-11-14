@@ -37,6 +37,10 @@ export default function AppointmentsClient({userId,accountType,preferredName,ini
   // Prevent two in-flight appointment-series RPCs even if the submit event is
   // delivered twice before React has painted the disabled submit button.
   const bookingInFlight=useRef(false);
+  // A timeout or malformed receipt can happen after a series commits.
+  // Do not permit a blind duplicate booking before inspecting the calendar.
+  const bookingOutcomeUnknown=useRef(false);
+  const [bookingNeedsReconciliation,setBookingNeedsReconciliation]=useState(false);
   const [editingRuleId,setEditingRuleId]=useState<string|null>(null);
   const [rule,setRule]=useState({weekday:1,start_time:"09:00",end_time:"17:00",anchor_time:""});
   const [block,setBlock]=useState(()=>{const nextHour=Math.ceil(Date.now()/3600000)*3600000;return{starts_at:practiceDateInput(new Date(nextHour).toISOString(),practiceTimezone),ends_at:practiceDateInput(new Date(nextHour+3600000).toISOString(),practiceTimezone),label:""};});
@@ -45,19 +49,27 @@ export default function AppointmentsClient({userId,accountType,preferredName,ini
   useEffect(()=>{if(accountType==="admin")void (async()=>{const {data,error}=await supabase.rpc("scheduling_patients").abortSignal(AbortSignal.timeout(15000));if(error)setPatientError("Patient list could not be loaded. Refresh the page or contact support.");else setPatients((data??[]) as Patient[]);setPatientsLoading(false);})();},[]);
   const bookForPatient=async(e:FormEvent)=>{
     e.preventDefault();
-    if(bookingInFlight.current||busy)return;
+    if(bookingInFlight.current||bookingOutcomeUnknown.current||busy)return;
     bookingInFlight.current=true;
+    let outcomeUnknown=true;
     setBusy(true);setBookingMessage("");
     try {
       const {data,error}=await supabase.rpc("book_patient_appointments",{p_patient_id:booking.patient_id||null,p_patient_name:booking.patient_id?null:booking.patient_name,p_first_date:booking.first_date,p_start_time:booking.start_time,p_repeat_weeks:booking.repeat_weeks,p_through:booking.repeat_weeks===0?booking.first_date:booking.through}).abortSignal(AbortSignal.timeout(20000));
-      if(error)throw error;
+      // A definitive database error is a rejected transaction; transport
+      // failures and malformed success receipts cannot prove no write occurred.
+      if(error){outcomeUnknown=false;throw error;}
       // A successful HTTP/RPC response with zero, null or malformed affected rows
       // is NOT evidence that a booking was committed. Never tell the clinician
       // appointments exist unless the scheduler returns a positive integer receipt.
       if(!Number.isSafeInteger(data)||data<1)throw new Error('Booking was not confirmed. Refresh the calendar to check the schedule before retrying.');
+      outcomeUnknown=false;
       setBookingMessage(`${data} appointment${data===1?"":"s"} booked. Adjacent openings updated.`);
       await loadSlots();
-    }catch(error){setBookingMessage(error instanceof Error?error.message:(error as {message?:string})?.message??"Booking could not be confirmed. Refresh the schedule before retrying.");}finally{bookingInFlight.current=false;setBusy(false); }
+    }catch(error){
+      if(outcomeUnknown){bookingOutcomeUnknown.current=true;setBookingNeedsReconciliation(true);}
+      const reason=error instanceof Error?error.message:(error as {message?:string})?.message??"Booking could not be confirmed.";
+      setBookingMessage(reason+(outcomeUnknown?" The write may have completed. This booking form is locked; inspect the calendar and reload the page before any new attempt. Do not resubmit this series blindly.":""));
+    }finally{bookingInFlight.current=false;setBusy(false); }
   };
 
   const saveSettings=async(e:FormEvent)=>{
@@ -203,7 +215,7 @@ export default function AppointmentsClient({userId,accountType,preferredName,ini
           <label>Appointment start<input required type="time" value={booking.start_time} onChange={e=>setBooking({...booking,start_time:e.target.value})}/></label>
           <label>Repeat<select value={booking.repeat_weeks} onChange={e=>setBooking({...booking,repeat_weeks:Number(e.target.value)})}><option value={0}>One appointment</option><option value={1}>Every week</option><option value={2}>Every other week</option></select></label>
           {booking.repeat_weeks!==0&&<label>Repeat through (up to one year)<input required type="date" min={booking.first_date} value={booking.through} onChange={e=>setBooking({...booking,through:e.target.value})}/></label>}
-          <button type="submit" disabled={busy}>{busy?"Working…":"Book patient appointments"}</button>
+          <button type="submit" disabled={busy||bookingNeedsReconciliation}>{busy?"Working…":"Book patient appointments"}</button>
         </form>
         <p>Repeated bookings keep the same local start time across daylight-saving changes. If any date conflicts with a booking, blocked time, or office hours, none of the series is saved.</p>
         {bookingMessage&&<p className="authMessage" role="status">{bookingMessage}</p>}

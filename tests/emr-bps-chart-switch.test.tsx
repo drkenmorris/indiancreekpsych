@@ -356,3 +356,28 @@ test('clinician BPS withholds source and historical notes when a current review 
  expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
  expect(writes).toBe(0);
 });
+
+
+test('clinician BPS rejects an answered source field with explicit source visibility but no patient-reported provenance',async()=>{
+ const patient='00000000-0000-4000-8000-000000000821';
+ const privateReport='PRIVATE_UNATTESTED_FICTIONAL_STATEMENT';
+ const sections=Array.from({length:21},(_,index)=>({
+  title:'Fictional source section '+index,domain:'Clinical history',disposition:'clinical',
+  fields:index===0?[{
+   key:'counseling_reason',label:'Claimed patient answer',type:'text',
+   sourceOnly:false,value:privateReport
+  }]:[],answered:index===0?1:0
+ }));
+ vi.stubGlobal('fetch',vi.fn(async()=>Response.json({
+  patientId:patient,
+  source:{accountId:patient,status:'submitted',version:3,
+   updatedAt:'2026-11-14T12:00:00Z',submittedAt:'2026-11-14T12:00:00Z'},
+  sections,unmappedKeys:[],reviews:[]
+ })));
+ render(<PatientBpsIntakeReview patientId={patient}/>);
+ const alert=await screen.findByRole('alert');
+ expect(alert.textContent).toMatch(/mapping is malformed; patient statements are withheld/);
+ expect(document.body.textContent).not.toContain(privateReport);
+ expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
+ expect(screen.queryByRole('button',{name:/Save reviewed BPS history snapshot/i})).toBeNull();
+});

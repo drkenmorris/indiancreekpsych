@@ -29,7 +29,18 @@ if(data){
 }
 // Return only fields used by the recipient UI; never echo future response columns.
 const response=data?{answers:data.answers,page:data.page,revision:data.revision,status:data.status,identity_confirmed:data.identity_confirmed}:{answers:{},page:0,revision:0,status:'draft',identity_confirmed:false};
-return NextResponse.json({assignment:{id,recipientName:ctx.a.recipient_first_name+' '+ctx.a.recipient_last_name,expiresAt:ctx.a.expires_at},definition,response},{headers});}catch(e){return NextResponse.json({error:e instanceof Error?e.message:'Source unavailable.'},{status:409,headers});}}
+// The invitation may be revoked while this request is fetching a previously
+// authorized recipient response. Recheck live assignment authorization and
+// source identity before disclosing any questionnaire or historical answers.
+// This is an additional boundary; database RLS remains authoritative.
+const current=await access(id);
+if(!current||current.user.id!==ctx.user.id||
+ current.a.patient_id!==ctx.a.patient_id||
+ current.a.recipient_email!==ctx.a.recipient_email||
+ current.a.connected_source_hash!==ctx.a.connected_source_hash||
+ current.a.expires_at!==ctx.a.expires_at)
+ return NextResponse.json({error:'Assignment authorization changed; reopen the invitation or contact the office.'},{status:403,headers});
+return NextResponse.json({assignment:{id,recipientName:current.a.recipient_first_name+' '+current.a.recipient_last_name,expiresAt:current.a.expires_at},definition,response},{headers});}catch(e){return NextResponse.json({error:e instanceof Error?e.message:'Source unavailable.'},{status:409,headers});}}
 export async function POST(r:Request){if(!sameOrigin(r))return NextResponse.json({error:'Same-origin request required.'},{status:403,headers});let b;try{const text=await r.text();if(text.length>150000)throw Error();b=JSON.parse(text);if(!uuid(b.id))throw Error();}catch{return NextResponse.json({error:'Invalid save request.'},{status:400,headers});}const ctx=await access(b.id);if(!ctx)return NextResponse.json({error:'Assignment unavailable or expired. Your latest changes have not been saved. Contact the office.'},{status:403,headers});try{const d=checkedSource(ctx.a.connected_source,ctx.a.connected_source_hash),s=validateSave(b,d);const {data,error}=await ctx.supabase.rpc('save_connected_assignment',{p_id:b.id,p_expected:s.expectedRevision,p_answers:s.answers,p_page:s.page,p_submit:s.submit,p_confirmed:true});if(error)return NextResponse.json({error:error.code==='40001'?'Another session saved newer answers. Keep this page open and reopen the assignment to review.':'Saving was not confirmed. Keep this page open and contact the office if the invitation expired.'},{status:error.code==='40001'?409:503,headers});
 // A successful HTTP/RPC response is not proof that the intended revision
 // committed. If the receipt is missing or contradictory, never claim saved.

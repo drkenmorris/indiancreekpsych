@@ -233,6 +233,12 @@ test.each([
  ['review created before source revision',{source_updated_at:'2026-11-12T12:00:00.000001Z',created_at:'2026-11-12T12:00:00Z'}],
  ['malformed historical clinical answers',{clinical_answers:['PHI_NOT_A_RECORD']}],
  ['missing historical clinician notes',{clinician_notes:null}],
+ ['negative withheld clinical-field count',{excluded_clinical_fields:-1}],
+ ['string withheld clinical-field count',{excluded_clinical_fields:'0'}],
+ ['fractional withheld clinical-field count',{excluded_clinical_fields:0.5}],
+ ['negative withheld clinician-note count',{excluded_clinician_notes:-1}],
+ ['string withheld clinician-note count',{excluded_clinician_notes:'0'}],
+ ['fractional withheld clinician-note count',{excluded_clinician_notes:0.5}],
 ])('clinician BPS UI fails closed when %s cannot be verified',async(_label,change)=>{
  const id='00000000-0000-4000-8000-000000000841';
  const account='00000000-0000-4000-8000-000000000842';

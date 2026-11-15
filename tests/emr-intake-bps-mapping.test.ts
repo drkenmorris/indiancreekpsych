@@ -1,6 +1,15 @@
 import {expect,test} from 'vitest';
 import {intakeSections,intakeSectionsForVersion,retiredMentalHealthFields,retiredContextFields} from '@/lib/patient/intake';
-import {bpsNoteDomains,bpsSectionClassification,mapIntakeToBps,mapSavedBpsReportedFields,sanitizeBpsSnapshotAnswers,bpsSnapshotClinicalKeys,bpsVisibleSourceKeys,distinctBpsQuestionIdentities,equalBpsTimestampInstants,validBpsSubmissionChronology,validBpsHistoricalSourceBoundary} from '@/lib/emr/intake-bps';
+import {bpsNoteDomains,bpsSectionClassification,mapIntakeToBps,mapSavedBpsReportedFields,sanitizeBpsSnapshotAnswers,bpsSnapshotClinicalKeys,bpsVisibleSourceKeys,distinctBpsQuestionIdentities,approvedBpsQuestionSection,equalBpsTimestampInstants,validBpsSubmissionChronology,validBpsHistoricalSourceBoundary} from '@/lib/emr/intake-bps';
+test('versioned BPS questions cannot be reassigned to an unrelated known section',()=>{
+ expect(approvedBpsQuestionSection('Presenting concerns and functional impact','counseling_reason')).toBe(true);
+ expect(approvedBpsQuestionSection('Safety and risk screening','counseling_reason')).toBe(false);
+ expect(approvedBpsQuestionSection('Safety and risk screening','suicidal_thoughts_current')).toBe(true);
+ expect(approvedBpsQuestionSection('Medications','medication_entries')).toBe(true);
+ expect(approvedBpsQuestionSection('Presenting concerns and functional impact','medication_entries')).toBe(false);
+ expect(approvedBpsQuestionSection('Trauma, family, social, educational, and occupational history','family_household')).toBe(true);
+ expect(approvedBpsQuestionSection('Not an approved BPS source section','counseling_reason')).toBe(false);
+});
 test('BPS review source boundary rejects future revisions and a same-version source rewritten without a new attestation',()=>{
  const current='2026-11-12T12:00:00Z';
  const match=(version:number,status:string,at:string)=>validBpsHistoricalSourceBoundary(version,status,at,3,'submitted',current);

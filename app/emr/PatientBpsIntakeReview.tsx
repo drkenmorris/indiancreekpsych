@@ -103,7 +103,7 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
      // The field itself must belong to the approved question section. A
      // malformed 21-section response must not turn a presenting-concern
      // answer into a safety finding or a legal/medication section answer.
-     if(approvedSection&&!approvedBpsQuestionSection(section.title,field.key))return false;
+     if(approvedSection&&!approvedBpsQuestionSection(section.title!,field.key))return false;
      return typeof field.key==='string'&&field.key.length>0&&
       typeof field.label==='string'&&typeof field.type==='string'&&
       typeof field.value==='string'&&

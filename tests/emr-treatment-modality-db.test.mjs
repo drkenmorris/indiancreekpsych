@@ -140,4 +140,44 @@ await test('assigned clinicians can extend the shared checklist and save private
  assert.deepEqual((await db.query('select label from public.emr_treatment_approach_options')).rows, [{label}]);
 });
 
+await db.exec('reset role');
+await db.exec(readFileSync(new URL('../supabase/migrations/20261115070753_patient_diagnoses.sql', import.meta.url), 'utf8'));
+const diagnosis = {code:'F41.1',label:'Generalized anxiety disorder',version:'ICD-10-CM FY2027',priority:'primary',status:'provisional',notes:'Fictional verification only'};
+const saveDiagnoses = rows => db.query('update public.emr_treatment_modalities set diagnoses=$1,revision=revision+1 where patient_id=$2 returning *',[JSON.stringify(rows),chart]);
+await test('assigned clinician saves canonical diagnoses and immutable patient-bound history without changing treatment', async()=>{
+ await signIn(therapist);
+ const before=(await read()).rows[0];
+ const saved=(await saveDiagnoses([diagnosis])).rows[0];
+ assert.deepEqual(saved.diagnoses,[diagnosis]);
+ for(const field of ['sessions','approaches','care_periods','assigned_provider_id'])assert.deepEqual(saved[field],before[field]);
+ const history=await db.query('select * from public.emr_diagnosis_versions');
+ assert.equal(history.rows.length,1);
+ assert.equal(history.rows[0].patient_id,chart);
+ assert.equal(history.rows[0].recorded_by,therapist);
+ assert.deepEqual(history.rows[0].diagnoses,[diagnosis]);
+ await assert.rejects(db.query("update public.emr_diagnosis_versions set diagnoses='[]'"),/permission denied/);
+ await assert.rejects(db.query('delete from public.emr_diagnosis_versions'),/permission denied/);
+ await assert.rejects(db.query('update public.emr_treatment_modalities set diagnoses=$1,revision=$2 where patient_id=$3',[JSON.stringify([]),saved.revision,chart]),/revision conflict/);
+});
+await test('database rejects invented codes, label substitutions, duplicate codes and two primaries even via direct writes',async()=>{
+ await signIn(therapist);
+ for(const rows of [[{...diagnosis,code:'F00.INVALID'}],[{...diagnosis,label:'Different diagnosis'}],[diagnosis,diagnosis],[diagnosis,{...diagnosis,code:'F32.1',label:'Major depressive disorder, single episode, moderate'}]])
+  await assert.rejects(saveDiagnoses(rows),/valid diagnosis|duplicate|one primary/);
+ assert.equal((await db.query('select * from public.emr_diagnosis_versions')).rows.length,1);
+});
+await test('clearing the current list retains prior history and chart access/MFA isolate saved diagnoses',async()=>{
+ await signIn(therapist);
+ await saveDiagnoses([]);
+ assert.equal((await db.query('select * from public.emr_diagnosis_versions')).rows.length,2);
+ await signIn(otherStaff);
+ assert.equal((await db.query('select * from public.emr_diagnosis_versions')).rows.length,0);
+ assert.equal((await saveDiagnoses([diagnosis])).rows.length,0);
+ await signIn(therapist,'aal1');
+ assert.equal((await db.query('select * from public.emr_diagnosis_versions')).rows.length,0);
+ await signIn(patientAccount);
+ assert.equal((await db.query('select * from public.emr_diagnosis_catalog')).rows.length,0);
+ await assert.rejects(db.query("insert into public.emr_diagnosis_catalog values('X','X','X','X','X','X')"),/permission denied/);
+ await signIn(admin);
+ assert.equal((await db.query('select * from public.emr_diagnosis_versions')).rows.length,2);
+});
 await db.close();

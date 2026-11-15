@@ -107,7 +107,8 @@ test('connected save only acknowledges independently read-back recipient, revisi
  // A correctly persisted submitted response, not merely the RPC receipt,
  // is required for the final submission acknowledgement as well.
  saved={...valid};
- const submitted=await POST(request({...body,submit:true}));
+ const completeAnswers=Object.fromEntries(source.definition.items.map(item=>[item.id,item.options[0].value]));
+ const submitted=await POST(request({...body,answers:completeAnswers,submit:true}));
  expect(submitted.status).toBe(200);
  expect((await submitted.json()).status).toBe('submitted');
 });

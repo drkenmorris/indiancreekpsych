@@ -15,6 +15,7 @@ export default function CalendarClient({timezone,duration,onBook}:{timezone:stri
  const [selected,setSelected]=useState<CalendarAppointment|null>(null);
  const [edit,setEdit]=useState({date:'',time:'',name:'',scope:'one'});
  const [editError,setEditError]=useState(''); const [confirmCancel,setConfirmCancel]=useState(false);
+ const [calendarNeedsReconciliation,setCalendarNeedsReconciliation]=useState(false);
  const heading=useRef<HTMLHeadingElement>(null); const request=useRef(0);
  // A repeated save or cancellation can arrive before React paints the busy state.
  // Protect the actual appointment mutation, not merely its disabled button.
@@ -67,7 +68,7 @@ export default function CalendarClient({timezone,duration,onBook}:{timezone:stri
      setSelected(null);setNotice(`${data} appointment${data===1?'':'s'} ${action==='save'?'updated':'cancelled'}. Adjacent openings have been recalculated.`);
      if(action==='save'&&edit.date.slice(0,7)!==month)setMonth(edit.date.slice(0,7)); else await load();
    } catch(e){
-     if(outcomeUnknown)mutationOutcomeUnknown.current=true;
+     if(outcomeUnknown){mutationOutcomeUnknown.current=true;setCalendarNeedsReconciliation(true);}
      const reason=(e as {message?:string})?.message??'The change could not be confirmed.';
      setEditError(reason+(outcomeUnknown?' The change may already have committed. Further calendar edits and cancellations are locked in this session. Inspect the refreshed calendar and reload the page before retrying; never repeat this action blindly.':''));
    }
@@ -78,7 +79,7 @@ export default function CalendarClient({timezone,duration,onBook}:{timezone:stri
  return <div className="calendarWorkspace">
    <header className="calendarHeading"><div><p className="eyebrow">Your practice schedule</p><h2>Booked appointments</h2><p>{timezone} · Click an appointment to view or edit it.</p></div>{onBook?<button type="button" onClick={onBook}>Place patient appointments</button>:<Link className="secondaryButton" href="/appointments">Book appointments & manage hours</Link>}</header>
    <div className="calendarToolbar"><div><button type="button" onClick={()=>{setMonth(shiftMonth(month,-1));setSelected(null);}} disabled={busy} aria-label="Previous month">←</button><button type="button" onClick={()=>{setMonth(today.slice(0,7));setSelected(null);}} disabled={busy}>Today</button><button type="button" onClick={()=>{setMonth(shiftMonth(month,1));setSelected(null);}} disabled={busy} aria-label="Next month">→</button></div><h2 aria-live="polite">{new Date(month+'-15T12:00:00Z').toLocaleDateString('en-US',{month:'long',year:'numeric',timeZone:'UTC'})}</h2><button type="button" onClick={()=>void load()} disabled={busy||loading}>Refresh</button></div>
-   {notice&&<p role="status" className="authMessage">{notice}</p>}{error&&<p role="alert" className="calendarError">{error} Previously loaded appointments may be out of date.</p>}{loading&&<p role="status">Loading appointments…</p>}
+   {notice&&<p role="status" className="authMessage">{notice}</p>}{calendarNeedsReconciliation&&<p role="alert" className="calendarError">A calendar edit or cancellation may already have committed. Further changes are locked in this session. Inspect the refreshed calendar, then reload the page before any new edit or cancellation.</p>}{error&&<p role="alert" className="calendarError">{error} Previously loaded appointments may be out of date.</p>}{loading&&<p role="status">Loading appointments…</p>}
    <div className={selected?'calendarLayout withEditor':'calendarLayout'}>
      <div className="calendarScroll"><table className="monthCalendar" aria-label="Monthly appointment calendar" aria-busy={loading}><thead><tr>{['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d=><th scope="col" key={d}>{d}</th>)}</tr></thead><tbody>
        {Array.from({length:6},(_,week)=><tr key={week}>{days.slice(week*7,week*7+7).map(day=><td key={day} className={`${day.slice(0,7)!==month?'outsideMonth ':''}${day===today?'calendarToday':''}`}><time dateTime={day}>{Number(day.slice(8))}</time><div className="calendarEvents">{(groups.get(day)??[]).map(a=><button type="button" className="calendarEvent" key={a.id} disabled={busy||loading||!!error} onClick={()=>open(a)} aria-label={`${name(a)}, ${day}, ${localParts(a.starts_at,timezone).time}`}><span>{new Date(a.starts_at).toLocaleTimeString('en-US',{timeZone:timezone,hour:'numeric',minute:'2-digit'})}{a.series_id?' ↻':''}</span><strong>{name(a)}</strong></button>)}</div></td>)}</tr>)}
@@ -92,8 +93,8 @@ export default function CalendarClient({timezone,duration,onBook}:{timezone:stri
          <p>Appointments use the current {duration}-minute length and must fit office hours without overlapping bookings or blocked time.</p>
          {selected.series_id&&<label>Apply to<select value={edit.scope} disabled={busy} onChange={e=>{setEdit({...edit,scope:e.target.value});setConfirmCancel(false);}}><option value="one">Only this appointment</option><option value="future">This and future appointments in this series</option></select></label>}
          {edit.scope==='future'&&<p>Future appointments shift by the same number of days and use the new local start time. All changes save together; a conflict leaves the series unchanged.</p>}
-         <button type="submit" disabled={busy}>{busy?'Saving…':'Save changes'}</button>
-         {confirmCancel?<div className="cancelConfirmation"><p>Cancel {edit.scope==='future'?'this and all future appointments in this series':'this appointment'}?</p><button type="button" disabled={busy} onClick={()=>void change('cancel')}>Confirm cancellation</button><button type="button" disabled={busy} onClick={()=>setConfirmCancel(false)}>Keep appointment</button></div>:<button className="calendarCancel" type="button" disabled={busy} onClick={()=>setConfirmCancel(true)}>Cancel appointment</button>}
+         <button type="submit" disabled={busy||calendarNeedsReconciliation}>{busy?'Saving…':'Save changes'}</button>
+         {confirmCancel?<div className="cancelConfirmation"><p>Cancel {edit.scope==='future'?'this and all future appointments in this series':'this appointment'}?</p><button type="button" disabled={busy||calendarNeedsReconciliation} onClick={()=>void change('cancel')}>Confirm cancellation</button><button type="button" disabled={busy} onClick={()=>setConfirmCancel(false)}>Keep appointment</button></div>:<button className="calendarCancel" type="button" disabled={busy||calendarNeedsReconciliation} onClick={()=>setConfirmCancel(true)}>Cancel appointment</button>}
        </form>}{editError&&<p className="calendarError" role="alert">{editError}</p>}
      </aside>}
    </div>

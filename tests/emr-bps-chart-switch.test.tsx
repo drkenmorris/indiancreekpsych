@@ -56,6 +56,7 @@ test.each([
  ['missing linked account', {accountId:null}],
  ['invalid linked account', {accountId:'not-a-uuid'}],
  ['unsupported source status', {status:'revoked'}],
+  ['draft source with a contradictory patient submission receipt', {status:'draft'}],
  ['zero source version', {version:0}],
  ['unsafe integer source version', {version:Number.MAX_SAFE_INTEGER+1}],
  ['invalid source timestamp', {updatedAt:'not-a-timestamp'}],

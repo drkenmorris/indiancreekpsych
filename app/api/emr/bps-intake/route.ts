@@ -190,9 +190,11 @@ export async function POST(request:Request){
   catch{return reply({error:'Invalid BPS review JSON payload.'},400);}
   if(!body||!uuid(body.patientId)||!uuid(body.sourceAccountId)||body.reviewed!==true||!Number.isSafeInteger(body.sourceVersion)||
     typeof body.sourceVersion!=='number'||body.sourceVersion<1||
-    (body.sourceStatus!=='draft'&&body.sourceStatus!=='submitted')||
+    body.sourceStatus!=='submitted'||
     !validBpsTimestamp(body.sourceUpdatedAt))
    return reply({error:'Valid linked patient, source version and explicit clinical review required.'},400);
+  // A changeable draft is readable source context, not a finalized patient
+  // submission whose clinical review can be attested by a clinician.
   if(!body.notes||typeof body.notes!=='object'||Array.isArray(body.notes))return reply({error:'Clinical notes are required.'},400);
   const fields=Object.keys(bpsNoteDomains);
   if(Object.keys(body.notes).some(key=>!fields.includes(key)))return reply({error:'Unsupported BPS notes field.'},400);

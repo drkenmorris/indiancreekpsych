@@ -19,7 +19,12 @@ if(data){
   !Number.isSafeInteger(data.page)||data.page<0||data.page>=Math.ceil(definition.items.length/7)||
   !Number.isSafeInteger(data.revision)||data.revision<0||
   (data.status!=='draft'&&data.status!=='submitted')||typeof data.identity_confirmed!=='boolean'||
-  Object.entries(data.answers).some(([key,value])=>!allowed.get(key)?.some(option=>option.value===value)))
+  Object.entries(data.answers).some(([key,value])=>!allowed.get(key)?.some(option=>option.value===value))||
+  // A saved submission is a final clinical attestation, not merely a status flag.
+  // Never show an incomplete or identity-unconfirmed historical row as submitted,
+  // even if a stale adapter or legacy write bypassed the current save RPC.
+  (data.status==='submitted'&&(!data.identity_confirmed||
+   definition.items.some(item=>!Object.prototype.hasOwnProperty.call(data.answers,item.id)))))
   throw Error('Saved assignment response provenance could not be verified.');
 }
 // Return only fields used by the recipient UI; never echo future response columns.

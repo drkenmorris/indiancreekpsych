@@ -19,6 +19,14 @@ export default function CalendarClient({timezone,duration,onBook}:{timezone:stri
  // A repeated save or cancellation can arrive before React paints the busy state.
  // Protect the actual appointment mutation, not merely its disabled button.
  const mutationInFlight=useRef(false);
+ // A lost RPC acknowledgment can occur after the server has committed an edit
+ // or cancelled recurring appointments. Never silently enable another write.
+ const mutationOutcomeUnknown=useRef(false);
+ // Only known transaction-rejecting SQLSTATEs establish a safe retry.
+ // In particular connection errors (08xxx), shutdown (57Pxx) and 40003 do not.
+ const definitiveCalendarRejection=(code:unknown):boolean=>
+   typeof code==='string'&&/^[0-9A-Z]{5}$/.test(code)&&code!=='40003'&&
+   (/^(22|23|28|40|42)/.test(code)||code==='P0001');
  const load=useCallback(async()=>{
    const version=++request.current; setLoading(true);setError('');
    const range=monthQueryRange(month);
@@ -41,20 +49,28 @@ export default function CalendarClient({timezone,duration,onBook}:{timezone:stri
  appointments.forEach(a=>{const day=localParts(a.starts_at,timezone).date;if(!day.startsWith(month))return;groups.set(day,[...(groups.get(day)??[]),a]);});
  function open(a:CalendarAppointment){const local=localParts(a.starts_at,timezone);setSelected(a);setEdit({...local,name:name(a),scope:'one'});setEditError('');setConfirmCancel(false);setNotice('');}
  async function change(action:'save'|'cancel') {
-   if(!selected||busy||mutationInFlight.current)return;
-   mutationInFlight.current=true;setBusy(true);setEditError('');
+   if(!selected||busy||mutationInFlight.current||mutationOutcomeUnknown.current)return;
+   mutationInFlight.current=true;let outcomeUnknown=true;setBusy(true);setEditError('');
    try {
      const {data,error:saveError}=await supabase.rpc('edit_calendar_appointments',{
        p_id:selected.id,p_expected_start:selected.starts_at,p_date:edit.date,p_time:edit.time,
        p_patient_name:selected.patient_id?null:edit.name,p_scope:edit.scope,p_action:action
      }).abortSignal(AbortSignal.timeout(20000));
-     if(saveError)throw saveError;
+     if(saveError){
+       if(definitiveCalendarRejection(saveError.code))outcomeUnknown=false;
+       throw saveError;
+     }
      // A transport-level success with no affected rows is not proof that an
      // individual or recurring-series edit/cancellation was committed.
      if(!Number.isSafeInteger(data)||data<1)throw new Error('Appointment change was not confirmed. Refresh the calendar before retrying.');
+     outcomeUnknown=false;
      setSelected(null);setNotice(`${data} appointment${data===1?'':'s'} ${action==='save'?'updated':'cancelled'}. Adjacent openings have been recalculated.`);
      if(action==='save'&&edit.date.slice(0,7)!==month)setMonth(edit.date.slice(0,7)); else await load();
-   } catch(e){setEditError((e as {message?:string})?.message??'The change could not be confirmed. Refresh before retrying.');}
+   } catch(e){
+     if(outcomeUnknown)mutationOutcomeUnknown.current=true;
+     const reason=(e as {message?:string})?.message??'The change could not be confirmed.';
+     setEditError(reason+(outcomeUnknown?' The change may already have committed. Further calendar edits and cancellations are locked in this session. Inspect the refreshed calendar and reload the page before retrying; never repeat this action blindly.':''));
+   }
    finally{mutationInFlight.current=false;setBusy(false);setConfirmCancel(false);}
  }
  function save(e:FormEvent){e.preventDefault();void change('save');}

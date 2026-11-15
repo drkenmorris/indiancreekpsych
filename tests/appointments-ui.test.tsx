@@ -57,7 +57,10 @@ test('a duplicate form submission during an unresolved booking cannot create a s
 
 test.each([
  {failure:'transport timeout',reject:true,error:{message:'Booking request timed out'}},
- {failure:'PostgREST transport error',reject:false,error:{code:'PGRST000',message:'Connection lost after submit'}}
+ {failure:'PostgREST transport error',reject:false,error:{code:'PGRST000',message:'Connection lost after submit'}},
+ {failure:'SQLSTATE 08006 connection lost',reject:false,error:{code:'08006',message:'Connection failed after commit might have succeeded'}},
+ {failure:'SQLSTATE 57P01 administrator shutdown',reject:false,error:{code:'57P01',message:'Server stopped before client received commit receipt'}},
+ {failure:'SQLSTATE 40003 completion unknown',reject:false,error:{code:'40003',message:'Statement completion status unknown'}}
 ])('uncertain $failure prevents a second appointment-series write even if the form is submitted directly',async ({reject,error})=>{
  let attempts=0;
  mocks.rpc.mockImplementation((name:string)=>({

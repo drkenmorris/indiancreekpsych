@@ -204,7 +204,7 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
      // linked source changed mid-flight. Reopening the chart is required.
      if(sameSource)setData(next);
      const verified=sameSource&&typeof result.id==='string'&&next.reviews.some(review=>
-      review.id===result.id&&review.reviewed===true&&review.source_version===data.source.version&&
+      review.id.toLowerCase()===result.id.toLowerCase()&&review.reviewed===true&&review.source_version===data.source.version&&
       review.source_status===data.source.status&&
       equalBpsTimestampInstants(review.source_updated_at,data.source.updatedAt));
      if(verified)setStatus('Clinician-reviewed, unsigned BPS intake snapshot saved AND independently verified in the protected chart history. Patient statements remain patient-reported; no diagnosis, authorization, or signature was created.');

@@ -260,8 +260,37 @@ test('pending blackout insert locks its submit control against repeat writes',as
  expect(insert).toHaveBeenCalledTimes(1);
  finish({data:null,error:null});
  await screen.findByText(/Blackout was not verified in the database/);
- expect((screen.getByRole('button',{name:'Block time'}) as HTMLButtonElement).disabled).toBe(false);
+ expect((screen.getByRole('button',{name:'Block time'}) as HTMLButtonElement).disabled).toBe(true);
+ expect(screen.getByRole('alert').textContent).toContain('Blackout persistence is unconfirmed');
+ fireEvent.submit(screen.getByRole('button',{name:'Block time'}).closest('form')!);
  expect(insert).toHaveBeenCalledTimes(1);
+});
+
+test.each([
+ {name:'connection loss',code:'08006',locked:true},
+ {name:'unknown transaction completion',code:'40003',locked:true},
+ {name:'PostgREST transport error',code:'PGRST000',locked:true},
+ {name:'confirmed constraint rejection',code:'23505',locked:false},
+])('blackout INSERT $name does not allow a blind duplicate unless rejection is definitive',async ({code,locked})=>{
+ const insert=vi.fn(()=>({select:()=>({single:async()=>({data:null,error:{code,message:'Synthetic database response'}})})}));
+ mocks.from.mockReturnValue({insert});
+ render(<AppointmentsClient {...props}/>);
+ fireEvent.click(screen.getByRole('button',{name:'Blackout periods'}));
+ fireEvent.change(screen.getByLabelText('Starts'),{target:{value:'2026-12-01T10:00'}});
+ fireEvent.change(screen.getByLabelText('Ends'),{target:{value:'2026-12-01T11:00'}});
+ const button=screen.getByRole('button',{name:'Block time'}) as HTMLButtonElement;
+ fireEvent.submit(button.closest('form')!);
+ await screen.findByText(/Synthetic database response/);
+ expect(button.disabled).toBe(locked);
+ expect(screen.queryByRole('alert')!==null).toBe(locked);
+ if(locked){
+  fireEvent.submit(button.closest('form')!);
+  expect(insert).toHaveBeenCalledTimes(1);
+ }else{
+  fireEvent.submit(button.closest('form')!);
+  await waitFor(()=>expect(insert).toHaveBeenCalledTimes(2));
+ }
+ expect(screen.queryByText('Blocked time saved and verified.')).toBeNull();
 });
 
 test('unsaved timezone edits cannot silently move a patient-calendar blackout',async()=>{

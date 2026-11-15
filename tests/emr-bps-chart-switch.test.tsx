@@ -177,7 +177,7 @@ test('idle linked-intake refresh is source-scoped, stops during clinician review
   source:{accountId:account,status:valid?'submitted':'retracted',version,updatedAt:'2026-11-12T12:00:00Z',submittedAt:'2026-11-12T12:00:00Z'},
   sections:Array.from({length:21},(_,i)=>({
    title:i===0?'Presenting concerns':i===1?'Medications':'Section '+i,
-   domain:i===1?'Medication reconciliation':'Clinical context',
+   domain:i===1?'Medication/allergy reconciliation (separate chart review)':'Clinical context',
    disposition:i===1?'separate-review':'clinical',
    answered:i<2?1:0,
    fields:i===0?[{key:'counseling_reason',label:'Presenting concern',type:'text',sourceOnly:false,reported:true,value:'FICTIONAL_CONCERN_V'+version}]:

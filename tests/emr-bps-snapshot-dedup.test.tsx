@@ -397,3 +397,21 @@ test('equivalent patient attestation instants in different timezone offsets stil
  await screen.findByText(/snapshot saved AND independently verified in the protected chart history/);
  expect(reads).toBe(2);
 });
+
+
+test('a changeable linked draft is readable but cannot expose clinician finalization controls',async()=>{
+ let posts=0;
+ const draft=source();
+ draft.source.status='draft';
+ draft.source.submittedAt=null as unknown as string;
+ vi.stubGlobal('fetch',vi.fn(async(_url:string,options?:RequestInit)=>{
+  if(options?.method==='POST')posts++;
+  return Response.json(draft);
+ }));
+ render(<PatientBpsIntakeReview patientId={patient}/>);
+ await screen.findByText(/Sections audited: 21\/21/);
+ expect(screen.getByText(/patient submission and a valid attestation receipt are required/i)).toBeTruthy();
+ expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
+ expect(screen.queryByRole('button',{name:/Save reviewed BPS history snapshot/i})).toBeNull();
+ expect(posts).toBe(0);
+});

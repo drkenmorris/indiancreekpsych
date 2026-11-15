@@ -41,7 +41,10 @@ if(!current||current.user.id!==ctx.user.id||
  current.a.expires_at!==ctx.a.expires_at)
  return NextResponse.json({error:'Assignment authorization changed; reopen the invitation or contact the office.'},{status:403,headers});
 return NextResponse.json({assignment:{id,recipientName:current.a.recipient_first_name+' '+current.a.recipient_last_name,expiresAt:current.a.expires_at},definition,response},{headers});}catch{return NextResponse.json({error:'Questionnaire source or saved answers could not be verified. Contact the office.'},{status:409,headers});}}
-export async function POST(r:Request){if(!sameOrigin(r))return NextResponse.json({error:'Same-origin request required.'},{status:403,headers});let b;try{const text=await r.text();if(text.length>150000)throw Error();b=JSON.parse(text);if(!uuid(b.id))throw Error();}catch{return NextResponse.json({error:'Invalid save request.'},{status:400,headers});}const ctx=await access(b.id);if(!ctx)return NextResponse.json({error:'Assignment unavailable or expired. Your latest changes have not been saved. Contact the office.'},{status:403,headers});try{const d=checkedSource(ctx.a.connected_source,ctx.a.connected_source_hash),s=validateSave(b,d);const {data,error}=await ctx.supabase.rpc('save_connected_assignment',{p_id:b.id,p_expected:s.expectedRevision,p_answers:s.answers,p_page:s.page,p_submit:s.submit,p_confirmed:true});if(error)return NextResponse.json({error:error.code==='40001'?'Another session saved newer answers. Keep this page open and reopen the assignment to review.':'Saving was not confirmed. Keep this page open and contact the office if the invitation expired.'},{status:error.code==='40001'?409:503,headers});
+export async function POST(r:Request){if(!sameOrigin(r))return NextResponse.json({error:'Same-origin request required.'},{status:403,headers});let b;try{const text=await r.text();if(text.length>150000)throw Error();b=JSON.parse(text);if(!uuid(b.id))throw Error();}catch{return NextResponse.json({error:'Invalid save request.'},{status:400,headers});}const ctx=await access(b.id);if(!ctx)return NextResponse.json({error:'Assignment unavailable or expired. Your latest changes have not been saved. Contact the office.'},{status:403,headers});try{const d=checkedSource(ctx.a.connected_source,ctx.a.connected_source_hash),s=validateSave(b,d);let receipt;
+try{receipt=await ctx.supabase.rpc('save_connected_assignment',{p_id:b.id,p_expected:s.expectedRevision,p_answers:s.answers,p_page:s.page,p_submit:s.submit,p_confirmed:true});}
+catch{return NextResponse.json({error:'Save outcome could not be verified. Keep this page open and contact the office before retrying.'},{status:503,headers});}
+const {data,error}=receipt??{};if(error)return NextResponse.json({error:error.code==='40001'?'Another session saved newer answers. Keep this page open and reopen the assignment to review.':'Saving was not confirmed. Keep this page open and contact the office if the invitation expired.'},{status:error.code==='40001'?409:503,headers});
 // A successful HTTP/RPC response is not proof that the intended revision
 // committed. If the receipt is missing or contradictory, never claim saved.
 if(!Number.isSafeInteger(data)||data!==s.expectedRevision+1)
@@ -68,4 +71,23 @@ if(readError||!stored||stored.assignment_id!==b.id||stored.respondent_id!==ctx.u
  Object.keys(persisted).length!==expectedEntries.length||
  expectedEntries.some(([key,value])=>persisted[key]!==value))
  return NextResponse.json({error:unverifiedSave},{status:503,headers});
-return NextResponse.json({saved:true,revision:data,status:s.submit?'submitted':'draft'},{headers});}catch(e){return NextResponse.json({error:e instanceof Error?e.message:'Invalid answers.'},{status:400,headers});}}
+// A revocation or recipient/chart reassignment between the write and durable
+// readback must never be reported as a currently authorized saved questionnaire.
+// The save itself may have committed; instruct the recipient not to retry blindly.
+let current;
+try{current=await access(b.id);}
+catch{return NextResponse.json({error:unverifiedSave},{status:503,headers});}
+if(!current||current.user.id!==ctx.user.id||
+ current.a.patient_id!==ctx.a.patient_id||
+ current.a.recipient_email!==ctx.a.recipient_email||
+ current.a.connected_source_hash!==ctx.a.connected_source_hash||
+ current.a.expires_at!==ctx.a.expires_at)
+ return NextResponse.json({error:'Invitation authorization changed during save. Keep this page open and contact the office before retrying.'},{status:503,headers});
+return NextResponse.json({saved:true,revision:data,status:s.submit?'submitted':'draft'},{headers});}
+catch(e){
+ // Only known input-validation messages are safe to return. An unexpected
+ // provider/source exception must not expose private chart or database details.
+ const safeMessages=new Set(['Invalid save request.','Confirm the named recipient and use a valid page.','Invalid answers.','Unknown question or invalid response.','Answer earlier pages before advancing.','Answer every question before submitting.']);
+ const safe=e instanceof Error&&safeMessages.has(e.message);
+ return NextResponse.json({error:safe?(e as Error).message:'Questionnaire source or answers could not be verified. Contact the office.'},{status:safe?400:409,headers});
+}

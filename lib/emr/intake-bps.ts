@@ -65,7 +65,11 @@ export function validBpsSubmissionChronology(status:unknown,updatedAt:unknown,su
  if(edited===null)return false;
  const attested=submittedAt==null?null:bpsTimestampInstantNanoseconds(submittedAt);
  if(submittedAt!=null&&attested===null)return false;
- return status!=='submitted'||(attested!==null&&edited<=attested);
+ // Drafts have no final submission receipt; retaining one is a contradictory
+ // source attestation. Never present that source as unsubmitted clinical context.
+ if(status==='draft')return submittedAt==null;
+ if(status!=='submitted')return false;
+ return attested!==null&&edited<=attested;
 }
 /** A clinician review receipt must not predate the patient source revision it
  * purports to preserve. Compare full database timestamp precision so that a

@@ -2,6 +2,7 @@ import React from 'react';
 import {afterEach,expect,test,vi} from 'vitest';
 import {act,cleanup,fireEvent,render,screen} from '@testing-library/react';
 import PatientBpsIntakeReview from '@/app/emr/PatientBpsIntakeReview';
+import {bpsSectionClassification} from '@/lib/emr/intake-bps';
 afterEach(()=>{cleanup();vi.unstubAllGlobals();});
 test('a pending BPS save cannot reopen or message the wrong patient chart',async()=>{
  const a='00000000-0000-0000-0000-000000000801',b='00000000-0000-0000-0000-000000000802';
@@ -97,6 +98,7 @@ test.each([
  'known medication section spoofed as clinical',
  'known clinical section spoofed with another domain',
  'known legal consent section spoofed with clinical domain',
+ 'known safety section relabels a presenting-concern answer',
  'impossible answered field count',
  'duplicate source field identities',
  'cross-section duplicate source field identities',
@@ -138,6 +140,13 @@ test.each([
   sections[1].title='Consent to Counseling and Informed Treatment';
   sections[1].domain='Presenting problems, functioning and goals';
   sections[1].disposition='reference';
+ }
+ if(variant==='known safety section relabels a presenting-concern answer'){
+  sections[1].title='Safety and risk screening';
+  sections[1].domain=bpsSectionClassification['Safety and risk screening'].domain;
+  sections[1].disposition='clinical';
+  // Even an exact approved section label cannot accept a clinical question
+  // sourced from the presenting-concerns section.
  }
  if(variant==='impossible answered field count')sections[0].answered=99;
  if(variant==='duplicate source field identities')sections[1].fields.push({

@@ -4,7 +4,7 @@ const mocks=vi.hoisted(()=>({access:vi.fn()}));
 vi.mock('@/lib/clinical-tests/asq/recipient-access',async()=>{const original=await vi.importActual<typeof import('@/lib/clinical-tests/asq/recipient-access')>('@/lib/clinical-tests/asq/recipient-access');return {...original,asqRecipientAccess:mocks.access};});
 const id='00000000-0000-0000-0000-000000000301',source={definition:connectedDefinition('cseq'),hash:hash(connectedDefinition('cseq'))};
 let email:string,assignment:Record<string,unknown>,rpc:ReturnType<typeof vi.fn>,saved:Record<string,unknown>|null;
-beforeEach(()=>{vi.stubEnv('ASQ_RECIPIENT_RELEASE_APPROVED','true');email='fictional@example.invalid';assignment={id,recipient_first_name:'Fictional',recipient_last_name:'Recipient',recipient_email:email,test_key:'cseq',patient_id:'00000000-0000-0000-0000-000000000201',status:'sent',expires_at:'2099-01-01T00:00:00Z',connected_source:source.definition,connected_source_hash:source.hash};saved=null;rpc=vi.fn(async()=>({data:1,error:null}));mocks.access.mockImplementation(async()=>({user:{id:'fictional-user',email},supabase:{rpc,from:(table:string)=>{const chain={select:()=>chain,eq:()=>chain,maybeSingle:async()=>({data:table==='psych_test_assignments'?assignment:saved,error:null})};return chain;}}}));});afterEach(()=>{vi.unstubAllEnvs();vi.clearAllMocks();});
+beforeEach(()=>{vi.stubEnv('ASQ_RECIPIENT_RELEASE_APPROVED','true');email='fictional@example.invalid';assignment={id,recipient_first_name:'Fictional',recipient_last_name:'Recipient',recipient_email:email,test_key:'cseq',patient_id:'00000000-0000-0000-0000-000000000201',status:'sent',expires_at:'2099-01-01T00:00:00Z',connected_source:source.definition,connected_source_hash:source.hash};saved=null;rpc=vi.fn(async()=>({data:1,error:null}));mocks.access.mockImplementation(async()=>({user:{id:'fictional-user',email},supabase:{rpc,from:(table:string)=>{const chain={select:()=>chain,eq:()=>chain,maybeSingle:async()=>({data:table==='psych_test_assignments'?assignment:saved?{assignment_id:id,respondent_id:'fictional-user',...saved}:null,error:null})};return chain;}}}));});afterEach(()=>{vi.unstubAllEnvs();vi.clearAllMocks();});
 const request=(value:unknown,origin='https://www.indiancreekpsych.com')=>new Request('https://www.indiancreekpsych.com/api/assigned-tests/connected',{method:'POST',headers:{origin,'content-type':'application/json'},body:JSON.stringify(value)});
 const answers=()=>Object.fromEntries(source.definition.items.slice(0,7).map(i=>[i.id,0]));
 test('missing account, email mismatch and expiry deny recipient access',async()=>{vi.stubEnv('ASQ_RECIPIENT_RELEASE_APPROVED','true');email='different@example.invalid';expect((await GET(new Request('https://www.indiancreekpsych.com/api/assigned-tests/connected?id='+id))).status).toBe(403);email='fictional@example.invalid';assignment.expires_at='2000-01-01';expect((await GET(new Request('https://www.indiancreekpsych.com/api/assigned-tests/connected?id='+id))).status).toBe(403);mocks.access.mockResolvedValue(null);expect((await POST(request({id}))).status).toBe(403);});
@@ -42,4 +42,43 @@ test('mis-scoped connected assessment rows, invalid chart links and malformed ex
   expect(write.status).toBe(403);
  }
  expect(rpc).not.toHaveBeenCalled();
+});
+
+test('GET refuses mis-scoped, malformed or forged recipient responses without disclosing saved answers',async()=>{
+ const valid={answers:answers(),page:1,revision:3,status:'draft',identity_confirmed:true};
+ const forbidden=[
+  {assignment_id:'00000000-0000-0000-0000-000000000399'},
+  {respondent_id:'another-recipient'},
+  {answers:{...answers(),unassigned_question:'private'}},
+  {answers:['not','an','object']},
+  {page:-1},
+  {page:999},
+  {revision:-1},
+  {revision:1.5},
+  {status:'unknown'},
+  {identity_confirmed:'true'}
+ ];
+ for(const modification of forbidden){
+  saved={...valid,...modification};
+  const response=await GET(new Request('https://www.indiancreekpsych.com/api/assigned-tests/connected?id='+id));
+  expect(response.status).toBe(409);
+  const json=await response.json();
+  expect(json.response).toBeUndefined();
+  expect(json.definition).toBeUndefined();
+  expect(JSON.stringify(json)).not.toContain('unassigned_question');
+ }
+});
+
+test('POST never claims a saved assessment if the database revision receipt is missing or contradictory',async()=>{
+ const body={id,expectedRevision:0,page:1,submit:false,identityConfirmed:true,answers:answers()};
+ for(const receipt of [null,0,-1,1.5,'1',2]){
+  rpc.mockResolvedValueOnce({data:receipt,error:null});
+  const response=await POST(request(body));
+  expect(response.status).toBe(503);
+  expect((await response.json()).saved).toBeUndefined();
+ }
+ rpc.mockResolvedValueOnce({data:2,error:null});
+ const confirmed=await POST(request({...body,expectedRevision:1}));
+ expect(confirmed.status).toBe(200);
+ expect((await confirmed.json()).revision).toBe(2);
 });

@@ -153,10 +153,19 @@ test('clinic migrations replay in order on an empty application database', async
     // RLS tightening must never silently enable a new direct hard-delete path.
     // The legacy scheduler has no permissive appointment DELETE policy; adding
     // one would let a user erase booking and recurrence audit history outright.
-    const {rows:directPatientDelete}=await db.query(
-      'delete from public.appointments where id=$1 returning id',[ownBooking]);
-    assert.equal(directPatientDelete.length,0,
-      'Patients must not hard-delete even their own appointments through PostgREST');
+    // Some isolated schemas revoke DELETE at the table ACL layer; hosted
+    // PostgREST schemas may instead grant DELETE but deny rows using RLS.
+    // Both are safe: reject the operation or affect precisely zero rows.
+    async function assertNoDirectDelete(appointmentId){
+      try {
+        const {rows}=await db.query(
+          'delete from public.appointments where id=$1 returning id',[appointmentId]);
+        assert.equal(rows.length,0,'Direct hard-delete must never affect an appointment');
+      } catch (error) {
+        if(error?.code!=='42501')throw error;
+      }
+    }
+    await assertNoDirectDelete(ownBooking);
     await as(outsiderId,'aal2');
     assert.equal((await db.query('select id from public.appointments')).rows.length,0,
       'A nonpatient guest account cannot read appointment records');
@@ -166,10 +175,7 @@ test('clinic migrations replay in order on an empty application database', async
     await as(adminId,'aal2');
     assert.equal((await db.query('select id from public.appointments')).rows.length,3,
       'An MFA-verified administrator retains existing appointment and legacy series access');
-    const {rows:directAdminDelete}=await db.query(
-      'delete from public.appointments where id=$1 returning id',[legacyBooking]);
-    assert.equal(directAdminDelete.length,0,
-      'Even MFA administrators cannot bypass audited scheduler cancellation by direct hard-delete');
+    await assertNoDirectDelete(legacyBooking);
     assert.equal((await db.query('select id from public.appointments')).rows.length,3,
       'All historical fictional appointments must remain after rejected hard-deletes');
 

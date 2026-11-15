@@ -63,6 +63,11 @@ await test('actual hosted forms and global navigation render against central pat
   assert.equal(w.document.querySelector('#plan-hierarchy'),null);
  }
  runInContext("chooseSection('plan','diagnosis');render();",dom.getInternalVMContext());
+ const diagnosisUrl=new URL(w.document.querySelector('iframe[title="Patient Diagnosis"]').src);
+ assert.equal(diagnosisUrl.pathname,'/emr/diagnosis');
+ assert.equal(diagnosisUrl.searchParams.get('patient'),fixture.pid);
+ assert.doesNotMatch(w.document.querySelector('#content').textContent,/Select library problems/);
+ runInContext("chooseSection('plan','response');render();",dom.getInternalVMContext());
  for(const name of ['diagnosis','treatment_approaches','response_to_treatment','homework','review_date']){
   const input=w.document.querySelector('#content [name="'+name+'"]');
   assert.ok(input,'original treatment-plan field '+name+' should render');

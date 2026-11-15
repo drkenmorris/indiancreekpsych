@@ -3,6 +3,7 @@ import {afterEach,expect,test,vi} from 'vitest';
 import {cleanup,render,screen,waitFor,fireEvent} from '@testing-library/react';
 import {readFileSync} from 'node:fs';
 import PatientBpsIntakeReview from '@/app/emr/PatientBpsIntakeReview';
+import {bpsSectionClassification} from '@/lib/emr/intake-bps';
 
 afterEach(()=>{cleanup();vi.unstubAllGlobals();});
 
@@ -13,6 +14,12 @@ test('all 21 linked BPS sections provide patient-scoped access to existing clini
   domain:'Clinician reviewed history',disposition:i===0||i===1?'separate-review':'clinical',
   fields:[{key:'answer_'+i,label:'Patient report',type:'text',value:'Fictional report'}],answered:1
  }));
+ // The source API uses the approved domain labels for recognized sections.
+ // Keep navigation fixtures faithful to that independent clinician boundary.
+ for(const section of sections){
+  const approved=bpsSectionClassification[section.title];
+  if(approved)section.domain=approved.domain;
+ }
  const calls:{url:string;method:string}[]=[];
  vi.stubGlobal('fetch',vi.fn(async(url:string,init?:RequestInit)=>{
   calls.push({url,method:init?.method||'GET'});

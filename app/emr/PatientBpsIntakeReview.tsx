@@ -124,8 +124,11 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
    // answered totals or permit clinician review of such a packet.
    return tagged.length===0?
     !(entry.answered>0&&entry.fields.some(field=>field.sourceOnly===false)):
-    tagged.length===entry.fields.length&&
-     tagged.filter(field=>field.reported===true).length===entry.answered;
+    // A field cannot count as patient-reported when its source value is
+     // empty or whitespace. Fail closed rather than inflating intake completeness.
+     tagged.length===entry.fields.length&&
+     tagged.filter(field=>field.reported===true).length===entry.answered&&
+     tagged.every(field=>field.reported!==true||field.value.trim().length>0);
   });
   if(!validSections||!accurateReportedCounts||
    !value.unmappedKeys.every((key:unknown)=>typeof key==='string'))

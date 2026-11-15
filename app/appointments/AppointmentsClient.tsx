@@ -18,7 +18,7 @@ const weekdays=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Sat
 // Connection failures (08xxx), administrator shutdown (57Pxx) and transaction
 // completion unknown (40003) can arrive after the server has committed a series.
 // Only known transaction-rejecting SQLSTATE classes permit a safe correction/retry.
-const definitiveBookingRejection=(code:unknown):boolean=>
+const definitiveSchedulingRejection=(code:unknown):boolean=>
   typeof code==='string' && /^[0-9A-Z]{5}$/.test(code) && code!=='40003' &&
   (/^(22|23|28|40|42)/.test(code)||code==='P0001');
 const practiceDateInput=(instant:string,timezone:string)=>{const {date,time}=localParts(instant,timezone);return `${date}T${time}`;};
@@ -48,6 +48,11 @@ export default function AppointmentsClient({userId,accountType,preferredName,ini
   // Do not permit a blind duplicate booking before inspecting the calendar.
   const bookingOutcomeUnknown=useRef(false);
   const [bookingNeedsReconciliation,setBookingNeedsReconciliation]=useState(false);
+  // A lost blackout INSERT acknowledgment can leave a persisted exclusion even if
+  // the clinician never received the row. Prevent same-session duplicate writes.
+  const blackoutInFlight=useRef(false);
+  const blackoutOutcomeUnknown=useRef(false);
+  const [blackoutNeedsReconciliation,setBlackoutNeedsReconciliation]=useState(false);
   const [editingRuleId,setEditingRuleId]=useState<string|null>(null);
   const [rule,setRule]=useState({weekday:1,start_time:"09:00",end_time:"17:00",anchor_time:""});
   const [block,setBlock]=useState(()=>{const nextHour=Math.ceil(Date.now()/3600000)*3600000;return{starts_at:practiceDateInput(new Date(nextHour).toISOString(),practiceTimezone),ends_at:practiceDateInput(new Date(nextHour+3600000).toISOString(),practiceTimezone),label:""};});
@@ -67,7 +72,7 @@ export default function AppointmentsClient({userId,accountType,preferredName,ini
       if(error){
         // Some SQLSTATEs describe lost connections or indeterminate commit
         // outcomes. Never unlock a booking retry for these conditions.
-        if(definitiveBookingRejection(error.code))outcomeUnknown=false;
+        if(definitiveSchedulingRejection(error.code))outcomeUnknown=false;
         throw error;
       }
       // A successful HTTP/RPC response with zero, null or malformed affected rows
@@ -145,28 +150,38 @@ export default function AppointmentsClient({userId,accountType,preferredName,ini
     finally{setBusy(false);}
   };
   const addBlock=async(e:FormEvent)=>{
-    e.preventDefault();if(busy)return;setBusy(true);setMessage("");
+    e.preventDefault();
+    if(busy||blackoutInFlight.current||blackoutOutcomeUnknown.current)return;
+    blackoutInFlight.current=true;setBusy(true);setMessage("");
+    // Invalid local form values do not transmit a write and remain correctable.
+    // After INSERT starts, only a definitive SQL rejection proves no blackout was saved.
+    let outcomeUnknown=false;
     try{
-      // datetime-local has no timezone; always interpret it in the persisted practice timezone.
       const starts=new Date(practiceWallTimeToIso(block.starts_at,practiceTimezone));
       const ends=new Date(practiceWallTimeToIso(block.ends_at,practiceTimezone));
       if(!Number.isFinite(starts.getTime())||!Number.isFinite(ends.getTime())||ends.getTime()<=starts.getTime())
         throw new Error("Choose valid blocked-time dates with an end later than the start.");
       const payload={starts_at:starts.toISOString(),ends_at:ends.toISOString(),label:block.label||null};
+      outcomeUnknown=true;
       const {data,error}=await supabase.from("appointment_blocks").insert(payload).select().single();
-      if(error)throw error;
-      // A non-error insert response is not a verified blackout. Require the
-      // returned persisted row to match the exact interval and label requested.
-      // On an ambiguous receipt, do not invite a blind retry: the row may exist.
+      if(error){
+        if(definitiveSchedulingRejection(error.code))outcomeUnknown=false;
+        throw error;
+      }
+      // A non-error insert response without the exact persisted interval and label
+      // does not confirm a successful write or justify blindly retrying.
       if(!data||typeof data.id!=="string"||!data.id||
         Date.parse(data.starts_at)!==starts.getTime()||
         Date.parse(data.ends_at)!==ends.getTime()||data.label!==payload.label)
         throw new Error("Blackout was not verified in the database. Refresh the schedule before retrying.");
+      outcomeUnknown=false;
       setBlocks(v=>[...v,data as Block].sort((a,b)=>a.starts_at.localeCompare(b.starts_at)));
       await loadSlots();setMessage("Blocked time saved and verified.");
     }catch(error){
-      setMessage(error instanceof Error?error.message:"Blackout could not be verified. Refresh before retrying.");
-    }finally{setBusy(false);}
+      if(outcomeUnknown){blackoutOutcomeUnknown.current=true;setBlackoutNeedsReconciliation(true);}
+      const reason=error instanceof Error?error.message:(error as {message?:string})?.message??"Blackout could not be verified.";
+      setMessage(reason+(outcomeUnknown?" The blackout may already exist; further blackout writes are locked. Inspect the schedule and reload before trying again.":""));
+    }finally{blackoutInFlight.current=false;setBusy(false);}
   };
   const deleteBlock=async(id:string)=>{
     if(busy)return;setBusy(true);setMessage("");
@@ -253,8 +268,8 @@ export default function AppointmentsClient({userId,accountType,preferredName,ini
       </section>}
 
       {view==="blackouts"&&<section className="appointmentPanel"><p className="eyebrow">Blocked time</p><h2>Blackout periods</h2>
-        <p>Enter blocked times in the saved practice time zone ({practiceTimezone}), not the browser or computer time zone. Daylight-saving times that occur twice or do not exist must be adjusted before saving.</p><form className="inlineSchedulerForm blockForm" onSubmit={addBlock}><label>Starts<input type="datetime-local" value={block.starts_at} onChange={e=>setBlock({...block,starts_at:e.target.value})}/></label><label>Ends<input type="datetime-local" value={block.ends_at} onChange={e=>setBlock({...block,ends_at:e.target.value})}/></label><label>Label<input placeholder="Vacation, meeting, personal time" value={block.label} onChange={e=>setBlock({...block,label:e.target.value})}/></label><button type="submit" disabled={busy}>{busy?"Working…":"Block time"}</button></form>
-        <div className="ruleList">{blocks.map(b=><article key={b.id}><div><strong>{b.label||"Blocked time"}</strong><span>{new Date(b.starts_at).toLocaleString("en-US",{timeZone:practiceTimezone})} – {new Date(b.ends_at).toLocaleString("en-US",{timeZone:practiceTimezone})} ({practiceTimezone})</span></div><button className="secondaryAction" type="button" disabled={busy} onClick={()=>void deleteBlock(b.id)}>Remove</button></article>)}</div>
+        <p>Enter blocked times in the saved practice time zone ({practiceTimezone}), not the browser or computer time zone. Daylight-saving times that occur twice or do not exist must be adjusted before saving.</p><form className="inlineSchedulerForm blockForm" onSubmit={addBlock}><label>Starts<input type="datetime-local" value={block.starts_at} onChange={e=>setBlock({...block,starts_at:e.target.value})}/></label><label>Ends<input type="datetime-local" value={block.ends_at} onChange={e=>setBlock({...block,ends_at:e.target.value})}/></label><label>Label<input placeholder="Vacation, meeting, personal time" value={block.label} onChange={e=>setBlock({...block,label:e.target.value})}/></label><button type="submit" disabled={busy||blackoutNeedsReconciliation}>{busy?"Working…":"Block time"}</button></form>{blackoutNeedsReconciliation&&<p role="alert">Blackout persistence is unconfirmed. Inspect blocked times and reload the page before making further blackout changes.</p>}
+        <div className="ruleList">{blocks.map(b=><article key={b.id}><div><strong>{b.label||"Blocked time"}</strong><span>{new Date(b.starts_at).toLocaleString("en-US",{timeZone:practiceTimezone})} – {new Date(b.ends_at).toLocaleString("en-US",{timeZone:practiceTimezone})} ({practiceTimezone})</span></div><button className="secondaryAction" type="button" disabled={busy||blackoutNeedsReconciliation} onClick={()=>void deleteBlock(b.id)}>Remove</button></article>)}</div>
       </section>}
     </>}
   </div>;

@@ -93,6 +93,8 @@ test.each([
  'missing section fields',
  'non-string patient response',
  'unsupported section routing',
+ 'known legal consent section spoofed as clinical',
+ 'known medication section spoofed as clinical',
  'impossible answered field count',
  'duplicate source field identities',
  'cross-section duplicate source field identities',
@@ -115,6 +117,14 @@ test.each([
   reported:true,sourceOnly:false,value:{secret:'PRIVATE_NESTED_PHI'}
  }];
  if(variant==='unsupported section routing')sections[0].disposition='legal-consent';
+ if(variant==='known legal consent section spoofed as clinical'){
+  sections[1].title='Consent to Counseling and Informed Treatment';
+  sections[1].disposition='clinical';
+ }
+ if(variant==='known medication section spoofed as clinical'){
+  sections[1].title='Medications';
+  sections[1].disposition='clinical';
+ }
  if(variant==='impossible answered field count')sections[0].answered=99;
  if(variant==='duplicate source field identities')sections[1].fields.push({
   key:'counseling_reason',label:'Conflicting duplicate patient statement',

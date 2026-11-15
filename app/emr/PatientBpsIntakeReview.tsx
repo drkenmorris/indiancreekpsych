@@ -161,7 +161,7 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
   return ()=>{active=false;window.clearInterval(timer);window.removeEventListener('focus',onFocus);};
  },[patientId]);
  async function save(event:FormEvent<HTMLFormElement>){
-  event.preventDefault();if(reviewSaveInFlight.current||!data||data.patientId!==patientId||data.source.status!=='submitted'||!reviewed||saving||!prepared||versionAlreadyReviewed)return;
+  event.preventDefault();if(reviewSaveInFlight.current||!data||data.patientId!==patientId||!reviewed||saving||!prepared||versionAlreadyReviewed)return;
   reviewSaveInFlight.current=true;
   const generation=chartScope.current.generation;
   const stillOnChart=()=>chartScope.current.patientId===patientId&&chartScope.current.generation===generation;
@@ -261,6 +261,7 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
      const count=frozen.sections.reduce((sum,section)=>sum+section.fields.length,0);
      return <section key={review.id}>
       <h3>{new Date(review.created_at).toLocaleString()} — source v{review.source_version} ({review.source_status})</h3>
+      {review.source_status==='draft'&&<p role="status">This historical clinician review documents a patient DRAFT intake version, not an attested final patient submission. Reconcile the subsequently submitted intake independently; this draft snapshot must not be represented as a patient-submitted final report.</p>}
       {review.reviewed!==true&&<p role="alert">This historical row lacks confirmed clinician-review attestation. Do not treat it as a reviewed BPS snapshot; investigate chart provenance.</p>}
       <p>Linked intake source last updated {new Date(review.source_updated_at).toLocaleString()}. This is an immutable historical snapshot of patient-reported information, not a new import, verified clinical finding, diagnosis or signature.</p>
       {!!review.excluded_clinical_fields&&<p role="alert">{review.excluded_clinical_fields} unapproved or malformed historical field(s) were withheld by the protected server. Review source provenance before clinical use.</p>}
@@ -277,7 +278,7 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
      </section>;
     })}
    </details>}
-   {data.source.status!=='submitted'?<p role="status">The linked website intake is still a changeable draft. Patient submission and a valid attestation receipt are required before a clinician-reviewed BPS snapshot can be saved. Source answers remain available for preliminary inspection only.</p>:versionAlreadyReviewed?<p role="status">{uncertainSave?
+   {versionAlreadyReviewed?<p role="status">{uncertainSave?
     'A BPS review submission was attempted, but no save receipt was verified. This source version is locked in this session. Reopen the chart and check protected history before another attempt; do not assume the review was saved.':sourceVersionHasUnverifiedReview?
     'A BPS history record for this source version lacks confirmed clinician-review attestation. Its version remains locked; investigate chart provenance before clinical use or another submission.':
     'A clinician-reviewed BPS snapshot for this source version has already been saved. Its immutable history can be reopened above; a second save of the same version is not permitted. If the source changed without a new version, resolve the intake provenance before saving.'}</p>:!prepared?<button type="button" disabled={saving} onClick={()=>{setPrepared(true);setReviewed(false);setNotes(emptyBpsNotes());setStatus('');}}>Prepare clinician-reviewed BPS intake draft</button>:

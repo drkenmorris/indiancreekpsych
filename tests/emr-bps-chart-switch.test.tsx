@@ -100,6 +100,8 @@ test.each([
  'known legal consent section spoofed with clinical domain',
  'known safety section relabels a presenting-concern answer',
  'impossible answered field count',
+ 'patient response marked reported but empty',
+ 'patient response marked reported but whitespace-only',
  'duplicate source field identities',
  'cross-section duplicate source field identities',
  'malformed unmapped source audit'
@@ -149,6 +151,8 @@ test.each([
   // sourced from the presenting-concerns section.
  }
  if(variant==='impossible answered field count')sections[0].answered=99;
+ if(variant==='patient response marked reported but empty')sections[1].fields[0].value='';
+ if(variant==='patient response marked reported but whitespace-only')sections[1].fields[0].value='  ';
  if(variant==='duplicate source field identities')sections[1].fields.push({
   key:'counseling_reason',label:'Conflicting duplicate patient statement',
   type:'text',sourceOnly:false,reported:true,value:'PRIVATE_DUPLICATE_FICTIONAL_REPORT'

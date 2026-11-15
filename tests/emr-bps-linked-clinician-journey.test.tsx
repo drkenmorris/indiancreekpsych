@@ -98,6 +98,9 @@ test.each([['lowercase',false],['uppercase',true]])('fictional 21-section linked
  }));
  render(<PatientBpsIntakeReview patientId={patient}/>);
  await screen.findByText(/Version 7/);
+ const receipt=screen.getByText(/Patient submission attested:/);
+ expect(receipt.querySelector('time')?.getAttribute('datetime')).toBe(stamp);
+ expect(receipt.textContent).toContain('not a clinician signature');
  expect(screen.getByText(/Sections audited: 21\/21/)).toBeTruthy();
  const before=document.body.textContent||'';
  expect(before).toContain('FICTIONAL_PATIENT_PRESENTING_CONCERN');

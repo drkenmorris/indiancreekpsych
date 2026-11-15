@@ -256,6 +256,8 @@ test('BPS attestation comparisons preserve microseconds and normalize timezone o
  expect(validBpsSubmissionChronology('submitted',
   '2026-11-10T09:00:00.000000001Z','2026-11-10T09:00:00Z')).toBe(false);
  expect(validBpsSubmissionChronology('draft','2026-11-10T09:00:00.000002Z',null)).toBe(true);
+ expect(validBpsSubmissionChronology('draft','2026-11-10T09:00:00.000002Z',receipt)).toBe(false);
+ expect(validBpsSubmissionChronology('revoked',receipt,null)).toBe(false);
 });
 
 test('unknown BPS field identities containing fictional private text are counted but never echoed',()=>{

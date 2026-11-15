@@ -69,6 +69,28 @@ test('GET refuses mis-scoped, malformed or forged recipient responses without di
  }
 });
 
+test('GET rejects an incomplete or identity-unconfirmed submitted assessment but accepts a genuine complete submission',async()=>{
+ const complete=Object.fromEntries(source.definition.items.map(item=>[item.id,item.options[0].value]));
+ const invalid=[
+  {answers:answers(),page:0,revision:2,status:'submitted',identity_confirmed:true},
+  {answers:complete,page:0,revision:2,status:'submitted',identity_confirmed:false}
+ ];
+ for(const row of invalid){
+  saved=row;
+  const response=await GET(new Request('https://www.indiancreekpsych.com/api/assigned-tests/connected?id='+id));
+  expect(response.status).toBe(409);
+  const json=await response.json();
+  expect(json.response).toBeUndefined();
+  expect(json.definition).toBeUndefined();
+ }
+ saved={answers:complete,page:0,revision:2,status:'submitted',identity_confirmed:true};
+ const verified=await GET(new Request('https://www.indiancreekpsych.com/api/assigned-tests/connected?id='+id));
+ expect(verified.status).toBe(200);
+ const json=await verified.json();
+ expect(json.response.status).toBe('submitted');
+ expect(Object.keys(json.response.answers)).toHaveLength(source.definition.items.length);
+});
+
 test('POST never claims a saved assessment if the database revision receipt is missing or contradictory',async()=>{
  const body={id,expectedRevision:0,page:1,submit:false,identityConfirmed:true,answers:answers()};
  for(const receipt of [null,0,-1,1.5,'1',2]){

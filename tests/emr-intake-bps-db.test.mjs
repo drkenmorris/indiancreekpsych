@@ -11,8 +11,8 @@ create function auth.uid() returns uuid language sql stable as $$select nullif(c
 create function auth.jwt() returns jsonb language sql stable as $$select jsonb_build_object('aal',current_setting('request.aal',true))$$;
 create table auth.users(id uuid primary key);
 create table public.profiles(id uuid primary key references auth.users(id),account_type text);
-create table public.clinical_patients(id uuid primary key,account_id uuid references public.profiles(id));
-create table public.patient_intakes(patient_id uuid primary key references public.profiles(id),answers jsonb not null,status text not null,version integer not null,updated_at timestamptz not null);
+create table public.clinical_patients(id uuid primary key,account_id uuid references public.profiles(id),directory_deleted_at timestamptz);
+create table public.patient_intakes(patient_id uuid primary key references public.profiles(id),answers jsonb not null,status text not null,version integer not null,updated_at timestamptz not null,submitted_at timestamptz);
 create function private.current_user_is_admin() returns boolean language sql security definer stable set search_path='' as $$
 select exists(select 1 from public.profiles where id=auth.uid() and account_type='admin')$$;
 grant usage on schema auth,private,public to authenticated,anon;`);
@@ -21,15 +21,36 @@ for(const [id,role] of [[admin,'admin'],[other,'admin'],[account,'patient']]){
 }
 await db.query('insert into public.clinical_patients values($1,$2)',[patient,account]);
 await db.query('insert into public.clinical_patients values($1,$2)',[unlinked,null]);
-await db.query('insert into public.patient_intakes values($1,$2,$3,$4,$5)',[account,{
+await db.query('insert into public.patient_intakes values($1,$2,$3,$4,$5,$6)',[account,{
  counseling_reason:'Patient-reported sadness',suicidal_thoughts_current:'Yes',medication_entries:'structured original',
- roi_authorize:'Yes',treatment_signature:'Patient Signature',insurance_member:'protected identifier'},'submitted',1,stamp]);
+ roi_authorize:'Yes',treatment_signature:'Patient Signature',insurance_member:'protected identifier'},'submitted',1,stamp,stamp]);
 await db.exec(readFileSync('supabase/migrations/20261110103000_emr_bps_intake_reviews.sql','utf8'));
 await db.exec(readFileSync('supabase/migrations/20261111101500_emr_bps_review_account_provenance.sql','utf8'));
+for(const migration of [
+ '20261113110400_emr_bps_active_chart_boundary.sql',
+ '20261113165500_emr_bps_submitted_receipt_boundary.sql',
+ '20261114050000_emr_bps_submitted_chronology_boundary.sql',
+ '20261114121500_emr_bps_review_after_patient_submission.sql',
+ '20261115071500_emr_bps_draft_attestation_boundary.sql'
+])await db.exec(readFileSync('supabase/migrations/'+migration,'utf8'));
 const q=(s,args=[])=>db.query(s,args);
 const as=async(id,aal='aal2')=>{await db.exec('reset role');await q("select set_config('request.user',$1,false),set_config('request.aal',$2,false)",[id,aal]);await db.exec('set role authenticated');};
 const payload={patient_id:patient,source_account_id:account,source_version:1,source_status:'submitted',source_updated_at:stamp,
  reviewed:true,clinician_notes:{presenting:'Clinician reviewed patient account; not a diagnosis.'}};
+await test('contradictory draft patient submission receipt cannot create an attested clinician review',async()=>{
+ // Protect this boundary in the database as well as the HTTP API: even a
+ // legitimate MFA administrator must not save contradictory patient provenance.
+ await db.exec('reset role');
+ await q("update public.patient_intakes set status='draft' where patient_id=$1",[account]);
+ await as(admin);
+ await assert.rejects(
+  q('select public.save_emr_bps_intake_review($1)',[{...payload,source_status:'draft'}]),
+  /Draft BPS source cannot retain a final patient submission attestation/
+ );
+ assert.equal((await q('select count(*)::integer n from public.emr_bps_intake_reviews')).rows[0].n,0);
+ await db.exec('reset role');
+ await q("update public.patient_intakes set status='submitted' where patient_id=$1",[account]);
+});
 await test('MFA clinician saves an append-only BPS review using DB-owned clinical source fields',async()=>{
  await as(admin);
  const saved=await q('select public.save_emr_bps_intake_review($1) id',[payload]);assert.ok(saved.rows[0].id);
@@ -75,10 +96,10 @@ await test('relinking a central chart to a different account preserves original 
  await db.exec('reset role');
  await q('insert into auth.users values($1)',[newlyLinked]);
  await q('insert into public.profiles values($1,$2)',[newlyLinked,'patient']);
- await q('insert into public.patient_intakes values($1,$2,$3,$4,$5)',[
+ await q('insert into public.patient_intakes values($1,$2,$3,$4,$5,$6)',[
   newlyLinked,{counseling_reason:'New linked account patient report',
    suicidal_thoughts_current:'No response',roi_authorize:'Protected new legal decision'},
-  'submitted',1,stamp
+  'submitted',1,stamp,stamp
  ]);
  await q('update public.clinical_patients set account_id=$1 where id=$2',[newlyLinked,patient]);
  await as(admin);

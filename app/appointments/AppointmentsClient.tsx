@@ -14,6 +14,13 @@ type Block = { id:string; starts_at:string; ends_at:string; label:string|null };
 type Patient = { id:string; full_name:string|null; preferred_name:string|null };
 
 const weekdays=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+// A five-character SQLSTATE is not automatically proof that a booking rolled back.
+// Connection failures (08xxx), administrator shutdown (57Pxx) and transaction
+// completion unknown (40003) can arrive after the server has committed a series.
+// Only known transaction-rejecting SQLSTATE classes permit a safe correction/retry.
+const definitiveBookingRejection=(code:unknown):boolean=>
+  typeof code==='string' && /^[0-9A-Z]{5}$/.test(code) && code!=='40003' &&
+  (/^(22|23|28|40|42)/.test(code)||code==='P0001');
 const practiceDateInput=(instant:string,timezone:string)=>{const {date,time}=localParts(instant,timezone);return `${date}T${time}`;};
 
 export default function AppointmentsClient({userId,accountType,preferredName,initialSettings,initialRules,initialBlocks}:{userId:string;accountType:AccountType;preferredName:string;initialSettings:Settings|null;initialRules:Rule[];initialBlocks:Block[]}) {
@@ -58,9 +65,9 @@ export default function AppointmentsClient({userId,accountType,preferredName,ini
       // A definitive database error is a rejected transaction; transport
       // failures and malformed success receipts cannot prove no write occurred.
       if(error){
-        // SQLSTATE means the database explicitly rejected the transaction.
-        // A PostgREST transport failure (or unknown error) may follow a commit.
-        if(typeof error.code==='string'&&/^[0-9A-Z]{5}$/.test(error.code))outcomeUnknown=false;
+        // Some SQLSTATEs describe lost connections or indeterminate commit
+        // outcomes. Never unlock a booking retry for these conditions.
+        if(definitiveBookingRejection(error.code))outcomeUnknown=false;
         throw error;
       }
       // A successful HTTP/RPC response with zero, null or malformed affected rows

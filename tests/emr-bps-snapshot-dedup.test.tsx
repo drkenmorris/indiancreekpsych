@@ -399,19 +399,19 @@ test('equivalent patient attestation instants in different timezone offsets stil
 });
 
 
-test('a changeable linked draft is readable but cannot expose clinician finalization controls',async()=>{
- let posts=0;
- const draft=source();
+test('historical clinician draft review retains explicit non-submitted source provenance',async()=>{
+ const draft=source([{
+  id:'00000000-0000-4000-8000-000000000999',reviewed:true,
+  source_version:7,source_status:'draft',source_updated_at:stamp,
+  created_at:stamp,clinical_answers:{},clinician_notes:{}
+ }]);
  draft.source.status='draft';
  draft.source.submittedAt=null as unknown as string;
- vi.stubGlobal('fetch',vi.fn(async(_url:string,options?:RequestInit)=>{
-  if(options?.method==='POST')posts++;
-  return Response.json(draft);
- }));
+ vi.stubGlobal('fetch',vi.fn(async()=>Response.json(draft)));
  render(<PatientBpsIntakeReview patientId={patient}/>);
  await screen.findByText(/Sections audited: 21\/21/);
- expect(screen.getByText(/patient submission and a valid attestation receipt are required/i)).toBeTruthy();
- expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
+ fireEvent.click(screen.getByText(/Previously saved immutable clinician reviews/i));
+ expect(screen.getByText(/historical clinician review documents a patient DRAFT intake version/i)).toBeTruthy();
+ expect(screen.queryByText(/Patient submission attested:/)).toBeNull();
  expect(screen.queryByRole('button',{name:/Save reviewed BPS history snapshot/i})).toBeNull();
- expect(posts).toBe(0);
 });

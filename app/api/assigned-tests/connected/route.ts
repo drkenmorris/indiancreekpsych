@@ -33,9 +33,16 @@ if(!Number.isSafeInteger(data)||data!==s.expectedRevision+1)
 // The RPC revision alone is not independent evidence that the expected
 // respondent's answers reached durable chart history. Read back the exact row
 // before reporting success; an ambiguous outcome must not invite an unsafe retry.
-const {data:stored,error:readError}=await ctx.supabase.from('connected_assignment_responses')
- .select('assignment_id,respondent_id,answers,page,revision,status,identity_confirmed')
- .eq('assignment_id',b.id).eq('respondent_id',ctx.user.id).maybeSingle();
+const unverifiedSave='Save was acknowledged but chart readback could not be verified. Keep this page open and contact the office before retrying.';
+let readback;
+try{
+ readback=await ctx.supabase.from('connected_assignment_responses')
+  .select('assignment_id,respondent_id,answers,page,revision,status,identity_confirmed')
+  .eq('assignment_id',b.id).eq('respondent_id',ctx.user.id).maybeSingle();
+}catch{
+ return NextResponse.json({error:unverifiedSave},{status:503,headers});
+}
+const {data:stored,error:readError}=readback;
 const persisted=stored?.answers;
 const expectedEntries=Object.entries(s.answers);
 if(readError||!stored||stored.assignment_id!==b.id||stored.respondent_id!==ctx.user.id||
@@ -44,5 +51,5 @@ if(readError||!stored||stored.assignment_id!==b.id||stored.respondent_id!==ctx.u
  !persisted||typeof persisted!=='object'||Array.isArray(persisted)||
  Object.keys(persisted).length!==expectedEntries.length||
  expectedEntries.some(([key,value])=>persisted[key]!==value))
- return NextResponse.json({error:'Save was acknowledged but chart readback could not be verified. Keep this page open and contact the office before retrying.'},{status:503,headers});
+ return NextResponse.json({error:unverifiedSave},{status:503,headers});
 return NextResponse.json({saved:true,revision:data,status:s.submit?'submitted':'draft'},{headers});}catch(e){return NextResponse.json({error:e instanceof Error?e.message:'Invalid answers.'},{status:400,headers});}}

@@ -11,3 +11,14 @@ test('missing account, email mismatch and expiry deny recipient access',async()=
 test('GET returns only assigned source and saved recipient state, without other informant or chart data',async()=>{saved={answers:answers(),page:1,revision:3,status:'draft',identity_confirmed:true};const response=await GET(new Request('https://www.indiancreekpsych.com/api/assigned-tests/connected?id='+id));expect(response.status).toBe(200);const json=await response.json();expect(json.response).toEqual(saved);expect(json.assignment).toEqual({id,recipientName:'Fictional Recipient',expiresAt:assignment.expires_at});expect(json.definition.items).toHaveLength(source.definition.items.length);expect(json.assignment.recipient_email).toBeUndefined();expect(json.patient).toBeUndefined();});
 test('save binds to authorized assignment, preserves zero answers and uses optimistic revision',async()=>{const response=await POST(request({id,expectedRevision:0,page:1,submit:false,identityConfirmed:true,answers:answers(),patientId:'forged',asqRole:'teacher'}));expect(response.status).toBe(200);expect(rpc).toHaveBeenCalledWith('save_connected_assignment',{p_id:id,p_expected:0,p_answers:answers(),p_page:1,p_submit:false,p_confirmed:true});expect((await response.json()).revision).toBe(1);});
 test('CSRF, forged answers and source mismatch fail without writing; stale revisions return409',async()=>{const body={id,expectedRevision:0,page:1,submit:false,identityConfirmed:true,answers:answers()};expect((await POST(request(body,'https://elsewhere.invalid'))).status).toBe(403);expect((await POST(request({...body,answers:{...answers(),forged:2}}))).status).toBe(400);expect(rpc).not.toHaveBeenCalled();rpc.mockResolvedValue({data:null,error:{code:'40001'}});expect((await POST(request(body))).status).toBe(409);assignment.connected_source_hash='bad';expect((await GET(new Request('https://www.indiancreekpsych.com/api/assigned-tests/connected?id='+id))).status).toBe(409);});
+
+
+test('revoked CSEQ invitation cannot disclose a questionnaire or save a clinical response',async()=>{
+ assignment.status='revoked';
+ const read=await GET(new Request('https://www.indiancreekpsych.com/api/assigned-tests/connected?id='+id));
+ expect(read.status).toBe(403);
+ expect(JSON.stringify(await read.json())).not.toContain('items');
+ const write=await POST(request({id,expectedRevision:0,page:1,submit:false,identityConfirmed:true,answers:answers()}));
+ expect(write.status).toBe(403);
+ expect(rpc).not.toHaveBeenCalled();
+});

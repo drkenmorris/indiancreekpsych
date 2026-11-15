@@ -180,3 +180,30 @@ test('connected save treats a thrown post-commit readback as unverified, not inv
  expect(json.error).toMatch(/chart readback could not be verified/);
  expect(JSON.stringify(json)).not.toContain('synthetic readback connection lost');
 });
+
+
+test('POST refuses a success acknowledgement if a CSEQ invitation is revoked during durable readback',async()=>{
+ const body={id,expectedRevision:0,page:1,submit:false,identityConfirmed:true,answers:answers()};
+ revocationOnSecondLookup=true;
+ const response=await POST(request(body));
+ expect(rpc).toHaveBeenCalledOnce();
+ expect(assignmentLookups).toBe(2);
+ expect(response.status).toBe(503);
+ expect(response.headers.get('Cache-Control')).toContain('no-store');
+ const json=await response.json();
+ expect(json.saved).toBeUndefined();
+ expect(json.error).toMatch(/authorization changed during save/);
+ expect(JSON.stringify(json)).not.toContain('answers');
+});
+
+test('POST treats a thrown provider save exception as unverified without exposing private internals',async()=>{
+ const privateError='fictional database: protected patient answers and service credential';
+ rpc.mockRejectedValueOnce(new Error(privateError));
+ const response=await POST(request({id,expectedRevision:0,page:1,submit:false,identityConfirmed:true,answers:answers()}));
+ expect(response.status).toBe(503);
+ expect(response.headers.get('Cache-Control')).toContain('no-store');
+ const json=await response.json();
+ expect(json.saved).toBeUndefined();
+ expect(json.error).toMatch(/outcome could not be verified/);
+ expect(JSON.stringify(json)).not.toContain(privateError);
+});

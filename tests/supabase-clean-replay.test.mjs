@@ -121,6 +121,45 @@ test('clinic migrations replay in order on an empty application database', async
         [id,JSON.stringify({sub:id,aal,role:'authenticated'})]);
       await db.exec('set role authenticated');
     }
+    // Cross-patient appointment RLS must be enforced by PostgreSQL, not merely
+    // by the scheduler's clinician UI or its separately secured RPC endpoints.
+    // These three appointments are entirely fictional rows in isolated PGlite.
+    const ownBooking='00000000-0000-4000-8000-000000000911';
+    const otherBooking='00000000-0000-4000-8000-000000000912';
+    const legacyBooking='00000000-0000-4000-8000-000000000913';
+    const {rows:[appointmentPolicy]}=await db.query(
+      "select permissive,cmd from pg_policies where schemaname='public' and tablename='appointments' and policyname='appointments_patient_security'");
+    assert.deepEqual(appointmentPolicy,{permissive:'RESTRICTIVE',cmd:'ALL'},
+      'The appointment secure-session gate must be restrictive so broad permissive policies cannot bypass patient scoping');
+    await db.exec('reset role');
+    await db.exec('alter table public.appointments disable trigger user');
+    try {
+      await db.query(`insert into public.appointments(id,patient_id,patient_name,starts_at,ends_at,status)
+        values ($1,$4,'FICTIONAL OWN PATIENT','2030-12-01T10:00:00Z','2030-12-01T10:50:00Z','cancelled'),
+        ($2,$5,'FICTIONAL OTHER PATIENT','2030-12-01T11:00:00Z','2030-12-01T11:50:00Z','cancelled'),
+        ($3,null,'FICTIONAL UNLINKED LEGACY PATIENT','2030-12-01T12:00:00Z','2030-12-01T12:50:00Z','cancelled')`,
+        [ownBooking,otherBooking,legacyBooking,patientId,outsiderId]);
+    } finally {
+      await db.exec('alter table public.appointments enable trigger user');
+    }
+    await as(patientId,'aal1');
+    const {rows:patientBookings}=await db.query('select id from public.appointments');
+    assert.deepEqual(patientBookings.map(row=>row.id),[ownBooking],
+      'A signed-in patient must not see another account or name-only legacy appointment');
+    const {rows:blockedCrossPatientUpdate}=await db.query(
+      "update public.appointments set patient_name=patient_name where id=$1 returning id",[otherBooking]);
+    assert.equal(blockedCrossPatientUpdate.length,0,
+      'A patient must not alter a different account appointment via direct PostgREST RLS');
+    await as(outsiderId,'aal2');
+    assert.equal((await db.query('select id from public.appointments')).rows.length,0,
+      'A nonpatient guest account cannot read appointment records');
+    await as(adminId,'aal1');
+    assert.equal((await db.query('select id from public.appointments')).rows.length,0,
+      'An administrator without MFA cannot read direct appointment rows');
+    await as(adminId,'aal2');
+    assert.equal((await db.query('select id from public.appointments')).rows.length,3,
+      'An MFA-verified administrator retains existing appointment and legacy series access');
+
     await as(adminId,'aal1');
     await assert.rejects(db.query('select public.save_emr_bps_intake_review($1) as id',[payload]),
       /MFA|Administrator sign-in/,'AAL1 must not save clinician BPS history');

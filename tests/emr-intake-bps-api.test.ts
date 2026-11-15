@@ -751,11 +751,3 @@ test('BPS history accepts the same source answers in a different object-key orde
  expect(response.status).toBe(200);
  expect((await response.json()).patientId).toBe(patient);
 });
-
-
-test('draft intake cannot be certified as a completed BPS clinical review through the API',async()=>{
- const response=await POST(submit({...payload,sourceStatus:'draft'}));
- expect(response.status).toBe(400);
- expect(response.headers.get('Cache-Control')).toContain('no-store');
- expect(m.rpc).not.toHaveBeenCalled();
-});

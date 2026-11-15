@@ -16,7 +16,7 @@ vi.mock('@/lib/emr/access',()=>({
 }));
 afterEach(()=>{cleanup();vi.clearAllMocks();vi.unstubAllGlobals();});
 
-test('fictional 21-section linked intake traverses the protected BPS API, clinician save and independently verified history without mixing patient charts',async()=>{
+test.each([['lowercase',false],['uppercase',true]])('fictional 21-section linked intake traverses the protected BPS API, clinician save and independently verified history without mixing patient charts (%s receipt)',async(_receiptFormat,receiptUppercase)=>{
  const patient='00000000-0000-4000-8000-000000000901';
  const otherPatient='00000000-0000-4000-8000-000000000902';
  const account='00000000-0000-4000-8000-000000000903';
@@ -83,7 +83,7 @@ test('fictional 21-section linked intake traverses the protected BPS API, clinic
     clinical_answers:sanitizeBpsSnapshotAnswers(sourceAnswers).answers,
     clinician_notes:saved.clinician_notes
    });
-   return {data:reviewId,error:null};
+   return {data:receiptUppercase?reviewId.toUpperCase():reviewId,error:null};
   }
  };
  access.emrAccess.mockResolvedValue({supabase});

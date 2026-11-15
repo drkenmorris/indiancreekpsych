@@ -11,8 +11,9 @@ const request=(id=patient)=>new Request('https://www.indiancreekpsych.com/emr/wo
 let lookup:ReturnType<typeof vi.fn>;
 beforeEach(()=>{
  vi.clearAllMocks();m.patientAccess.mockResolvedValue({});
- lookup=vi.fn(async()=>({data:{id:patient},error:null}));
- const query={select:vi.fn(),eq:vi.fn(),maybeSingle:lookup};query.select.mockReturnValue(query);query.eq.mockReturnValue(query);
+ lookup=vi.fn(async()=>({data:{id:patient,directory_deleted_at:null},error:null}));
+ const query={select:vi.fn(),eq:vi.fn(),is:vi.fn(),maybeSingle:lookup};
+ query.select.mockReturnValue(query);query.eq.mockReturnValue(query);query.is.mockReturnValue(query);
  m.from.mockReturnValue(query);m.emrAccess.mockResolvedValue({supabase:{from:m.from}});
  m.readFile.mockResolvedValue('<!doctype html><html><body>Original clinical workspace</body></html>');
 });
@@ -56,6 +57,17 @@ test('existing patient-only workspace links open the original BPS, while explici
 test('unrecognized or unauthorized patient ID is rejected before original HTML is served',async()=>{
  lookup.mockResolvedValue({data:null,error:null});
  const response=await GET(request());expect(response.status).toBe(404);
+ expect(m.readFile).not.toHaveBeenCalled();
+});
+test.each([
+ ['wrong central chart identity',{id:'00000000-0000-4000-8000-000000000999',directory_deleted_at:null}],
+ ['archived chart returned by stale database adapter',{id:patient,directory_deleted_at:'2026-11-14T12:00:00Z'}],
+ ['central row missing active-chart status',{id:patient}]
+])('original seven-page BPS never serves patient data for %s',async(_reason,row)=>{
+ lookup.mockResolvedValue({data:row,error:null});
+ const response=await GET(new Request('https://www.indiancreekpsych.com/emr/workspace?patient='+patient+'&module=assessment&section=assessment%3Abiopsychosocial'));
+ expect(response.status).toBe(404);
+ expect(response.headers.get('Cache-Control')).toContain('no-store');
  expect(m.readFile).not.toHaveBeenCalled();
 });
 test('central patient lookup failure fails closed, no clinical workspace HTML',async()=>{

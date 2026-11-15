@@ -21,9 +21,8 @@ create policy appointments_patient_security on public.appointments
   (patient_id = (select auth.uid()) or (select private.current_user_is_admin()))
  );
 
--- The former FOR ALL policy also supplied a permissive DELETE path. Keep
--- existing owner/admin cancellation permissions subject to the new restrictive
--- secure-session and row-ownership gate, without widening deletion access.
-create policy appointments_delete_own_or_admin on public.appointments
- for delete to authenticated
- using (patient_id = (select auth.uid()) or (select private.current_user_is_admin()));
+-- Deliberately do NOT create a permissive direct DELETE policy. Existing
+-- scheduler cancellations must go through their audited service/RPC pathway;
+-- granting authenticated patients or admins direct row deletion here would
+-- expand their authority and could erase booking/recurrence history. The
+-- restrictive ALL policy is only an additional gate, not a grant of DELETE.

@@ -43,7 +43,7 @@ afterEach(()=>cleanup());
 test.each([0,null,'2'])('calendar edit receipt %s cannot claim a recurring series was updated',async receipt=>{
  prepare(receipt);
  await openFutureRecurringBooking();
- await screen.findByText('Appointment change was not confirmed. Refresh the calendar before retrying.');
+ await screen.findByText(/Appointment change was not confirmed\. Refresh the calendar before retrying\./);
  expect(screen.queryByText(/appointments? updated\. Adjacent openings/)).toBeNull();
  expect(m.rpc).toHaveBeenCalledWith('edit_calendar_appointments',expect.objectContaining({
   p_id:booking.id,p_scope:'future',p_action:'save'
@@ -91,4 +91,44 @@ test('confirmation and simultaneous edit submit cannot execute competing cancell
  finish({data:2,error:null});
  await screen.findByText('2 appointments cancelled. Adjacent openings have been recalculated.');
  expect(m.rpc.mock.calls.filter(([name])=>name==='edit_calendar_appointments')).toHaveLength(1);
+});
+
+test.each([
+ {name:'connection failure after an uncertain commit',data:null,error:{code:'08006',message:'Connection lost'}},
+ {name:'unknown completion status',data:null,error:{code:'40003',message:'Completion unknown'}},
+ {name:'server shutdown while awaiting acknowledgment',data:null,error:{code:'57P01',message:'Server unavailable'}},
+ {name:'malformed successful receipt',data:null,error:null},
+])('uncertain $name locks repeat edit and cancellation until page reload',async ({data,error})=>{
+ prepare(2);
+ m.rpc.mockImplementation((name:string)=>({
+  abortSignal:async()=>name==='scheduling_patients'?{data:[],error:null}:{data,error}
+ }));
+ const form=await openFutureRecurringEditor();
+ fireEvent.submit(form);
+ await screen.findByText(/Further calendar edits and cancellations are locked in this session/);
+ // Directly submit again and attempt the cancellation control even after the
+ // first RPC has settled. Neither path may issue another write.
+ fireEvent.submit(form);
+ fireEvent.click(screen.getByRole('button',{name:'Cancel appointment'}));
+ fireEvent.click(screen.getByRole('button',{name:'Confirm cancellation'}));
+ const changes=m.rpc.mock.calls.filter(([name])=>name==='edit_calendar_appointments');
+ expect(changes).toHaveLength(1);
+ expect(screen.queryByText(/appointments? updated\. Adjacent openings/)).toBeNull();
+ expect(screen.queryByText(/appointments? cancelled\. Adjacent openings/)).toBeNull();
+});
+
+test('definitive calendar conflict rejection allows a corrected retry',async()=>{
+ prepare(2);
+ let attempt=0;
+ m.rpc.mockImplementation((name:string)=>({
+  abortSignal:async()=>name==='scheduling_patients'?{data:[],error:null}:
+   (++attempt===1?{data:null,error:{code:'23505',message:'Appointment conflict'}}:{data:2,error:null})
+ }));
+ const form=await openFutureRecurringEditor();
+ fireEvent.submit(form);
+ await screen.findByText('Appointment conflict');
+ expect(screen.queryByText(/Further calendar edits and cancellations are locked/)).toBeNull();
+ fireEvent.submit(form);
+ await screen.findByText('2 appointments updated. Adjacent openings have been recalculated.');
+ expect(m.rpc.mock.calls.filter(([name])=>name==='edit_calendar_appointments')).toHaveLength(2);
 });

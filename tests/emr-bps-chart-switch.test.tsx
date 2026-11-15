@@ -95,6 +95,8 @@ test.each([
  'unsupported section routing',
  'known legal consent section spoofed as clinical',
  'known medication section spoofed as clinical',
+ 'known clinical section spoofed with another domain',
+ 'known legal consent section spoofed with clinical domain',
  'impossible answered field count',
  'duplicate source field identities',
  'cross-section duplicate source field identities',
@@ -124,6 +126,18 @@ test.each([
  if(variant==='known medication section spoofed as clinical'){
   sections[1].title='Medications';
   sections[1].disposition='clinical';
+ }
+ // Preserve the correct disposition: a mismatched domain label alone must
+ // withhold source statements and disable clinical saving.
+ if(variant==='known clinical section spoofed with another domain'){
+  sections[1].title='Presenting concerns and functional impact';
+  sections[1].domain='Medication/allergy reconciliation (separate chart review)';
+  sections[1].disposition='clinical';
+ }
+ if(variant==='known legal consent section spoofed with clinical domain'){
+  sections[1].title='Consent to Counseling and Informed Treatment';
+  sections[1].domain='Presenting problems, functioning and goals';
+  sections[1].disposition='reference';
  }
  if(variant==='impossible answered field count')sections[0].answered=99;
  if(variant==='duplicate source field identities')sections[1].fields.push({

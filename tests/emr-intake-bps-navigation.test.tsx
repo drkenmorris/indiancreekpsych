@@ -12,7 +12,11 @@ test('all 21 linked BPS sections provide patient-scoped access to existing clini
  const sections=Array.from({length:21},(_,i)=>({
   title:i===3?'Mental health treatment history':i===0?'Medications':i===1?'Medical & Substance Use History':i===2?'Trauma, family, social, educational, and occupational history':'Section '+i,
   domain:'Clinician reviewed history',disposition:i===0||i===1?'separate-review':'clinical',
-  fields:[{key:'answer_'+i,label:'Patient report',type:'text',value:'Fictional report'}],answered:1
+  // Known titles must carry a question actually sourced from that clinical
+  // section, rather than an invented key that the new provenance gate rejects.
+  fields:[{key:i===0?'medication_entries':i===1?'medical_substance_history':
+   i===2?'trauma_history_checklist':i===3?'treatment_history_entries':'answer_'+i,
+   label:'Patient report',type:'text',value:'Fictional report'}],answered:1
  }));
  // The source API uses the approved domain labels for recognized sections.
  // Keep navigation fixtures faithful to that independent clinician boundary.

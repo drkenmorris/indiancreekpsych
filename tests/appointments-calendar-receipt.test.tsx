@@ -105,16 +105,30 @@ test.each([
  }));
  const form=await openFutureRecurringEditor();
  fireEvent.submit(form);
- await screen.findByText(/Further calendar edits and cancellations are locked in this session/);
- // Directly submit again and attempt the cancellation control even after the
- // first RPC has settled. Neither path may issue another write.
+ expect((await screen.findAllByText(/Further calendar edits and cancellations are locked in this session/)).length).toBeGreaterThan(0);
+ // Even synthetic direct form dispatch cannot bypass the post-error write lock.
  fireEvent.submit(form);
- fireEvent.click(screen.getByRole('button',{name:'Cancel appointment'}));
- fireEvent.click(screen.getByRole('button',{name:'Confirm cancellation'}));
+ expect((screen.getByRole('button',{name:'Save changes'}) as HTMLButtonElement).disabled).toBe(true);
+ expect((screen.getByRole('button',{name:'Cancel appointment'}) as HTMLButtonElement).disabled).toBe(true);
  const changes=m.rpc.mock.calls.filter(([name])=>name==='edit_calendar_appointments');
  expect(changes).toHaveLength(1);
  expect(screen.queryByText(/appointments? updated\. Adjacent openings/)).toBeNull();
  expect(screen.queryByText(/appointments? cancelled\. Adjacent openings/)).toBeNull();
+});
+
+test('uncertain recurring-series cancellation also prevents a subsequent edit',async()=>{
+ prepare(2);
+ m.rpc.mockImplementation((name:string)=>({
+  abortSignal:async()=>name==='scheduling_patients'?{data:[],error:null}:
+   {data:null,error:{code:'08006',message:'Cancellation acknowledgment lost'}}
+ }));
+ const form=await openFutureRecurringEditor();
+ fireEvent.click(screen.getByRole('button',{name:'Cancel appointment'}));
+ fireEvent.click(screen.getByRole('button',{name:'Confirm cancellation'}));
+ await screen.findByText(/A calendar edit or cancellation may already have committed/);
+ fireEvent.submit(form);
+ expect(m.rpc.mock.calls.filter(([name])=>name==='edit_calendar_appointments')).toHaveLength(1);
+ expect((screen.getByRole('button',{name:'Save changes'}) as HTMLButtonElement).disabled).toBe(true);
 });
 
 test('definitive calendar conflict rejection allows a corrected retry',async()=>{

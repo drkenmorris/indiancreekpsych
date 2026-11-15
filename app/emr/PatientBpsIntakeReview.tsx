@@ -138,7 +138,13 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
     validBpsHistoricalSourceBoundary(review.source_version,review.source_status,review.source_updated_at,
      source.version,source.status,source.updatedAt)&&
     !!review.clinical_answers&&typeof review.clinical_answers==='object'&&!Array.isArray(review.clinical_answers)&&
-    !!review.clinician_notes&&typeof review.clinician_notes==='object'&&!Array.isArray(review.clinician_notes);
+    !!review.clinician_notes&&typeof review.clinician_notes==='object'&&!Array.isArray(review.clinician_notes)&&
+    // These counts are safety disclosures: malformed/negative values could
+    // suppress the warning that historical PHI was withheld from this view.
+    (review.excluded_clinical_fields===undefined||
+     (Number.isSafeInteger(review.excluded_clinical_fields)&&review.excluded_clinical_fields>=0))&&
+    (review.excluded_clinician_notes===undefined||
+     (Number.isSafeInteger(review.excluded_clinician_notes)&&review.excluded_clinician_notes>=0));
   });
   if(!validHistory)throw Error('Linked patient clinical review history has invalid saved-row provenance; answers are withheld. Reopen the chart and investigate.');
   return value as ResponseData;

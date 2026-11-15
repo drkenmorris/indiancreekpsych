@@ -158,6 +158,17 @@ test('connected save fails closed when PostgREST readback is missing',async()=>{
  expect((await response.json()).saved).toBeUndefined();
 });
 
+test('GET never reflects provider exceptions or private clinical content to an invited recipient',async()=>{
+ readbackFails=true;
+ const response=await GET(new Request('https://www.indiancreekpsych.com/api/assigned-tests/connected?id='+id));
+ expect(response.status).toBe(409);
+ expect(response.headers.get('Cache-Control')).toContain('no-store');
+ const wire=JSON.stringify(await response.json());
+ expect(wire).not.toContain('synthetic readback connection lost');
+ expect(wire).not.toContain('items');
+ expect(wire).not.toContain('answers');
+});
+
 test('connected save treats a thrown post-commit readback as unverified, not invalid answers',async()=>{
  const body={id,expectedRevision:0,page:1,submit:false,identityConfirmed:true,answers:answers()};
  readbackFails=true;

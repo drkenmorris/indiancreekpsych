@@ -25,9 +25,14 @@ export async function GET(request:Request){
  const id=requested.searchParams.get('patient');
  if(id&&!uuid(id))return NextResponse.json({error:'Invalid patient ID.'},{status:400,headers:privateHeaders});
  if(id){
- const {data,error}=await ctx.supabase.from('clinical_patients').select('id').eq('id',id).maybeSingle();
+ // The original seven-page workspace must enforce the same active-chart
+ // identity boundary as the linked intake and clinician BPS review. An
+ // archived chart or a mis-scoped adapter result must never serve clinical UI.
+ const {data,error}=await ctx.supabase.from('clinical_patients')
+  .select('id,directory_deleted_at').eq('id',id).is('directory_deleted_at',null).maybeSingle();
  if(error)return NextResponse.json({error:'Patient authorization could not be verified.'},{status:503,headers:privateHeaders});
- if(!data)return NextResponse.json({error:'Patient unavailable.'},{status:404,headers:privateHeaders});
+ if(!data||data.id!==id||data.directory_deleted_at!==null)
+  return NextResponse.json({error:'Patient unavailable.'},{status:404,headers:privateHeaders});
  }
  // Legacy direct workspace links omitted both module and section, silently opening
  // Demographics instead of the owner's primary original biopsychosocial interface.

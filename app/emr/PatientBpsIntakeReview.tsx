@@ -82,11 +82,13 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
    // Independent field-level and separate-review privacy gates remain active.
    if(typeof section.title!=='string'||!section.title||seenSectionTitles.has(section.title))return false;
    seenSectionTitles.add(section.title);
-   // A known legal, coverage or separate-reconciliation section cannot be
-   // relabeled as clinical by a malformed/stale protected API response.
-   // Keep this as an independent presentation boundary for existing packets.
+   // A known clinical, legal, coverage or separately reconciled section must
+   // retain BOTH its approved route and clinical-domain label. A stale or
+   // malformed API must not reattribute a patient report to another domain,
+   // including when the disposition alone happens to remain plausible.
    const approvedSection=bpsSectionClassification[section.title];
-   if(approvedSection&&section.disposition!==approvedSection.disposition)return false;
+   if(approvedSection&&(section.disposition!==approvedSection.disposition||
+      section.domain!==approvedSection.domain))return false;
    // Repeated source field identities can conceal a missing question or
    // conflicting patient reports despite a nominally complete 21-section audit.
 

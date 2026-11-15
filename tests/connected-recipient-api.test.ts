@@ -22,3 +22,24 @@ test('revoked CSEQ invitation cannot disclose a questionnaire or save a clinical
  expect(write.status).toBe(403);
  expect(rpc).not.toHaveBeenCalled();
 });
+
+
+test('mis-scoped connected assessment rows, invalid chart links and malformed expiry fail closed',async()=>{
+ const legitimate={...assignment};
+ const forbidden=[
+  {id:'00000000-0000-0000-0000-000000000399'},
+  {patient_id:'invalid-central-chart-id'},
+  {patient_id:null},
+  {expires_at:undefined},
+  {expires_at:'not-a-valid-timestamp'}
+ ];
+ for(const update of forbidden){
+  assignment={...legitimate,...update};
+  const read=await GET(new Request('https://www.indiancreekpsych.com/api/assigned-tests/connected?id='+id));
+  expect(read.status).toBe(403);
+  expect(JSON.stringify(await read.json())).not.toContain('items');
+  const write=await POST(request({id,expectedRevision:0,page:1,submit:false,identityConfirmed:true,answers:answers()}));
+  expect(write.status).toBe(403);
+ }
+ expect(rpc).not.toHaveBeenCalled();
+});

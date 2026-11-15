@@ -415,3 +415,24 @@ test('historical clinician draft review retains explicit non-submitted source pr
  expect(screen.queryByText(/Patient submission attested:/)).toBeNull();
  expect(screen.queryByRole('button',{name:/Save reviewed BPS history snapshot/i})).toBeNull();
 });
+
+
+test.each([
+ ['understated count',0,[
+  {key:'counseling_reason',label:'Presenting concern',type:'text',value:'PRIVATE_FICTIONAL_PATIENT_STATEMENT',reported:true,sourceOnly:false}
+ ]],
+ ['partially missing reporting flags',1,[
+  {key:'counseling_reason',label:'Presenting concern',type:'text',value:'PRIVATE_FICTIONAL_PATIENT_STATEMENT',reported:true,sourceOnly:false},
+  {key:'functional_impact',label:'Impact',type:'text',value:'PRIVATE_FICTIONAL_SECOND_STATEMENT',sourceOnly:false}
+ ]]
+])('clinician BPS source fails closed on %s instead of hiding an answered source field',async(_case,answered,fields)=>{
+ const malformed=source() as any;
+ malformed.sections[3]={...malformed.sections[3],answered,fields};
+ vi.stubGlobal('fetch',vi.fn(async()=>Response.json(malformed)));
+ render(<PatientBpsIntakeReview patientId={patient}/>);
+ const alert=await screen.findByRole('alert');
+ expect(alert.textContent).toMatch(/mapping is malformed|patient statements are withheld/i);
+ expect(document.body.textContent).not.toContain('PRIVATE_FICTIONAL_PATIENT_STATEMENT');
+ expect(document.body.textContent).not.toContain('PRIVATE_FICTIONAL_SECOND_STATEMENT');
+ expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
+});

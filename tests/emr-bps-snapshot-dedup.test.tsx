@@ -194,7 +194,7 @@ test('clinician BPS history with malformed historical clinician notes fails clos
 test.each([
  ['new source version',{version:8}],
  ['different linked account',{accountId:'00000000-0000-4000-8000-000000000803'}],
- ['changed source status',{status:'draft'}],
+ ['changed source status',{status:'draft',submittedAt:null}],
  ['new source timestamp',{updatedAt:'2026-11-10T12:05:00Z',submittedAt:'2026-11-10T12:05:00Z'}],
  ['microsecond source timestamp change',{updatedAt:'2026-11-10T12:00:00.000001Z',submittedAt:'2026-11-10T12:00:00.000001Z'}]
 ])('acknowledged BPS save cannot be independently verified after %s during readback',async(_reason,changed)=>{

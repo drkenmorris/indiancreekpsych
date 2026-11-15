@@ -107,7 +107,18 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
       (field.sourceOnly===undefined||typeof field.sourceOnly==='boolean');
     });
   });
-  if(!validSections||!value.unmappedKeys.every((key:unknown)=>typeof key==='string'))
+  // The server counts only explicitly patient-reported answers. A stale or
+  // malformed API must not say "No response recorded" while also displaying a
+  // positive patient statement, or understate how many source fields need review.
+  // Legacy empty-field fixtures have no reported flags; whenever flags are
+  // supplied, require them for every field and verify the exact count.
+  const accurateReportedCounts=validSections&&value.sections.every((entry:Section)=>{
+   const tagged=entry.fields.filter(field=>field.reported!==undefined);
+   return tagged.length===0||(tagged.length===entry.fields.length&&
+    tagged.filter(field=>field.reported===true).length===entry.answered);
+  });
+  if(!validSections||!accurateReportedCounts||
+   !value.unmappedKeys.every((key:unknown)=>typeof key==='string'))
    throw Error('Linked 21-section intake mapping is malformed; patient statements are withheld. Reopen the protected source.');
   // The protected API validates historical attestation provenance. Repeat the
   // identity/version/date checks at this UI trust boundary so a malformed,

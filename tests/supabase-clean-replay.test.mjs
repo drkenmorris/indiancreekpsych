@@ -131,6 +131,10 @@ test('clinic migrations replay in order on an empty application database', async
       "select permissive,cmd from pg_policies where schemaname='public' and tablename='appointments' and policyname='appointments_patient_security'");
     assert.deepEqual(appointmentPolicy,{permissive:'RESTRICTIVE',cmd:'ALL'},
       'The appointment secure-session gate must be restrictive so broad permissive policies cannot bypass patient scoping');
+    const {rows:deleteGrants}=await db.query(
+      "select policyname from pg_policies where schemaname='public' and tablename='appointments' and permissive='PERMISSIVE' and cmd in ('DELETE','ALL')");
+    assert.deepEqual(deleteGrants,[],
+      'A restrictive gate must not accidentally add a permissive direct appointment hard-delete path');
     await db.exec('reset role');
     await db.exec('alter table public.appointments disable trigger user');
     try {

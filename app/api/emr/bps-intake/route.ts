@@ -143,6 +143,24 @@ export async function GET(request:Request){
     (source.intake.submitted_at==null?stable.intake.submitted_at!=null:
       !equalBpsTimestampInstants(stable.intake.submitted_at,source.intake.submitted_at)))
    return reply({error:'Linked intake or central patient association changed during clinical history retrieval; reopen the chart.'},409);
+  // The clinical history count can change after the final page but before
+  // the source is revalidated. Check the exact count and newest row again.
+  // Otherwise an append-only clinician review may be omitted even though the
+  // linked intake and account are unchanged, inviting an obsolete review.
+  const {data:latest,error:latestError,count:latestCount}=await ctx.supabase
+   .from('emr_bps_intake_reviews')
+   .select('id,patient_id,source_account_id,created_at',{count:'exact'})
+   .eq('patient_id',id).eq('source_account_id',source.patient.account_id)
+   .order('created_at',{ascending:false}).order('id',{ascending:false}).range(0,0);
+  if(latestError||!Array.isArray(latest)||latestCount!==expectedReviewCount||
+   latest.length!==(expectedReviewCount===0?0:1)||
+   (expectedReviewCount>0&&(
+    !latest[0]||!uuid(latest[0].id)||
+    latest[0].id.toLowerCase()!==reviews[0].id.toLowerCase()||
+    latest[0].patient_id!==id||
+    latest[0].source_account_id!==source.patient.account_id||
+    !equalBpsTimestampInstants(latest[0].created_at,reviews[0].created_at))))
+   return reply({error:'BPS clinical review history changed after retrieval; reopen the chart for a complete source-verified history.'},409);
   const safeReviews=reviews.map(review=>{
    // Return an explicit allowlist, not a spread of the database adapter row.
    // A stale adapter or future schema can add columns with unrelated patient

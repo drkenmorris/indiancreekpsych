@@ -390,7 +390,8 @@ test('complete 221-row BPS history is retrieved in patient-scoped exact-count pa
   expect(new Set(packet.reviews.map((row:any)=>row.id)).size).toBe(221);
   expect(packet.reviews.every((row:any)=>row.reviewed===true)).toBe(true);
   const queries=m.from.mock.results.filter((r:any)=>r.value?.range).map((r:any)=>r.value);
-  expect(queries).toHaveLength(3);
+  expect(queries).toHaveLength(4);
+  expect(queries[3].range).toHaveBeenCalledWith(0,0);
   expect(queries[0].range).toHaveBeenCalledWith(0,99);
   expect(queries[1].range).toHaveBeenCalledWith(100,199);
   expect(queries[2].range).toHaveBeenCalledWith(200,299);
@@ -398,6 +399,37 @@ test('complete 221-row BPS history is retrieved in patient-scoped exact-count pa
    expect(q.eq).toHaveBeenCalledWith('patient_id',patient);
    expect(q.eq).toHaveBeenCalledWith('source_account_id',account);
   }
+});
+
+test.each(['concurrent-insert','head-replacement'])('review history altered after final page cannot be returned as complete (%s)',async(mode)=>{
+ const confidential='PRIVATE_FICTIONAL_CONCURRENT_BPS_REPORT';
+ data={counseling_reason:confidential};
+ const original={id:'00000000-0000-0000-0000-000000000810',patient_id:patient,
+  source_account_id:account,source_version:2,source_status:'submitted',
+  source_updated_at:stamp,created_at:stamp,reviewed:true,
+  clinical_answers:{counseling_reason:confidential},clinician_notes:{presenting:'PRIVATE_FICTIONAL_CLINICIAN_NOTE'}};
+ reviewRows=[original];
+ let queries=0;
+ historyResultOverride=(start:number,end:number)=>{
+  queries++;
+  // The first page completed; another clinician changes chart history before
+  // the final count/head verification, while the patient source stays intact.
+  if(queries===2){
+   const incoming={...original,id:'00000000-0000-0000-0000-000000000811',
+    source_version:1,source_status:'draft',created_at:'2026-11-10T09:00:01Z'};
+   if(mode==='concurrent-insert')reviewRows.unshift(incoming);
+   else reviewRows=[incoming];
+  }
+  return reviewRows.slice(start,end+1);
+ };
+ const response=await GET(request());
+ expect(queries).toBe(2);
+ expect(response.status).toBe(409);
+ expect(response.headers.get('Cache-Control')).toContain('no-store');
+ const wire=JSON.stringify(await response.json());
+ expect(wire).not.toContain(confidential);
+ expect(wire).not.toContain('PRIVATE_FICTIONAL_CLINICIAN_NOTE');
+ expect(wire).not.toContain('"reviews"');
 });
 
 test('out-of-order BPS history fails closed even when total count and review IDs look complete',async()=>{

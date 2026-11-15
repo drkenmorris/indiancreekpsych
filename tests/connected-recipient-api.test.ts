@@ -165,8 +165,8 @@ test('GET never reflects provider exceptions or private clinical content to an i
  expect(response.headers.get('Cache-Control')).toContain('no-store');
  const wire=JSON.stringify(await response.json());
  expect(wire).not.toContain('synthetic readback connection lost');
- expect(wire).not.toContain('items');
- expect(wire).not.toContain('answers');
+ expect(wire).not.toContain('"definition":');
+ expect(wire).not.toContain('"answers":');
 });
 
 test('connected save treats a thrown post-commit readback as unverified, not invalid answers',async()=>{

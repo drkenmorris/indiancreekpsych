@@ -134,6 +134,28 @@ const historicalBpsDomain:Record<string,string>={
  cultural_spiritual_factors:'Trauma, family, social, educational, and occupational history',
  strengths_interests:'Trauma, family, social, educational, and occupational history',
 };
+/**
+ * Source question identities carry a section boundary in addition to a field
+ * allowlist. A malformed clinical API payload must not silently reattribute a
+ * reported answer to a different BPS domain with an otherwise approved title.
+ * Accept both versioned questionnaire layouts and explicitly routed retired
+ * history; neither authorizes automatic import into seven original BPS forms.
+ */
+const bpsQuestionSections=new Map<string,Set<string>>();
+const registerBpsQuestion=(key:string,title:string)=>{
+ const known=bpsQuestionSections.get(key)??new Set<string>();
+ known.add(title);bpsQuestionSections.set(key,known);
+};
+for(const version of ['','2026-11-02-directory-1'])
+ for(const section of intakeSectionsForVersion(version))
+  for(const [key] of section.fields)registerBpsQuestion(key,section.title);
+for(const [key,title] of Object.entries(historicalBpsDomain))
+ registerBpsQuestion(key,title);
+export function approvedBpsQuestionSection(title:string,key:string):boolean{
+ return Object.prototype.hasOwnProperty.call(bpsSectionClassification,title)&&
+  bpsQuestionSections.get(key)?.has(title)===true;
+}
+
 // Older intake versions included medication-list and legal-history free text in
 // general context. Both must remain in their dedicated protected source review,
 // not in BPS narrative previews, even when the upstream field type is mislabeled.

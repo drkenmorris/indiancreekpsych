@@ -150,6 +150,13 @@ test('clinic migrations replay in order on an empty application database', async
       "update public.appointments set patient_name=patient_name where id=$1 returning id",[otherBooking]);
     assert.equal(blockedCrossPatientUpdate.length,0,
       'A patient must not alter a different account appointment via direct PostgREST RLS');
+    // RLS tightening must never silently enable a new direct hard-delete path.
+    // The legacy scheduler has no permissive appointment DELETE policy; adding
+    // one would let a user erase booking and recurrence audit history outright.
+    const {rows:directPatientDelete}=await db.query(
+      'delete from public.appointments where id=$1 returning id',[ownBooking]);
+    assert.equal(directPatientDelete.length,0,
+      'Patients must not hard-delete even their own appointments through PostgREST');
     await as(outsiderId,'aal2');
     assert.equal((await db.query('select id from public.appointments')).rows.length,0,
       'A nonpatient guest account cannot read appointment records');
@@ -159,6 +166,12 @@ test('clinic migrations replay in order on an empty application database', async
     await as(adminId,'aal2');
     assert.equal((await db.query('select id from public.appointments')).rows.length,3,
       'An MFA-verified administrator retains existing appointment and legacy series access');
+    const {rows:directAdminDelete}=await db.query(
+      'delete from public.appointments where id=$1 returning id',[legacyBooking]);
+    assert.equal(directAdminDelete.length,0,
+      'Even MFA administrators cannot bypass audited scheduler cancellation by direct hard-delete');
+    assert.equal((await db.query('select id from public.appointments')).rows.length,3,
+      'All historical fictional appointments must remain after rejected hard-deletes');
 
     await as(adminId,'aal1');
     await assert.rejects(db.query('select public.save_emr_bps_intake_review($1) as id',[payload]),

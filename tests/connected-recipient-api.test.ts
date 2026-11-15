@@ -3,8 +3,8 @@ import {GET,POST} from '@/app/api/assigned-tests/connected/route';import {connec
 const mocks=vi.hoisted(()=>({access:vi.fn()}));
 vi.mock('@/lib/clinical-tests/asq/recipient-access',async()=>{const original=await vi.importActual<typeof import('@/lib/clinical-tests/asq/recipient-access')>('@/lib/clinical-tests/asq/recipient-access');return {...original,asqRecipientAccess:mocks.access};});
 const id='00000000-0000-0000-0000-000000000301',source={definition:connectedDefinition('cseq'),hash:hash(connectedDefinition('cseq'))};
-let email:string,assignment:Record<string,unknown>,rpc:ReturnType<typeof vi.fn>,saved:Record<string,unknown>|null;
-beforeEach(()=>{vi.stubEnv('ASQ_RECIPIENT_RELEASE_APPROVED','true');email='fictional@example.invalid';assignment={id,recipient_first_name:'Fictional',recipient_last_name:'Recipient',recipient_email:email,test_key:'cseq',patient_id:'00000000-0000-0000-0000-000000000201',status:'sent',expires_at:'2099-01-01T00:00:00Z',connected_source:source.definition,connected_source_hash:source.hash};saved=null;rpc=vi.fn(async (_name:string,p:Record<string,unknown>)=>{const revision=(p.p_expected as number)+1;saved={answers:p.p_answers,page:p.p_page,revision,status:p.p_submit?'submitted':'draft',identity_confirmed:true};return {data:revision,error:null};});mocks.access.mockImplementation(async()=>({user:{id:'fictional-user',email},supabase:{rpc,from:(table:string)=>{const chain={select:()=>chain,eq:()=>chain,maybeSingle:async()=>({data:table==='psych_test_assignments'?assignment:saved?{assignment_id:id,respondent_id:'fictional-user',...saved}:null,error:null})};return chain;}}}));});afterEach(()=>{vi.unstubAllEnvs();vi.clearAllMocks();});
+let email:string,assignment:Record<string,unknown>,rpc:ReturnType<typeof vi.fn>,saved:Record<string,unknown>|null,readbackFails:boolean;
+beforeEach(()=>{vi.stubEnv('ASQ_RECIPIENT_RELEASE_APPROVED','true');email='fictional@example.invalid';assignment={id,recipient_first_name:'Fictional',recipient_last_name:'Recipient',recipient_email:email,test_key:'cseq',patient_id:'00000000-0000-0000-0000-000000000201',status:'sent',expires_at:'2099-01-01T00:00:00Z',connected_source:source.definition,connected_source_hash:source.hash};saved=null;readbackFails=false;rpc=vi.fn(async (_name:string,p:Record<string,unknown>)=>{const revision=(p.p_expected as number)+1;saved={answers:p.p_answers,page:p.p_page,revision,status:p.p_submit?'submitted':'draft',identity_confirmed:true};return {data:revision,error:null};});mocks.access.mockImplementation(async()=>({user:{id:'fictional-user',email},supabase:{rpc,from:(table:string)=>{const chain={select:()=>chain,eq:()=>chain,maybeSingle:async()=>{if(readbackFails&&table==='connected_assignment_responses')throw Error('synthetic readback connection lost');return {data:table==='psych_test_assignments'?assignment:saved?{assignment_id:id,respondent_id:'fictional-user',...saved}:null,error:null};}};return chain;}}}));});afterEach(()=>{vi.unstubAllEnvs();vi.clearAllMocks();});
 const request=(value:unknown,origin='https://www.indiancreekpsych.com')=>new Request('https://www.indiancreekpsych.com/api/assigned-tests/connected',{method:'POST',headers:{origin,'content-type':'application/json'},body:JSON.stringify(value)});
 const answers=()=>Object.fromEntries(source.definition.items.slice(0,7).map(i=>[i.id,0]));
 test('missing account, email mismatch and expiry deny recipient access',async()=>{vi.stubEnv('ASQ_RECIPIENT_RELEASE_APPROVED','true');email='different@example.invalid';expect((await GET(new Request('https://www.indiancreekpsych.com/api/assigned-tests/connected?id='+id))).status).toBe(403);email='fictional@example.invalid';assignment.expires_at='2000-01-01';expect((await GET(new Request('https://www.indiancreekpsych.com/api/assigned-tests/connected?id='+id))).status).toBe(403);mocks.access.mockResolvedValue(null);expect((await POST(request({id}))).status).toBe(403);});
@@ -120,4 +120,16 @@ test('connected save fails closed when PostgREST readback is missing',async()=>{
  const response=await POST(request(body));
  expect(response.status).toBe(503);
  expect((await response.json()).saved).toBeUndefined();
+});
+
+test('connected save treats a thrown post-commit readback as unverified, not invalid answers',async()=>{
+ const body={id,expectedRevision:0,page:1,submit:false,identityConfirmed:true,answers:answers()};
+ readbackFails=true;
+ const response=await POST(request(body));
+ expect(rpc).toHaveBeenCalledOnce();
+ expect(response.status).toBe(503);
+ const json=await response.json();
+ expect(json.saved).toBeUndefined();
+ expect(json.error).toMatch(/chart readback could not be verified/);
+ expect(JSON.stringify(json)).not.toContain('synthetic readback connection lost');
 });

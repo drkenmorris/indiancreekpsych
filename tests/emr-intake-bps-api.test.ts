@@ -113,7 +113,15 @@ test('a submitted linked BPS intake requires a verified source submission receip
  response=await GET(request());
  expect(response.status).toBe(409);
  expect(JSON.stringify(await response.json())).not.toContain(protectedSource);
- intakeStatus='draft';intakeSubmittedAt=null;
+ // A draft with a final-submission receipt has contradictory provenance.
+ // Neither its patient statements nor clinician history can be released.
+ intakeStatus='draft';intakeSubmittedAt=stamp;
+ m.from.mockClear();
+ response=await GET(request());
+ expect(response.status).toBe(409);
+ expect(JSON.stringify(await response.json())).not.toContain(protectedSource);
+ expect(m.from).not.toHaveBeenCalledWith('emr_bps_intake_reviews');
+ intakeSubmittedAt=null;
  response=await GET(request());
  expect(response.status).toBe(200);
  const draft=await response.json();

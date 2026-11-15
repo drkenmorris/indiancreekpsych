@@ -114,8 +114,14 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
   // supplied, require them for every field and verify the exact count.
   const accurateReportedCounts=validSections&&value.sections.every((entry:Section)=>{
    const tagged=entry.fields.filter(field=>field.reported!==undefined);
-   return tagged.length===0||(tagged.length===entry.fields.length&&
-    tagged.filter(field=>field.reported===true).length===entry.answered);
+   // Older blank-source fixtures may omit reported flags, but a source that
+   // explicitly marks a field renderable cannot claim a patient answer without
+   // an equally explicit patient-reported flag. Do not show contradictory
+   // answered totals or permit clinician review of such a packet.
+   return tagged.length===0?
+    !(entry.answered>0&&entry.fields.some(field=>field.sourceOnly===false)):
+    tagged.length===entry.fields.length&&
+     tagged.filter(field=>field.reported===true).length===entry.answered;
   });
   if(!validSections||!accurateReportedCounts||
    !value.unmappedKeys.every((key:unknown)=>typeof key==='string'))

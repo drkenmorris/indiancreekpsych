@@ -19,6 +19,11 @@ function patientPlanStepUrl(id,key){
 }
 function libraryPlanView(){
  const key=activeSection?.module==='plan'?activeSection.key:'problems';
+ if(key==='diagnosis'&&!standalone){
+  if(!patientId)return '<section class="card"><h2>Diagnosis</h2><p>Select a patient to enter diagnoses.</p><button type="button" data-open-plan-patient>Find/Add Patient</button></section>';
+  const destination='/emr/diagnosis?'+new URLSearchParams({patient:patientId,embedded:'1'});
+  return `<iframe id="patient-plan-editor" title="Patient Diagnosis" src="${esc(destination)}"></iframe>`;
+ }
  if(key==='approach'&&!standalone){
   if(!patientId)return '<section class="card"><h2>Approach</h2><p>Select a patient to plan treatment approaches.</p><button type="button" data-open-plan-patient>Find/Add Patient</button></section>';
   const destination='/emr/treatment-modality?'+new URLSearchParams({patient:patientId,embedded:'1',section:'approach'});

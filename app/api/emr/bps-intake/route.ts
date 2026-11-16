@@ -199,6 +199,21 @@ export async function GET(request:Request){
     latest[0].source_account_id!==source.patient.account_id||
     !equalBpsTimestampInstants(latest[0].created_at,reviews[0].created_at))))
    return reply({error:'BPS clinical review history changed after retrieval; reopen the chart for a complete source-verified history.'},409);
+  // Original seven-page BPS forms need a live source/attestation indicator,
+  // not a second copy of questionnaire or clinician-note PHI. This read-only
+  // summary passes through all the same chart/link/history stability checks
+  // above but returns only source provenance and current-revision review state.
+  if(new URL(request.url).searchParams.get('summary')==='1'){
+   const currentVersionReviewed=reviews.some(review=>
+    review.reviewed===true&&review.source_version===source.intake.version&&
+    review.source_status===source.intake.status&&
+    equalBpsTimestampInstants(review.source_updated_at,source.intake.updated_at));
+   return reply({patientId:id,source:{
+    status:source.intake.status,version:source.intake.version,
+    updatedAt:source.intake.updated_at,submittedAt:source.intake.submitted_at??null,
+    questionnairePacketVersion:originalAnswers.legal_packet_version||null
+   },currentVersionReviewed});
+  }
   const safeReviews=reviews.map(review=>{
    // Return an explicit allowlist, not a spread of the database adapter row.
    // A stale adapter or future schema can add columns with unrelated patient

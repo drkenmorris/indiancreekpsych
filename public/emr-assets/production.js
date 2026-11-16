@@ -174,6 +174,15 @@ async function populateOriginalBpsIntake(panel,id,generation){
   // retired contextual reports. Wrongly relabeled legal/coverage keys stay hidden.
   // The Vitest parity assertion protects this list from drifting.
   const bpsVisibleSourceKeys=new Set(["guardian_relationship","custody_notes","counseling_reason","concern_onset","concern_duration","precipitating_events","symptom_frequency","symptom_severity","functional_impact","sleep","appetite","energy","concentration","work_school_impact","relationship_impact","daily_living_impact","counseling_goals","prior_mental_health_treatment","prior_therapists","prior_diagnoses","self_harm_history","suicide_attempt_history","suicidal_thoughts_current","suicidal_plan_current","homicidal_thoughts_current","violence_risk_details","abuse_neglect_current","weapons_access","protective_factors","trauma_history","psychiatric_hospitalizations","family_mental_health_history","family_household","social_supports","education_history","employment_history","military_history","cultural_spiritual_factors","strengths_interests"]);
+  // A clinical key may be rendered only under its exact questionnaire section,
+  // not under an API-supplied section title/disposition chosen independently.
+  // These are read-only patient reports, never inferred BPS findings or saves.
+  const originalBpsSourceKeysBySection=new Map(Object.entries({"Emergency contact, guardian, and responsible party":["guardian_relationship","custody_notes"],"Presenting concerns and functional impact":["counseling_reason","concern_onset","concern_duration","precipitating_events","symptom_frequency","symptom_severity","functional_impact","sleep","appetite","energy","concentration","work_school_impact","relationship_impact","daily_living_impact","counseling_goals"],"Mental health treatment history":["prior_mental_health_treatment","prior_therapists","prior_diagnoses","self_harm_history","suicide_attempt_history","psychiatric_hospitalizations"],"Safety and risk screening":["suicidal_thoughts_current","suicidal_plan_current","homicidal_thoughts_current","violence_risk_details","abuse_neglect_current","weapons_access","protective_factors"],"Trauma, family, social, educational, and occupational history":["trauma_history","family_mental_health_history","family_household","social_supports","education_history","employment_history","military_history","cultural_spiritual_factors","strengths_interests"]}).map(([title,keys])=>[title,new Set(keys)]));
+  const approvedOriginalBpsAnswer=(section,field)=>
+   section.disposition==='clinical'&&field&&field.reported===true&&
+   field.sourceOnly===false&&typeof field.value==='string'&&!!field.value.trim()&&
+   bpsVisibleSourceKeys.has(field.key)&&!protectedSourceTypes.has(field.type)&&
+   originalBpsSourceKeysBySection.get(section.title)?.has(field.key)===true;
   // The original BPS stays fully editable. Provide source context relevant to its
   // currently selected clinical page without writing questionnaire responses into
   // clinician-authored fields or broadening medication/legal/trauma disclosure.
@@ -208,10 +217,7 @@ async function populateOriginalBpsIntake(panel,id,generation){
      pageContext.append(separate);
      continue;
     }
-    const fields=(Array.isArray(section.fields)?section.fields:[]).filter(field=>
-     field&&field.reported===true&&field.sourceOnly===false&&
-     bpsVisibleSourceKeys.has(field.key)&&!protectedSourceTypes.has(field.type)&&
-     typeof field.value==='string'&&field.value.trim());
+    const fields=(Array.isArray(section.fields)?section.fields:[]).filter(field=>approvedOriginalBpsAnswer(section,field));
     if(!fields.length){
      const blank=document.createElement('p');blank.textContent='No BPS-approved patient report available for this page; blank is not a negative clinical finding.';
      pageContext.append(blank);
@@ -239,7 +245,7 @@ async function populateOriginalBpsIntake(panel,id,generation){
    const domain=document.createElement('p');
    domain.textContent='BPS routing: '+String(section.domain||'Unclassified')+' ('+String(section.disposition||'unclassified')+').';
    item.append(domain);
-   if(section.disposition==='clinical'&&Array.isArray(section.fields)){
+   if(section.disposition==='clinical'&&originalBpsSourceKeysBySection.has(section.title)&&Array.isArray(section.fields)){
     const reported=section.fields.filter(field=>field.reported===true);
     const answers=document.createElement('dl');
     for(const field of reported){
@@ -247,7 +253,7 @@ async function populateOriginalBpsIntake(panel,id,generation){
      const value=document.createElement('dd');
      // A second presentation boundary: never expose structured or separate-review
      // values even if a malformed upstream response included them.
-     value.textContent=field.sourceOnly!==false||!bpsVisibleSourceKeys.has(field.key)||protectedSourceTypes.has(field.type)?
+     value.textContent=!approvedOriginalBpsAnswer(section,field)?
       'Stored in the dedicated protected intake/reconciliation source.':String(field.value??'');
      answers.append(label,value);
     }

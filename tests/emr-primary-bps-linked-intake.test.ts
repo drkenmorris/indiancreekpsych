@@ -501,3 +501,45 @@ test.each([
   expect(panel.querySelector('a[href^="/emr/bps-intake?"]')).toBeNull();
  }finally{dom.window.close();}
 });
+
+
+test.each([
+ ['cross-routed safety answer',(payload:any)=>{
+  payload.sections[0].fields[0]={key:'suicidal_plan_current',label:'Spoofed patient report',type:'text',reported:true,sourceOnly:false,value:'SECRET_MISROUTED_SAFETY_VALUE'};
+ }],
+ ['reference section relabeled as clinical',(payload:any)=>{
+  payload.sections[0].title='Insurance and benefits information';
+  payload.sections[0].fields[0].value='SECRET_MISROUTED_COVERAGE_VALUE';
+ }]
+])('original BPS withholds patient values when a section identity is spoofed: %s',async(_label,mutate)=>{
+ const payload:any=report(firstPatient);mutate(payload);
+ const {ctx,dom}=harness(async()=>Response.json(payload));
+ try{
+  dom.window.history.replaceState({},'', '/emr/workspace?module=assessment&section=assessment%3Abiopsychosocial&bps_page=symptoms');
+  ctx.render();
+  await vi.waitFor(()=>expect(dom.window.document.querySelector(
+   'section[aria-label="Patient intake context in original biopsychosocial workspace"] > details'
+  )).not.toBeNull());
+  const rendered=dom.window.document.querySelector(
+   'section[aria-label="Patient intake context in original biopsychosocial workspace"]'
+  )!.textContent||'';
+  expect(rendered).not.toContain('SECRET_MISROUTED_SAFETY_VALUE');
+  expect(rendered).not.toContain('SECRET_MISROUTED_COVERAGE_VALUE');
+  expect(dom.window.document.querySelector('#clinical-form')?.textContent).toContain('Original BPS clinical form');
+ }finally{dom.window.close();}
+});
+
+test('original BPS still shows allowed safety answers in their actual questionnaire section',async()=>{
+ const payload:any=report(firstPatient);
+ payload.sections[0].title='Safety and risk screening';
+ payload.sections[0].fields[0]={key:'suicidal_plan_current',label:'Patient safety concern',type:'text',reported:true,sourceOnly:false,value:'Fictional safety screening response'};
+ const {ctx,dom}=harness(async()=>Response.json(payload));
+ try{
+  dom.window.history.replaceState({},'', '/emr/workspace?module=assessment&section=assessment%3Abiopsychosocial&bps_page=symptoms');
+  ctx.render();
+  await vi.waitFor(()=>expect(dom.window.document.querySelector(
+   'section[aria-label="Patient intake context in original biopsychosocial workspace"]'
+  )?.textContent).toContain('Fictional safety screening response'));
+  expect(dom.window.document.querySelector('#clinical-form')).not.toBeNull();
+ }finally{dom.window.close();}
+});

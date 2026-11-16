@@ -267,6 +267,20 @@ test('BPS review rejects NUL and unpaired UTF-16 surrogates without invoking cli
  expect(m.rpc).toHaveBeenCalledTimes(1);
  expect(m.rpc.mock.calls[0][1].p_payload.clinician_notes.presenting).toBe(faithful);
 });
+test('clinician BPS notes preserve exact whitespace and reject explicitly null domains',async()=>{
+ const original='  Fictional clinical observation 🧪\\n  exact second line  ' .replace('\\n','\n');
+ const saved=await POST(submit({...payload,notes:{presenting:original}}));
+ expect(saved.status).toBe(201);
+ expect(m.rpc).toHaveBeenCalledTimes(1);
+ expect(m.rpc.mock.calls[0][1].p_payload.clinician_notes.presenting).toBe(original);
+ // An omitted optional note is an intentional empty field, not a null data loss.
+ expect(m.rpc.mock.calls[0][1].p_payload.clinician_notes.safety).toBe('');
+ m.rpc.mockClear();
+ const rejected=await POST(submit({...payload,notes:{presenting:original,safety:null}}));
+ expect(rejected.status).toBe(400);
+ expect(rejected.headers.get('Cache-Control')).toContain('no-store');
+ expect(m.rpc).not.toHaveBeenCalled();
+});
 test('stale source and duplicate snapshots fail closed at the database validation boundary',async()=>{
  for(const [code,status] of [['22023',409],['23505',409],['42501',403]] as const){
   m.rpc.mockResolvedValueOnce({data:null,error:{code}});

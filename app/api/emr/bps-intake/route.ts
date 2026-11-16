@@ -35,6 +35,14 @@ async function limitedBpsReviewBody(request:Request):Promise<string|null|undefin
   catch{return undefined;}
  }finally{reader.releaseLock();}
 }
+/** JSON can carry NUL and unmatched UTF-16 surrogates even after the wire
+ * bytes pass strict UTF-8 decoding. PostgreSQL rejects NUL and downstream JSON
+ * encoders may replace lone surrogates, changing a clinician's attested note.
+ * Reject both before an append-only clinical save; valid emoji pairs remain safe.
+ */
+const invalidClinicalNoteText=(value:string):boolean=>
+ value.includes('\u0000')||Array.from(value).some(char=>
+  char.length===1&&char.charCodeAt(0)>=0xD800&&char.charCodeAt(0)<=0xDFFF);
 async function linkedSource(supabase:NonNullable<Awaited<ReturnType<typeof emrAccess>>>['supabase'],id:string){
  const patient=await supabase.from('clinical_patients').select('id,account_id,directory_deleted_at').eq('id',id).is('directory_deleted_at',null).maybeSingle();
  if(patient.error)throw Error('Central patient repository unavailable.');
@@ -234,7 +242,8 @@ export async function POST(request:Request){
   const notes:Record<string,string>={};
   for(const key of fields){
    const value=(body.notes as Record<string,unknown>)[key]??'';
-   if(typeof value!=='string'||value.length>4000)return reply({error:'Each clinical note must be at most 4,000 characters.'},400);
+   if(typeof value!=='string'||value.length>4000||invalidClinicalNoteText(value))
+    return reply({error:'Clinical notes must contain valid Unicode text without NUL characters, at most 4,000 characters each.'},400);
    notes[key]=value.trim();
   }
   const {data,error}=await ctx.supabase.rpc('save_emr_bps_intake_review',{p_payload:{

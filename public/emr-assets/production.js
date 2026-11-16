@@ -11,6 +11,14 @@ function validOriginalBpsTimestamp(value) {
  const year=Number(match[1]),month=Number(match[2]),day=Number(match[3]);
  return month>=1&&month<=12&&day>=1&&day<=new Date(Date.UTC(year,month,0)).getUTCDate();
 }
+// Match the database's microsecond-capable source receipts. Date.parse alone
+// truncates fractional seconds and can falsely label a changed intake as reviewed.
+function originalBpsInstantNanoseconds(value){
+ if(!validOriginalBpsTimestamp(value))return null;
+ const fraction=/\.(\d{1,9})(?=Z$|[+-]\d{2}:\d{2}$)/.exec(value)?.[1]||'';
+ return BigInt(Math.floor(Date.parse(value)/1000))*1000000000n+
+  BigInt(fraction.padEnd(9,'0')||'0');
+}
 async function populateOriginalBpsIntake(panel,id,generation){
  const stillCurrent=()=>generation===linkedIntakeRenderGeneration&&patientId===id&&panel.isConnected;
  try{
@@ -25,15 +33,18 @@ async function populateOriginalBpsIntake(panel,id,generation){
   // current clinical source. The protected API validates the linkage as well;
   // the original seven-page BPS workspace independently rejects bad provenance.
   const source=result.source;
+  const editedInstant=originalBpsInstantNanoseconds(source?.updatedAt);
+  const submittedInstant=originalBpsInstantNanoseconds(source?.submittedAt);
   if(!source||typeof source.accountId!=='string'||
    !/^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(source.accountId)||
    !['draft','submitted'].includes(source.status)||
    !Number.isSafeInteger(source.version)||source.version<1||
-   !validOriginalBpsTimestamp(source.updatedAt)||
-   // Submitted intake must carry a verifiable submission receipt at the
-   // original seven-page BPS boundary, even if a stale API omits it.
-   (source.status==='submitted'&&!validOriginalBpsTimestamp(source.submittedAt))||
-   (source.submittedAt!=null&&!validOriginalBpsTimestamp(source.submittedAt)))
+   editedInstant===null||
+   // A patient draft cannot retain a final submission receipt. A submitted
+   // source must not have been edited even one microsecond after attestation.
+   (source.status==='draft'&&source.submittedAt!=null)||
+   (source.status==='submitted'&&(submittedInstant===null||editedInstant>submittedInstant))||
+   (source.submittedAt!=null&&submittedInstant===null))
    throw Error('Linked intake source identity, status, version or timestamp could not be verified.');
   // The original seven-page BPS workspace must reject malformed mapped sections,
   // independently of the newer React clinician review. A missing fields array,
@@ -123,8 +134,10 @@ async function populateOriginalBpsIntake(panel,id,generation){
   const currentReviewed=reviews.some(review=>review.reviewed===true&&
    review.source_version===result.source?.version&&
    review.source_status===result.source?.status&&
-   validOriginalBpsTimestamp(review.source_updated_at)&&
-   Date.parse(review.source_updated_at)===Date.parse(result.source?.updatedAt));
+   originalBpsInstantNanoseconds(review.source_updated_at)===editedInstant&&
+   // A clinician review cannot verify a final patient submission that did
+   // not exist until AFTER that review was created.
+   (source.status!=='submitted'||originalBpsInstantNanoseconds(review.created_at)>=submittedInstant));
   if(!currentReviewed){
    const warning=document.createElement('p');warning.setAttribute('role','status');
    warning.textContent=reviews.length?

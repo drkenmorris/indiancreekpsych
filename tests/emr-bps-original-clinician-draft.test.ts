@@ -261,3 +261,19 @@ test('original BPS rejects directory questionnaire metadata paired with legacy s
   expect(h.note.value).toBe('');
  }finally{h.dom.window.close();}
 });
+
+test('original BPS rejects legacy metadata with substituted directory source section',async()=>{
+ const report=packet();
+ const section=report.sections.find(s=>s.title==='Communication and confidential-contact preferences');
+ if(!section)throw Error('Missing synthetic legacy communications section');
+ section.title='Legal forms directory and questionnaire';
+ section.domain=bpsSectionClassification[section.title].domain;
+ section.disposition=bpsSectionClassification[section.title].disposition;
+ const h=harness(async()=>Response.json({...report,source:{
+  ...report.source,questionnairePacketVersion:'2026-10-11'}}));
+ try{
+  await vi.waitFor(()=>expect(h.dom.window.document.body.textContent).toContain('layout does not match its questionnaire version'));
+  expect(h.button()).toBeUndefined();
+  expect(h.note.value).toBe('');
+ }finally{h.dom.window.close();}
+});

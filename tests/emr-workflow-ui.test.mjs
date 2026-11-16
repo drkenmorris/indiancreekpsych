@@ -68,11 +68,11 @@ await test('actual hosted forms and global navigation render against central pat
  assert.equal(diagnosisUrl.searchParams.get('patient'),fixture.pid);
  assert.doesNotMatch(w.document.querySelector('#content').textContent,/Select library problems/);
  runInContext("chooseSection('plan','response');render();",dom.getInternalVMContext());
- for(const name of ['diagnosis','treatment_approaches','response_to_treatment','homework','review_date']){
-  const input=w.document.querySelector('#content [name="'+name+'"]');
-  assert.ok(input,'original treatment-plan field '+name+' should render');
-  assert.equal(input.value,'',name+' must require explicit clinical entry, not a synthetic default');
- }
+ const responseUrl=new URL(w.document.querySelector('iframe[title="Treatment Plan Response"]').src);
+ assert.equal(responseUrl.pathname,'/emr/treatment-response');
+ assert.equal(responseUrl.searchParams.get('patient'),fixture.pid);
+ assert.equal(responseUrl.searchParams.get('embedded'),'1');
+ assert.equal(w.document.querySelector('[name="response_to_treatment"]'),null,'Response uses its protected patient editor instead of the legacy plan narrative');
  fixture.chart.records.splice(-2,2);
  for(const [module,key,text] of [['personal','insurance','Insurance information'],['assessment','biopsychosocial','Current Symptom Checklist'],['notes','record_history','Record history']]){runInContext(`chooseSection(${JSON.stringify(module)},${JSON.stringify(key)});render();`,dom.getInternalVMContext());await new Promise(r=>setTimeout(r,20));assert.match(w.document.querySelector('#content').textContent,new RegExp(text,'i'));}
  assert.equal(w.document.querySelectorAll('[aria-label="Linked 21-section intake biopsychosocial review"]').length,0,'no extra panel added to the original BPS layout');

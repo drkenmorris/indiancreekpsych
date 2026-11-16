@@ -20,7 +20,7 @@ if(planUrl&&editor?.title==='Patient Treatment Plan'){
  history.replaceState(null,'',url);
  return;
 }
-if(editor?.contentDocument?.querySelector('[data-plan-dirty="true"],[data-modality-dirty="true"],[data-diagnosis-dirty="true"]')&&!confirm('Leave this treatment plan and discard unsaved changes?'))return;
+if(editor?.contentDocument?.querySelector('[data-plan-dirty="true"],[data-modality-dirty="true"],[data-diagnosis-dirty="true"],[data-response-dirty="true"]')&&!confirm('Leave this treatment plan and discard unsaved changes?'))return;
 const sharedForm=!planKey&&old.view===target.view&&!['module-section','providers','settings'].includes(view);if(sharedForm){apply();renderGlobalMenu();sectionBanner();$('.sidebar').scrollTop=sidebarScroll;applyDemoPreferences();return;}safeNavigate(()=>{apply();if(standalone&&view!=='session-checkin'){location.assign('/?module='+encodeURIComponent(view)+(activeSection?'&section='+encodeURIComponent(activeSection.module+':'+activeSection.key):''));return;}$('.main').scrollTop=0;render();$('.sidebar').scrollTop=Math.min(sidebarScroll,$('.sidebar').scrollHeight);});}
 function configCard(title,body){return `<section class="card"><h2>${esc(title)}</h2><p class="hint">Build configuration saved in this browser’s demo workspace.</p>${body}<div id="completion-status" role="status" aria-live="polite"></div></section>`;}
 const previousSettingsSection=settingsSection;

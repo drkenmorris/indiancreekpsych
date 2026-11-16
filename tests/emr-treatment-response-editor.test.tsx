@@ -1,0 +1,21 @@
+import React from 'react';
+import {afterEach,expect,test,vi} from 'vitest';
+import {cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
+import RichTextEditor from '@/app/emr/treatment-response/RichTextEditor';
+afterEach(()=>{cleanup();vi.restoreAllMocks();});
+test('real editor exposes an accessible spellchecked textbox and toolbar that changes paragraph formatting',async()=>{
+ Object.defineProperty(Range.prototype,'getClientRects',{configurable:true,value:()=>[]});
+ Object.defineProperty(Range.prototype,'getBoundingClientRect',{configurable:true,value:()=>new DOMRect()});
+ const onChange=vi.fn();
+ render(<RichTextEditor label="Identified patient narrative" value={{type:'doc',content:[{type:'paragraph',content:[{type:'text',text:'Fictional response'}]}]}} onChange={onChange}/>);
+ const textbox=await screen.findByRole('textbox',{name:'Identified patient narrative'});
+ expect(textbox.getAttribute('spellcheck')).toBe('true');
+ expect(onChange).not.toHaveBeenCalled();
+ fireEvent.click(screen.getByRole('button',{name:'Align right'}));
+ await waitFor(()=>expect(onChange.mock.calls.at(-1)?.[0].content[0].attrs.textAlign).toBe('right'));
+ fireEvent.click(screen.getByRole('button',{name:'Indent'}));
+ await waitFor(()=>expect(onChange.mock.calls.at(-1)?.[0].content[0].attrs.indent).toBe(1));
+ const bold=screen.getByRole('button',{name:'Bold'});bold.focus();fireEvent.keyDown(bold,{key:'ArrowRight'});
+ expect(document.activeElement).toBe(screen.getByRole('button',{name:'Italic'}));
+ expect(screen.getByRole('button',{name:'Bold'}).getAttribute('tabindex')).toBe('-1');
+});

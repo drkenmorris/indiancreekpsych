@@ -3,6 +3,8 @@ import {runInNewContext} from 'node:vm';
 // @ts-expect-error This repository runs jsdom without the optional @types/jsdom package.
 import {JSDOM} from 'jsdom';
 import {expect,test,vi} from 'vitest';
+import {intakeSectionsForVersion} from '@/lib/patient/intake';
+import {bpsSectionClassification} from '@/lib/emr/intake-bps';
 
 // Fictional in-memory original-form integration. No production user, clinician,
 // chart record, appointment, email or MFA state is written by these tests.
@@ -10,21 +12,17 @@ const patient='00000000-0000-4000-8000-000000000901';
 const alternate='00000000-0000-4000-8000-000000000902';
 const stamp='2026-11-14T12:00:00.123456Z';
 function packet(version=7){
- const sections=Array.from({length:21},(_,index)=>({
-  title:index===0?'Trauma, family, social, educational, and occupational history':
-   index===1?'Medications':'Patient intake section '+(index+1),
-  domain:'Clinical source reference',disposition:index===1?'separate-review':'clinical',
-  answered:index===0?2:index===1?1:0,
-  fields:index===0?[
-   {key:'social_supports',label:'Social supports',type:'text',value:'FICTIONAL FRIEND SUPPORT',
-    reported:true,sourceOnly:false},
-   {key:'trauma_history',label:'Structured trauma history',type:'trauma-history',
-    value:'PRIVATE FICTIONAL TRAUMA',reported:true,sourceOnly:true}
-  ]:index===1?[
-   {key:'medication_entries',label:'Medications',type:'medications',
-    value:'PRIVATE FICTIONAL MEDICATION',reported:true,sourceOnly:true}
-  ]:[]
- }));
+ const sections=intakeSectionsForVersion('').map(section=>{
+  const fields=section.title==='Trauma, family, social, educational, and occupational history'?[
+   {key:'social_supports',label:'Social supports',type:'text',value:'FICTIONAL FRIEND SUPPORT',reported:true,sourceOnly:false},
+   {key:'trauma_history',label:'Structured trauma history',type:'trauma-history',value:'PRIVATE FICTIONAL TRAUMA',reported:true,sourceOnly:true}
+  ]:section.title==='Medications'?[
+   {key:'medication_entries',label:'Medications',type:'medications',value:'PRIVATE FICTIONAL MEDICATION',reported:true,sourceOnly:true}
+  ]:[];
+  const rule=bpsSectionClassification[section.title];
+  return {title:section.title,domain:rule.domain,disposition:rule.disposition,
+   answered:fields.length,fields};
+ });
  return {patientId:patient,source:{
   accountId:'00000000-0000-4000-8000-000000000903',status:'submitted',
   version,updatedAt:stamp,submittedAt:stamp
@@ -109,7 +107,7 @@ test('selected-patient switch makes old intake draft action inert without a writ
 test('an unrelated patient-reported section change blocks source placement even with the same revision receipt',async()=>{
  const h=harness(async call=>{
   const source=packet();
-  if(call===2)source.sections[1].fields[0].value='CHANGED PRIVATE FICTIONAL MEDICATION';
+  if(call===2)source.sections.find(s=>s.title==='Medications')!.fields[0].value='CHANGED PRIVATE FICTIONAL MEDICATION';
   return Response.json(source);
  });
  try{

@@ -365,11 +365,12 @@ async function populateOriginalBpsIntake(panel,id,generation){
     }
     pageContext.append(answers);
    }
-   // Start an original-form draft from a small, explicit set of general
+   // Start an original-form draft from a small, page-specific allowlist of
    // patient-reported social/developmental facts, never from medication,
    // allergy, trauma, insurance, legal, or risk-screening responses. This is
    // clinician-initiated source attribution, not a finding or an automatic save.
-   if(bpsPage==='developmental_personal'&&source.status==='submitted'&&result.unmappedKeys.length>0){
+   const draftDestination=bpsPage==='developmental_personal'?{form:'biopsychosocial_developmental_personal',note:'source_notes',label:'developmental-history',keys:['family_household','social_supports','education_history','employment_history','military_history','cultural_spiritual_factors','strengths_interests']}:bpsPage==='family_origin'?{form:'biopsychosocial_family_origin',note:'other_notes',label:'family-of-origin',keys:['family_household','social_supports']}:null;
+   if(draftDestination&&source.status==='submitted'&&result.unmappedKeys.length>0){
     // The intake may contain an unanswered or newly introduced field whose
     // clinical destination has not been approved. Its source can remain
     // available for read-only review, but NO draft placement is authorized
@@ -380,11 +381,8 @@ async function populateOriginalBpsIntake(panel,id,generation){
     unresolved.textContent='Unmapped intake fields require manual reconciliation before patient-reported source references can be placed into this original BPS draft. Existing clinician notes remain unchanged.';
     pageContext.append(unresolved);
    }
-   if(bpsPage==='developmental_personal'&&source.status==='submitted'&&result.unmappedKeys.length===0){
-    const allowedDraftKeys=new Set([
-     'family_household','social_supports','education_history','employment_history',
-     'military_history','cultural_spiritual_factors','strengths_interests'
-    ]);
+   if(draftDestination&&source.status==='submitted'&&result.unmappedKeys.length===0){
+    const allowedDraftKeys=new Set(draftDestination.keys);
     const getDraftFields=sections=>{
      const section=Array.isArray(sections)?sections.find(entry=>
       entry?.title==='Trauma, family, social, educational, and occupational history'):null;
@@ -401,10 +399,10 @@ async function populateOriginalBpsIntake(panel,id,generation){
      notice.setAttribute('role','status');
      const button=document.createElement('button');
      button.type='button';
-     button.textContent='Place patient-reported source references in blank developmental-history draft notes';
+     button.textContent='Place patient-reported source references in blank '+draftDestination.label+' draft notes';
      button.addEventListener('click',async()=>{
-      if(!stillCurrent()||new URLSearchParams(location.search).get('bps_page')!=='developmental_personal')return;
-      const target=document.querySelector('form[data-action="biopsychosocial_developmental_personal"] textarea[name="source_notes"]');
+      if(!stillCurrent()||new URLSearchParams(location.search).get('bps_page')!==bpsPage)return;
+      const target=document.querySelector('form[data-action="'+draftDestination.form+'"] textarea[name="'+draftDestination.note+'"]');
       if(!target||target.value!==''){
        notice.textContent='Existing clinician draft notes were preserved. Use the protected intake review for manual reconciliation.';
        return;
@@ -444,7 +442,7 @@ async function populateOriginalBpsIntake(panel,id,generation){
        }
        target.value=draft;
        target.dispatchEvent(new window.Event('input',{bubbles:true}));
-       notice.textContent='Patient report placed in the unsaved original developmental-history draft. Review independently before explicit save; no clinician finding or signature was created.';
+       notice.textContent='Patient report placed in the unsaved original '+draftDestination.label+' draft. Review independently before explicit save; no clinician finding or signature was created.';
       }catch{
        if(stillCurrent())notice.textContent='The protected source could not be reverified; original clinical notes remain unchanged.';
       }finally{if(stillCurrent())button.disabled=false;}

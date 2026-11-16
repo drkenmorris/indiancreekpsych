@@ -275,7 +275,7 @@ async function populateOriginalBpsIntake(panel,id,generation){
      button.addEventListener('click',async()=>{
       if(!stillCurrent()||new URLSearchParams(location.search).get('bps_page')!=='developmental_personal')return;
       const target=document.querySelector('form[data-action="biopsychosocial_developmental_personal"] textarea[name="source_notes"]');
-      if(!target||target.value.trim()){
+      if(!target||target.value!==''){
        notice.textContent='Existing clinician draft notes were preserved. Use the protected intake review for manual reconciliation.';
        return;
       }
@@ -308,7 +308,7 @@ async function populateOriginalBpsIntake(panel,id,generation){
         notice.textContent='The linked intake changed or could not be reverified. No text was copied; refresh this source.';
         return;
        }
-       if(target.value.trim()){
+       if(target.value!==''){
         notice.textContent='Clinician-entered draft notes were preserved. No text was copied.';
         return;
        }

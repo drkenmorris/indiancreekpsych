@@ -255,7 +255,18 @@ async function populateOriginalBpsIntake(panel,id,generation){
    // patient-reported social/developmental facts, never from medication,
    // allergy, trauma, insurance, legal, or risk-screening responses. This is
    // clinician-initiated source attribution, not a finding or an automatic save.
-   if(bpsPage==='developmental_personal'&&source.status==='submitted'){
+   if(bpsPage==='developmental_personal'&&source.status==='submitted'&&result.unmappedKeys.length>0){
+    // The intake may contain an unanswered or newly introduced field whose
+    // clinical destination has not been approved. Its source can remain
+    // available for read-only review, but NO draft placement is authorized
+    // until the field audit is resolved. Equal repeated receipts are not
+    // sufficient to override this boundary.
+    const unresolved=document.createElement('p');
+    unresolved.setAttribute('role','alert');
+    unresolved.textContent='Unmapped intake fields require manual reconciliation before patient-reported source references can be placed into this original BPS draft. Existing clinician notes remain unchanged.';
+    pageContext.append(unresolved);
+   }
+   if(bpsPage==='developmental_personal'&&source.status==='submitted'&&result.unmappedKeys.length===0){
     const allowedDraftKeys=new Set([
      'family_household','social_supports','education_history','employment_history',
      'military_history','cultural_spiritual_factors','strengths_interests'

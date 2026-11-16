@@ -254,6 +254,53 @@ test.each([
  dom.window.close();
 });
 
+test.each([
+ ['draft with a false final-submission receipt',{status:'draft',submittedAt:'2026-11-10T12:00:00Z'}],
+ ['submitted source edited one microsecond after patient attestation',{
+  status:'submitted',updatedAt:'2026-11-10T12:00:00.000001Z',submittedAt:'2026-11-10T12:00:00.000000Z'
+ }]
+])('original seven-page BPS withholds patient statements for %s',async(_label,sourceChange)=>{
+ const current=report(firstPatient);
+ const unsafe={...current,source:{...current.source,...sourceChange}};
+ const {ctx,dom}=harness(async()=>Response.json(unsafe));
+ ctx.render();
+ const panel=()=>dom.window.document.querySelector(
+  'section[aria-label="Patient intake context in original biopsychosocial workspace"]')!;
+ await vi.waitFor(()=>expect(panel()?.querySelector('[role="alert"]')?.textContent)
+  .toContain('identity, status, version or timestamp could not be verified'));
+ expect(panel().textContent).not.toContain('Fictional patient-reported concern');
+ expect(panel().textContent).not.toContain('attested clinician review(s)');
+ expect(panel().textContent).toContain('no intake data were imported');
+ expect(dom.window.document.querySelector('#clinical-form')?.textContent)
+  .toContain('Original BPS clinical form remains available');
+ dom.window.close();
+});
+
+test.each([
+ ['stale by one microsecond','2026-11-10T12:00:00.000001Z',true],
+ ['same instant represented in another timezone','2026-11-10T06:00:00.000002-06:00',false]
+])('original BPS current-review marker compares source microseconds: %s',async(_label,reviewUpdatedAt,stale)=>{
+ const current=report(firstPatient);
+ current.source.updatedAt='2026-11-10T12:00:00.000002Z';
+ current.source.submittedAt='2026-11-10T12:00:00.000002Z';
+ const receipt={...current,reviews:[{
+  id:'00000000-0000-4000-8000-000000000998',
+  reviewed:true,source_version:6,source_status:'submitted',
+  source_updated_at:reviewUpdatedAt,created_at:'2026-11-10T12:10:00Z',
+  clinical_answers:{},clinician_notes:{}
+ }]};
+ const {ctx,dom}=harness(async()=>Response.json(receipt));
+ ctx.render();
+ await vi.waitFor(()=>expect(dom.window.document.querySelector(
+  'section[aria-label="Clinician-reviewed BPS intake snapshot history"]'
+ )?.textContent).toContain('submitted intake version 6'));
+ const history=dom.window.document.querySelector(
+  'section[aria-label="Clinician-reviewed BPS intake snapshot history"]')!;
+ if(stale)expect(history.textContent).toContain('current intake version has changed');
+ else expect(history.textContent).not.toContain('current intake version has changed');
+ dom.window.close();
+});
+
 test('original BPS browser allowlist is synchronized with the typed clinical source mapping',()=>{
  const source=readFileSync('public/emr-assets/production.js','utf8');
  const match=source.match(/const bpsVisibleSourceKeys=new Set\((\[[^\n]*\])\);/);

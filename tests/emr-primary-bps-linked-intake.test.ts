@@ -465,3 +465,30 @@ test('unrecognized original BPS page never creates a misleading page-specific cl
  expect(dom.window.document.querySelector('#clinical-form')).not.toBeNull();
  dom.window.close();
 });
+
+test.each([
+ ['repeated section identity',(payload:any)=>{payload.sections[3].title=payload.sections[0].title;}],
+ ['repeated patient answer key',(payload:any)=>{payload.sections[3].fields=[{...payload.sections[0].fields[0]}];payload.sections[3].answered=1;}],
+ ['falsified answer count',(payload:any)=>{payload.sections[0].answered=0;}],
+ ['mixed tagged and untagged report',(payload:any)=>{payload.sections[0].fields.push({key:'additional_fictional_answer',label:'Additional fictional answer',type:'text',value:'UNVERIFIED EXTRA ANSWER'});}],
+ ['blank answer marked reported',(payload:any)=>{payload.sections[0].fields[0].value='   ';}]
+])('original BPS rejects duplicate or contradictory 21-section source receipts: %s',async(_reason,mutate)=>{
+ const payload:any=report(firstPatient);
+ mutate(payload);
+ const {ctx,dom}=harness(async()=>Response.json(payload));
+ try{
+  ctx.render();
+  await vi.waitFor(()=>expect(dom.window.document.querySelector('[role="alert"]')?.textContent)
+   .toContain('Linked 21-section intake mapping is malformed'));
+  const original=dom.window.document.querySelector('#clinical-form');
+  expect(original?.textContent).toContain('Original BPS clinical form remains available');
+  const panel=dom.window.document.querySelector(
+   'section[aria-label="Patient intake context in original biopsychosocial workspace"]'
+  )!;
+  expect(panel.textContent).not.toContain('Fictional patient-reported concern');
+  expect(panel.textContent).not.toContain('UNVERIFIED EXTRA ANSWER');
+  expect(panel.textContent).not.toContain('SECRET MEDICATION DATA');
+  expect(panel.querySelector('[aria-label="Source context for selected original BPS page"]')).toBeNull();
+  expect(panel.querySelector('a[href^="/emr/bps-intake?"]')).toBeNull();
+ }finally{dom.window.close();}
+});

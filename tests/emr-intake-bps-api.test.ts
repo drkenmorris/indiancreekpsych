@@ -617,6 +617,49 @@ test('streamed BPS POST exceeding limit fails closed even with falsely small Con
  expect(m.rpc).not.toHaveBeenCalled();
 });
 
+test('malformed UTF-8 cannot silently rewrite a fictional clinician note and return a success receipt',async()=>{
+ const privateValue='PRIVATE_FICTIONAL_CLINICAL_NOTE_BYTES';
+ const json=JSON.stringify({...payload,notes:{presenting:privateValue}});
+ const bytes=new TextEncoder().encode(json);
+ const offset=json.indexOf(privateValue);
+ expect(offset).toBeGreaterThan(0);
+ // The former Buffer.toString('utf8') quietly replaced this illegal byte with U+FFFD
+ // and allowed a clinically altered note to be saved as if it were original.
+ bytes[offset]=0xff;
+ const request=new Request('https://www.indiancreekpsych.com/api/emr/bps-intake',{
+  method:'POST',headers:{Origin:'https://www.indiancreekpsych.com','Content-Type':'application/json'},
+  body:bytes
+ });
+ const response=await POST(request);
+ expect(response.status).toBe(400);
+ expect(response.headers.get('Cache-Control')).toContain('no-store');
+ expect(JSON.stringify(await response.json())).not.toContain(privateValue);
+ expect(m.rpc).not.toHaveBeenCalled();
+});
+
+test('valid split multibyte UTF-8 BPS clinical notes retain exact text and an authorized save receipt',async()=>{
+ const text='Fictional café 🧪 follow-up note';
+ const bytes=new TextEncoder().encode(JSON.stringify({...payload,notes:{presenting:text}}));
+ const split=bytes.indexOf(0xc3);
+ expect(split).toBeGreaterThan(0);
+ const stream=new ReadableStream<Uint8Array>({
+  start(controller){
+   controller.enqueue(bytes.subarray(0,split+1));
+   controller.enqueue(bytes.subarray(split+1));
+   controller.close();
+  }
+ });
+ const request=new Request('https://www.indiancreekpsych.com/api/emr/bps-intake',{
+  method:'POST',headers:{Origin:'https://www.indiancreekpsych.com','Content-Type':'application/json'},
+  body:stream,duplex:'half'
+ } as RequestInit & {duplex:'half'});
+ const response=await POST(request);
+ expect(response.status).toBe(201);
+ expect(m.rpc).toHaveBeenCalledWith('save_emr_bps_intake_review',{
+  p_payload:expect.objectContaining({clinician_notes:expect.objectContaining({presenting:text})})
+ });
+});
+
 test('malformed BPS review JSON and unexpected save failures never echo confidential clinical payloads',async()=>{
  const privateValue='PRIVATE_FICTIONAL_CLINICAL_STATEMENT_NOT_FOR_RESPONSE';
  const malformed=new Request('https://www.indiancreekpsych.com/api/emr/bps-intake',{

@@ -4,7 +4,7 @@ import {bpsSectionClassification,approvedBpsQuestionSection,bpsNoteDomains,empty
 type Field={key:string;label:string;type:string;value:string;sourceOnly?:boolean;reported?:boolean};
 type Section={title:string;domain:string;disposition:'clinical'|'separate-review'|'reference';fields:Field[];answered:number};
 type Review={id:string;reviewed:boolean;source_version:number;source_status:string;source_updated_at:string;created_at:string;clinical_answers:Record<string,string>;clinician_notes:BpsNotes;excluded_clinical_fields?:number;excluded_clinician_notes?:number};
-type ResponseData={patientId:string;source:{accountId:string;status:string;version:number;updatedAt:string;submittedAt?:string|null};sections:Section[];unmappedKeys:string[];reviews:Review[]};
+type ResponseData={patientId:string;source:{accountId:string;status:string;version:number;updatedAt:string;submittedAt?:string|null;questionnairePacketVersion?:string|null};sections:Section[];unmappedKeys:string[];reviews:Review[]};
 const focusedReviewLinks:Record<string,{label:string;anchor:string}[]>={
  'Mental health treatment history':[
   {label:'Review reported counseling and psychiatric treatment history in the central chart',anchor:'emr-intake-treatment-history-review'}],
@@ -64,6 +64,10 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
    // A stale or malformed protected API must never present a submitted
    // packet edited after its attestation as immutable clinician source.
    !validBpsSubmissionChronology(source.status,source.updatedAt,source.submittedAt)||
+   // Never trust a malformed or future questionnaire layout marker even when
+   // the source revision and timestamps appear valid.
+   (source.questionnairePacketVersion!=null&&source.questionnairePacketVersion!=='2026-10-11'&&
+    source.questionnairePacketVersion!=='2026-11-02-directory-1')||
    !Array.isArray(value.reviews)||!Array.isArray(value.unmappedKeys))
    throw Error('Linked patient intake provenance or clinical review history could not be verified. Reopen the protected source.');
   // A correct patient ID does not make a malformed 21-section source safe to
@@ -231,6 +235,9 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
      // its original version is NOT verification of the currently linked source.
      const sameSource=next.source.accountId===data.source.accountId&&
       next.source.version===data.source.version&&next.source.status===data.source.status&&
+      // A packet-layout switch without a source revision increment must never
+      // independently verify the earlier clinician's questionnaire review.
+      next.source.questionnairePacketVersion===data.source.questionnairePacketVersion&&
       equalBpsTimestampInstants(next.source.updatedAt,data.source.updatedAt)&&
       // The patient's actual submission attestation is part of the immutable
       // source receipt. A changed receipt must not verify an earlier clinician
@@ -268,6 +275,7 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
   <p>Review the exact linked website patient's patient-reported intake. Clinical history is not an independently verified fact, diagnosis, signed assessment or risk clearance. Legal consent decisions and insurance remain in their own records. Medication, allergy, substance-use and structured trauma entries require their existing dedicated reconciliation modules.</p>
   {loading?<p role="status">Checking protected BPS intake…</p>:error?<p role="alert">{error}</p>:data?.patientId===patientId&&<>
    <p>Source: <strong>{data.source.status==='submitted'?'Submitted intake (immutable source)':'Draft intake (may change)'}</strong> · Version {data.source.version} · Last updated {new Date(data.source.updatedAt).toLocaleString()}</p>
+   <p>Questionnaire packet provenance: <strong>{data.source.questionnairePacketVersion??'Not recorded for historical intake'}</strong>. This identifies the question layout, separately from patient intake revision {data.source.version}.</p>
    {data.source.status==='submitted'&&data.source.submittedAt&&<p>Patient submission attested: <time dateTime={data.source.submittedAt}>{new Date(data.source.submittedAt).toLocaleString()}</time>. This is a patient submission receipt, not a clinician signature.</p>}
    {data.source.status==='draft'&&<p role="status">This intake remains unsubmitted and lacks a patient submission attestation. Review it only as changeable draft source context.</p>}
    <p>Saved patient-reported source answers refresh when this chart is idle and visible. Preparing a clinician review freezes the opened source version; discard and reopen if the patient's intake changes.</p>

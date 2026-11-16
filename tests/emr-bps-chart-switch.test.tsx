@@ -46,9 +46,10 @@ test('clinician reconciliation independently withholds separate, structured, ref
  for(const section of sections)for(const field of section.fields){
   if(field.key==='counseling_goals'){field.reported=false;section.answered--;}
   if(field.key==='prior_mental_health_treatment')field.sourceOnly=undefined as unknown as boolean;
-  if(field.key.startsWith('insurance_')||field.key==='roi_authorize'||
-   field.key==='prior_psychiatric_medications'||field.key==='legal_history'||
-   field.key==='medication_entries'){
+  if(typeof reported[field.key]==='string'&&
+   (field.key.startsWith('insurance_')||field.key==='roi_authorize'||
+    field.key==='prior_psychiatric_medications'||field.key==='legal_history'||
+    field.key==='medication_entries')){
    field.sourceOnly=false;
    field.value=reported[field.key];
   }

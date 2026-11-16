@@ -235,6 +235,60 @@ test('21-section review distinguishes risk, legal references and structured reco
  expect(body.sections.find((s:any)=>s.title==='Authorization to share health information').disposition).toBe('reference');
  expect(body.sections.find((s:any)=>s.title==='Medications').disposition).toBe('separate-review');
 });
+test('PHI-minimized BPS summary verifies linked source without returning questionnaire, notes, accounts or history',async()=>{
+ data.counseling_reason='FICTIONAL_PRIVATE_SOURCE_787';
+ data.medication_entries='FICTIONAL_PRIVATE_MEDICATION_788';
+ const response=await GET(new Request(request().url+'&summary=1'));
+ expect(response.status).toBe(200);
+ expect(response.headers.get('Cache-Control')).toContain('no-store');
+ const body=await response.json();
+ expect(body).toEqual({patientId:patient,source:{
+  status:'submitted',version:2,updatedAt:stamp,submittedAt:stamp,questionnairePacketVersion:null
+ },currentVersionReviewed:false});
+ const serialized=JSON.stringify(body);
+ expect(serialized).not.toContain('FICTIONAL_PRIVATE_SOURCE_787');
+ expect(serialized).not.toContain('FICTIONAL_PRIVATE_MEDICATION_788');
+ expect(serialized).not.toContain(account);
+ expect(body).not.toHaveProperty('sections');
+ expect(body).not.toHaveProperty('reviews');
+ expect(body).not.toHaveProperty('unmappedKeys');
+});
+
+test('BPS summary records current reviewed attestation only for the same patient source revision',async()=>{
+ reviewRows=[{id:'00000000-0000-0000-0000-000000000609',patient_id:patient,source_account_id:account,
+  source_version:2,source_status:'submitted',source_updated_at:stamp,created_at:stamp,
+  reviewed:true,clinical_answers:{counseling_reason:'PRIVATE_FICTIONAL_HISTORY_789'},
+  clinician_notes:{presenting:'PRIVATE_FICTIONAL_CLINICIAN_790'}}];
+ const url=new Request(request().url+'&summary=1');
+ let response=await GET(url);
+ expect(response.status).toBe(200);
+ expect((await response.json()).currentVersionReviewed).toBe(true);
+ expect(JSON.stringify(await (await GET(url)).json())).not.toContain('PRIVATE_FICTIONAL_CLINICIAN_790');
+ reviewRows=[{...reviewRows[0],reviewed:false}];
+ response=await GET(url);
+ expect(response.status).toBe(200);
+ expect((await response.json()).currentVersionReviewed).toBe(false);
+ reviewRows=[];
+ intakeStatus='draft';intakeSubmittedAt=null;
+ response=await GET(url);
+ expect(response.status).toBe(200);
+ const draft=await response.json();
+ expect(draft.source.status).toBe('draft');
+ expect(draft.source.submittedAt).toBeNull();
+ expect(draft.currentVersionReviewed).toBe(false);
+});
+
+test('BPS provenance summary is protected by the same authorization and patient isolation as the full review',async()=>{
+ const summary=new Request(request().url+'&summary=1');
+ m.access.mockResolvedValue(null);
+ expect((await GET(summary)).status).toBe(403);
+ m.access.mockResolvedValue({supabase:{from:m.from,rpc:m.rpc}});
+ returnedIntakeAccountId='00000000-0000-0000-0000-000000000999';
+ const blocked=await GET(summary);
+ expect(blocked.status).toBe(409);
+ expect(JSON.stringify(await blocked.json())).not.toContain('Reports sadness');
+});
+
 test('save accepts only explicit reviewed provenance and clinician notes, never client-fabricated fields',async()=>{
  const response=await POST(submit({...payload,clinical_answers:{forged:'diagnosis'},signature:'FAKE',billing:{charge:500}}));
  expect(response.status).toBe(201);

@@ -86,15 +86,30 @@ async function populateOriginalBpsIntake(panel,id,generation){
    throw Error('Linked 21-section intake mapping is malformed; patient statements are withheld.');
   // A partial or malformed clinical history is NOT an empty review history. Refuse
   // to display source answers or claim an attested review until provenance is sound.
-  if(!Array.isArray(result.reviews)||!Array.isArray(result.unmappedKeys)||
-   !result.reviews.every(review=>review&&typeof review==='object'&&
-    /^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(review.id)&&
-    typeof review.reviewed==='boolean'&&
-    Number.isSafeInteger(review.source_version)&&review.source_version>0&&
-    ['draft','submitted'].includes(review.source_status)&&
-    validOriginalBpsTimestamp(review.source_updated_at)&&
-    validOriginalBpsTimestamp(review.created_at))||
-   !result.unmappedKeys.every(key=>typeof key==='string'))
+  // A malformed history must never create a reassuring but false clinician
+  // review indicator. Validate unique IDs, revisions and receipt chronology at
+  // the original BPS trust boundary independently of the API.
+  const reviewIds=new Set();
+  const validReviewHistory=Array.isArray(result.reviews)&&result.reviews.every(review=>{
+   if(!review||typeof review!=='object'||Array.isArray(review)||
+      typeof review.id!=='string'||
+      !/^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(review.id)||
+      reviewIds.has(review.id.toLowerCase())||
+      typeof review.reviewed!=='boolean'||
+      !Number.isSafeInteger(review.source_version)||review.source_version<1||
+      review.source_version>source.version||
+      !['draft','submitted'].includes(review.source_status))return false;
+   reviewIds.add(review.id.toLowerCase());
+   const sourceAt=originalBpsInstantNanoseconds(review.source_updated_at);
+   const createdAt=originalBpsInstantNanoseconds(review.created_at);
+   return sourceAt!==null&&createdAt!==null&&
+    sourceAt<=editedInstant&&createdAt>=sourceAt&&
+    // The review of a final submission must postdate its patient receipt.
+    !(review.source_version===source.version&&source.status==='submitted'&&
+      review.source_status==='submitted'&&createdAt<submittedInstant);
+  });
+  if(!validReviewHistory||!Array.isArray(result.unmappedKeys)||
+     !result.unmappedKeys.every(key=>typeof key==='string'))
    throw Error('Linked intake review history provenance or unmapped-field audit could not be verified.');
   panel.replaceChildren();
   const heading=document.createElement('h2');heading.textContent='Linked patient intake — BPS source context';

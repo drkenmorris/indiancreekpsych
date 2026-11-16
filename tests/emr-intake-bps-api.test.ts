@@ -208,11 +208,29 @@ test('unrecognized explicit questionnaire packet never falls back to legacy BPS 
   expect((await GET(request())).status).toBe(200);
  }
 });
+test('protected BPS source preserves exact questionnaire layout provenance independently from intake revision',async()=>{
+ for(const [marker,expected] of [
+  ['2026-10-11','2026-10-11'],
+  ['2026-11-02-directory-1','2026-11-02-directory-1'],
+  ['',null]
+ ] as const){
+  data.legal_packet_version=marker;
+  const response=await GET(request());
+  expect(response.status).toBe(200);
+  const body=await response.json();
+  expect(body.source.version).toBe(2);
+  expect(body.source.questionnairePacketVersion).toBe(expected);
+ }
+ delete data.legal_packet_version;
+ const legacy=await GET(request());
+ expect(legacy.status).toBe(200);
+ expect((await legacy.json()).source.questionnairePacketVersion).toBeNull();
+});
 test('21-section review distinguishes risk, legal references and structured reconciliation',async()=>{
  const response=await GET(request());expect(response.status).toBe(200);
  expect(response.headers.get('Cache-Control')).toContain('no-store');
  const body=await response.json();expect(body.sections).toHaveLength(21);
- expect(body.source).toEqual({accountId:account,version:2,status:'submitted',updatedAt:stamp,submittedAt:stamp});
+ expect(body.source).toEqual({accountId:account,version:2,status:'submitted',updatedAt:stamp,submittedAt:stamp,questionnairePacketVersion:null});
  expect(body.sections.find((s:any)=>s.title==='Safety and risk screening').fields.find((f:any)=>f.key==='suicidal_thoughts_current').value).toBe('Yes');
  expect(body.sections.find((s:any)=>s.title==='Authorization to share health information').disposition).toBe('reference');
  expect(body.sections.find((s:any)=>s.title==='Medications').disposition).toBe('separate-review');

@@ -181,3 +181,19 @@ test('clinician whitespace entered while source is being reverified survives the
   expect(h.requests.every(request=>request.method==='GET')).toBe(true);
  }finally{h.dom.window.close();}
 });
+
+test('unmapped patient intake fields block draft placement even when the submitted source itself is stable',async()=>{
+ const h=harness(async()=>Response.json({...packet(),unmappedKeys:['[unrecognized source field name withheld]']}));
+ try{
+  await vi.waitFor(()=>expect(h.dom.window.document.body.textContent).toContain(
+   'Unmapped intake fields require manual reconciliation before patient-reported source references'));
+  expect(h.button()).toBeUndefined();
+  expect(h.note.value).toBe('');
+  // The non-sensitive patient report is still visible as explicitly read-only
+  // clinical context, but cannot be transformed into a saved form field.
+  expect(h.dom.window.document.body.textContent).toContain('FICTIONAL FRIEND SUPPORT');
+  expect(h.dom.window.document.body.textContent).not.toContain('PRIVATE FICTIONAL TRAUMA');
+  expect(h.dom.window.document.body.textContent).not.toContain('PRIVATE FICTIONAL MEDICATION');
+  expect(h.requests).toEqual([{url:'/api/emr/bps-intake?patient='+patient,method:'GET'}]);
+ }finally{h.dom.window.close();}
+});

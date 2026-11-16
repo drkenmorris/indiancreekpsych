@@ -246,6 +246,74 @@ async function populateOriginalBpsIntake(panel,id,generation){
     }
     pageContext.append(answers);
    }
+   // Start an original-form draft from a small, explicit set of general
+   // patient-reported social/developmental facts, never from medication,
+   // allergy, trauma, insurance, legal, or risk-screening responses. This is
+   // clinician-initiated source attribution, not a finding or an automatic save.
+   if(bpsPage==='developmental_personal'&&source.status==='submitted'){
+    const allowedDraftKeys=new Set([
+     'family_household','social_supports','education_history','employment_history',
+     'military_history','cultural_spiritual_factors','strengths_interests'
+    ]);
+    const getDraftFields=sections=>{
+     const section=Array.isArray(sections)?sections.find(entry=>
+      entry?.title==='Trauma, family, social, educational, and occupational history'):null;
+     return Array.isArray(section?.fields)?section.fields
+      .filter(field=>allowedDraftKeys.has(field?.key)&&approvedOriginalBpsAnswer(section,field))
+      .map(field=>({key:field.key,label:field.label,value:field.value})):[];
+    };
+    const fields=getDraftFields(result.sections);
+    if(fields.length){
+     const draft=['Unverified patient-reported website intake, version '+source.version+
+      ', submitted '+source.submittedAt+'. Clinician review required.',
+      ...fields.map(field=>field.label+': '+field.value)].join('\n');
+     const notice=document.createElement('p');
+     notice.setAttribute('role','status');
+     const button=document.createElement('button');
+     button.type='button';
+     button.textContent='Place patient-reported source references in blank developmental-history draft notes';
+     button.addEventListener('click',async()=>{
+      if(!stillCurrent()||new URLSearchParams(location.search).get('bps_page')!=='developmental_personal')return;
+      const target=document.querySelector('form[data-action="biopsychosocial_developmental_personal"] textarea[name="source_notes"]');
+      if(!target||target.value.trim()){
+       notice.textContent='Existing clinician draft notes were preserved. Use the protected intake review for manual reconciliation.';
+       return;
+      }
+      if(draft.length>target.maxLength&&target.maxLength>=0){
+       notice.textContent='Patient report exceeds the original source-notes field limit; use the protected intake review instead. No text was copied.';
+       return;
+      }
+      button.disabled=true;
+      try{
+       // A source may change after this page loads. Recheck the exact receipt
+       // and safe field values before inserting anything into an editable form.
+       const response=await fetch('/api/emr/bps-intake?patient='+encodeURIComponent(id),
+        {cache:'no-store',credentials:'same-origin'});
+       if(!response.ok)throw Error('Source verification failed.');
+       const fresh=await response.json();
+       if(!stillCurrent()||!target.isConnected)return;
+       if(fresh.patientId!==id||fresh.source?.accountId!==source.accountId||
+        fresh.source?.status!=='submitted'||fresh.source?.version!==source.version||
+        originalBpsInstantNanoseconds(fresh.source?.updatedAt)!==editedInstant||
+        originalBpsInstantNanoseconds(fresh.source?.submittedAt)!==submittedInstant||
+        JSON.stringify(getDraftFields(fresh.sections))!==JSON.stringify(fields)){
+        notice.textContent='The linked intake changed or could not be reverified. No text was copied; refresh this source.';
+        return;
+       }
+       if(target.value.trim()){
+        notice.textContent='Clinician-entered draft notes were preserved. No text was copied.';
+        return;
+       }
+       target.value=draft;
+       target.dispatchEvent(new window.Event('input',{bubbles:true}));
+       notice.textContent='Patient report placed in the unsaved original developmental-history draft. Review independently before explicit save; no clinician finding or signature was created.';
+      }catch{
+       if(stillCurrent())notice.textContent='The protected source could not be reverified; original clinical notes remain unchanged.';
+      }finally{if(stillCurrent())button.disabled=false;}
+     });
+     pageContext.append(button,notice);
+    }
+   }
    panel.append(pageContext);
   }
   const details=document.createElement('details');

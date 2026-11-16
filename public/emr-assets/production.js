@@ -4,6 +4,100 @@
 // intake in a read-only, explicitly patient-reported panel; clinical review and
 // saving remain in the protected clinician workflow, never in this preview.
 let linkedIntakeRenderGeneration=0;
+// Independently enforce the versioned clinical domain/disposition allowlist in
+// the original seven-page BPS renderer. Do not trust upstream section labels to
+// reclassify medication, insurance or legal answers as clinical findings.
+// Keep this declaration aligned with bpsSectionClassification in lib/emr/intake-bps.ts.
+const originalBpsSectionRules=Object.freeze({
+ "Demographics and contact information": {
+  "domain": "Identity and contact (central demographics)",
+  "disposition": "reference"
+ },
+ "Emergency contact, guardian, and responsible party": {
+  "domain": "Family, support and legal decision-making context",
+  "disposition": "clinical"
+ },
+ "Insurance and benefits information": {
+  "domain": "Administrative coverage (not BPS)",
+  "disposition": "reference"
+ },
+ "Presenting concerns and functional impact": {
+  "domain": "Presenting problems, functioning and goals",
+  "disposition": "clinical"
+ },
+ "Mental health treatment history": {
+  "domain": "Prior behavioral-health care",
+  "disposition": "clinical"
+ },
+ "Medications": {
+  "domain": "Medication/allergy reconciliation (separate chart review)",
+  "disposition": "separate-review"
+ },
+ "Medical & Substance Use History": {
+  "domain": "Medical and substance-use reconciliation (separate chart review)",
+  "disposition": "separate-review"
+ },
+ "Safety and risk screening": {
+  "domain": "Patient-reported safety and protective factors",
+  "disposition": "clinical"
+ },
+ "Trauma, family, social, educational, and occupational history": {
+  "domain": "Trauma and social history (separate trauma checklist review)",
+  "disposition": "clinical"
+ },
+ "Communication and confidential-contact preferences": {
+  "domain": "Confidential communications (not BPS)",
+  "disposition": "reference"
+ },
+ "Legal forms directory and questionnaire": {
+  "domain": "Protected legal directory (not clinical authorization)",
+  "disposition": "reference"
+ },
+ "Consent to Counseling and Informed Treatment": {
+  "domain": "Informed treatment consent (legal record only)",
+  "disposition": "reference"
+ },
+ "Financial Agreement and Good Faith Estimate": {
+  "domain": "Financial agreement (not BPS)",
+  "disposition": "reference"
+ },
+ "Telehealth Informed Consent": {
+  "domain": "Telehealth consent (legal record only)",
+  "disposition": "reference"
+ },
+ "Electronic Communications and Patient Portal": {
+  "domain": "Electronic communication consent (legal record only)",
+  "disposition": "reference"
+ },
+ "Legal Representative and Minor Consent": {
+  "domain": "Representative authority (legal record only)",
+  "disposition": "reference"
+ },
+ "Notice of Privacy Practices acknowledgment": {
+  "domain": "Privacy acknowledgment (legal record only)",
+  "disposition": "reference"
+ },
+ "Authorization to share health information": {
+  "domain": "Release-of-information authorization (legal record only)",
+  "disposition": "reference"
+ },
+ "Optional consent for Part 2 substance-use records": {
+  "domain": "Part 2 consent (legal record only)",
+  "disposition": "reference"
+ },
+ "Separate consent for SUD counseling notes": {
+  "domain": "SUD counseling-notes consent (legal record only)",
+  "disposition": "reference"
+ },
+ "Separate authorization for psychotherapy notes": {
+  "domain": "Psychotherapy-notes authorization (legal record only)",
+  "disposition": "reference"
+ },
+ "Patient attestation and consent to submit": {
+  "domain": "Patient attestation (not clinician attestation)",
+  "disposition": "reference"
+ }
+});
 function validOriginalBpsTimestamp(value) {
  if(typeof value!=='string')return false;
  const match=/^(\d{4})-(\d{2})-(\d{2})T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d{1,9})?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/.exec(value);
@@ -44,7 +138,9 @@ async function populateOriginalBpsIntake(panel,id,generation){
    // source must not have been edited even one microsecond after attestation.
    (source.status==='draft'&&source.submittedAt!=null)||
    (source.status==='submitted'&&(submittedInstant===null||editedInstant>submittedInstant))||
-   (source.submittedAt!=null&&submittedInstant===null))
+   (source.submittedAt!=null&&submittedInstant===null)||
+   (source.questionnairePacketVersion!=null&&
+    !['2026-10-11','2026-11-02-directory-1'].includes(source.questionnairePacketVersion)))
    throw Error('Linked intake source identity, status, version or timestamp could not be verified.');
   // The original seven-page BPS workspace must reject malformed mapped sections,
   // independently of the newer React clinician review. A missing fields array,
@@ -60,6 +156,9 @@ async function populateOriginalBpsIntake(panel,id,generation){
    if(!section||typeof section!=='object'||Array.isArray(section)||
       typeof section.title!=='string'||!section.title||
       seenSectionTitles.has(section.title)||
+      !Object.prototype.hasOwnProperty.call(originalBpsSectionRules,section.title)||
+      originalBpsSectionRules[section.title].domain!==section.domain||
+      originalBpsSectionRules[section.title].disposition!==section.disposition||
       typeof section.domain!=='string'||!section.domain||
       !['clinical','separate-review','reference'].includes(section.disposition)||
       !Number.isSafeInteger(section.answered)||section.answered<0||
@@ -70,6 +169,9 @@ async function populateOriginalBpsIntake(panel,id,generation){
    // questions; otherwise it could conceal missing or conflicting reports.
    if(tagged.length&&(tagged.length!==section.fields.length||
       tagged.filter(field=>field.reported===true).length!==section.answered))return false;
+   // A partially legacy source with no reported flags cannot claim completed
+   // patient responses through sourceOnly:false hints alone.
+   if(!tagged.length&&section.answered>0&&section.fields.some(field=>field?.sourceOnly===false))return false;
    return section.fields.every(field=>{
     if(!field||typeof field!=='object'||Array.isArray(field)||
        typeof field.key!=='string'||!field.key||seenFieldKeys.has(field.key)||

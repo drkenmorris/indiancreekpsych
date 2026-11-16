@@ -3,6 +3,7 @@ import {afterEach,expect,test,vi} from 'vitest';
 import {act,cleanup,fireEvent,render,screen} from '@testing-library/react';
 import PatientBpsIntakeReview from '@/app/emr/PatientBpsIntakeReview';
 import {bpsSectionClassification} from '@/lib/emr/intake-bps';
+import {intakeSectionsForVersion} from '@/lib/patient/intake';
 afterEach(()=>{cleanup();vi.unstubAllGlobals();});
 test('a pending BPS save cannot reopen or message the wrong patient chart',async()=>{
  const a='00000000-0000-0000-0000-000000000801',b='00000000-0000-0000-0000-000000000802';
@@ -436,4 +437,38 @@ test('clinician save readback cannot verify a changed questionnaire packet at th
  expect(screen.queryByText(/snapshot saved AND independently verified/)).toBeNull();
  expect(reads).toBe(2);
  expect(posts).toBe(1);
+});
+
+test('unknown source section cannot impersonate an approved clinical category or authorize a BPS review',async()=>{
+ const patient='00000000-0000-4000-8000-000000000861';
+ const account='00000000-0000-4000-8000-000000000862';
+ const stamp='2026-11-12T12:00:00Z';
+ const sections=intakeSectionsForVersion('2026-11-02-directory-1').map(section=>({
+  title:section.title,
+  domain:bpsSectionClassification[section.title].domain,
+  disposition:bpsSectionClassification[section.title].disposition,
+  answered:0,
+  fields:[] as {key:string;label:string;type:string;reported:boolean;sourceOnly:boolean;value:string}[]
+ }));
+ const presenting=sections.find(section=>section.title==='Presenting concerns and functional impact');
+ expect(presenting).toBeDefined();
+ presenting!.title='Forged BPS source section';
+ presenting!.answered=1;
+ presenting!.fields=[{key:'counseling_reason',label:'Patient-reported concern',type:'text',
+  reported:true,sourceOnly:false,value:'PRIVATE_FICTIONAL_CLINICAL_STATEMENT'}];
+ let writes=0;
+ vi.stubGlobal('fetch',vi.fn(async(_url:string,init?:RequestInit)=>{
+  if(init?.method==='POST')writes++;
+  return Response.json({patientId:patient,source:{
+   accountId:account,status:'submitted',version:3,updatedAt:stamp,submittedAt:stamp,
+   questionnairePacketVersion:'2026-11-02-directory-1'
+  },sections,unmappedKeys:[],reviews:[]});
+ }));
+ render(<PatientBpsIntakeReview patientId={patient}/>);
+ const alert=await screen.findByRole('alert');
+ expect(alert.textContent).toContain('21-section intake mapping is malformed');
+ expect(document.body.textContent).not.toContain('PRIVATE_FICTIONAL_CLINICAL_STATEMENT');
+ expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
+ expect(screen.queryByRole('button',{name:/Save reviewed BPS history snapshot/i})).toBeNull();
+ expect(writes).toBe(0);
 });

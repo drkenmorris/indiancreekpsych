@@ -252,7 +252,7 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
       review.source_status===data.source.status&&
       equalBpsTimestampInstants(review.source_updated_at,data.source.updatedAt));
      if(verified)setStatus('Clinician-reviewed, unsigned BPS intake snapshot saved AND independently verified in the protected chart history. Patient statements remain patient-reported; no diagnosis, authorization, or signature was created.');
-     else if(!sameSource)setStatus('BPS save was acknowledged, but the linked intake source changed during chart-history verification (account, version, status or timestamp). This source is NOT independently verified. Reopen the chart and reconcile the new intake before further review; do not resubmit the prior version.');
+     else if(!sameSource)setStatus('BPS save was acknowledged, but the linked intake source changed during chart-history verification (account, questionnaire packet, source revision, status or timestamp). This source is NOT independently verified. Reopen the chart and reconcile the new intake before further review; do not resubmit the prior version.');
      else setStatus('BPS save was acknowledged, but the exact saved review and source provenance were NOT verified in chart history. Reopen this chart and investigate before relying on the new review; do not submit it again.');
     }
    }catch(e){

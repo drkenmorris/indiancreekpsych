@@ -183,6 +183,51 @@ test('clinic migrations replay in order on an empty application database', async
     assert.equal((await db.query('select id from public.appointments')).rows.length,3,
       'All historical fictional appointments must remain after rejected hard-deletes');
 
+    // All four scheduler policies must be restrictive, not permissive, in the
+    // complete isolated replay. Existing website/admin UI checks alone cannot
+    // prove the Supabase direct-table boundary is enforced.
+    const expectedSchedulerMfaPolicies=[
+      ['appointment_availability_rules','availability_rules_admin_mfa_gate'],
+      ['appointment_blocks','appointment_blocks_admin_mfa_gate'],
+      ['appointment_settings','appointment_settings_admin_mfa_gate'],
+      ['appointments','appointments_admin_mfa_gate'],
+    ];
+    const {rows:schedulerMfaPolicies}=await db.query(
+      "select tablename,policyname,permissive,cmd,qual,with_check from pg_policies where schemaname='public' and policyname like '%_admin_mfa_gate' order by tablename");
+    assert.deepEqual(schedulerMfaPolicies.map(p=>[p.tablename,p.policyname]),expectedSchedulerMfaPolicies,
+      'All four scheduler MFA policies must exist before promotion');
+    for(const policy of schedulerMfaPolicies){
+      assert.equal(policy.permissive,'RESTRICTIVE',policy.policyname+' must not grant access');
+      assert.equal(policy.cmd,'ALL',policy.policyname+' must cover direct reads and writes');
+      assert.match(policy.qual??'',/aal2/,policy.policyname+' must gate reads');
+      assert.match(policy.with_check??'',/aal2/,policy.policyname+' must gate writes');
+    }
+    // Real RLS probes on fictional office-hour/blackout records in PGlite only.
+    // No production appointment, scheduling rule or administrator is modified.
+    await db.exec('reset role');
+    const fictionalBlock='00000000-0000-4000-8000-000000000914';
+    await db.query(`insert into public.appointment_blocks(id,starts_at,ends_at,label)
+      values ($1,'2031-04-03T10:00:00Z','2031-04-03T11:00:00Z','FICTIONAL MFA POLICY PROBE')`,[fictionalBlock]);
+    const {rows:[ruleSeed]}=await db.query('select count(*)::int as count from public.appointment_availability_rules');
+    if(ruleSeed.count===0)await db.query(`insert into public.appointment_availability_rules(weekday,start_time,end_time,enabled)
+      values(3,'08:00','17:00',true)`);
+    await as(adminId,'aal1');
+    assert.equal((await db.query('select id from public.appointment_availability_rules')).rows.length,0,
+      'AAL1 administrators must not read office-hour settings directly');
+    assert.equal((await db.query('select id from public.appointment_blocks')).rows.length,0,
+      'AAL1 administrators must not read patient-facing blackout records directly');
+    assert.equal((await db.query(`update public.appointment_availability_rules
+      set enabled=enabled returning id`)).rows.length,0,
+      'AAL1 administrators must not edit office-hour rules directly');
+    await as(adminId,'aal2');
+    assert.ok((await db.query('select id from public.appointment_availability_rules')).rows.length>=1,
+      'AAL2 administrators retain office-hour access');
+    assert.deepEqual((await db.query('select id from public.appointment_blocks')).rows.map(r=>r.id),[fictionalBlock],
+      'AAL2 administrators retain access to fictional blackout periods');
+    assert.ok((await db.query(`update public.appointment_availability_rules
+      set enabled=enabled returning id`)).rows.length>=1,
+      'AAL2 administrators retain existing office-hour writes');
+
     await as(adminId,'aal1');
     await assert.rejects(db.query('select public.save_emr_bps_intake_review($1) as id',[payload]),
       /MFA|Administrator sign-in/,'AAL1 must not save clinician BPS history');

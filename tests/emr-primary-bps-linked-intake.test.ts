@@ -214,11 +214,15 @@ test('original BPS redacts malformed structured, reference and missing-marker so
  );
  const {ctx,dom}=harness(async()=>Response.json(unsafe));
  ctx.render();
- await vi.waitFor(()=>expect(dom.window.document.querySelector('section[aria-label="Patient intake context in original biopsychosocial workspace"]')?.textContent).toContain('source version 6'));
+ await vi.waitFor(()=>expect(dom.window.document.querySelector('section[aria-label="Patient intake context in original biopsychosocial workspace"]')?.textContent).toContain('Linked 21-section intake mapping is malformed'));
  const displayed=dom.window.document.querySelector('section[aria-label="Patient intake context in original biopsychosocial workspace"]')!.textContent||'';
- expect(displayed).toContain('Fictional patient-reported concern');
+ // The spoofed fixture repeats question identities across sections and asserts an
+ // incorrect answered count. The stronger original-BPS trust boundary must now
+ // withhold ALL patient statements, not merely redact the obviously sensitive ones.
+ expect(displayed).not.toContain('Fictional patient-reported concern');
  for(const secret of ['DO_NOT_LEAK_STRUCTURED_MEDICATION','DO_NOT_LEAK_MISSING_MARKER','DO_NOT_LEAK_REFERENCE_LEGAL','DO_NOT_LEAK_SPOOFED_INSURANCE','DO_NOT_LEAK_SPOOFED_LEGAL','DO_NOT_LEAK_RETIRED_MEDICATION','DO_NOT_LEAK_RETIRED_LEGAL'])expect(displayed).not.toContain(secret);
- expect(displayed).toContain('Stored in the dedicated protected intake/reconciliation source.');
+ expect(displayed).toContain('no intake data were imported');
+ expect(dom.window.document.querySelector('#clinical-form')?.textContent).toContain('Original BPS clinical form remains available');
  dom.window.close();
 });
 
@@ -422,14 +426,19 @@ test.each([
  // Every page stays within the existing 21-section protected intake. New values
  // are fictional, and dedicated medication/medical/legal source values stay
  // unavailable to the BPS summary even when an API response is malformed.
+ current.sections[3].answered=1;
  current.sections[3]={...current.sections[3],title:'Mental health treatment history',disposition:'clinical',
   fields:[{key:'prior_mental_health_treatment',label:'Prior treatment',type:'text',reported:true,sourceOnly:false,value:'FICTIONAL_TREATMENT_CONTEXT'}]};
+ current.sections[4].answered=1;
  current.sections[4]={...current.sections[4],title:'Safety and risk screening',disposition:'clinical',
   fields:[{key:'suicidal_thoughts_current',label:'Risk report',type:'text',reported:true,sourceOnly:false,value:'FICTIONAL_SAFETY_CONTEXT'}]};
+ current.sections[5].answered=1;
  current.sections[5]={...current.sections[5],title:'Emergency contact, guardian, and responsible party',disposition:'clinical',
   fields:[{key:'guardian_relationship',label:'Family relationship',type:'text',reported:true,sourceOnly:false,value:'FICTIONAL_GUARDIAN_CONTEXT'}]};
+ current.sections[6].answered=1;
  current.sections[6]={...current.sections[6],title:'Medical & Substance Use History',disposition:'separate-review',
   fields:[{key:'medical_history',label:'Medical history',type:'medical-substance',reported:true,sourceOnly:false,value:'DO_NOT_LEAK_MEDICAL'}]};
+ current.sections[7].answered=2;
  current.sections[7]={...current.sections[7],title:'Trauma, family, social, educational, and occupational history',disposition:'clinical',
   fields:[
    {key:'family_household',label:'Family narrative',type:'historical-patient-report',reported:true,sourceOnly:false,value:'FICTIONAL_FAMILY_CONTEXT'},

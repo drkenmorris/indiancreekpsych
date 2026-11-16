@@ -175,7 +175,10 @@ export async function GET(request:Request){
    };
   });
   return reply({patientId:id,linked:true,source:{accountId:source.patient.account_id,status:source.intake.status,version:source.intake.version,
-    updatedAt:source.intake.updated_at,submittedAt:source.intake.submitted_at??null},...report,reviews:safeReviews});
+    updatedAt:source.intake.updated_at,submittedAt:source.intake.submitted_at??null,
+    // Patient questionnaire layout version is distinct from the editable source revision.
+    // A missing historical marker must remain unrecorded rather than be inferred.
+    questionnairePacketVersion:originalAnswers.legal_packet_version||null},...report,reviews:safeReviews});
  // Never echo database/provider exception messages: they may include patient identifiers, clinical JSON or internal SQL details.
  }catch{return reply({error:'Protected BPS intake unavailable; reopen the chart and try again.'},503);}
 }

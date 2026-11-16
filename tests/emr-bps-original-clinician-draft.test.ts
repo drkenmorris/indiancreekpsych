@@ -105,3 +105,46 @@ test('selected-patient switch makes old intake draft action inert without a writ
   expect(h.requests).toHaveLength(1);
  }finally{h.dom.window.close();}
 });
+
+test('an unrelated patient-reported section change blocks source placement even with the same revision receipt',async()=>{
+ const h=harness(async call=>{
+  const source=packet();
+  if(call===2)source.sections[1].fields[0].value='CHANGED PRIVATE FICTIONAL MEDICATION';
+  return Response.json(source);
+ });
+ try{
+  await vi.waitFor(()=>expect(h.button()).toBeTruthy());
+  h.button().click();
+  await vi.waitFor(()=>expect(h.dom.window.document.body.textContent).toContain('The linked intake changed or could not be reverified'));
+  expect(h.note.value).toBe('');
+  expect(h.requests).toHaveLength(2);
+  expect(h.requests.every(request=>request.method==='GET')).toBe(true);
+ }finally{h.dom.window.close();}
+});
+test('questionnaire packet version changes cannot accompany original-form draft placement',async()=>{
+ const h=harness(async call=>{
+  const source=packet();
+  return Response.json({...source,source:{...source.source,
+   questionnairePacketVersion:call===1?'2026-10-11':'2026-11-02-directory-1'}});
+ });
+ try{
+  await vi.waitFor(()=>expect(h.button()).toBeTruthy());
+  h.button().click();
+  await vi.waitFor(()=>expect(h.dom.window.document.body.textContent).toContain('The linked intake changed or could not be reverified'));
+  expect(h.note.value).toBe('');
+  expect(h.requests).toHaveLength(2);
+ }finally{h.dom.window.close();}
+});
+test('changed unmapped-field audit blocks original-form draft placement',async()=>{
+ const h=harness(async call=>{
+  const source=packet();
+  return Response.json({...source,unmappedKeys:call===1?[]:['[unrecognized source field name withheld]']});
+ });
+ try{
+  await vi.waitFor(()=>expect(h.button()).toBeTruthy());
+  h.button().click();
+  await vi.waitFor(()=>expect(h.dom.window.document.body.textContent).toContain('The linked intake changed or could not be reverified'));
+  expect(h.note.value).toBe('');
+  expect(h.requests).toHaveLength(2);
+ }finally{h.dom.window.close();}
+});

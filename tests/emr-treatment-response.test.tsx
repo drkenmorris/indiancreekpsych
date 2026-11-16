@@ -1,0 +1,42 @@
+import React from 'react';
+import {afterEach,expect,test} from 'vitest';
+import {cleanup,render,screen} from '@testing-library/react';
+import {Editor} from '@tiptap/core';
+import {emptyTreatmentResponse,emptyRichDoc,validTreatmentResponse,validRichDoc} from '@/lib/emr/treatment-response';
+import {responseEditorExtensions} from '@/app/emr/treatment-response/RichTextEditor';
+import RichTextReadOnly from '@/app/emr/treatment-response/RichTextReadOnly';
+afterEach(cleanup);
+test('supports unanswered, per-person decisions, names and one identified patient',()=>{
+ const response=emptyTreatmentResponse();expect(validTreatmentResponse(response)).toBe(true);
+ response.participants[1].approval='yes';expect(validTreatmentResponse(response)).toBe(false);
+ response.participants[1].name='Fictional Partner';expect(validTreatmentResponse(response)).toBe(true);
+ response.participants.push({...response.participants[0]});expect(validTreatmentResponse(response)).toBe(false);
+});
+test('rich-text schema rejects HTML, scripts, external links, style injection, excessive nesting and size',()=>{
+ expect(validRichDoc(emptyRichDoc())).toBe(true);
+ for(const type of ['image','iframe','script','heading','codeBlock'])expect(validRichDoc({type:'doc',content:[{type}]})).toBe(false);
+ const text={type:'text',text:'Fictional'};
+ expect(validRichDoc({type:'doc',content:[{type:'paragraph',content:[{...text,marks:[{type:'link',attrs:{href:'javascript:alert(1)'}}]}]}]})).toBe(false);
+ expect(validRichDoc({type:'doc',content:[{type:'paragraph',attrs:{style:'background:url(x)'},content:[text]}]})).toBe(false);
+ expect(validRichDoc({type:'doc',content:[{type:'paragraph',content:[{type:'text',text:'x'.repeat(20001)}]}]})).toBe(false);
+ expect(validRichDoc({type:'doc',content:[{type:'text',text:'invalid topology'}]})).toBe(false);
+});
+test('editor commands round-trip every requested text format and history displays the same structured document safely',()=>{
+ const editor=new Editor({extensions:responseEditorExtensions,content:{type:'doc',content:[{type:'paragraph',content:[{type:'text',text:'Fictional response'}]}]}});
+ editor.commands.selectAll();
+ editor.chain().toggleBold().toggleItalic().toggleUnderline().toggleStrike().setFontFamily('Georgia').setFontSize('18pt').setTextAlign('justify').updateAttributes('paragraph',{indent:2}).run();
+ const doc=editor.getJSON();expect(validRichDoc(doc)).toBe(true);
+ const paragraph=doc.content![0];expect(paragraph.attrs).toMatchObject({textAlign:'justify',indent:2});
+ expect(paragraph.content![0].marks!.map(mark=>mark.type)).toEqual(expect.arrayContaining(['bold','italic','underline','strike','textStyle']));
+ render(<RichTextReadOnly value={doc}/>);
+ for(const tag of ['strong','em','u','s'])expect(document.querySelector('.responseReadOnly '+tag)).not.toBeNull();
+ expect(document.querySelector('[style*="Georgia"]')).not.toBeNull();
+ expect(screen.getByText('Fictional response')).not.toBeNull();
+ editor.chain().toggleBulletList().run();expect(validRichDoc(editor.getJSON())).toBe(true);
+ expect(editor.getJSON().content![0].type).toBe('bulletList');
+ editor.commands.undo();expect(editor.getJSON().content![0].type).toBe('paragraph');
+ editor.commands.setContent('<p><span style="font-family: UnknownFont; font-size: 16px">Fictional pasted text</span></p>');
+ expect(validRichDoc(editor.getJSON())).toBe(true);
+ expect(editor.getJSON().content![0].content![0].marks?.find(mark=>mark.type==='textStyle')?.attrs?.fontSize).toBe('12pt');
+ editor.destroy();
+});

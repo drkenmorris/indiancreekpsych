@@ -10,7 +10,7 @@ const maxBpsReviewBytes=35_000;
  * is only an early hint; chunked or dishonest clients must meet the same limit.
  * Never include rejected patient-supplied bytes in a response or log.
  */
-async function limitedBpsReviewBody(request:Request):Promise<string|null>{
+async function limitedBpsReviewBody(request:Request):Promise<string|null|undefined>{
  const declared=request.headers.get('content-length');
  if(declared!==null&&/^[0-9]+$/.test(declared)&&Number(declared)>maxBpsReviewBytes)return null;
  if(!request.body)return '';
@@ -28,7 +28,11 @@ async function limitedBpsReviewBody(request:Request):Promise<string|null>{
    }
    chunks.push(value);
   }
-  return Buffer.concat(chunks).toString('utf8');
+  // Buffer.toString silently replaces invalid UTF-8 with U+FFFD, rewriting
+  // clinical observations while still reporting a successful saved attestation.
+  // Reject malformed wire bytes without echoing the rejected source.
+  try{return new TextDecoder('utf-8',{fatal:true}).decode(Buffer.concat(chunks));}
+  catch{return undefined;}
  }finally{reader.releaseLock();}
 }
 async function linkedSource(supabase:NonNullable<Awaited<ReturnType<typeof emrAccess>>>['supabase'],id:string){
@@ -212,7 +216,9 @@ export async function POST(request:Request){
  const ctx=await emrAccess();
  if(!ctx||!sameOrigin(request))return reply({error:'Administrator sign-in, MFA and same-origin request required.'},403);
  try{
-  const raw=await limitedBpsReviewBody(request);if(raw===null)return reply({error:'BPS review request too large.'},413);
+  const raw=await limitedBpsReviewBody(request);
+  if(raw===null)return reply({error:'BPS review request too large.'},413);
+  if(raw===undefined)return reply({error:'Invalid BPS review text encoding.'},400);
   // Never reflect parser exception text: malformed requests may contain PHI.
   let body:Record<string,unknown>;
   try{body=JSON.parse(raw) as Record<string,unknown>;}

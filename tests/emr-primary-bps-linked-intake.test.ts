@@ -337,13 +337,23 @@ test.each([
  }]};
  const {ctx,dom}=harness(async()=>Response.json(receipt));
  ctx.render();
- await vi.waitFor(()=>expect(dom.window.document.querySelector(
-  'section[aria-label="Clinician-reviewed BPS intake snapshot history"]'
- )?.textContent).toContain('submitted intake version 6'));
- const history=dom.window.document.querySelector(
-  'section[aria-label="Clinician-reviewed BPS intake snapshot history"]')!;
- if(stale)expect(history.textContent).toContain('current intake version has changed');
- else expect(history.textContent).not.toContain('current intake version has changed');
+ if(stale){
+  // A conflicting exact source receipt is not merely a stale-review warning:
+  // the entire linked answer panel must fail closed, preserving original forms.
+  await vi.waitFor(()=>expect(dom.window.document.querySelector(
+   'section[aria-label="Patient intake context in original biopsychosocial workspace"] [role="alert"]'
+  )?.textContent).toContain('review history provenance'));
+  expect(dom.window.document.body.textContent).not.toContain('Fictional patient-reported concern');
+  expect(dom.window.document.querySelector(
+   'section[aria-label="Clinician-reviewed BPS intake snapshot history"]')).toBeNull();
+ }else{
+  await vi.waitFor(()=>expect(dom.window.document.querySelector(
+   'section[aria-label="Clinician-reviewed BPS intake snapshot history"]'
+  )?.textContent).toContain('submitted intake version 6'));
+  expect(dom.window.document.querySelector(
+   'section[aria-label="Clinician-reviewed BPS intake snapshot history"]')?.textContent)
+   .not.toContain('current intake version has changed');
+ }
  dom.window.close();
 });
 

@@ -57,6 +57,7 @@ test.each([
  ['missing linked account', {accountId:null}],
  ['invalid linked account', {accountId:'not-a-uuid'}],
  ['unsupported source status', {status:'revoked'}],
+ ['unrecognized questionnaire packet provenance', {questionnairePacketVersion:'2030-unknown'}],
   ['draft source with a contradictory patient submission receipt', {status:'draft'}],
  ['zero source version', {version:0}],
  ['unsafe integer source version', {version:Number.MAX_SAFE_INTEGER+1}],
@@ -393,4 +394,46 @@ test('clinician BPS rejects an answered source field with explicit source visibi
  expect(document.body.textContent).not.toContain(privateReport);
  expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
  expect(screen.queryByRole('button',{name:/Save reviewed BPS history snapshot/i})).toBeNull();
+});
+
+
+test('clinician save readback cannot verify a changed questionnaire packet at the same source revision',async()=>{
+ const patient='00000000-0000-4000-8000-000000000961';
+ const account='00000000-0000-4000-8000-000000000962';
+ const reviewId='00000000-0000-4000-8000-000000000963';
+ const stamp='2026-11-15T16:00:00Z';
+ const sections=Array.from({length:21},(_,i)=>({
+  title:'Historical source '+i,domain:'Clinical context',disposition:'clinical',
+  fields:[],answered:0
+ }));
+ let reads=0,posts=0;
+ vi.stubGlobal('fetch',vi.fn(async(_url:string,options?:RequestInit)=>{
+  if(options?.method==='POST'){
+   posts++;
+   return Response.json({saved:true,id:reviewId},{status:201});
+  }
+  reads++;
+  return Response.json({
+   patientId:patient,
+   source:{accountId:account,status:'submitted',version:4,
+    updatedAt:stamp,submittedAt:stamp,
+    questionnairePacketVersion:reads===1?'2026-10-11':'2026-11-02-directory-1'},
+   sections,unmappedKeys:[],
+   reviews:reads===1?[]:[{
+    id:reviewId,reviewed:true,source_version:4,source_status:'submitted',
+    source_updated_at:stamp,created_at:stamp,clinical_answers:{},clinician_notes:{}
+   }]
+  });
+ }));
+ render(<PatientBpsIntakeReview patientId={patient}/>);
+ await screen.findByText(/Questionnaire packet provenance/);
+ expect(screen.getByText('2026-10-11')).toBeTruthy();
+ fireEvent.click(screen.getByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i}));
+ fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed this intake/i}));
+ fireEvent.click(screen.getByRole('button',{name:/Save reviewed BPS history snapshot/i}));
+ const unverified=await screen.findByText(/linked intake source changed during chart-history verification/);
+ expect(unverified.textContent).toContain('NOT independently verified');
+ expect(screen.queryByText(/snapshot saved AND independently verified/)).toBeNull();
+ expect(reads).toBe(2);
+ expect(posts).toBe(1);
 });

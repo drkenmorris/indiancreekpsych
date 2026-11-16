@@ -28,9 +28,9 @@ function packet(version=7){
   version,updatedAt:stamp,submittedAt:stamp
  },sections,reviews:[],unmappedKeys:[]};
 }
-function harness(reply:(call:number)=>Promise<Response>){
+function harness(reply:(call:number)=>Promise<Response>,bpsPage:'developmental_personal'|'family_origin'='developmental_personal'){
  const dom=new JSDOM('<main id="content"></main>',{
-  url:'https://www.indiancreekpsych.com/emr/workspace?module=assessment&bps_page=developmental_personal'
+  url:'https://www.indiancreekpsych.com/emr/workspace?module=assessment&bps_page='+bpsPage
  });
  let calls=0;
  const requests:{url:string;method:string}[]=[];
@@ -45,12 +45,12 @@ function harness(reply:(call:number)=>Promise<Response>){
   settingsSection:()=>'',message:()=>{},configCard:()=>'',console,
   render:()=>{dom.window.document.querySelector('#content')!.innerHTML=
    '<nav><a data-bps-intake-review href="#">Review linked intake</a></nav>'+
-   '<form data-action="biopsychosocial_developmental_personal">'+
-   '<textarea name="source_notes" maxlength="4000"></textarea></form>';}
+   '<form data-action="'+(bpsPage==='family_origin'?'biopsychosocial_family_origin':'biopsychosocial_developmental_personal')+'">'+
+   '<textarea name="'+(bpsPage==='family_origin'?'other_notes':'source_notes')+'" maxlength="4000"></textarea></form>';}
  };
  runInNewContext(readFileSync('public/emr-assets/production.js','utf8'),ctx);
  ctx.render();
- const note=dom.window.document.querySelector('textarea[name="source_notes"]') as HTMLTextAreaElement;
+ const note=dom.window.document.querySelector('form textarea') as HTMLTextAreaElement;
  const button=()=>Array.from(dom.window.document.querySelectorAll('button')).find(
   (b:any)=>b.textContent?.includes('Place patient-reported source references')) as HTMLButtonElement;
  return {ctx,dom,note,button,requests,fetch};
@@ -292,5 +292,53 @@ test('matching directory section and packet version preserve safe original BPS d
   h.button().click();
   await vi.waitFor(()=>expect(h.note.value).toContain('FICTIONAL FRIEND SUPPORT'));
   expect(h.requests.every(request=>request.method==='GET')).toBe(true);
+ }finally{h.dom.window.close();}
+});
+
+test('original family-of-origin draft accepts only approved patient-reported social source after a fresh 21-section receipt, without saving',async()=>{
+ const h=harness(async()=>Response.json(packet()),'family_origin');
+ try{
+  await vi.waitFor(()=>expect(h.button()).toBeTruthy());
+  expect(h.button().textContent).toContain('family-of-origin');
+  expect(h.note.name).toBe('other_notes');
+  h.button().click();
+  await vi.waitFor(()=>expect(h.note.value).toContain('FICTIONAL FRIEND SUPPORT'));
+  expect(h.note.value).toContain('Unverified patient-reported website intake, version 7');
+  expect(h.note.value).not.toContain('PRIVATE FICTIONAL TRAUMA');
+  expect(h.note.value).not.toContain('PRIVATE FICTIONAL MEDICATION');
+  expect(h.requests).toEqual([
+   {url:'/api/emr/bps-intake?patient='+patient,method:'GET'},
+   {url:'/api/emr/bps-intake?patient='+patient,method:'GET'}
+  ]);
+  expect(h.dom.window.document.body.textContent).toContain('no clinician finding or signature was created');
+ }finally{h.dom.window.close();}
+});
+
+test('family-of-origin source transfer preserves existing clinician other-notes and never sends a write',async()=>{
+ const h=harness(async()=>Response.json(packet()),'family_origin');
+ try{
+  await vi.waitFor(()=>expect(h.button()).toBeTruthy());
+  h.note.value='  CLINICIAN FAMILY HISTORY NOTES  ';
+  h.button().click();
+  await vi.waitFor(()=>expect(h.dom.window.document.body.textContent).toContain('Existing clinician draft notes were preserved'));
+  expect(h.note.value).toBe('  CLINICIAN FAMILY HISTORY NOTES  ');
+  expect(h.requests).toHaveLength(1);
+ }finally{h.dom.window.close();}
+});
+
+test('family-of-origin draft rejects cross-section intake changes at the same revision and discloses no protected text',async()=>{
+ const h=harness(async call=>{
+  const source=packet();
+  if(call===2)source.sections.find(section=>section.title==='Medications')!.fields[0].value='CHANGED PRIVATE FICTIONAL MEDICATION';
+  return Response.json(source);
+ },'family_origin');
+ try{
+  await vi.waitFor(()=>expect(h.button()).toBeTruthy());
+  h.button().click();
+  await vi.waitFor(()=>expect(h.dom.window.document.body.textContent).toContain('The linked intake changed or could not be reverified'));
+  expect(h.note.value).toBe('');
+  expect(h.requests).toHaveLength(2);
+  expect(h.requests.every(request=>request.method==='GET')).toBe(true);
+  expect(h.dom.window.document.body.textContent).not.toContain('PRIVATE FICTIONAL MEDICATION');
  }finally{h.dom.window.close();}
 });

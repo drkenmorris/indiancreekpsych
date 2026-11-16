@@ -148,6 +148,42 @@ test('exactly matching clinician-reviewed BPS source version, status and timesta
  dom.window.close();
 });
 
+test.each([
+ ['historical source revision exceeds current website intake',(source:any)=>{source.reviews[0].source_version=7;}],
+ ['historical source timestamp is later than current intake',(source:any)=>{
+  source.reviews[0].source_updated_at='2026-11-10T12:00:00.000001Z';
+ }],
+ ['clinician review predates its claimed source revision',(source:any)=>{
+  source.reviews[0].created_at='2026-11-10T11:59:59.999999Z';
+ }],
+ ['clinician review precedes the submitted patient receipt',(source:any)=>{
+  source.source.submittedAt='2026-11-10T12:05:00Z';
+  source.reviews[0].created_at='2026-11-10T12:04:59.999999Z';
+ }],
+ ['duplicate clinician review receipt identities',(source:any)=>{
+  source.reviews.push({...source.reviews[0]});
+ }]
+])('original BPS withholds patient reports and false review attestation when %s',async(_name,corrupt)=>{
+ const source:any=report(firstPatient);
+ source.reviews=[{id:'00000000-0000-4000-8000-000000000998',
+  reviewed:true,source_version:6,source_status:'submitted',
+  source_updated_at:'2026-11-10T12:00:00Z',
+  created_at:'2026-11-10T12:10:00Z',clinical_answers:{},clinician_notes:{}}];
+ corrupt(source);
+ const {ctx,dom}=harness(async()=>Response.json(source));
+ ctx.render();
+ const panel=()=>dom.window.document.querySelector(
+  'section[aria-label="Patient intake context in original biopsychosocial workspace"]')!;
+ await vi.waitFor(()=>expect(panel()?.querySelector('[role="alert"]')?.textContent)
+  .toContain('review history provenance'));
+ expect(panel().textContent).not.toContain('Fictional patient-reported concern');
+ expect(panel().textContent).not.toContain('attested clinician review(s)');
+ expect(panel().textContent).toContain('no intake data were imported');
+ expect(dom.window.document.querySelector('#clinical-form')?.textContent)
+  .toContain('Original BPS clinical form remains available');
+ dom.window.close();
+});
+
 test('original BPS refreshes a changed linked intake without saving or resetting the clinical form',async()=>{
  let sourceVersion=6;
  const calls:{url:string;method:string}[]=[];

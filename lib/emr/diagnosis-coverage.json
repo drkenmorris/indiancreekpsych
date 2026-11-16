@@ -1,0 +1,1066 @@
+{
+  "version": "DSM literal-code coverage audit / 1",
+  "checkedOn": "2026-11-15",
+  "catalogVersion": "ICD-10-CM FY2027",
+  "scope": "Literal ICD-10-CM codes in the DSM-5-TR 2022 classification (PDF pages 41\u201391) plus the cumulative APA September 2025 update. Includes associated medical-condition examples. This is not a diagnosis-name/specifier completeness audit or advice to use historical DSM mappings.",
+  "sources": [
+    {
+      "title": "APA DSM-5-TR classification (publisher record)",
+      "url": "https://psychiatryonline.org/doi/10.1176/appi.books.9780890425787.x00_Diagnostic_Classification"
+    },
+    {
+      "title": "2022 manual used for literal-code comparison",
+      "url": "https://www.ncsby.org/sites/default/files/2024-02/DSM%205%20TR.pdf"
+    },
+    {
+      "title": "APA cumulative updates through September 2025",
+      "url": "https://www.psychiatry.org/getmedia/b68a5776-f88c-45c7-9535-fd219d7aa5cb/APA-DSM5TR-Update-September-2025.pdf"
+    },
+    {
+      "title": "Official FY2027 ICD-10-CM descriptions",
+      "url": "https://ftp.cdc.gov/pub/health_statistics/nchs/Publications/ICD10CM/2027/icd10cm-code-descriptions-2027.zip"
+    }
+  ],
+  "comparedCodes": 820,
+  "presentCodes": 717,
+  "missingCurrentCodes": [
+    {
+      "code": "A81.9",
+      "label": "Atypical virus infection of central nervous system, unspecified",
+      "references": [
+        "2022 classification",
+        "APA cumulative updates through September 2025"
+      ]
+    },
+    {
+      "code": "B20",
+      "label": "Human immunodeficiency virus [HIV] disease",
+      "references": [
+        "2022 classification",
+        "APA cumulative updates through September 2025"
+      ]
+    },
+    {
+      "code": "E66.9",
+      "label": "Obesity, unspecified",
+      "references": [
+        "2022 classification"
+      ]
+    },
+    {
+      "code": "G10",
+      "label": "Huntington's disease",
+      "references": [
+        "2022 classification",
+        "APA cumulative updates through September 2025"
+      ]
+    },
+    {
+      "code": "G20.C",
+      "label": "Parkinsonism, unspecified",
+      "references": [
+        "APA cumulative updates through September 2025"
+      ]
+    },
+    {
+      "code": "G21.0",
+      "label": "Malignant neuroleptic syndrome",
+      "references": [
+        "2022 classification"
+      ]
+    },
+    {
+      "code": "G21.11",
+      "label": "Neuroleptic induced parkinsonism",
+      "references": [
+        "2022 classification"
+      ]
+    },
+    {
+      "code": "G21.19",
+      "label": "Other drug induced secondary parkinsonism",
+      "references": [
+        "2022 classification"
+      ]
+    },
+    {
+      "code": "G24.01",
+      "label": "Drug induced subacute dyskinesia",
+      "references": [
+        "2022 classification"
+      ]
+    },
+    {
+      "code": "G24.02",
+      "label": "Drug induced acute dystonia",
+      "references": [
+        "2022 classification"
+      ]
+    },
+    {
+      "code": "G24.09",
+      "label": "Other drug induced dystonia",
+      "references": [
+        "2022 classification"
+      ]
+    },
+    {
+      "code": "G25.1",
+      "label": "Drug-induced tremor",
+      "references": [
+        "2022 classification"
+      ]
+    },
+    {
+      "code": "G25.71",
+      "label": "Drug induced akathisia",
+      "references": [
+        "2022 classification"
+      ]
+    },
+    {
+      "code": "G25.79",
+      "label": "Other drug induced movement disorders",
+      "references": [
+        "2022 classification"
+      ]
+    },
+    {
+      "code": "G25.81",
+      "label": "Restless legs syndrome",
+      "references": [
+        "2022 classification"
+      ]
+    },
+    {
+      "code": "G30.9",
+      "label": "Alzheimer's disease, unspecified",
+      "references": [
+        "2022 classification",
+        "APA cumulative updates through September 2025"
+      ]
+    },
+    {
+      "code": "G31.09",
+      "label": "Other frontotemporal neurocognitive disorder",
+      "references": [
+        "2022 classification",
+        "APA cumulative updates through September 2025"
+      ]
+    },
+    {
+      "code": "G31.83",
+      "label": "Neurocognitive disorder with Lewy bodies",
+      "references": [
+        "2022 classification",
+        "APA cumulative updates through September 2025"
+      ]
+    },
+    {
+      "code": "G31.84",
+      "label": "Mild cognitive impairment of uncertain or unknown etiology",
+      "references": [
+        "2022 classification",
+        "APA cumulative updates through September 2025"
+      ]
+    },
+    {
+      "code": "G35.D",
+      "label": "Multiple sclerosis, unspecified",
+      "references": [
+        "APA cumulative updates through September 2025"
+      ]
+    },
+    {
+      "code": "I67.9",
+      "label": "Cerebrovascular disease, unspecified",
+      "references": [
+        "APA cumulative updates through September 2025"
+      ]
+    },
+    {
+      "code": "K72.90",
+      "label": "Hepatic failure, unspecified without coma",
+      "references": [
+        "APA cumulative updates through September 2025"
+      ]
+    },
+    {
+      "code": "K76.82",
+      "label": "Hepatic encephalopathy",
+      "references": [
+        "APA cumulative updates through September 2025"
+      ]
+    },
+    {
+      "code": "N39.498",
+      "label": "Other specified urinary incontinence",
+      "references": [
+        "2022 classification"
+      ]
+    },
+    {
+      "code": "R06.3",
+      "label": "Periodic breathing",
+      "references": [
+        "2022 classification"
+      ]
+    },
+    {
+      "code": "R15.9",
+      "label": "Full incontinence of feces",
+      "references": [
+        "2022 classification"
+      ]
+    },
+    {
+      "code": "R29.818",
+      "label": "Other symptoms and signs involving the nervous system",
+      "references": [
+        "2022 classification"
+      ]
+    },
+    {
+      "code": "R32",
+      "label": "Unspecified urinary incontinence",
+      "references": [
+        "2022 classification"
+      ]
+    },
+    {
+      "code": "S06.2X9S",
+      "label": "Diffuse traumatic brain injury with loss of consciousness of unspecified duration, sequela",
+      "references": [
+        "2022 classification",
+        "APA cumulative updates through September 2025"
+      ]
+    },
+    {
+      "code": "S06.2XAS",
+      "label": "Diffuse traumatic brain injury with loss of consciousness status unknown, sequela",
+      "references": [
+        "APA cumulative updates through September 2025"
+      ]
+    },
+    {
+      "code": "T14.91XA",
+      "label": "Suicide attempt, initial encounter",
+      "references": [
+        "APA cumulative updates through September 2025"
+      ]
+    },
+    {
+      "code": "T14.91XD",
+      "label": "Suicide attempt, subsequent encounter",
+      "references": [
+        "APA cumulative updates through September 2025"
+      ]
+    },
+    {
+      "code": "T43.205A",
+      "label": "Adverse effect of unspecified antidepressants, initial encounter",
+      "references": [
+        "2022 classification"
+      ]
+    },
+    {
+      "code": "T43.205D",
+      "label": "Adverse effect of unspecified antidepressants, subsequent encounter",
+      "references": [
+        "2022 classification"
+      ]
+    },
+    {
+      "code": "T43.205S",
+      "label": "Adverse effect of unspecified antidepressants, sequela",
+      "references": [
+        "2022 classification"
+      ]
+    },
+    {
+      "code": "T50.905A",
+      "label": "Adverse effect of unspecified drugs, medicaments and biological substances, initial encounter",
+      "references": [
+        "2022 classification"
+      ]
+    },
+    {
+      "code": "T50.905D",
+      "label": "Adverse effect of unspecified drugs, medicaments and biological substances, subsequent encounter",
+      "references": [
+        "2022 classification"
+      ]
+    },
+    {
+      "code": "T50.905S",
+      "label": "Adverse effect of unspecified drugs, medicaments and biological substances, sequela",
+      "references": [
+        "2022 classification"
+      ]
+    },
+    {
+      "code": "T74.01XA",
+      "label": "Adult neglect or abandonment, confirmed, initial encounter",
+      "references": [
+        "2022 classification"
+      ]
+    },
+    {
+      "code": "T74.01XD",
+      "label": "Adult neglect or abandonment, confirmed, subsequent encounter",
+      "references": [
+        "2022 classification"
+      ]
+    },
+    {
+      "code": "T74.02XA",
+      "label": "Child neglect or abandonment, confirmed, initial encounter",
+      "references": [
+        "2022 classification"
+      ]
+    },
+    {
+      "code": "T74.02XD",
+      "label": "Child neglect or abandonment, confirmed, subsequent encounter",
+      "references": [
+        "2022 classification"
+      ]
+    },
+    {
+      "code": "T74.11XA",
+      "label": "Adult physical abuse, confirmed, initial encounter",
+      "references": [
+        "2022 classification"
+      ]
+    },
+    {
+      "code": "T74.11XD",
+      "label": "Adult physical abuse, confirmed, subsequent encounter",
+      "references": [
+        "2022 classification"
+      ]
+    },
+    {
+      "code": "T74.12XA",
+      "label": "Child physical abuse, confirmed, initial encounter",
+      "references": [
+        "2022 classification"
+      ]
+    },
+    {
+      "code": "T74.12XD",
+      "label": "Child physical abuse, confirmed, subsequent encounter",
+      "references": [
+        "2022 classification"
+      ]
+    },
+    {
+      "code": "T74.21XA",
+      "label": "Adult sexual abuse, confirmed, initial encounter",
+      "references": [
+        "2022 classification"
+      ]
+    },
+    {
+      "code": "T74.21XD",
+      "label": "Adult sexual abuse, confirmed, subsequent encounter",
+      "references": [
+        "2022 classification"
+      ]
+    },
+    {
+      "code": "T74.22XA",
+      "label": "Child sexual abuse, confirmed, initial encounter",
+      "references": [
+        "2022 classification"
+      ]
+    },
+    {
+      "code": "T74.22XD",
+      "label": "Child sexual abuse, confirmed, subsequent encounter",
+      "references": [
+        "2022 classification"
+      ]
+    },
+    {
+      "code": "T74.31XA",
+      "label": "Adult psychological abuse, confirmed, initial encounter",
+      "references": [
+        "2022 classification"
+      ]
+    },
+    {
+      "code": "T74.31XD",
+      "label": "Adult psychological abuse, confirmed, subsequent encounter",
+      "references": [
+        "2022 classification"
+      ]
+    },
+    {
+      "code": "T74.32XA",
+      "label": "Child psychological abuse, confirmed, initial encounter",
+      "references": [
+        "2022 classification"
+      ]
+    },
+    {
+      "code": "T74.32XD",
+      "label": "Child psychological abuse, confirmed, subsequent encounter",
+      "references": [
+        "2022 classification"
+      ]
+    },
+    {
+      "code": "T76.01XA",
+      "label": "Adult neglect or abandonment, suspected, initial encounter",
+      "references": [
+        "2022 classification"
+      ]
+    },
+    {
+      "code": "T76.01XD",
+      "label": "Adult neglect or abandonment, suspected, subsequent encounter",
+      "references": [
+        "2022 classification"
+      ]
+    },
+    {
+      "code": "T76.02XA",
+      "label": "Child neglect or abandonment, suspected, initial encounter",
+      "references": [
+        "2022 classification"
+      ]
+    },
+    {
+      "code": "T76.02XD",
+      "label": "Child neglect or abandonment, suspected, subsequent encounter",
+      "references": [
+        "2022 classification"
+      ]
+    },
+    {
+      "code": "T76.11XA",
+      "label": "Adult physical abuse, suspected, initial encounter",
+      "references": [
+        "2022 classification"
+      ]
+    },
+    {
+      "code": "T76.11XD",
+      "label": "Adult physical abuse, suspected, subsequent encounter",
+      "references": [
+        "2022 classification"
+      ]
+    },
+    {
+      "code": "T76.12XA",
+      "label": "Child physical abuse, suspected, initial encounter",
+      "references": [
+        "2022 classification"
+      ]
+    },
+    {
+      "code": "T76.12XD",
+      "label": "Child physical abuse, suspected, subsequent encounter",
+      "references": [
+        "2022 classification"
+      ]
+    },
+    {
+      "code": "T76.21XA",
+      "label": "Adult sexual abuse, suspected, initial encounter",
+      "references": [
+        "2022 classification"
+      ]
+    },
+    {
+      "code": "T76.21XD",
+      "label": "Adult sexual abuse, suspected, subsequent encounter",
+      "references": [
+        "2022 classification"
+      ]
+    },
+    {
+      "code": "T76.22XA",
+      "label": "Child sexual abuse, suspected, initial encounter",
+      "references": [
+        "2022 classification"
+      ]
+    },
+    {
+      "code": "T76.22XD",
+      "label": "Child sexual abuse, suspected, subsequent encounter",
+      "references": [
+        "2022 classification"
+      ]
+    },
+    {
+      "code": "T76.31XA",
+      "label": "Adult psychological abuse, suspected, initial encounter",
+      "references": [
+        "2022 classification"
+      ]
+    },
+    {
+      "code": "T76.31XD",
+      "label": "Adult psychological abuse, suspected, subsequent encounter",
+      "references": [
+        "2022 classification"
+      ]
+    },
+    {
+      "code": "T76.32XA",
+      "label": "Child psychological abuse, suspected, initial encounter",
+      "references": [
+        "2022 classification"
+      ]
+    },
+    {
+      "code": "T76.32XD",
+      "label": "Child psychological abuse, suspected, subsequent encounter",
+      "references": [
+        "2022 classification"
+      ]
+    }
+  ],
+  "historicalOrCategoryCodes": [
+    {
+      "code": "F01",
+      "label": "Vascular dementia",
+      "references": [
+        "APA cumulative updates through September 2025"
+      ],
+      "reason": "Nonterminal category: choose a current specific descendant",
+      "availableDescendants": [
+        "F01.50",
+        "F01.511",
+        "F01.518",
+        "F01.52",
+        "F01.53",
+        "F01.54",
+        "F01.A0",
+        "F01.A11",
+        "F01.A18",
+        "F01.A2",
+        "F01.A3",
+        "F01.A4",
+        "F01.B0",
+        "F01.B11",
+        "F01.B18",
+        "F01.B2",
+        "F01.B3",
+        "F01.B4",
+        "F01.C0",
+        "F01.C11",
+        "F01.C18",
+        "F01.C2",
+        "F01.C3",
+        "F01.C4"
+      ]
+    },
+    {
+      "code": "F01.51",
+      "label": "Vascular dementia, unspecified severity, with behavioral disturbance",
+      "references": [
+        "2022 classification",
+        "APA cumulative updates through September 2025"
+      ],
+      "reason": "Nonterminal category: choose a current specific descendant",
+      "availableDescendants": [
+        "F01.511",
+        "F01.518"
+      ]
+    },
+    {
+      "code": "F01.A",
+      "label": "Vascular dementia, mild",
+      "references": [
+        "APA cumulative updates through September 2025"
+      ],
+      "reason": "Nonterminal category: choose a current specific descendant",
+      "availableDescendants": [
+        "F01.A0",
+        "F01.A11",
+        "F01.A18",
+        "F01.A2",
+        "F01.A3",
+        "F01.A4"
+      ]
+    },
+    {
+      "code": "F01.B",
+      "label": "Vascular dementia, moderate",
+      "references": [
+        "APA cumulative updates through September 2025"
+      ],
+      "reason": "Nonterminal category: choose a current specific descendant",
+      "availableDescendants": [
+        "F01.B0",
+        "F01.B11",
+        "F01.B18",
+        "F01.B2",
+        "F01.B3",
+        "F01.B4"
+      ]
+    },
+    {
+      "code": "F01.C",
+      "label": "Vascular dementia, severe",
+      "references": [
+        "APA cumulative updates through September 2025"
+      ],
+      "reason": "Nonterminal category: choose a current specific descendant",
+      "availableDescendants": [
+        "F01.C0",
+        "F01.C11",
+        "F01.C18",
+        "F01.C2",
+        "F01.C3",
+        "F01.C4"
+      ]
+    },
+    {
+      "code": "F02",
+      "label": "Dementia in other diseases classified elsewhere",
+      "references": [
+        "APA cumulative updates through September 2025"
+      ],
+      "reason": "Nonterminal category: choose a current specific descendant",
+      "availableDescendants": [
+        "F02.80",
+        "F02.811",
+        "F02.818",
+        "F02.82",
+        "F02.83",
+        "F02.84",
+        "F02.A0",
+        "F02.A11",
+        "F02.A18",
+        "F02.A2",
+        "F02.A3",
+        "F02.A4",
+        "F02.B0",
+        "F02.B11",
+        "F02.B18",
+        "F02.B2",
+        "F02.B3",
+        "F02.B4",
+        "F02.C0",
+        "F02.C11",
+        "F02.C18",
+        "F02.C2",
+        "F02.C3",
+        "F02.C4"
+      ]
+    },
+    {
+      "code": "F02.81",
+      "label": "Dementia in other diseases classified elsewhere, unspecified severity, with behavioral disturbance",
+      "references": [
+        "2022 classification",
+        "APA cumulative updates through September 2025"
+      ],
+      "reason": "Nonterminal category: choose a current specific descendant",
+      "availableDescendants": [
+        "F02.811",
+        "F02.818"
+      ]
+    },
+    {
+      "code": "F02.A",
+      "label": "Dementia in other diseases classified elsewhere, mild",
+      "references": [
+        "APA cumulative updates through September 2025"
+      ],
+      "reason": "Nonterminal category: choose a current specific descendant",
+      "availableDescendants": [
+        "F02.A0",
+        "F02.A11",
+        "F02.A18",
+        "F02.A2",
+        "F02.A3",
+        "F02.A4"
+      ]
+    },
+    {
+      "code": "F02.B",
+      "label": "Dementia in other diseases classified elsewhere, moderate",
+      "references": [
+        "APA cumulative updates through September 2025"
+      ],
+      "reason": "Nonterminal category: choose a current specific descendant",
+      "availableDescendants": [
+        "F02.B0",
+        "F02.B11",
+        "F02.B18",
+        "F02.B2",
+        "F02.B3",
+        "F02.B4"
+      ]
+    },
+    {
+      "code": "F02.C",
+      "label": "Dementia in other diseases classified elsewhere, severe",
+      "references": [
+        "APA cumulative updates through September 2025"
+      ],
+      "reason": "Nonterminal category: choose a current specific descendant",
+      "availableDescendants": [
+        "F02.C0",
+        "F02.C11",
+        "F02.C18",
+        "F02.C2",
+        "F02.C3",
+        "F02.C4"
+      ]
+    },
+    {
+      "code": "F03",
+      "label": "Unspecified dementia",
+      "references": [
+        "APA cumulative updates through September 2025"
+      ],
+      "reason": "Nonterminal category: choose a current specific descendant",
+      "availableDescendants": [
+        "F03.90",
+        "F03.911",
+        "F03.918",
+        "F03.92",
+        "F03.93",
+        "F03.94",
+        "F03.A0",
+        "F03.A11",
+        "F03.A18",
+        "F03.A2",
+        "F03.A3",
+        "F03.A4",
+        "F03.B0",
+        "F03.B11",
+        "F03.B18",
+        "F03.B2",
+        "F03.B3",
+        "F03.B4",
+        "F03.C0",
+        "F03.C11",
+        "F03.C18",
+        "F03.C2",
+        "F03.C3",
+        "F03.C4"
+      ]
+    },
+    {
+      "code": "F03.A",
+      "label": "Unspecified dementia, mild",
+      "references": [
+        "APA cumulative updates through September 2025"
+      ],
+      "reason": "Nonterminal category: choose a current specific descendant",
+      "availableDescendants": [
+        "F03.A0",
+        "F03.A11",
+        "F03.A18",
+        "F03.A2",
+        "F03.A3",
+        "F03.A4"
+      ]
+    },
+    {
+      "code": "F03.B",
+      "label": "Unspecified dementia, moderate",
+      "references": [
+        "APA cumulative updates through September 2025"
+      ],
+      "reason": "Nonterminal category: choose a current specific descendant",
+      "availableDescendants": [
+        "F03.B0",
+        "F03.B11",
+        "F03.B18",
+        "F03.B2",
+        "F03.B3",
+        "F03.B4"
+      ]
+    },
+    {
+      "code": "F03.C",
+      "label": "Unspecified dementia, severe",
+      "references": [
+        "APA cumulative updates through September 2025"
+      ],
+      "reason": "Nonterminal category: choose a current specific descendant",
+      "availableDescendants": [
+        "F03.C0",
+        "F03.C11",
+        "F03.C18",
+        "F03.C2",
+        "F03.C3",
+        "F03.C4"
+      ]
+    },
+    {
+      "code": "F06.7",
+      "label": "Mild neurocognitive disorder due to known physiological condition",
+      "references": [
+        "APA cumulative updates through September 2025"
+      ],
+      "reason": "Nonterminal category: choose a current specific descendant",
+      "availableDescendants": [
+        "F06.70",
+        "F06.71"
+      ]
+    },
+    {
+      "code": "F11.180",
+      "label": "No exact current FY2027 entry",
+      "references": [
+        "2022 classification",
+        "APA cumulative updates through September 2025"
+      ],
+      "reason": "Withdrawn code, historical code, or incomplete coding example; not selectable as written",
+      "availableDescendants": []
+    },
+    {
+      "code": "F11.280",
+      "label": "No exact current FY2027 entry",
+      "references": [
+        "2022 classification",
+        "APA cumulative updates through September 2025"
+      ],
+      "reason": "Withdrawn code, historical code, or incomplete coding example; not selectable as written",
+      "availableDescendants": []
+    },
+    {
+      "code": "F11.980",
+      "label": "No exact current FY2027 entry",
+      "references": [
+        "2022 classification",
+        "APA cumulative updates through September 2025"
+      ],
+      "reason": "Withdrawn code, historical code, or incomplete coding example; not selectable as written",
+      "availableDescendants": []
+    },
+    {
+      "code": "F43.8",
+      "label": "Other reactions to severe stress",
+      "references": [
+        "2022 classification",
+        "APA cumulative updates through September 2025"
+      ],
+      "reason": "Nonterminal category: choose a current specific descendant",
+      "availableDescendants": [
+        "F43.81",
+        "F43.89"
+      ]
+    },
+    {
+      "code": "F50",
+      "label": "Eating disorders",
+      "references": [
+        "APA cumulative updates through September 2025"
+      ],
+      "reason": "Nonterminal category: choose a current specific descendant",
+      "availableDescendants": [
+        "F50.00",
+        "F50.010",
+        "F50.011",
+        "F50.012",
+        "F50.013",
+        "F50.014",
+        "F50.019",
+        "F50.020",
+        "F50.021",
+        "F50.022",
+        "F50.023",
+        "F50.024",
+        "F50.029",
+        "F50.20",
+        "F50.21",
+        "F50.22",
+        "F50.23",
+        "F50.24",
+        "F50.25",
+        "F50.810",
+        "F50.811",
+        "F50.812",
+        "F50.813",
+        "F50.814",
+        "F50.819",
+        "F50.82",
+        "F50.83",
+        "F50.84",
+        "F50.89",
+        "F50.9"
+      ]
+    },
+    {
+      "code": "F50.01",
+      "label": "Anorexia nervosa, restricting type",
+      "references": [
+        "2022 classification",
+        "APA cumulative updates through September 2025"
+      ],
+      "reason": "Nonterminal category: choose a current specific descendant",
+      "availableDescendants": [
+        "F50.010",
+        "F50.011",
+        "F50.012",
+        "F50.013",
+        "F50.014",
+        "F50.019"
+      ]
+    },
+    {
+      "code": "F50.02",
+      "label": "Anorexia nervosa, binge eating/purging type",
+      "references": [
+        "2022 classification",
+        "APA cumulative updates through September 2025"
+      ],
+      "reason": "Nonterminal category: choose a current specific descendant",
+      "availableDescendants": [
+        "F50.020",
+        "F50.021",
+        "F50.022",
+        "F50.023",
+        "F50.024",
+        "F50.029"
+      ]
+    },
+    {
+      "code": "F50.2",
+      "label": "Bulimia nervosa",
+      "references": [
+        "2022 classification",
+        "APA cumulative updates through September 2025"
+      ],
+      "reason": "Nonterminal category: choose a current specific descendant",
+      "availableDescendants": [
+        "F50.20",
+        "F50.21",
+        "F50.22",
+        "F50.23",
+        "F50.24",
+        "F50.25"
+      ]
+    },
+    {
+      "code": "F50.81",
+      "label": "Binge eating disorder",
+      "references": [
+        "2022 classification",
+        "APA cumulative updates through September 2025"
+      ],
+      "reason": "Nonterminal category: choose a current specific descendant",
+      "availableDescendants": [
+        "F50.810",
+        "F50.811",
+        "F50.812",
+        "F50.813",
+        "F50.814",
+        "F50.819"
+      ]
+    },
+    {
+      "code": "F50.893",
+      "label": "No exact current FY2027 entry",
+      "references": [
+        "APA cumulative updates through September 2025"
+      ],
+      "reason": "Withdrawn code, historical code, or incomplete coding example; not selectable as written",
+      "availableDescendants": []
+    },
+    {
+      "code": "F59.41",
+      "label": "No exact current FY2027 entry",
+      "references": [
+        "APA cumulative updates through September 2025"
+      ],
+      "reason": "Withdrawn code, historical code, or incomplete coding example; not selectable as written",
+      "availableDescendants": []
+    },
+    {
+      "code": "G20",
+      "label": "Parkinson's disease",
+      "references": [
+        "2022 classification",
+        "APA cumulative updates through September 2025"
+      ],
+      "reason": "Nonterminal category: choose a current specific descendant",
+      "availableDescendants": []
+    },
+    {
+      "code": "G35",
+      "label": "Multiple sclerosis",
+      "references": [
+        "APA cumulative updates through September 2025"
+      ],
+      "reason": "Nonterminal category: choose a current specific descendant",
+      "availableDescendants": []
+    },
+    {
+      "code": "T14.91A",
+      "label": "No exact current FY2027 entry",
+      "references": [
+        "2022 classification",
+        "APA cumulative updates through September 2025"
+      ],
+      "reason": "Withdrawn code, historical code, or incomplete coding example; not selectable as written",
+      "availableDescendants": []
+    },
+    {
+      "code": "T14.91D",
+      "label": "No exact current FY2027 entry",
+      "references": [
+        "2022 classification",
+        "APA cumulative updates through September 2025"
+      ],
+      "reason": "Withdrawn code, historical code, or incomplete coding example; not selectable as written",
+      "availableDescendants": []
+    },
+    {
+      "code": "Z59.1",
+      "label": "Inadequate housing",
+      "references": [
+        "2022 classification",
+        "APA cumulative updates through September 2025"
+      ],
+      "reason": "Nonterminal category: choose a current specific descendant",
+      "availableDescendants": [
+        "Z59.10",
+        "Z59.11",
+        "Z59.12",
+        "Z59.19"
+      ]
+    },
+    {
+      "code": "Z59.7",
+      "label": "Insufficient social insurance and welfare support",
+      "references": [
+        "2022 classification",
+        "APA cumulative updates through September 2025"
+      ],
+      "reason": "Nonterminal category: choose a current specific descendant",
+      "availableDescendants": [
+        "Z59.71",
+        "Z59.72"
+      ]
+    },
+    {
+      "code": "Z91.19",
+      "label": "Patient's noncompliance with other medical treatment and regimen",
+      "references": [
+        "2022 classification",
+        "APA cumulative updates through September 2025"
+      ],
+      "reason": "Nonterminal category: choose a current specific descendant",
+      "availableDescendants": [
+        "Z91.190",
+        "Z91.198",
+        "Z91.199"
+      ]
+    }
+  ],
+  "sourceHashes": {
+    "manual": "e08f52c8cc7982f718befc14f9d6a17877426026c304bc2cc440195bb6318902",
+    "updates": "86b5244f883090ba968e2bcd80a8c45c075dc72d472d03928c6f52b803632aa8"
+  }
+}

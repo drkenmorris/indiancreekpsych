@@ -1,8 +1,25 @@
-.diagnosisTableScroll{overflow:auto;max-width:100%;max-height:70vh;container-type:inline-size}
-.diagnosisTable{border-collapse:separate;border-spacing:0;width:100%;min-width:1100px}
+.diagnosisCard{margin-block:1rem 1.5rem;padding:1rem;border:1px solid #c9dce0;border-radius:.6rem;background:white;min-width:0}
+.diagnosisCard h2{font-size:1.15rem;margin-block:0 .6rem;overflow-wrap:anywhere}
+.diagnosisTableScroll{overflow:auto;max-width:100%;container-type:inline-size}
+.diagnosisTable{border-collapse:separate;border-spacing:0;width:100%;min-width:880px}
+.diagnosisTable caption{text-align:left;font-weight:600;padding-block:.25rem .5rem}
 .diagnosisTable th,.diagnosisTable td{padding:.65rem;vertical-align:top;border-bottom:1px solid #d7e3e6;text-align:left}
-.diagnosisTable th{position:sticky;top:0;background:#edf5f5;z-index:1}
-.diagnosisTable select,.diagnosisTable textarea{width:100%;min-width:130px;max-width:280px;font:inherit}
-.diagnosisTable td:nth-child(3) select{min-width:230px}
+.diagnosisTable thead th{position:sticky;top:0;background:#edf5f5;z-index:1}
+.diagnosisTable select{width:100%;min-width:110px;max-width:260px;font:inherit}
+.diagnosisTable td:nth-child(3) select{min-width:210px}
 .diagnosisTable output{display:block;white-space:nowrap;padding:.5rem}
 .diagnosisTableScroll:focus-visible{outline:3px solid #1a6b75;outline-offset:2px}
+.diagnosisNotesLine{margin-block:1rem;display:grid;gap:.4rem}
+.diagnosisNotesLine label{font-weight:600}
+.diagnosisNotesLine textarea{width:100%;max-width:none;min-width:0;box-sizing:border-box;font:inherit;resize:vertical}
+.diagnosisActionsLine{display:flex;align-items:center;flex-wrap:wrap;gap:.65rem;padding-block:.75rem;border-top:1px solid #d7e3e6}
+.diagnosisReference{margin-block:1rem;padding:1rem;background:#f3f8f8;border-radius:.35rem;overflow-wrap:anywhere}
+.diagnosisReferenceColumns{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:1.25rem}
+.diagnosisReference h3{font-size:1rem;margin-block:0 .6rem}
+.diagnosisReference p,.diagnosisReference li{line-height:1.5}
+.diagnosisRelatedCodes{display:grid;gap:1rem}
+.diagnosisRelatedCodes select{display:block;max-width:100%;width:100%;margin-block:.4rem;font:inherit}
+.diagnosisRelatedCodes button{margin-top:.3rem}
+.coverageTable{min-width:600px}
+.coverageTable tbody th{white-space:nowrap}
+@media print{.diagnosisActionsLine{display:none}.diagnosisTableScroll{overflow:visible}.diagnosisTable{min-width:0}}

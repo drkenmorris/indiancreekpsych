@@ -5,6 +5,32 @@ import {bpsNoteDomains,mapIntakeToBps,sanitizeBpsClinicianNotes,sanitizeBpsSnaps
 export const dynamic='force-dynamic';
 const reply=(data:unknown,status=200)=>NextResponse.json(data,{status,headers:privateHeaders});
 const sourceFields='patient_id,answers,status,version,updated_at,submitted_at';
+const maxBpsReviewBytes=35_000;
+/** Bound the clinical POST body before materializing it. A Content-Length header
+ * is only an early hint; chunked or dishonest clients must meet the same limit.
+ * Never include rejected patient-supplied bytes in a response or log.
+ */
+async function limitedBpsReviewBody(request:Request):Promise<string|null>{
+ const declared=request.headers.get('content-length');
+ if(declared!==null&&/^\\d+$/.test(declared)&&Number(declared)>maxBpsReviewBytes)return null;
+ if(!request.body)return '';
+ const reader=request.body.getReader();
+ const chunks:Uint8Array[]=[];
+ let bytes=0;
+ try{
+  while(true){
+   const {value,done}=await reader.read();
+   if(done)break;
+   bytes+=value.byteLength;
+   if(bytes>maxBpsReviewBytes){
+    await reader.cancel().catch(()=>undefined);
+    return null;
+   }
+   chunks.push(value);
+  }
+  return Buffer.concat(chunks).toString('utf8');
+ }finally{reader.releaseLock();}
+}
 async function linkedSource(supabase:NonNullable<Awaited<ReturnType<typeof emrAccess>>>['supabase'],id:string){
  const patient=await supabase.from('clinical_patients').select('id,account_id,directory_deleted_at').eq('id',id).is('directory_deleted_at',null).maybeSingle();
  if(patient.error)throw Error('Central patient repository unavailable.');
@@ -186,7 +212,7 @@ export async function POST(request:Request){
  const ctx=await emrAccess();
  if(!ctx||!sameOrigin(request))return reply({error:'Administrator sign-in, MFA and same-origin request required.'},403);
  try{
-  const raw=await request.text();if(Buffer.byteLength(raw)>35000)return reply({error:'BPS review request too large.'},413);
+  const raw=await limitedBpsReviewBody(request);if(raw===null)return reply({error:'BPS review request too large.'},413);
   // Never reflect parser exception text: malformed requests may contain PHI.
   let body:Record<string,unknown>;
   try{body=JSON.parse(raw) as Record<string,unknown>;}

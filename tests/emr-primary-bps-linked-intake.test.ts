@@ -153,6 +153,12 @@ test.each([
  ['historical source timestamp is later than current intake',(source:any)=>{
   source.reviews[0].source_updated_at='2026-11-10T12:00:00.000001Z';
  }],
+ ['review claims current version with an earlier source edit receipt',(source:any)=>{
+  source.reviews[0].source_updated_at='2026-11-10T11:59:59.999999Z';
+ }],
+ ['review claims the current submitted version but records draft status',(source:any)=>{
+  source.reviews[0].source_status='draft';
+ }],
  ['clinician review predates its claimed source revision',(source:any)=>{
   source.reviews[0].created_at='2026-11-10T11:59:59.999999Z';
  }],

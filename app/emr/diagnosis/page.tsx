@@ -4,15 +4,17 @@ import { createClient } from '@/lib/supabase/server';
 import { modalityAccess } from '@/lib/emr/modality-access';
 import { uuid } from '@/lib/emr/demographics';
 import DiagnosisTable from './DiagnosisTable';
+import DiagnosisCoverage from './DiagnosisCoverage';
 import '../treatment-planner.css';
 import './diagnosis.css';
 export const dynamic='force-dynamic';
-export default async function Page({searchParams}:{searchParams:Promise<{patient?:string;embedded?:string}>}) {
- const {patient,embedded}=await searchParams;
+export default async function Page({searchParams}:{searchParams:Promise<{patient?:string;embedded?:string;coverage?:string}>}) {
+ const {patient,embedded,coverage}=await searchParams;
  const patientId=uuid(patient)?patient:null;
  const query=new URLSearchParams();
  if(patientId)query.set('patient',patientId);
  if(embedded==='1')query.set('embedded','1');
+ if(coverage==='1')query.set('coverage','1');
  const next='/emr/diagnosis'+(query.size?'?'+query:'');
  const ctx = await modalityAccess();
  if (!ctx) {
@@ -26,6 +28,6 @@ export default async function Page({searchParams}:{searchParams:Promise<{patient
 
  return <main className="treatmentWorkspace treatmentEmbedded">
   {embedded!=='1'&&<Link href="/emr">EMR workspace</Link>}
-  {patientId?<DiagnosisTable key={patientId} patientId={patientId}/>:<><h1>Diagnosis</h1><p>Select a patient in the EMR to enter diagnoses.</p></>}
+  {coverage==='1'?<DiagnosisCoverage/>:patientId?<DiagnosisTable key={patientId} patientId={patientId}/>:<><h1>Diagnosis</h1><p>Select a patient in the EMR to enter diagnoses.</p></>}
  </main>;
 }

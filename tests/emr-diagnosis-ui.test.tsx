@@ -2,14 +2,17 @@ import React from 'react';
 import {afterEach,beforeEach,expect,test,vi} from 'vitest';
 import {cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
 import DiagnosisTable from '@/app/emr/diagnosis/DiagnosisTable';
+import {diagnosticReference} from '@/lib/emr/diagnosis-reference';
+import {diagnosisCatalog} from '@/lib/emr/diagnoses';
 const patientId='00000000-0000-4000-8000-000000000005';
 const rows=[{code:'F41.1',label:'Generalized anxiety disorder',category:'Anxiety disorders',group:'F41',groupLabel:'Other anxiety disorders'},
- {code:'F32.1',label:'Major depressive disorder, single episode, moderate',category:'Depressive disorders',group:'F32',groupLabel:'Depressive episode'}];
+ {code:'F32.1',label:'Major depressive disorder, single episode, moderate',category:'Depressive disorders',group:'F32',groupLabel:'Depressive episode'},...diagnosisCatalog.rows.filter(row=>['F06.70','F06.31'].includes(row.code))];
 let saved:any[],revision:number,conflict:boolean;
 const calls:any[]=[];
 beforeEach(()=>{
  saved=[];revision=0;conflict=false;calls.length=0;
  vi.stubGlobal('fetch',vi.fn(async (_url,options)=>{
+  if(String(_url).includes('/reference?'))return {ok:true,json:async()=>diagnosticReference(new URL(String(_url),'https://clinic.test').searchParams.get('code')!)};
   if(options?.method==='POST'){
    const body=JSON.parse(options.body);calls.push(body);
    if(conflict)return {ok:false,json:async()=>({error:'The chart changed. Reload Diagnosis and review before saving again.'})};
@@ -64,4 +67,37 @@ test('diagnosis routing opens the patient editor instead of the assessment prere
  const html=vm.runInContext('libraryPlanView()',context);
  expect(html).toContain('/emr/diagnosis?patient='+patientId);
  expect(html).not.toContain('Select library problems');
+});
+
+test('criteria appear on selection while notes and diagnosis actions occupy separate lines outside the selection table',async()=>{
+ render(<DiagnosisTable patientId={patientId}/>);await choose();
+ await screen.findByText(/Evaluate difficult-to-control worry/);
+ const notes=screen.getByLabelText('Diagnosis 1 clinical notes');
+ expect(notes.closest('table')).toBeNull();
+ const card=screen.getByRole('region',{name:'Diagnosis 1'});
+ const actions=screen.getByRole('group',{name:'Diagnosis 1 actions'});
+ expect(actions.closest('table')).toBeNull();
+ expect(card.contains(notes)&&card.contains(actions)).toBe(true);
+ expect(notes.closest('.diagnosisNotesLine')?.nextElementSibling).toBe(actions);
+ expect(actions.textContent).toContain('Remove diagnosis');
+ expect(screen.getByText(/View missing DSM-referenced codes/).getAttribute('href')).toBe('/emr/diagnosis?coverage=1');
+});
+
+test('related codes are added explicitly from the connected Actions line as unsaved secondary rows',async()=>{
+ render(<DiagnosisTable patientId={patientId}/>);
+ await screen.findByText('Add diagnosis');fireEvent.click(screen.getByText('Add diagnosis'));
+ const choice=diagnosisCatalog.rows.find(row=>row.code==='F06.70')!;
+ fireEvent.change(screen.getByLabelText('Diagnosis 1 family'),{target:{value:choice.category}});
+ fireEvent.change(screen.getByLabelText('Diagnosis 1 disorder group'),{target:{value:choice.group}});
+ fireEvent.change(screen.getByLabelText('Diagnosis 1 specific diagnosis'),{target:{value:choice.code}});
+ const related=await screen.findByLabelText('Available related codes for F06.31');
+ const summary=screen.getByText(/Referenced additional codes and EMR availability/);fireEvent.click(summary);
+ fireEvent.change(related,{target:{value:'F06.31'}});
+ const action=screen.getByText('Add F06.31 as secondary diagnosis');
+ expect(action.closest('[aria-label="Diagnosis 1 actions"]')).not.toBeNull();
+ fireEvent.click(action);
+ expect((screen.getByLabelText('Diagnosis 2 specific diagnosis') as HTMLSelectElement).value).toBe('F06.31');
+ expect((screen.getByLabelText('Diagnosis 2 priority') as HTMLSelectElement).value).toBe('secondary');
+ expect((screen.getByLabelText('Diagnosis 2 status') as HTMLSelectElement).value).toBe('provisional');
+ expect(calls).toHaveLength(0);
 });

@@ -3,20 +3,30 @@ import {runInNewContext} from 'node:vm';
 // @ts-expect-error This repository runs jsdom in test fixtures without @types/jsdom.
 import {JSDOM} from 'jsdom';
 import {expect,test,vi} from 'vitest';
-import {bpsVisibleSourceKeys} from '@/lib/emr/intake-bps';
+import {bpsVisibleSourceKeys,bpsSectionClassification} from '@/lib/emr/intake-bps';
+import {intakeSectionsForVersion} from '@/lib/patient/intake';
 
 const firstPatient='00000000-0000-4000-8000-000000000801';
 const secondPatient='00000000-0000-4000-8000-000000000802';
 function report(patientId:string){
- const sections=Array.from({length:21},(_,i)=>({
-  title:i===0?'Presenting concerns and functional impact':i===1?'Medications':i===2?'Authorization to share health information':'Intake section '+(i+1),
-  domain:i===0?'Presenting problems':i===1?'Medication reconciliation':i===2?'Legal authorization':'Clinical context',
-  disposition:i===1?'separate-review':i===2?'reference':'clinical',
-  answered:i<3?1:0,
-  fields:i===0?[{key:'counseling_reason',label:'Concern',type:'text',reported:true,sourceOnly:false,value:'Fictional patient-reported concern'}]:
+ // Keep the legacy test packet faithful to the protected 21-section routing.
+ // The first eight positions are fixed to keep the historical scenario cases stable.
+ const first=[
+  'Presenting concerns and functional impact','Medications',
+  'Authorization to share health information','Mental health treatment history',
+  'Safety and risk screening','Emergency contact, guardian, and responsible party',
+  'Medical & Substance Use History','Trauma, family, social, educational, and occupational history'
+ ];
+ const titles=[...first,...intakeSectionsForVersion('').map(section=>section.title)
+  .filter(title=>!first.includes(title))];
+ const sections=titles.map((title,i)=>{
+  const fields=i===0?[{key:'counseling_reason',label:'Concern',type:'text',reported:true,sourceOnly:false,value:'Fictional patient-reported concern'}]:
    i===1?[{key:'medication_entries',label:'Medication',type:'medications',reported:true,sourceOnly:true,value:'SECRET MEDICATION DATA'}]:
-   i===2?[{key:'roi_authorize',label:'Authorization',type:'text',reported:true,sourceOnly:false,value:'SECRET LEGAL DATA'}]:[]
- }));
+   i===2?[{key:'roi_authorize',label:'Authorization',type:'text',reported:true,sourceOnly:false,value:'SECRET LEGAL DATA'}]:[];
+  const rule=bpsSectionClassification[title];
+  return {title,domain:rule.domain,disposition:rule.disposition,
+   answered:fields.length,fields};
+ });
  return {patientId,source:{accountId:'00000000-0000-4000-8000-000000000803',status:'submitted',version:6,updatedAt:'2026-11-10T12:00:00Z',submittedAt:'2026-11-10T12:00:00Z'},
   sections,unmappedKeys:['unmapped_legacy_field'],reviews:[]};
 }

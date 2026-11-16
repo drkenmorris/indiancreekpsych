@@ -104,9 +104,14 @@ async function populateOriginalBpsIntake(panel,id,generation){
    const createdAt=originalBpsInstantNanoseconds(review.created_at);
    return sourceAt!==null&&createdAt!==null&&
     sourceAt<=editedInstant&&createdAt>=sourceAt&&
-    // The review of a final submission must postdate its patient receipt.
-    !(review.source_version===source.version&&source.status==='submitted'&&
-      review.source_status==='submitted'&&createdAt<submittedInstant);
+    // The original BPS cannot trust a review that claims the current source
+    // revision but has a different source status or exact edit receipt.
+    // Historical revisions remain independently traceable by their own dates.
+    (review.source_version!==source.version||
+     (review.source_status===source.status&&sourceAt===editedInstant))&&
+    // A final patient submission cannot be certified before its attestation.
+    (review.source_version!==source.version||source.status!=='submitted'||
+     createdAt>=submittedInstant);
   });
   if(!validReviewHistory||!Array.isArray(result.unmappedKeys)||
      !result.unmappedKeys.every(key=>typeof key==='string'))

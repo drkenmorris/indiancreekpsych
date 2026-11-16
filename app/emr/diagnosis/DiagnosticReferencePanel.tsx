@@ -1,5 +1,6 @@
 'use client';
 import {useEffect,useState} from 'react';
+import DiagnosticReferenceSearch from './DiagnosticReferenceSearch';
 import type {CatalogChoice,DiagnosticReference} from '@/lib/emr/diagnosis-reference';
 function RelatedCodePicker({group,onSelect,selectedCode,selectedCodes}:{group:DiagnosticReference['related'][number];onSelect:(choice:CatalogChoice|null)=>void;selectedCode:string;selectedCodes:string[]}) {
  if(!group.choices.length)return <li><strong>{group.expression}</strong> — not selectable in the current EMR catalog. Check the source instruction and current coding reference.</li>;
@@ -60,6 +61,7 @@ export default function DiagnosticReferencePanel({code,name,onSelectRelated,sele
     <p><a href="https://ftp.cdc.gov/pub/health_statistics/nchs/Publications/ICD10CM/2027/ICD-10-CM-October-1-2026-FY27-Guidelines.pdf" target="_blank" rel="noopener noreferrer">Official FY2027 coding guidelines</a></p>
    </section>
   </div>
+  <DiagnosticReferenceSearch key={code} diagnosis={reference.label}/>
   {reference.related.length>0&&<details><summary>Referenced additional codes and EMR availability ({reference.related.length} references)</summary>
    <p>These are references from the instruction or examples. Select a code only if the condition is independently established and the instruction applies. Choose an available code here, then use its Add button on this diagnosis’s Actions line. That creates an unsaved provisional secondary entry.</p>
    <ul className="diagnosisRelatedCodes">{reference.related.map(group=><RelatedCodePicker key={code+':'+group.expression} group={group} onSelect={onSelectRelated} selectedCode={selectedRelatedCode} selectedCodes={selectedCodes}/>)}</ul>

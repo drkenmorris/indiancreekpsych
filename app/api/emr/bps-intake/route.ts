@@ -12,7 +12,7 @@ const maxBpsReviewBytes=35_000;
  */
 async function limitedBpsReviewBody(request:Request):Promise<string|null>{
  const declared=request.headers.get('content-length');
- if(declared!==null&&/^\\d+$/.test(declared)&&Number(declared)>maxBpsReviewBytes)return null;
+ if(declared!==null&&/^[0-9]+$/.test(declared)&&Number(declared)>maxBpsReviewBytes)return null;
  if(!request.body)return '';
  const reader=request.body.getReader();
  const chunks:Uint8Array[]=[];

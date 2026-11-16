@@ -23,3 +23,17 @@
 .coverageTable{min-width:600px}
 .coverageTable tbody th{white-space:nowrap}
 @media print{.diagnosisActionsLine{display:none}.diagnosisTableScroll{overflow:visible}.diagnosisTable{min-width:0}}
+
+.diagnosisSearch{margin-block:1.25rem;padding-block:1rem;border-block:1px solid #b9ced2}
+.diagnosisSearchControls{display:flex;flex-wrap:wrap;align-items:end;gap:.75rem}
+.diagnosisSearchControls>div{flex:1 1 220px;min-width:0}
+.diagnosisSearchControls label{display:block;font-weight:600;margin-block-end:.35rem}
+.diagnosisSearchControls input,.diagnosisSearchControls select{width:100%;max-width:none;min-width:0;box-sizing:border-box;font:inherit;padding:.65rem;border:1px solid #647e83;border-radius:.3rem;min-height:48px;background:white;color:#183b42}
+.diagnosisSearch button{font:inherit;min-height:48px;white-space:normal}
+.diagnosisSearch :is(input,select,button,a):focus-visible{outline:3px solid #1a6b75;outline-offset:3px}
+.diagnosisSearchExamples{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;margin-block:.75rem}
+.diagnosisSearchResults{padding-inline-start:1.5rem}
+.diagnosisSearchResults li{padding:.8rem;background:white;border:1px solid #c9dce0;border-radius:.3rem;margin-block:.65rem}
+.diagnosisSearchResults h4{margin:0;font-size:1rem}
+.diagnosisSearchResults p{margin-block:.5rem}
+@media print{.diagnosisSearch{display:none}}

@@ -3,27 +3,18 @@ import {afterEach,expect,test,vi} from 'vitest';
 import {cleanup,render,screen,waitFor,fireEvent} from '@testing-library/react';
 import {readFileSync} from 'node:fs';
 import PatientBpsIntakeReview from '@/app/emr/PatientBpsIntakeReview';
-import {bpsSectionClassification} from '@/lib/emr/intake-bps';
+import {mapIntakeToBps} from '@/lib/emr/intake-bps';
 
 afterEach(()=>{cleanup();vi.unstubAllGlobals();});
 
 test('all 21 linked BPS sections provide patient-scoped access to existing clinical reconciliation, never a second medication editor',async()=>{
  const patient='00000000-0000-0000-0000-000000000601';
- const sections=Array.from({length:21},(_,i)=>({
-  title:i===3?'Mental health treatment history':i===0?'Medications':i===1?'Medical & Substance Use History':i===2?'Trauma, family, social, educational, and occupational history':'Section '+i,
-  domain:'Clinician reviewed history',disposition:i===0||i===1?'separate-review':'clinical',
-  // Known titles must carry a question actually sourced from that clinical
-  // section, rather than an invented key that the new provenance gate rejects.
-  fields:[{key:i===0?'medication_entries':i===1?'medical_substance_history':
-   i===2?'trauma_history_checklist':i===3?'treatment_history_entries':'answer_'+i,
-   label:'Patient report',type:'text',value:'Fictional report'}],answered:1
- }));
- // The source API uses the approved domain labels for recognized sections.
- // Keep navigation fixtures faithful to that independent clinician boundary.
- for(const section of sections){
-  const approved=bpsSectionClassification[section.title];
-  if(approved)section.domain=approved.domain;
- }
+ const sections=mapIntakeToBps({
+  medication_entries:'FICTIONAL_MEDICATION_NEEDS_SEPARATE_REVIEW',
+  medical_substance_history:'FICTIONAL_MEDICAL_NEEDS_SEPARATE_REVIEW',
+  trauma_history_checklist:'FICTIONAL_TRAUMA_NEEDS_SEPARATE_REVIEW',
+  treatment_history_entries:'FICTIONAL_TREATMENT_NEEDS_SEPARATE_REVIEW'
+ }).sections;
  const calls:{url:string;method:string}[]=[];
  vi.stubGlobal('fetch',vi.fn(async(url:string,init?:RequestInit)=>{
   calls.push({url,method:init?.method||'GET'});
@@ -76,7 +67,7 @@ test('original central chart exposes matching destinations even when patient rep
 
 test('reopening an immutable BPS review shows stored patient reports separately from unsigned clinician notes, without a new save',async()=>{
  const patient='00000000-0000-0000-0000-000000000602';
- const sections=Array.from({length:21},(_,i)=>({title:'Section '+i,domain:'History',disposition:'clinical',fields:[],answered:0}));
+ const sections=mapIntakeToBps({}).sections;
  const calls:string[]=[];
  vi.stubGlobal('fetch',vi.fn(async(url:string)=>{calls.push(url);return {ok:true,json:async()=>({
   patientId:patient,source:{accountId:patient,status:'draft',version:5,updatedAt:'2026-11-10T12:00:00Z'},
@@ -103,8 +94,7 @@ test('reopening an immutable BPS review shows stored patient reports separately 
 
 test('acknowledged BPS save is never reported as unsaved when subsequent history refresh fails',async()=>{
  const patient='00000000-0000-0000-0000-000000000701';
- const sections=Array.from({length:21},(_,i)=>({title:'Section '+i,domain:'Clinical history',
-  disposition:'clinical',fields:[],answered:0}));
+ const sections=mapIntakeToBps({}).sections;
  let reads=0,saves=0;
  vi.stubGlobal('fetch',vi.fn(async(_url:string,init?:RequestInit)=>{
   if(init?.method==='POST'){saves++;return {ok:true,json:async()=>({saved:true,id:'00000000-0000-0000-0000-000000000702'})};}
@@ -136,9 +126,7 @@ test.each(['duplicate ID','reversed timestamps','incorrect UUID tie-break'])(
   const patient='00000000-0000-4000-8000-000000000970';
   const idA='00000000-0000-4000-8000-000000000971';
   const idB='00000000-0000-4000-8000-000000000972';
-  const sectionNames=Array.from({length:21},(_,i)=>({
-   title:'Clinical intake section '+i,domain:'Source audit',disposition:'clinical' as const,fields:[],answered:0
-  }));
+  const sectionNames=mapIntakeToBps({}).sections;
   const historical=(id:string,created_at:string)=>({
    id,reviewed:true,source_version:2,source_status:'submitted',
    source_updated_at:'2026-11-10T08:00:00Z',created_at,
@@ -167,9 +155,7 @@ test.each(['duplicate ID','reversed timestamps','incorrect UUID tie-break'])(
 
 test('clinician BPS retains two valid, strictly ordered historical reviews',async()=>{
  const patient='00000000-0000-4000-8000-000000000973';
- const sections=Array.from({length:21},(_,i)=>({
-  title:'Source section '+i,domain:'Clinical context',disposition:'clinical' as const,fields:[],answered:0
- }));
+ const sections=mapIntakeToBps({}).sections;
  const row=(id:string,created_at:string)=>({
   id,reviewed:true,source_version:2,source_status:'submitted',
   source_updated_at:'2026-11-10T08:00:00Z',created_at,

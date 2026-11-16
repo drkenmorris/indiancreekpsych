@@ -2,7 +2,7 @@ import React from 'react';
 import {afterEach,expect,test,vi} from 'vitest';
 import {act,cleanup,fireEvent,render,screen} from '@testing-library/react';
 import PatientBpsIntakeReview from '@/app/emr/PatientBpsIntakeReview';
-import {bpsSectionClassification} from '@/lib/emr/intake-bps';
+import {bpsSectionClassification,mapIntakeToBps} from '@/lib/emr/intake-bps';
 import {intakeSectionsForVersion} from '@/lib/patient/intake';
 afterEach(()=>{cleanup();vi.unstubAllGlobals();});
 test('a pending BPS save cannot reopen or message the wrong patient chart',async()=>{
@@ -14,7 +14,7 @@ test('a pending BPS save cannot reopen or message the wrong patient chart',async
   if(init?.method==='POST')return pending;
   const id=new URL(url,'https://www.indiancreekpsych.com').searchParams.get('patient')||'';
   reads.push(id);
-  return {ok:true,json:async()=>({patientId:id,source:{accountId:id,status:'submitted',version:id===a?2:9,updatedAt:'2026-11-10T12:00:00Z',submittedAt:'2026-11-10T12:00:00Z'},sections:Array.from({length:21},(_,i)=>({title:'Section '+i,domain:'History',disposition:'clinical',fields:[],answered:0})),unmappedKeys:[],reviews:[]})};
+  return {ok:true,json:async()=>({patientId:id,source:{accountId:id,status:'submitted',version:id===a?2:9,updatedAt:'2026-11-10T12:00:00Z',submittedAt:'2026-11-10T12:00:00Z'},sections:mapIntakeToBps({}).sections,unmappedKeys:[],reviews:[]})};
  }));
  const {rerender}=render(<PatientBpsIntakeReview patientId={a}/>);
  await screen.findByText(/Version 2/);
@@ -31,21 +31,28 @@ test('a pending BPS save cannot reopen or message the wrong patient chart',async
 
 test('clinician reconciliation independently withholds separate, structured, reference and unmarked patient source values',async()=>{
  const id='00000000-0000-4000-8000-000000000801';
- const sections=Array.from({length:21},(_,i)=>({
-  title:'Intake section '+i,domain:'Context',disposition:i===1?'reference':i===2?'separate-review':'clinical',
-  answered:i===0?7:i===1||i===2?1:0,fields:i===0?[
-   {key:'counseling_reason',label:'Reported concern',type:'text',reported:true,sourceOnly:false,value:'SAFE PATIENT REPORTED CONCERN'},
-   {key:'insurance_member',label:'Spoofed coverage field',type:'text',reported:true,sourceOnly:false,value:'DO_NOT_LEAK_SPOOFED_INSURANCE'},
-   {key:'roi_authorize',label:'Spoofed authorization field',type:'text',reported:true,sourceOnly:false,value:'DO_NOT_LEAK_SPOOFED_LEGAL'},
-   {key:'prior_psychiatric_medications',label:'Retired medication history spoof',type:'historical-patient-report',reported:true,sourceOnly:false,value:'DO_NOT_LEAK_RETIRED_MEDICATION'},
-   {key:'legal_history',label:'Retired legal history spoof',type:'historical-patient-report',reported:true,sourceOnly:false,value:'DO_NOT_LEAK_RETIRED_LEGAL'},
-   {key:'medication_entries',label:'Structured medication',type:'medications',reported:true,sourceOnly:false,value:'DO_NOT_LEAK_STRUCTURED'},
-   {key:'unmarked',label:'Unmarked historical data',type:'text',reported:true,value:'DO_NOT_LEAK_UNMARKED'}]:
-   i===1?[{key:'roi_signature',label:'Authorization',type:'text',reported:true,sourceOnly:false,value:'DO_NOT_LEAK_LEGAL'}]:
-   i===2?[{key:'insurance_policy_number',label:'Coverage',type:'text',reported:true,sourceOnly:false,value:'DO_NOT_LEAK_INSURANCE'}]:
-    i===3?[{key:'counseling_goals',label:'Falsely marked unreported',type:'text',reported:false,sourceOnly:false,value:'DO_NOT_LEAK_FALSE_REPORTED'}]:
-    i===4?[{key:'prior_mental_health_treatment',label:'Missing patient-report attestation',type:'text',sourceOnly:false,value:'DO_NOT_LEAK_MISSING_REPORTED'}]:[]
- }));
+ const reported:Record<string,string>={
+  counseling_reason:'SAFE PATIENT REPORTED CONCERN',
+  insurance_member:'DO_NOT_LEAK_SPOOFED_INSURANCE',
+  roi_authorize:'DO_NOT_LEAK_SPOOFED_LEGAL',
+  prior_psychiatric_medications:'DO_NOT_LEAK_RETIRED_MEDICATION',
+  legal_history:'DO_NOT_LEAK_RETIRED_LEGAL',
+  medication_entries:'DO_NOT_LEAK_STRUCTURED',
+  counseling_goals:'DO_NOT_LEAK_FALSE_REPORTED',
+  prior_mental_health_treatment:'DO_NOT_LEAK_MISSING_REPORTED'
+ };
+ const sections=mapIntakeToBps(reported).sections;
+ // An upstream API may mislabel source privacy; a known section/key is not permission to show raw data.
+ for(const section of sections)for(const field of section.fields){
+  if(field.key==='counseling_goals'){field.reported=false;section.answered--;}
+  if(field.key==='prior_mental_health_treatment')field.sourceOnly=undefined as unknown as boolean;
+  if(field.key.startsWith('insurance_')||field.key==='roi_authorize'||
+   field.key==='prior_psychiatric_medications'||field.key==='legal_history'||
+   field.key==='medication_entries'){
+   field.sourceOnly=false;
+   field.value=reported[field.key];
+  }
+ }
  vi.stubGlobal('fetch',vi.fn(async()=>Response.json({patientId:id,source:{accountId:id,status:'submitted',version:2,updatedAt:'2026-11-11T12:00:00Z',submittedAt:'2026-11-11T12:00:00Z'},sections,unmappedKeys:[],reviews:[]})));
  render(<PatientBpsIntakeReview patientId={id}/>);
  await screen.findByText(/Version 2/);
@@ -190,14 +197,8 @@ test('idle linked-intake refresh is source-scoped, stops during clinician review
  const response=()=>({
   patientId:patient,
   source:{accountId:account,status:valid?'submitted':'retracted',version,updatedAt:'2026-11-12T12:00:00Z',submittedAt:'2026-11-12T12:00:00Z'},
-  sections:Array.from({length:21},(_,i)=>({
-   title:i===0?'Presenting concerns':i===1?'Medications':'Section '+i,
-   domain:i===1?'Medication/allergy reconciliation (separate chart review)':'Clinical context',
-   disposition:i===1?'separate-review':'clinical',
-   answered:i<2?1:0,
-   fields:i===0?[{key:'counseling_reason',label:'Presenting concern',type:'text',sourceOnly:false,reported:true,value:'FICTIONAL_CONCERN_V'+version}]:
-    i===1?[{key:'medication_entries',label:'Structured medication',type:'medications',sourceOnly:true,reported:true,value:'PRIVATE_MEDICATION_V'+version}]:[]
-  })),unmappedKeys:[],reviews:[]
+  sections:mapIntakeToBps({counseling_reason:'FICTIONAL_CONCERN_V'+version,
+   medication_entries:'PRIVATE_MEDICATION_V'+version}).sections,unmappedKeys:[],reviews:[]
  });
  vi.stubGlobal('fetch',vi.fn(async(_url:string,init?:RequestInit)=>{
   if(init?.method==='POST')throw Error('Test must not save a review');
@@ -403,10 +404,7 @@ test('clinician save readback cannot verify a changed questionnaire packet at th
  const account='00000000-0000-4000-8000-000000000962';
  const reviewId='00000000-0000-4000-8000-000000000963';
  const stamp='2026-11-15T16:00:00Z';
- const sections=Array.from({length:21},(_,i)=>({
-  title:'Historical source '+i,domain:'Clinical context',disposition:'clinical',
-  fields:[],answered:0
- }));
+ const sections=mapIntakeToBps({}).sections;
  let reads=0,posts=0;
  vi.stubGlobal('fetch',vi.fn(async(_url:string,options?:RequestInit)=>{
   if(options?.method==='POST'){

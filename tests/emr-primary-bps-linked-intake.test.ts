@@ -579,9 +579,14 @@ test.each([
  try{
   dom.window.history.replaceState({},'', '/emr/workspace?module=assessment&section=assessment%3Abiopsychosocial&bps_page=symptoms');
   ctx.render();
-  await vi.waitFor(()=>expect(dom.window.document.querySelector(
-   'section[aria-label="Patient intake context in original biopsychosocial workspace"] > details'
-  )).not.toBeNull());
+  await vi.waitFor(()=>{
+   const panel=dom.window.document.querySelector(
+    'section[aria-label="Patient intake context in original biopsychosocial workspace"]');
+   expect(panel?.textContent).not.toContain('Checking the linked');
+   if(_label==='reference section relabeled as clinical')
+    expect(panel?.querySelector('[role="alert"]')).not.toBeNull();
+   else expect(panel?.querySelector('details')).not.toBeNull();
+  });
   const rendered=dom.window.document.querySelector(
    'section[aria-label="Patient intake context in original biopsychosocial workspace"]'
   )!.textContent||'';
@@ -593,8 +598,8 @@ test.each([
 
 test('original BPS still shows allowed safety answers in their actual questionnaire section',async()=>{
  const payload:any=report(firstPatient);
- payload.sections[0].title='Safety and risk screening';
- payload.sections[0].fields[0]={key:'suicidal_plan_current',label:'Patient safety concern',type:'text',reported:true,sourceOnly:false,value:'Fictional safety screening response'};
+ payload.sections[4].fields=[{key:'suicidal_plan_current',label:'Patient safety concern',type:'text',reported:true,sourceOnly:false,value:'Fictional safety screening response'}];
+ payload.sections[4].answered=1;
  const {ctx,dom}=harness(async()=>Response.json(payload));
  try{
   dom.window.history.replaceState({},'', '/emr/workspace?module=assessment&section=assessment%3Abiopsychosocial&bps_page=symptoms');

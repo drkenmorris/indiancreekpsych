@@ -195,3 +195,35 @@ test('unmapped patient intake fields block draft placement even when the submitt
   expect(h.requests).toEqual([{url:'/api/emr/bps-intake?patient='+patient,method:'GET'}]);
  }finally{h.dom.window.close();}
 });
+
+test('unrecognized questionnaire layout is withheld before any original-form source is displayed',async()=>{
+ const h=harness(async()=>Response.json({...packet(),source:{
+  ...packet().source,questionnairePacketVersion:'unsupported-version'
+ }}));
+ try{
+  await vi.waitFor(()=>expect(h.dom.window.document.querySelector('[role="alert"]')?.textContent)
+   .toContain('Linked intake source identity, status, version or timestamp could not be verified'));
+  expect(h.button()).toBeUndefined();
+  expect(h.note.value).toBe('');
+  expect(h.dom.window.document.body.textContent).not.toContain('FICTIONAL FRIEND SUPPORT');
+ }finally{h.dom.window.close();}
+});
+
+test('unapproved or wrong-domain questionnaire routing is withheld before clinician draft placement',async()=>{
+ for(const corruption of ['unknown','wrong-domain']){
+  const h=harness(async()=>{
+   const source=packet();
+   const section=source.sections.find(s=>s.title==='Medications')!;
+   if(corruption==='unknown')section.title='Unapproved patient intake section';
+   else section.domain='Presenting problems, functioning and goals';
+   return Response.json(source);
+  });
+  try{
+   await vi.waitFor(()=>expect(h.dom.window.document.querySelector('[role="alert"]')?.textContent)
+    .toContain('Linked 21-section intake mapping is malformed'));
+   expect(h.button()).toBeUndefined();
+   expect(h.note.value).toBe('');
+   expect(h.dom.window.document.body.textContent).not.toContain('PRIVATE FICTIONAL MEDICATION');
+  }finally{h.dom.window.close();}
+ }
+});

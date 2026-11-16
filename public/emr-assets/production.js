@@ -51,18 +51,37 @@ async function populateOriginalBpsIntake(panel,id,generation){
   // nested PHI object or spoofed section routing is not a valid patient report.
   // Withhold the entire source before rendering any source answer; leave existing
   // clinician-authored BPS forms and their unsaved values untouched.
-  const validSections=result.sections.every(section=>section&&typeof section==='object'&&!Array.isArray(section)&&
-   typeof section.title==='string'&&section.title.length>0&&
-   typeof section.domain==='string'&&section.domain.length>0&&
-   ['clinical','separate-review','reference'].includes(section.disposition)&&
-   Number.isSafeInteger(section.answered)&&section.answered>=0&&
-   Array.isArray(section.fields)&&section.answered<=section.fields.length&&
-   section.fields.every(field=>field&&typeof field==='object'&&!Array.isArray(field)&&
-    typeof field.key==='string'&&field.key.length>0&&
-    typeof field.label==='string'&&typeof field.type==='string'&&
-    typeof field.value==='string'&&
-    (field.reported===undefined||typeof field.reported==='boolean')&&
-    (field.sourceOnly===undefined||typeof field.sourceOnly==='boolean')));
+  // A nominal 21-section count does not prove an intact source audit.
+  // Repeated section titles/answer identities or contradictory reported totals
+  // can misattribute a patient's words in the original clinician workspace.
+  const seenSectionTitles=new Set();
+  const seenFieldKeys=new Set();
+  const validSections=result.sections.every(section=>{
+   if(!section||typeof section!=='object'||Array.isArray(section)||
+      typeof section.title!=='string'||!section.title||
+      seenSectionTitles.has(section.title)||
+      typeof section.domain!=='string'||!section.domain||
+      !['clinical','separate-review','reference'].includes(section.disposition)||
+      !Number.isSafeInteger(section.answered)||section.answered<0||
+      !Array.isArray(section.fields)||section.answered>section.fields.length)return false;
+   seenSectionTitles.add(section.title);
+   const tagged=section.fields.filter(field=>field&&field.reported!==undefined);
+   // A partially tagged source must not claim a different count of answered
+   // questions; otherwise it could conceal missing or conflicting reports.
+   if(tagged.length&&(tagged.length!==section.fields.length||
+      tagged.filter(field=>field.reported===true).length!==section.answered))return false;
+   return section.fields.every(field=>{
+    if(!field||typeof field!=='object'||Array.isArray(field)||
+       typeof field.key!=='string'||!field.key||seenFieldKeys.has(field.key)||
+       typeof field.label!=='string'||typeof field.type!=='string'||
+       typeof field.value!=='string'||
+       (field.reported!==undefined&&typeof field.reported!=='boolean')||
+       (field.sourceOnly!==undefined&&typeof field.sourceOnly!=='boolean')||
+       (field.reported===true&&!field.value.trim()))return false;
+    seenFieldKeys.add(field.key);
+    return true;
+   });
+  });
   if(!validSections)
    throw Error('Linked 21-section intake mapping is malformed; patient statements are withheld.');
   // A partial or malformed clinical history is NOT an empty review history. Refuse

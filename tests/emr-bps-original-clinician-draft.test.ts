@@ -250,3 +250,14 @@ test('original BPS route classification matches the protected API clinical-domai
  expect(match).not.toBeNull();
  expect(JSON.parse(match![1])).toEqual(bpsSectionClassification);
 });
+
+test('original BPS rejects directory questionnaire metadata paired with legacy section titles',async()=>{
+ const report=packet();
+ const h=harness(async()=>Response.json({...report,source:{
+  ...report.source,questionnairePacketVersion:'2026-11-02-directory-1'}}));
+ try{
+  await vi.waitFor(()=>expect(h.dom.window.document.body.textContent).toContain('layout does not match its questionnaire version'));
+  expect(h.button()).toBeUndefined();
+  expect(h.note.value).toBe('');
+ }finally{h.dom.window.close();}
+});

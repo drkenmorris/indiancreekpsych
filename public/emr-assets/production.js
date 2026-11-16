@@ -186,6 +186,18 @@ async function populateOriginalBpsIntake(panel,id,generation){
   });
   if(!validSections)
    throw Error('Linked 21-section intake mapping is malformed; patient statements are withheld.');
+  // The legacy packet contains the communications section; the directory
+  // packet replaces it with the legal-form router. Both are recognized
+  // historical titles, but never valid together or in the wrong version.
+  // Otherwise a 21-item array can silently substitute one allowlisted section
+  // for another and mislead the clinician about completeness.
+  const legalDirectory='Legal forms directory and questionnaire';
+  const legacyCommunications='Communication and confidential-contact preferences';
+  const directoryPacket=source.questionnairePacketVersion==='2026-11-02-directory-1';
+  if(directoryPacket?
+     (!seenSectionTitles.has(legalDirectory)||seenSectionTitles.has(legacyCommunications)):
+     (!seenSectionTitles.has(legacyCommunications)||seenSectionTitles.has(legalDirectory)))
+   throw Error('Linked 21-section intake layout does not match its questionnaire version; patient statements are withheld.');
   // A partial or malformed clinical history is NOT an empty review history. Refuse
   // to display source answers or claim an attested review until provenance is sound.
   // A malformed history must never create a reassuring but false clinician

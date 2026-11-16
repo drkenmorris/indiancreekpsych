@@ -296,6 +296,14 @@ async function populateOriginalBpsIntake(panel,id,generation){
         fresh.source?.status!=='submitted'||fresh.source?.version!==source.version||
         originalBpsInstantNanoseconds(fresh.source?.updatedAt)!==editedInstant||
         originalBpsInstantNanoseconds(fresh.source?.submittedAt)!==submittedInstant||
+        fresh.source?.questionnairePacketVersion!==source.questionnairePacketVersion||
+        // Full 21-section source parity must hold during draft placement;
+        // matching only the selected social fields could miss a concurrently
+        // altered risk, medication, legal or other patient-reported answer.
+        !Array.isArray(fresh.sections)||fresh.sections.length!==21||
+        JSON.stringify(fresh.sections)!==JSON.stringify(result.sections)||
+        !Array.isArray(fresh.unmappedKeys)||
+        JSON.stringify(fresh.unmappedKeys)!==JSON.stringify(result.unmappedKeys)||
         JSON.stringify(getDraftFields(fresh.sections))!==JSON.stringify(fields)){
         notice.textContent='The linked intake changed or could not be reverified. No text was copied; refresh this source.';
         return;

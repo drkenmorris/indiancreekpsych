@@ -277,3 +277,20 @@ test('original BPS rejects legacy metadata with substituted directory source sec
   expect(h.note.value).toBe('');
  }finally{h.dom.window.close();}
 });
+
+test('matching directory section and packet version preserve safe original BPS draft action',async()=>{
+ const report=packet();
+ const section=report.sections.find(s=>s.title==='Communication and confidential-contact preferences');
+ if(!section)throw Error('Missing synthetic legacy communications section');
+ section.title='Legal forms directory and questionnaire';
+ section.domain=bpsSectionClassification[section.title].domain;
+ section.disposition=bpsSectionClassification[section.title].disposition;
+ const h=harness(async()=>Response.json({...report,source:{
+  ...report.source,questionnairePacketVersion:'2026-11-02-directory-1'}}));
+ try{
+  await vi.waitFor(()=>expect(h.button()).toBeTruthy());
+  h.button().click();
+  await vi.waitFor(()=>expect(h.note.value).toContain('FICTIONAL FRIEND SUPPORT'));
+  expect(h.requests.every(request=>request.method==='GET')).toBe(true);
+ }finally{h.dom.window.close();}
+});

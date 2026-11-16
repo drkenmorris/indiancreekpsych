@@ -2,13 +2,14 @@ import React from 'react';
 import {afterEach,expect,test,vi} from 'vitest';
 import {cleanup,fireEvent,render,screen} from '@testing-library/react';
 import PatientBpsIntakeReview from '@/app/emr/PatientBpsIntakeReview';
+import {mapIntakeToBps} from '@/lib/emr/intake-bps';
 
 afterEach(()=>{cleanup();vi.unstubAllGlobals();});
 const patient='00000000-0000-4000-8000-000000000801';
 const stamp='2026-11-10T12:00:00Z';
 function source(reviews:Record<string,unknown>[]=[]){
  return {patientId:patient,source:{accountId:'00000000-0000-4000-8000-000000000802',status:'submitted',version:7,updatedAt:stamp,submittedAt:stamp},
-  sections:Array.from({length:21},(_,i)=>({title:'Section '+i,domain:'Context',disposition:'clinical',fields:[],answered:0})),
+  sections:mapIntakeToBps({}).sections,
   unmappedKeys:[],reviews};
 }
 test('two rapid clinician form submits transmit only one append-only BPS review request',async()=>{

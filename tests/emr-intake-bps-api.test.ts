@@ -251,6 +251,22 @@ test('invalid identity, review, timestamps, source version or arbitrary note key
   expect((await POST(submit(bad))).status).toBe(400);
  }expect(m.rpc).not.toHaveBeenCalled();
 });
+test('BPS review rejects NUL and unpaired UTF-16 surrogates without invoking clinical save',async()=>{
+ const invalidNotes=['Fictional\u0000NUL', 'Fictional\uD800high-surrogate', 'Fictional\uDC00low-surrogate'];
+ for(const note of invalidNotes){
+  const response=await POST(submit({...payload,notes:{presenting:note}}));
+  expect(response.status).toBe(400);
+  expect(response.headers.get('Cache-Control')).toContain('no-store');
+  expect(JSON.stringify(await response.json())).not.toContain(note);
+ }
+ expect(m.rpc).not.toHaveBeenCalled();
+ // A real surrogate pair, combining accent and multilingual text are valid.
+ const faithful='Fictional observation 🤝 cafe\u0301 日本語';
+ const response=await POST(submit({...payload,notes:{presenting:faithful}}));
+ expect(response.status).toBe(201);
+ expect(m.rpc).toHaveBeenCalledTimes(1);
+ expect(m.rpc.mock.calls[0][1].p_payload.clinician_notes.presenting).toBe(faithful);
+});
 test('stale source and duplicate snapshots fail closed at the database validation boundary',async()=>{
  for(const [code,status] of [['22023',409],['23505',409],['42501',403]] as const){
   m.rpc.mockResolvedValueOnce({data:null,error:{code}});

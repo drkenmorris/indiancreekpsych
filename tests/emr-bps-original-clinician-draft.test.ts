@@ -243,3 +243,10 @@ test('unlabeled reported-answer counts cannot be treated as current clinical ans
   expect(h.requests).toHaveLength(1);
  }finally{h.dom.window.close();}
 });
+
+test('original BPS route classification matches the protected API clinical-domain rules',()=>{
+ const source=readFileSync('public/emr-assets/production.js','utf8');
+ const match=/const originalBpsSectionRules=Object.freeze\\((\\{[\\s\\S]+?\\})\\);/.exec(source);
+ expect(match).not.toBeNull();
+ expect(JSON.parse(match![1])).toEqual(bpsSectionClassification);
+});

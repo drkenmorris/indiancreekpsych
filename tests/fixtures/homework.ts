@@ -1,0 +1,3 @@
+import type {HomeworkPlanVersion} from '@/lib/emr/homework';
+const node=(id:string,kind:string,children:any[]=[])=>({id,kind,text:id,source_text:id,children});
+export const homeworkVersion={id:'00000000-0000-4000-8000-000000000020',plan_id:'00000000-0000-4000-8000-000000000021',revision:2,created_at:'2026-11-16T12:00:00Z',snapshot:{title:'Fictional plan',status:'finalized',patient_name:'Fictional Patient',clinician_name:'Fictional Clinician',problems:[node('p1','problem',[node('o1','objective',[node('i1','intervention'),node('i2','intervention')]),node('o2','objective',[node('i3','intervention')])]),node('p2','problem',[node('o3','objective',[node('i4','intervention')])])]}} as HomeworkPlanVersion;

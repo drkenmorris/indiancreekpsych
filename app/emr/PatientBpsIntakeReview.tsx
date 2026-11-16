@@ -91,8 +91,12 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
    // malformed API must not reattribute a patient report to another domain,
    // including when the disposition alone happens to remain plausible.
    const approvedSection=bpsSectionClassification[section.title];
-   if(approvedSection&&(section.disposition!==approvedSection.disposition||
-      section.domain!==approvedSection.domain))return false;
+   // All 21 titles must be from a known intake layout. Previously an unknown
+   // title skipped the domain/disposition and question-section checks, allowing
+   // a stale or malformed API response to display approved clinical keys under
+   // a fabricated source category and potentially enable a clinician review.
+   if(!approvedSection||section.disposition!==approvedSection.disposition||
+      section.domain!==approvedSection.domain)return false;
    // Repeated source field identities can conceal a missing question or
    // conflicting patient reports despite a nominally complete 21-section audit.
 

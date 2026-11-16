@@ -148,3 +148,36 @@ test('changed unmapped-field audit blocks original-form draft placement',async()
   expect(h.requests).toHaveLength(2);
  }finally{h.dom.window.close();}
 });
+
+test('intentional whitespace-only clinician source notes are never replaced by an intake attribution',async()=>{
+ const h=harness(async()=>Response.json(packet()));
+ try{
+  await vi.waitFor(()=>expect(h.button()).toBeTruthy());
+  const clinicianText='  \n  ';
+  h.note.value=clinicianText;
+  h.button().click();
+  await vi.waitFor(()=>expect(h.dom.window.document.body.textContent).toContain('Existing clinician draft notes were preserved'));
+  expect(h.note.value).toBe(clinicianText);
+  expect(h.requests).toHaveLength(1);
+  expect(h.requests.every(request=>request.method==='GET')).toBe(true);
+ }finally{h.dom.window.close();}
+});
+
+test('clinician whitespace entered while source is being reverified survives the async attribution',async()=>{
+ let finishVerification:(response:Response)=>void=()=>{};
+ const verification=new Promise<Response>(resolve=>{finishVerification=resolve;});
+ const h=harness(async call=>call===1?Response.json(packet()):verification);
+ try{
+  await vi.waitFor(()=>expect(h.button()).toBeTruthy());
+  h.button().click();
+  await vi.waitFor(()=>expect(h.requests).toHaveLength(2));
+  // Simulate unsaved clinician input arriving after the second protected GET
+  // begins, but before its source receipt is returned.
+  const clinicianText='\n   ';
+  h.note.value=clinicianText;
+  finishVerification(Response.json(packet()));
+  await vi.waitFor(()=>expect(h.dom.window.document.body.textContent).toContain('Clinician-entered draft notes were preserved'));
+  expect(h.note.value).toBe(clinicianText);
+  expect(h.requests.every(request=>request.method==='GET')).toBe(true);
+ }finally{h.dom.window.close();}
+});

@@ -241,10 +241,15 @@ export async function POST(request:Request){
   if(Object.keys(body.notes).some(key=>!fields.includes(key)))return reply({error:'Unsupported BPS notes field.'},400);
   const notes:Record<string,string>={};
   for(const key of fields){
-   const value=(body.notes as Record<string,unknown>)[key]??'';
+   // Missing optional domains default to empty, but an explicitly supplied null
+   // is invalid: never silently erase an attested clinician note.
+   const value=Object.prototype.hasOwnProperty.call(body.notes,key)?
+    (body.notes as Record<string,unknown>)[key]:'';
    if(typeof value!=='string'||value.length>4000||invalidClinicalNoteText(value))
     return reply({error:'Clinical notes must contain valid Unicode text without NUL characters, at most 4,000 characters each.'},400);
-   notes[key]=value.trim();
+   // Preserve the clinician's exact entered text, including line breaks and
+   // intentional leading/trailing whitespace; validation must not rewrite it.
+   notes[key]=value;
   }
   const {data,error}=await ctx.supabase.rpc('save_emr_bps_intake_review',{p_payload:{
    patient_id:body.patientId,source_account_id:body.sourceAccountId,source_version:body.sourceVersion,source_status:body.sourceStatus,

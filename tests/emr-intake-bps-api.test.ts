@@ -583,6 +583,40 @@ test('active medication history and structured medication records never leak thr
 });
 
 
+test('declared oversized BPS POST is rejected before parsing or invoking clinical save',async()=>{
+ const sensitive='PRIVATE_FICTIONAL_CLINICAL_VALUE';
+ const request=new Request('https://www.indiancreekpsych.com/api/emr/bps-intake',{
+  method:'POST',headers:{Origin:'https://www.indiancreekpsych.com','Content-Length':'35001'},
+  body:JSON.stringify({notes:{presenting:sensitive}})
+ });
+ const response=await POST(request);
+ expect(response.status).toBe(413);
+ expect(response.headers.get('Cache-Control')).toContain('no-store');
+ expect(JSON.stringify(await response.json())).not.toContain(sensitive);
+ expect(m.rpc).not.toHaveBeenCalled();
+});
+
+test('streamed BPS POST exceeding limit fails closed even with falsely small Content-Length',async()=>{
+ const sensitive='PRIVATE_FICTIONAL_STREAMED_CLINICAL_VALUE';
+ const bytes=new TextEncoder().encode(sensitive.repeat(1100));
+ const stream=new ReadableStream<Uint8Array>({
+  start(controller){
+   controller.enqueue(bytes.subarray(0,18_000));
+   controller.enqueue(bytes.subarray(18_000));
+   controller.close();
+  }
+ });
+ const request=new Request('https://www.indiancreekpsych.com/api/emr/bps-intake',{
+  method:'POST',headers:{Origin:'https://www.indiancreekpsych.com','Content-Length':'1'},
+  body:stream,duplex:'half'
+ } as RequestInit & {duplex:'half'});
+ const response=await POST(request);
+ expect(response.status).toBe(413);
+ expect(response.headers.get('Cache-Control')).toContain('no-store');
+ expect(JSON.stringify(await response.json())).not.toContain(sensitive);
+ expect(m.rpc).not.toHaveBeenCalled();
+});
+
 test('malformed BPS review JSON and unexpected save failures never echo confidential clinical payloads',async()=>{
  const privateValue='PRIVATE_FICTIONAL_CLINICAL_STATEMENT_NOT_FOR_RESPONSE';
  const malformed=new Request('https://www.indiancreekpsych.com/api/emr/bps-intake',{

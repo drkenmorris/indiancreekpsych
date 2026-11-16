@@ -1,0 +1,687 @@
+{
+  "version": "clinical-overviews/1",
+  "sourceCheckedOn": "2026-11-15",
+  "notice": "Original concise clinical overviews, not complete DSM criteria, diagnostic checklists, or clinician-validated decision rules. Confirm the full current criteria, exclusions, developmental context and specifiers in your clinical reference.",
+  "personalityContext": "Evaluate an enduring, inflexible pattern across contexts, with distress or impairment and appropriate developmental and cultural assessment.",
+  "sources": {
+    "anxiety": {
+      "title": "APA: Anxiety disorders",
+      "url": "https://www.psychiatry.org/patients-families/anxiety-disorders/what-are-anxiety-disorders"
+    },
+    "gad": {
+      "title": "NIMH: Generalized anxiety disorder",
+      "url": "https://www.nimh.nih.gov/health/publications/generalized-anxiety-disorder-gad"
+    },
+    "depression": {
+      "title": "NIMH: Depression",
+      "url": "https://www.nimh.nih.gov/health/publications/depression"
+    },
+    "bipolar": {
+      "title": "APA: Bipolar disorders",
+      "url": "https://www.psychiatry.org/patients-families/bipolar-disorders/what-are-bipolar-disorders"
+    },
+    "ocd": {
+      "title": "APA: Obsessive-compulsive and related disorders",
+      "url": "https://www.psychiatry.org/patients-families/obsessive-compulsive-disorder/what-is-obsessive-compulsive-disorder"
+    },
+    "ptsd": {
+      "title": "NIMH: PTSD",
+      "url": "https://www.nimh.nih.gov/health/publications/post-traumatic-stress-disorder-ptsd"
+    },
+    "grief": {
+      "title": "APA: Prolonged grief disorder",
+      "url": "https://www.psychiatry.org/patients-families/prolonged-grief-disorder"
+    },
+    "dissociation": {
+      "title": "APA: Dissociative disorders",
+      "url": "https://www.psychiatry.org/patients-families/dissociative-disorders/what-are-dissociative-disorders"
+    },
+    "somatic": {
+      "title": "APA: Somatic symptom disorder",
+      "url": "https://www.psychiatry.org/patients-families/somatic-symptom-disorder/what-is-somatic-symptom-disorder"
+    },
+    "eating": {
+      "title": "APA: Eating disorders",
+      "url": "https://www.psychiatry.org/patients-families/eating-disorders/what-are-eating-disorders"
+    },
+    "personality": {
+      "title": "APA: Personality disorders",
+      "url": "https://www.psychiatry.org/patients-families/personality-disorders/what-are-personality-disorders/"
+    },
+    "sleep": {
+      "title": "APA: Sleep disorders",
+      "url": "https://www.psychiatry.org/patients-families/sleep-disorders/what-are-sleep-disorders/"
+    },
+    "schizophrenia": {
+      "title": "APA: Schizophrenia",
+      "url": "https://www.psychiatry.org/patients-families/schizophrenia/what-is-schizophrenia"
+    },
+    "substance": {
+      "title": "APA: Substance use disorders",
+      "url": "https://www.psychiatry.org/patients-families/addiction-substance-use-disorders/what-is-a-substance-use-disorder"
+    },
+    "conduct": {
+      "title": "APA: Disruptive, impulse-control and conduct disorders",
+      "url": "https://www.psychiatry.org/patients-families/disruptive-impulse-control-and-conduct-disorders/what-are-disruptive-impulse-control-and-conduct"
+    },
+    "adhd": {
+      "title": "CDC: Clinical care and diagnosis of ADHD",
+      "url": "https://www.cdc.gov/adhd/hcp/clinical-care/"
+    },
+    "autism": {
+      "title": "CDC: Autism diagnostic criteria",
+      "url": "https://www.cdc.gov/autism/hcp/diagnosis/index.html"
+    },
+    "idd": {
+      "title": "APA: Intellectual disability",
+      "url": "https://www.psychiatry.org/patients-families/intellectual-disability/what-is-intellectual-disability/"
+    },
+    "learning": {
+      "title": "APA: Specific learning disorders",
+      "url": "https://www.psychiatry.org/patients-families/specific-learning-disorder/what-is-specific-learning-disorder/"
+    },
+    "tics": {
+      "title": "CDC: Diagnosing tic disorders",
+      "url": "https://www.cdc.gov/tourette-syndrome/diagnosis/index.html"
+    },
+    "gambling": {
+      "title": "APA: Gambling disorder",
+      "url": "https://www.psychiatry.org/patients-families/gambling-disorder/what-is-gambling-disorder/"
+    },
+    "cognitive": {
+      "title": "NINDS: Dementia",
+      "url": "https://www.ninds.nih.gov/health-information/disorders/dementia"
+    },
+    "gender": {
+      "title": "APA: Gender dysphoria",
+      "url": "https://www.psychiatry.org/patients-families/gender-dysphoria/what-is-gender-dysphoria/"
+    },
+    "adjustment": {
+      "title": "MSD Professional: Adjustment disorders",
+      "url": "https://www.msdmanuals.com/professional/psychiatric-disorders/anxiety-and-trauma-and-stressor-related-disorders/adjustment-disorders"
+    },
+    "acute": {
+      "title": "VA National Center for PTSD: Acute stress disorder",
+      "url": "https://www.ptsd.va.gov/professional/treat/essentials/acute_stress_disorder.asp"
+    },
+    "dmdd": {
+      "title": "NIMH: Disruptive mood dysregulation disorder",
+      "url": "https://www.nimh.nih.gov/health/publications/disruptive-mood-dysregulation-disorder"
+    },
+    "pmdd": {
+      "title": "NHS: Premenstrual dysphoric disorder",
+      "url": "https://www.nhs.uk/conditions/pmdd-premenstrual-dysphoric-disorder/"
+    },
+    "induced": {
+      "title": "SAMHSA TIP 42: Mental and substance-related disorders",
+      "url": "https://www.ncbi.nlm.nih.gov/books/NBK571021/"
+    },
+    "delirium": {
+      "title": "MSD Professional: Delirium",
+      "url": "https://www.msdmanuals.com/professional/neurologic-disorders/delirium-and-dementia/delirium"
+    },
+    "mild-ncd": {
+      "title": "Alzheimer\u2019s Association: Clinical diagnostic evaluation guideline",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC12173843/"
+    }
+  },
+  "profiles": [
+    {
+      "id": "gad",
+      "pattern": "^F41\\.1$",
+      "title": "Generalized anxiety disorder",
+      "summary": "Evaluate difficult-to-control worry across several areas on most days for at least six months, associated symptoms, and interference with functioning. Review alternative medical, substance-related, and psychiatric explanations.",
+      "source": "gad",
+      "scope": "disorder"
+    },
+    {
+      "id": "panic",
+      "pattern": "^F41\\.0$",
+      "title": "Panic disorder",
+      "summary": "Look for recurrent unexpected panic attacks followed by ongoing concern about further attacks or maladaptive behavioral changes. Distinguish isolated panic attacks from the disorder.",
+      "source": "anxiety",
+      "scope": "disorder"
+    },
+    {
+      "id": "agoraphobia",
+      "pattern": "^F40\\.0",
+      "title": "Agoraphobia",
+      "summary": "Assess persistent fear and avoidance of situations where escape or help may feel unavailable, with disproportionate anxiety and impaired functioning.",
+      "source": "anxiety",
+      "scope": "disorder"
+    },
+    {
+      "id": "social",
+      "pattern": "^F40\\.1",
+      "title": "Social anxiety disorder",
+      "summary": "Assess persistent fear of negative evaluation in social or performance situations, resulting avoidance or distress, and interference with daily functioning.",
+      "source": "anxiety",
+      "scope": "disorder"
+    },
+    {
+      "id": "phobia",
+      "pattern": "^F40\\.2",
+      "title": "Specific phobia",
+      "summary": "Assess marked, persistent fear tied to a specific object or situation, disproportionate to actual danger, with avoidance and clinically important distress or impairment.",
+      "source": "anxiety",
+      "scope": "disorder"
+    },
+    {
+      "id": "separation",
+      "pattern": "^F93\\.0$",
+      "title": "Separation anxiety disorder",
+      "summary": "Assess developmentally excessive separation-related fear and impairment. Duration differs by age: at least four weeks in children and typically six months in adults.",
+      "source": "anxiety",
+      "scope": "disorder"
+    },
+    {
+      "id": "mutism",
+      "pattern": "^F94\\.0$",
+      "title": "Selective mutism",
+      "summary": "Evaluate consistent inability to speak in particular social settings despite speaking elsewhere, educational or social interference, and language or communication explanations.",
+      "source": "anxiety",
+      "scope": "disorder"
+    },
+    {
+      "id": "mdd",
+      "pattern": "^F(?:32\\.[0-59]$|33\\.)",
+      "title": "Major depressive disorder",
+      "summary": "Assess depressed mood or loss of interest together with other depressive symptoms for at least two weeks and meaningful interference with daily life. Review bipolar history, medical and substance explanations; episode and severity require separate assessment.",
+      "source": "depression",
+      "scope": "disorder"
+    },
+    {
+      "id": "persistent-depression",
+      "pattern": "^F34\\.1$",
+      "title": "Persistent depressive disorder",
+      "summary": "Review a long-lasting depressive pattern, usually at least two years in adults, with associated symptoms and functional impact. Establish the longitudinal course rather than relying on a single low-mood episode.",
+      "source": "depression",
+      "scope": "disorder"
+    },
+    {
+      "id": "bipolar2",
+      "pattern": "^F31\\.81$",
+      "title": "Bipolar II disorder",
+      "summary": "Establish a history of hypomanic and major depressive episodes and verify that no manic episode occurred. Review episode duration, change from baseline, functional effects, and alternative explanations.",
+      "source": "bipolar",
+      "scope": "disorder"
+    },
+    {
+      "id": "bipolar1",
+      "pattern": "^F31\\.[0-7]",
+      "title": "Bipolar I disorder",
+      "summary": "Establish a manic episode with a clear change in mood, energy and functioning; mania generally lasts at least a week or requires hospitalization. Confirm the selected episode, severity, psychosis and remission description separately.",
+      "source": "bipolar",
+      "scope": "disorder"
+    },
+    {
+      "id": "cyclothymia",
+      "pattern": "^F34\\.0$",
+      "title": "Cyclothymic disorder",
+      "summary": "Assess a sustained pattern of hypomanic and depressive symptoms that do not meet full episode thresholds. Review longitudinal duration, symptom-free periods, distress and impairment.",
+      "source": "bipolar",
+      "scope": "disorder"
+    },
+    {
+      "id": "hoarding",
+      "pattern": "^F42\\.3$",
+      "title": "Hoarding disorder",
+      "summary": "Assess persistent difficulty discarding possessions, accumulation that compromises usable living space, and distress or impairment. Distinguish collecting and medical or cognitive causes.",
+      "source": "ocd",
+      "scope": "disorder"
+    },
+    {
+      "id": "excoriation",
+      "pattern": "^F42\\.4$",
+      "title": "Excoriation disorder",
+      "summary": "Assess repeated skin picking that causes lesions, unsuccessful attempts to reduce it, and distress or impairment; review dermatologic and substance-related explanations.",
+      "source": "ocd",
+      "scope": "disorder"
+    },
+    {
+      "id": "bdd",
+      "pattern": "^F45\\.22$",
+      "title": "Body dysmorphic disorder",
+      "summary": "Assess preoccupation with perceived appearance defects, repetitive checking or related behaviors, and distress or impairment. Distinguish eating-related weight and shape concerns.",
+      "source": "ocd",
+      "scope": "disorder"
+    },
+    {
+      "id": "trichotillomania",
+      "pattern": "^F63\\.3$",
+      "title": "Trichotillomania",
+      "summary": "Assess recurrent hair pulling with hair loss, repeated efforts to stop, and distress or impairment; consider medical explanations.",
+      "source": "ocd",
+      "scope": "disorder"
+    },
+    {
+      "id": "ocd",
+      "pattern": "^F42\\.[0289]",
+      "title": "Obsessive-compulsive disorder",
+      "summary": "Assess obsessions, compulsions, or both that are time-consuming or cause substantial distress or interference. Review insight, impairment and alternative explanations.",
+      "source": "ocd",
+      "scope": "disorder"
+    },
+    {
+      "id": "ptsd",
+      "pattern": "^F43\\.1",
+      "title": "Posttraumatic stress disorder",
+      "summary": "Review qualifying trauma exposure plus intrusion, avoidance, negative mood or cognition, and arousal symptoms lasting longer than one month with distress or impairment. Use developmentally appropriate assessment for children.",
+      "source": "ptsd",
+      "scope": "disorder"
+    },
+    {
+      "id": "pgd",
+      "pattern": "^F43\\.81$",
+      "title": "Prolonged grief disorder",
+      "summary": "Assess persistent yearning or preoccupation after a death, related symptoms, and impaired functioning beyond cultural expectations. The loss must be at least twelve months earlier in adults or six months in youth.",
+      "source": "grief",
+      "scope": "disorder"
+    },
+    {
+      "id": "did",
+      "pattern": "^F44\\.81$",
+      "title": "Dissociative identity disorder",
+      "summary": "Assess disruption of identity with recurrent memory gaps, distress or impairment. Evaluate cultural context, substances and medical conditions rather than inferring the disorder from identity experiences alone.",
+      "source": "dissociation",
+      "scope": "disorder"
+    },
+    {
+      "id": "amnesia",
+      "pattern": "^F44\\.[01]$",
+      "title": "Dissociative amnesia",
+      "summary": "Evaluate autobiographical memory loss beyond ordinary forgetting, often around trauma or stress, with distress or impairment. Review neurological, substance-related and other explanations.",
+      "source": "dissociation",
+      "scope": "disorder"
+    },
+    {
+      "id": "depersonalization",
+      "pattern": "^F48\\.1$",
+      "title": "Depersonalization/derealization disorder",
+      "summary": "Assess recurring or persistent detachment from self or surroundings with intact reality testing and clinically important distress or impairment. Review medical, substance and other psychiatric explanations.",
+      "source": "dissociation",
+      "scope": "disorder"
+    },
+    {
+      "id": "ssd",
+      "pattern": "^F45\\.1$",
+      "title": "Somatic symptom disorder",
+      "summary": "Assess distressing physical symptoms together with excessive symptom-related thoughts, anxiety or behavior. The evaluation concerns the response and functional impact, not whether symptoms lack a medical explanation.",
+      "source": "somatic",
+      "scope": "disorder"
+    },
+    {
+      "id": "illness-anxiety",
+      "pattern": "^F45\\.21$",
+      "title": "Illness anxiety disorder",
+      "summary": "Assess persistent preoccupation with serious illness despite absent or mild somatic symptoms, substantial health anxiety, and checking or avoidance. Distinguish somatic symptom disorder.",
+      "source": "somatic",
+      "scope": "disorder"
+    },
+    {
+      "id": "functional",
+      "pattern": "^F44\\.[4-7]$",
+      "title": "Functional neurological symptom disorder",
+      "summary": "Review altered motor or sensory symptoms and positive clinical evidence of incompatibility with recognized neurological disease. Medical evaluation is needed; do not infer this diagnosis solely from normal tests.",
+      "source": "somatic",
+      "scope": "disorder"
+    },
+    {
+      "id": "anorexia",
+      "pattern": "^F50\\.0",
+      "title": "Anorexia nervosa",
+      "summary": "Evaluate restriction associated with significantly low weight, fear of weight gain or weight-preventing behavior, and disturbance in weight or shape experience. Assess developmental context and medical stability.",
+      "source": "eating",
+      "scope": "disorder"
+    },
+    {
+      "id": "bulimia",
+      "pattern": "^F50\\.2",
+      "title": "Bulimia nervosa",
+      "summary": "Assess recurrent loss-of-control binge eating with compensatory behaviors and overvaluation of weight or shape. Verify frequency, duration and distinction from anorexia nervosa.",
+      "source": "eating",
+      "scope": "disorder"
+    },
+    {
+      "id": "binge",
+      "pattern": "^F50\\.81",
+      "title": "Binge-eating disorder",
+      "summary": "Assess recurrent distressing loss-of-control binge eating and associated features without regular compensatory behaviors. Establish frequency and duration; the selected code specifies severity or remission.",
+      "source": "eating",
+      "scope": "disorder"
+    },
+    {
+      "id": "arfid",
+      "pattern": "^F50\\.82$",
+      "title": "Avoidant/restrictive food intake disorder",
+      "summary": "Evaluate restricted intake associated with nutritional, growth, weight or psychosocial consequences, without weight/shape-driven restriction. Review food access, cultural practices and medical explanations.",
+      "source": "eating",
+      "scope": "disorder"
+    },
+    {
+      "id": "pica",
+      "pattern": "^F98\\.3$|^F50\\.89$",
+      "title": "Pica",
+      "summary": "Assess persistent eating of nonfood substances inappropriate to developmental level and cultural practice. Review duration, context and medical consequences.",
+      "source": "eating",
+      "scope": "disorder",
+      "labelPattern": "pica"
+    },
+    {
+      "id": "rumination",
+      "pattern": "^F98\\.21$",
+      "title": "Rumination disorder",
+      "summary": "Assess repeated regurgitation of food over time that is not explained by a gastrointestinal condition or another eating disorder. Review developmental and medical context.",
+      "source": "eating",
+      "scope": "disorder"
+    },
+    {
+      "id": "insomnia",
+      "pattern": "^G47\\.0[01]$|^F51\\.0[15]$",
+      "title": "Insomnia disorder",
+      "summary": "Assess trouble initiating or maintaining sleep despite adequate opportunity, daytime distress or impairment, and symptoms at least three nights weekly for at least three months. Review sleep, medical and substance causes.",
+      "source": "sleep",
+      "scope": "disorder"
+    },
+    {
+      "id": "apnea",
+      "pattern": "^G47\\.3",
+      "title": "Sleep-related breathing disorder",
+      "summary": "Review disrupted breathing during sleep, daytime consequences, and appropriate sleep evaluation. Obstructive and central forms require different evidence; a dropdown selection cannot establish the subtype.",
+      "source": "sleep",
+      "scope": "group"
+    },
+    {
+      "id": "narcolepsy",
+      "pattern": "^G47\\.4",
+      "title": "Narcolepsy",
+      "summary": "Review recurrent irresistible sleepiness or sleep episodes, cataplexy where present, and appropriate specialist testing. Verify the selected subtype and medical attribution.",
+      "source": "sleep",
+      "scope": "group"
+    },
+    {
+      "id": "schizophrenia",
+      "pattern": "^F20\\.9$",
+      "title": "Schizophrenia",
+      "summary": "Evaluate psychotic symptoms, disorganization or negative symptoms, functional decline and longitudinal course. Review mood disorders, substance effects and medical causes; isolated psychotic experiences are insufficient.",
+      "source": "schizophrenia",
+      "scope": "disorder"
+    },
+    {
+      "id": "adhd",
+      "pattern": "^F90\\.[012]$",
+      "title": "Attention-deficit/hyperactivity disorder",
+      "summary": "Assess developmentally inappropriate inattention and/or hyperactivity-impulsivity for at least six months, several symptoms before age twelve, impairment and symptoms in two or more settings. Apply age-appropriate symptom thresholds and differential assessment.",
+      "source": "adhd",
+      "scope": "disorder"
+    },
+    {
+      "id": "autism",
+      "pattern": "^F84\\.0$",
+      "title": "Autism spectrum disorder",
+      "summary": "Assess persistent social-communication difficulties plus restricted or repetitive behavior, early developmental onset and clinically important impairment. Review developmental history and distinguish intellectual or language explanations.",
+      "source": "autism",
+      "scope": "disorder"
+    },
+    {
+      "id": "idd",
+      "pattern": "^F7[0-9]$",
+      "title": "Intellectual developmental disorder",
+      "summary": "Establish limitations in intellectual and adaptive functioning originating during development. Assess practical, social and conceptual skills; support needs and adaptive functioning inform severity.",
+      "source": "idd",
+      "scope": "group"
+    },
+    {
+      "id": "learning",
+      "pattern": "^F81\\.[0128]$",
+      "title": "Specific learning disorder",
+      "summary": "Assess persistent difficulties acquiring academic skills despite targeted support, below-expected performance and functional impact. Review educational history, testing, instruction, language and sensory or intellectual explanations.",
+      "source": "learning",
+      "scope": "group"
+    },
+    {
+      "id": "tourette",
+      "pattern": "^F95\\.2$",
+      "title": "Tourette syndrome",
+      "summary": "Establish multiple motor tics and at least one vocal tic, with tics lasting at least a year and onset before age eighteen. Review substance and medical causes.",
+      "source": "tics",
+      "scope": "disorder"
+    },
+    {
+      "id": "persistent-tic",
+      "pattern": "^F95\\.1$",
+      "title": "Persistent motor or vocal tic disorder",
+      "summary": "Assess motor or vocal tics, but not both types, lasting at least a year with onset before age eighteen. Exclude Tourette syndrome and other causes.",
+      "source": "tics",
+      "scope": "disorder"
+    },
+    {
+      "id": "provisional-tic",
+      "pattern": "^F95\\.0$",
+      "title": "Provisional tic disorder",
+      "summary": "Assess motor and/or vocal tics present for less than a year, onset before age eighteen, and exclusion of persistent tic disorders and other causes.",
+      "source": "tics",
+      "scope": "disorder"
+    },
+    {
+      "id": "odd",
+      "pattern": "^F91\\.3$",
+      "title": "Oppositional defiant disorder",
+      "summary": "Assess a persistent, developmentally excessive pattern of angry or irritable mood, argumentative behavior or vindictiveness, with impact across relevant relationships and settings.",
+      "source": "conduct",
+      "scope": "disorder"
+    },
+    {
+      "id": "conduct",
+      "pattern": "^F91\\.[01289]$",
+      "title": "Conduct disorder",
+      "summary": "Assess repetitive violations of others' rights or important age-appropriate rules, such as aggression, destruction or deceit, with functional impact and consideration of developmental context.",
+      "source": "conduct",
+      "scope": "group"
+    },
+    {
+      "id": "ied",
+      "pattern": "^F63\\.81$",
+      "title": "Intermittent explosive disorder",
+      "summary": "Assess recurrent disproportionate impulsive aggressive outbursts, distress or impairment, and alternative developmental, psychiatric, substance and medical explanations. Distinguish planned aggression.",
+      "source": "conduct",
+      "scope": "disorder"
+    },
+    {
+      "id": "gambling",
+      "pattern": "^F63\\.0$",
+      "title": "Gambling disorder",
+      "summary": "Assess persistent problematic gambling with impaired control, continued gambling despite harm and significant distress or impairment. Review frequency, time course and mood-episode context.",
+      "source": "gambling",
+      "scope": "disorder"
+    },
+    {
+      "id": "gender",
+      "pattern": "^F64\\.[02]$",
+      "title": "Gender dysphoria",
+      "summary": "Assess marked gender incongruence accompanied by clinically significant distress or impairment, using age-appropriate criteria. Gender diversity or identity alone does not establish a disorder.",
+      "source": "gender",
+      "scope": "disorder"
+    },
+    {
+      "id": "paranoid",
+      "pattern": "^F60\\.0$",
+      "title": "Paranoid personality disorder",
+      "summary": "Pervasive distrust and suspicious interpretation of others' motives.",
+      "source": "personality",
+      "scope": "disorder"
+    },
+    {
+      "id": "schizoid",
+      "pattern": "^F60\\.1$",
+      "title": "Schizoid personality disorder",
+      "summary": "Persistent social detachment and restricted emotional expression.",
+      "source": "personality",
+      "scope": "disorder"
+    },
+    {
+      "id": "schizotypal",
+      "pattern": "^F21$",
+      "title": "Schizotypal personality disorder",
+      "summary": "Interpersonal difficulties with eccentric behavior and unusual beliefs or perceptions.",
+      "source": "personality",
+      "scope": "disorder"
+    },
+    {
+      "id": "antisocial",
+      "pattern": "^F60\\.2$",
+      "title": "Antisocial personality disorder",
+      "summary": "Persistent disregard for others' rights; evaluate developmental and conduct history.",
+      "source": "personality",
+      "scope": "disorder"
+    },
+    {
+      "id": "borderline",
+      "pattern": "^F60\\.3$",
+      "title": "Borderline personality disorder",
+      "summary": "Instability in relationships, self-image and emotions, with impulsivity.",
+      "source": "personality",
+      "scope": "disorder"
+    },
+    {
+      "id": "histrionic",
+      "pattern": "^F60\\.4$",
+      "title": "Histrionic personality disorder",
+      "summary": "Persistent excessive emotional expression and attention seeking.",
+      "source": "personality",
+      "scope": "disorder"
+    },
+    {
+      "id": "ocpd",
+      "pattern": "^F60\\.5$",
+      "title": "Obsessive-compulsive personality disorder",
+      "summary": "Rigid orderliness, perfectionism and control that impair flexibility or functioning.",
+      "source": "personality",
+      "scope": "disorder"
+    },
+    {
+      "id": "avoidant",
+      "pattern": "^F60\\.6$",
+      "title": "Avoidant personality disorder",
+      "summary": "Social inhibition, inadequacy and sensitivity to rejection.",
+      "source": "personality",
+      "scope": "disorder"
+    },
+    {
+      "id": "dependent",
+      "pattern": "^F60\\.7$",
+      "title": "Dependent personality disorder",
+      "summary": "Excessive need for care, submissiveness and fears of separation.",
+      "source": "personality",
+      "scope": "disorder"
+    },
+    {
+      "id": "narcissistic",
+      "pattern": "^F60\\.81$",
+      "title": "Narcissistic personality disorder",
+      "summary": "Pervasive grandiosity, need for admiration and limited empathy.",
+      "source": "personality",
+      "scope": "disorder"
+    },
+    {
+      "id": "substance-use",
+      "pattern": "^F1[0-9]\\.(?:1[01]|2[01])$",
+      "title": "Substance use disorder",
+      "summary": "Assess a problematic substance-use pattern involving impaired control, consequences, risky use or physiological features. Establish the substance, severity and course; prescribed physiological dependence alone does not establish a use disorder.",
+      "source": "substance",
+      "scope": "group"
+    },
+    {
+      "id": "major-ncd",
+      "pattern": "^F0[123]\\.",
+      "title": "Major neurocognitive disorder / dementia",
+      "summary": "Assess acquired cognitive decline that interferes with daily independence, establish baseline and course, and investigate etiology. Evaluate delirium, mood, medication and medical explanations; code-specific severity and behavioral features require separate assessment.",
+      "source": "cognitive",
+      "scope": "group"
+    },
+    {
+      "id": "adjustment",
+      "pattern": "^F43\\.2",
+      "title": "Adjustment disorder",
+      "summary": "Assess emotional or behavioral symptoms within three months of an identifiable stressor, disproportionate distress or impairment, and alternative disorders. Symptoms generally end within six months after the stressor and its consequences resolve.",
+      "source": "adjustment",
+      "scope": "group"
+    },
+    {
+      "id": "acute-stress",
+      "pattern": "^F43\\.0$",
+      "title": "Acute stress disorder",
+      "summary": "Assess qualifying trauma exposure and acute intrusion, negative mood, dissociation, avoidance and arousal symptoms with distress or impairment from three days through one month after trauma. Distinguish PTSD and other reactions.",
+      "source": "acute",
+      "scope": "disorder"
+    },
+    {
+      "id": "dmdd",
+      "pattern": "^F34\\.81$",
+      "title": "Disruptive mood dysregulation disorder",
+      "summary": "Assess severe recurrent temper outbursts with persistent irritability between them, present for at least twelve months. Confirm age, developmental appropriateness, settings and exclusions rather than inferring the disorder from occasional tantrums.",
+      "source": "dmdd",
+      "scope": "disorder"
+    },
+    {
+      "id": "pmdd",
+      "pattern": "^F32\\.81$",
+      "title": "Premenstrual dysphoric disorder",
+      "summary": "Assess severe mood and physical symptoms linked to the premenstrual phase, improvement after menstruation, and functional impact. Prospective symptom records across at least two cycles help distinguish a cyclical disorder from ongoing symptoms.",
+      "source": "pmdd",
+      "scope": "disorder"
+    },
+    {
+      "id": "delirium",
+      "pattern": "^F05$",
+      "title": "Delirium due to a physiological condition",
+      "summary": "Assess acute, fluctuating disturbance of attention and awareness with cognitive change, and investigate an underlying physiological cause. Distinguish baseline neurocognitive impairment and other explanations; this requires clinical medical assessment.",
+      "source": "delirium",
+      "scope": "disorder"
+    },
+    {
+      "id": "induced-delirium",
+      "pattern": "^F1[0-9]\\.",
+      "title": "Substance-related delirium",
+      "summary": "Assess acute, fluctuating attention and awareness changes and an established temporal/physiological relationship to intoxication or withdrawal. Review medical causes and baseline cognition. The selected code specifies the substance and associated use pattern.",
+      "source": "induced",
+      "scope": "group",
+      "labelPattern": "delirium"
+    },
+    {
+      "id": "induced-mental",
+      "pattern": "^F1[0-9]\\.",
+      "title": "Substance-induced mental disorder",
+      "summary": "Assess the named psychiatric syndrome and a credible temporal relationship to substance exposure or withdrawal. Review whether symptoms preceded use or persist independently; do not infer causation merely from co-occurrence.",
+      "source": "induced",
+      "scope": "group",
+      "labelPattern": "induced|psychotic|mood disorder|anxiety disorder|sexual dysfunction|sleep disorder|amnestic"
+    },
+    {
+      "id": "withdrawal",
+      "pattern": "^F1[0-9]\\.",
+      "title": "Substance withdrawal",
+      "summary": "Assess a substance-specific syndrome after reducing or stopping prolonged use, with distress or impairment. Confirm timing, substance and complications; the substance class determines the relevant features.",
+      "source": "induced",
+      "scope": "group",
+      "labelPattern": "withdrawal"
+    },
+    {
+      "id": "intoxication",
+      "pattern": "^F1[0-9]\\.",
+      "title": "Substance intoxication",
+      "summary": "Assess a reversible substance-specific syndrome after recent exposure, clinically significant behavioral or psychological change, and relevant physical signs. Review other substances and medical explanations.",
+      "source": "induced",
+      "scope": "group",
+      "labelPattern": "intoxication"
+    },
+    {
+      "id": "mild-ncd",
+      "pattern": "^F06\\.7",
+      "title": "Mild neurocognitive disorder due to a known physiological condition",
+      "summary": "Document modest acquired cognitive decline supported by history and assessment, with daily independence largely preserved, sometimes through compensatory strategies. Review delirium and other explanations. Establish the known medical cause separately and review the selected behavioral-disturbance qualifier.",
+      "source": "mild-ncd",
+      "scope": "group"
+    }
+  ]
+}

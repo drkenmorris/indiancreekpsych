@@ -272,12 +272,7 @@ test.each([
   return Response.json({
    patientId:id,
    source:{accountId:account,status:'submitted',version:3,updatedAt:stamp,submittedAt:stamp},
-   sections:Array.from({length:21},(_,i)=>({
-    title:'Clinical source '+i,domain:'History',disposition:'clinical',
-    answered:i===0?1:0,
-    fields:i===0?[{key:'counseling_reason',label:'Reported concern',
-     type:'text',sourceOnly:false,reported:true,value:'PRIVATE_FICTIONAL_CURRENT_STATEMENT'}]:[]
-   })),
+   sections:mapIntakeToBps({counseling_reason:'PRIVATE_FICTIONAL_CURRENT_STATEMENT'}).sections,
    unmappedKeys:[],reviews:[{...review,...change}]
   });
  }));
@@ -352,12 +347,8 @@ test('clinician BPS withholds source and historical notes when a current review 
   if(options?.method==='POST')writes++;
   return Response.json({
    patientId:patient,source:{accountId:patient,status:'submitted',version:2,updatedAt:updated,submittedAt:submission},
-   sections:Array.from({length:21},(_,i)=>({
-    title:'Historical source '+i,domain:'Clinical',disposition:'clinical',
-    fields:i===0?[{key:'counseling_reason',label:'Presenting concern',type:'text',
-     value:'PRIVATE_FICTIONAL_CURRENT_SOURCE',reported:true,sourceOnly:false}]:[],
-    answered:i===0?1:0
-   })),unmappedKeys:[],
+   sections:mapIntakeToBps({counseling_reason:'PRIVATE_FICTIONAL_CURRENT_SOURCE'}).sections,
+   unmappedKeys:[],
    reviews:[{id:'00000000-0000-4000-8000-000000000898',source_version:2,
     source_status:'submitted',source_updated_at:updated,created_at:'2026-11-10T09:10:00Z',
     reviewed:true,clinical_answers:{counseling_reason:'PRIVATE_FICTIONAL_HISTORY'},

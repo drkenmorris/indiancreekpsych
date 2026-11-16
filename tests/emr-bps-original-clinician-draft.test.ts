@@ -227,3 +227,19 @@ test('unapproved or wrong-domain questionnaire routing is withheld before clinic
   }finally{h.dom.window.close();}
  }
 });
+
+test('unlabeled reported-answer counts cannot be treated as current clinical answers',async()=>{
+ const h=harness(async()=>{
+  const source=packet();
+  const section=source.sections.find(s=>s.title==='Trauma, family, social, educational, and occupational history')!;
+  for(const field of section.fields)delete (field as {reported?:boolean}).reported;
+  return Response.json(source);
+ });
+ try{
+  await vi.waitFor(()=>expect(h.dom.window.document.querySelector('[role="alert"]')?.textContent)
+   .toContain('Linked 21-section intake mapping is malformed'));
+  expect(h.button()).toBeUndefined();
+  expect(h.note.value).toBe('');
+  expect(h.requests).toHaveLength(1);
+ }finally{h.dom.window.close();}
+});

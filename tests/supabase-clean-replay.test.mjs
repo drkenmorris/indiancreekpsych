@@ -219,11 +219,26 @@ test('clinic migrations replay in order on an empty application database', async
     assert.equal((await db.query(`update public.appointment_availability_rules
       set enabled=enabled returning id`)).rows.length,0,
       'AAL1 administrators must not edit office-hour rules directly');
+    assert.equal((await db.query(
+      'update public.appointment_blocks set label=label where id=$1 returning id',[fictionalBlock])).rows.length,0,
+      'AAL1 administrators must not edit blackout periods through direct table access');
+    assert.equal((await db.query(
+      'update public.appointment_settings set scheduling_enabled=scheduling_enabled where id=true returning id')).rows.length,0,
+      'AAL1 administrators must not edit global scheduler configuration through direct table access');
+    await assert.rejects(db.query(
+      `insert into public.appointment_blocks(id,starts_at,ends_at,label)
+       values ('00000000-0000-4000-8000-000000000915','2031-04-04T10:00:00Z',
+               '2031-04-04T11:00:00Z','FICTIONAL DENIED MFA INSERT')`),
+      /row-level security|permission denied/i,
+      'AAL1 administrators must not create blackout periods even with a forged direct INSERT');
     await as(adminId,'aal2');
     assert.ok((await db.query('select id from public.appointment_availability_rules')).rows.length>=1,
       'AAL2 administrators retain office-hour access');
     assert.deepEqual((await db.query('select id from public.appointment_blocks')).rows.map(r=>r.id),[fictionalBlock],
       'AAL2 administrators retain access to fictional blackout periods');
+    assert.deepEqual((await db.query(
+      'update public.appointment_blocks set label=label where id=$1 returning id',[fictionalBlock])).rows.map(r=>r.id),
+      [fictionalBlock],'AAL2 administrators retain controlled blackout editing');
     assert.ok((await db.query(`update public.appointment_availability_rules
       set enabled=enabled returning id`)).rows.length>=1,
       'AAL2 administrators retain existing office-hour writes');

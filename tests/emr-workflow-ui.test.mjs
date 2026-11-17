@@ -17,6 +17,13 @@ await test('actual hosted forms and global navigation render against central pat
  assert.deepEqual(menuLabels('#provider-quick-menu'),['Provider Assignment','Provider Information','Assigned Patients List','Patient Overview','Patient Questionnaire Assignment','Patient Session Check-in','Billing']);
  assert.deepEqual(Array.from(w.document.querySelectorAll('#main-modules button')).map(node=>node.textContent),['Personal Data','Patient Assessments','Treatment Plan','Progress','Prognosis/Utilization Review','Prognosis','Discharge','Appointment Scheduler','Reports','System Settings','Administration']);
 
+ runInContext("chooseSection('notes','planner');render();",dom.getInternalVMContext());
+ const progressSummary=new URL(w.document.querySelector('#progress-plan-summary').src);
+ assert.equal(progressSummary.pathname,'/emr/individual-progress-planner');
+ assert.equal(progressSummary.searchParams.get('patient'),fixture.pid);
+ assert.equal(progressSummary.searchParams.get('embedded'),'1');
+ assert.match(w.document.querySelector('#tabs').textContent,/Individual Progress Notes Planner/);
+
  // Linked prototype menu pages must resolve to real protected clinic services,
  // never synthetic appointment/provider data or separately saved demo accounts.
  runInContext("chooseSection('administration','weekly_schedule');render();",dom.getInternalVMContext());

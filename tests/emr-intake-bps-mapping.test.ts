@@ -290,3 +290,20 @@ test('unknown BPS field identities containing fictional private text are counted
  expect(saved.unmappedKeys).toEqual(['[unrecognized source field name withheld]']);
  expect(JSON.stringify(saved)).not.toContain(shapedName);
 });
+
+test('free-text trauma narrative remains protected from BPS source rendering regardless of textarea type',()=>{
+ const confidential='PRIVATE_FICTIONAL_TRAUMA_NARRATIVE';
+ const mapped=mapIntakeToBps({trauma_history:confidential});
+ const field=mapped.sections.find(section=>section.title==='Trauma, family, social, educational, and occupational history')
+  ?.fields.find(entry=>entry.key==='trauma_history');
+ expect(field?.type).toBe('textarea');
+ expect(field?.reported).toBe(true);
+ expect(field?.sourceOnly).toBe(true);
+ expect(field?.value).toContain('protected source');
+ expect(bpsVisibleSourceKeys.has('trauma_history')).toBe(false);
+ expect(JSON.stringify(mapped)).not.toContain(confidential);
+ const history=mapSavedBpsReportedFields({trauma_history:confidential});
+ expect(JSON.stringify(history)).not.toContain(confidential);
+ // Historical clinical snapshot storage itself is not rewritten.
+ expect(bpsSnapshotClinicalKeys.has('trauma_history')).toBe(true);
+});

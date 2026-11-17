@@ -112,6 +112,19 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
      // malformed 21-section response must not turn a presenting-concern
      // answer into a safety finding or a legal/medication section answer.
      if(approvedSection&&!approvedBpsQuestionSection(section.title!,field.key))return false;
+     // Match the original seven-page BPS trust boundary: even correctly
+     // attributed protected medication, trauma, medical or legal responses
+     // must carry an explicit source-only marker. Withhold the whole packet
+     // rather than permitting an attestation of contradictory PHI routing.
+     if(field.reported===true&&
+      (section.disposition!=='clinical'||protectedSourceTypes.has(field.type??'')||
+       field.key==='prior_psychiatric_medications'||field.key==='legal_history')&&
+      field.sourceOnly!==true)return false;
+     // Labels are patient-source attribution, never clinician-authored findings.
+     // Reject visual line breaks, bidirectional controls and oversized labels
+     // rather than rendering forged clinical headings from a malformed source.
+     if(typeof field.label!=='string'||!field.label.trim()||field.label.length>200||
+      /[\\u0000-\\u001f\\u007f-\\u009f\\u2028\\u2029\\u202a-\\u202e\\u2066-\\u2069]/u.test(field.label))return false;
      return typeof field.key==='string'&&field.key.length>0&&
       typeof field.label==='string'&&typeof field.type==='string'&&
       typeof field.value==='string'&&

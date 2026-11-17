@@ -462,3 +462,44 @@ test('unknown source section cannot impersonate an approved clinical category or
  expect(screen.queryByRole('button',{name:/Save reviewed BPS history snapshot/i})).toBeNull();
  expect(writes).toBe(0);
 });
+
+
+test.each([
+ ['directory metadata on an old communications packet','2026-11-02-directory-1',false],
+ ['old metadata on a legal-directory packet','2026-10-11',true],
+] as const)('clinician review withholds the entire mismatched 21-section packet: %s',async(_caseName,version,useDirectory)=>{
+ const id='00000000-0000-4000-8000-000000000801';
+ const reported=useDirectory?{legal_packet_version:'2026-11-02-directory-1'}:{};
+ const sections=mapIntakeToBps(reported).sections;
+ expect(sections).toHaveLength(21);
+ vi.stubGlobal('fetch',vi.fn(async()=>Response.json({
+  patientId:id,source:{
+   accountId:'00000000-0000-4000-8000-000000000802',status:'submitted',
+   version:7,updatedAt:'2026-11-10T12:00:00Z',
+   submittedAt:'2026-11-10T12:00:00Z',questionnairePacketVersion:version
+  },sections,unmappedKeys:[],reviews:[]
+ })));
+ render(<PatientBpsIntakeReview patientId={id}/>);
+ const alert=await screen.findByRole('alert');
+ expect(alert.textContent).toContain('layout does not match its questionnaire version');
+ expect(screen.queryByText(/Sections audited:/)).toBeNull();
+ expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
+});
+
+test('matching legal-directory questionnaire and section layout remain available for explicit clinician review',async()=>{
+ const id='00000000-0000-4000-8000-000000000801';
+ const sections=mapIntakeToBps({legal_packet_version:'2026-11-02-directory-1'}).sections;
+ expect(sections.some(section=>section.title==='Legal forms directory and questionnaire')).toBe(true);
+ expect(sections.some(section=>section.title==='Communication and confidential-contact preferences')).toBe(false);
+ vi.stubGlobal('fetch',vi.fn(async()=>Response.json({
+  patientId:id,source:{
+   accountId:'00000000-0000-4000-8000-000000000802',status:'submitted',
+   version:7,updatedAt:'2026-11-10T12:00:00Z',
+   submittedAt:'2026-11-10T12:00:00Z',
+   questionnairePacketVersion:'2026-11-02-directory-1'
+  },sections,unmappedKeys:[],reviews:[]
+ })));
+ render(<PatientBpsIntakeReview patientId={id}/>);
+ await screen.findByText(/Sections audited:/);
+ expect(screen.getByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeTruthy();
+});

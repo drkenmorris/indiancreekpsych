@@ -117,6 +117,13 @@ export const bpsNoteDomains={
 export type BpsNoteKey=keyof typeof bpsNoteDomains;
 export type BpsNotes=Record<BpsNoteKey,string>;
 export const emptyBpsNotes=():BpsNotes=>Object.fromEntries(Object.keys(bpsNoteDomains).map(key=>[key,''])) as BpsNotes;
+/** A clinician-review attestation cannot be established by a checkbox plus an entirely blank note set.
+ * This guard verifies only substantive non-whitespace input; it cannot establish clinical quality.
+ * Keep the seven approved note domains unchanged and preserve the actual entered text.
+ */
+export const hasIndependentBpsReviewNote=(notes:Record<string,string>):boolean=>
+ Object.keys(bpsNoteDomains).some(key=>typeof notes[key]==='string'&&notes[key].trim().length>0);
+
 // Previous questionnaire versions retained patient reports that no longer have
 // inputs on the current 21-section form. Route every retired clinical-context
 // field to an existing BPS domain for explicit clinician inspection. They remain

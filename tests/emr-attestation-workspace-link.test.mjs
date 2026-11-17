@@ -5,12 +5,16 @@ import vm from 'node:vm';
 test('original note form remains and only a selected chart receives a patient-bound central-note link',()=>{
  const source=readFileSync('public/emr-assets/central-directory.js','utf8');
  const bridge=source.slice(source.indexOf('const originalAttestationNotesView='));
- const context=vm.createContext({notesView:()=>'<form id="original-notes"></form>',blankWorkspace:true,patientId:'',encodeURIComponent});
+ const context=vm.createContext({notesView:()=>'<form id="original-notes"></form>',blankWorkspace:true,patientId:'',activeSection:null,encodeURIComponent});
  vm.runInContext(bridge,context);
  assert.equal(vm.runInContext('notesView()',context),'<form id="original-notes"></form>');
  context.blankWorkspace=false;context.patientId='10800000-0000-4000-8000-000000000101';
  const html=vm.runInContext('notesView()',context);
  assert.match(html,/href="\/emr\/patients\?patient=10800000-0000-4000-8000-000000000101"/);
  assert.ok(html.endsWith('<form id="original-notes"></form>'));
+ context.activeSection={module:'notes',key:'planner'};
+ assert.match(vm.runInContext('notesView()',context),/individual-progress-planner\?patient=10800000-0000-4000-8000-000000000101/);
+ context.activeSection={module:'notes',key:'amendments'};
+ assert.doesNotMatch(vm.runInContext('notesView()',context),/progress-plan-summary/);
  context.patientId='';assert.equal(vm.runInContext('notesView()',context),'<form id="original-notes"></form>');
 });

@@ -167,5 +167,6 @@ const originalAttestationNotesView=notesView;
 notesView=function(){
  const original=originalAttestationNotesView();
  if(blankWorkspace||!patientId)return original;
- return '<section class="card"><h2>Saved clinical notes and author attestations</h2><p><a href="/emr/patients?patient='+encodeURIComponent(patientId)+'">Open this patient’s individual and group progress notes</a></p><p>Record and attest reviewed clinical notes in the central chart. The original workspace forms remain below; their preview signatures are separate.</p></section>'+original;
+ const summary=activeSection?.module==='notes'&&activeSection.key==='planner'?'<section class="card"><iframe id="progress-plan-summary" title="Patient problems and planned interventions" src="/emr/individual-progress-planner?patient='+encodeURIComponent(patientId)+'&amp;embedded=1"></iframe></section>':'';
+ return summary+'<section class="card"><h2>Saved clinical notes and author attestations</h2><p><a href="/emr/patients?patient='+encodeURIComponent(patientId)+'">Open this patient’s individual and group progress notes</a></p><p>Record and attest reviewed clinical notes in the central chart. The original workspace forms remain below; their preview signatures are separate.</p></section>'+original;
 };

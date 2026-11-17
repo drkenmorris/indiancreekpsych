@@ -19,6 +19,9 @@ test('a pending BPS save cannot reopen or message the wrong patient chart',async
  const {rerender}=render(<PatientBpsIntakeReview patientId={a}/>);
  await screen.findByText(/Version 2/);
  fireEvent.click(screen.getByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i}));
+ fireEvent.change(screen.getByLabelText('Presenting concerns and functional impact'),{
+  target:{value:'Independent fictional clinician review context'}
+ });
  fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed this intake/i}));
  fireEvent.click(screen.getByRole('button',{name:/Save reviewed BPS history snapshot/i}));
  rerender(<PatientBpsIntakeReview patientId={b}/>);
@@ -421,6 +424,9 @@ test('clinician save readback cannot verify a changed questionnaire packet at th
  await screen.findByText(/Questionnaire packet provenance/);
  expect(screen.getByText('2026-10-11')).toBeTruthy();
  fireEvent.click(screen.getByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i}));
+ fireEvent.change(screen.getByLabelText('Presenting concerns and functional impact'),{
+  target:{value:'Independent fictional clinician review context'}
+ });
  fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed this intake/i}));
  fireEvent.click(screen.getByRole('button',{name:/Save reviewed BPS history snapshot/i}));
  const unverified=await screen.findByText(/linked intake source changed during chart-history verification/);

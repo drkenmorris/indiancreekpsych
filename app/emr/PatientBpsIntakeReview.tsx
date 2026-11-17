@@ -282,7 +282,10 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
      if(sameSource)setData(next);
      const verified=sameSource&&typeof result.id==='string'&&next.reviews.some(review=>
       review.id.toLowerCase()===result.id.toLowerCase()&&review.reviewed===true&&review.source_version===data.source.version&&
-      review.source_status===data.source.status&&
+      // The database receipt and reviewed flag do not constitute a genuine
+      // documented clinical review if the independently read history row has
+      // blank, invisible-only, or malformed clinician notes.
+      review.source_status===data.source.status&&documentedClinicianReview(review)&&
       equalBpsTimestampInstants(review.source_updated_at,data.source.updatedAt));
      if(verified)setStatus('Clinician-reviewed, unsigned BPS intake snapshot saved AND independently verified in the protected chart history. Patient statements remain patient-reported; no diagnosis, authorization, or signature was created.');
      else if(!sameSource)setStatus('BPS save was acknowledged, but the linked intake source changed during chart-history verification (account, questionnaire packet, source revision, status or timestamp). This source is NOT independently verified. Reopen the chart and reconcile the new intake before further review; do not resubmit the prior version.');

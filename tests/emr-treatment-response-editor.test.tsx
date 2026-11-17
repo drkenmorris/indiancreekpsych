@@ -7,8 +7,8 @@ test('real editor exposes an accessible spellchecked textbox and toolbar that ch
  Object.defineProperty(Range.prototype,'getClientRects',{configurable:true,value:()=>[]});
  Object.defineProperty(Range.prototype,'getBoundingClientRect',{configurable:true,value:()=>new DOMRect()});
  const onChange=vi.fn();
- render(<RichTextEditor label="Identified patient narrative" value={{type:'doc',content:[{type:'paragraph',content:[{type:'text',text:'Fictional response'}]}]}} onChange={onChange}/>);
- const textbox=await screen.findByRole('textbox',{name:'Identified patient narrative'});
+ render(<RichTextEditor label="Active patient narrative" value={{type:'doc',content:[{type:'paragraph',content:[{type:'text',text:'Fictional response'}]}]}} onChange={onChange}/>);
+ const textbox=await screen.findByRole('textbox',{name:'Active patient narrative'});
  expect(textbox.getAttribute('spellcheck')).toBe('true');
  expect(onChange).not.toHaveBeenCalled();
  fireEvent.click(screen.getByRole('button',{name:'Align right'}));

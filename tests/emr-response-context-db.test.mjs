@@ -71,6 +71,8 @@ for(const [plan,pid,owner,date] of [[id(10),chart,admin,'2026-10-01'],[id(20),ch
 }
 await db.query('insert into emr_treatment_plan_versions values($1,$2,2,$3,$4,$5)',[id(12),id(10),admin,'2026-11-15T00:00:00Z',JSON.stringify({title:'Fictional revised plan',status:'draft',notes:'PRIVATE NARRATIVE'})]);
 await db.exec(readFileSync(new URL('../supabase/migrations/20261117152540_treatment_response_chart_context.sql',import.meta.url),'utf8'));
+await db.exec('alter table clinical_patients add column account_id uuid;create table emr_workspaces(patient_id uuid,owner_id uuid,state jsonb)');
+await db.exec(readFileSync(new URL('../supabase/migrations/20261117161211_response_active_patient_name.sql',import.meta.url),'utf8'));
 const context=async(pid=chart)=>(await db.query('select emr_treatment_response_context($1) value',[pid])).rows[0].value;
 await test('chart identity and dated choices retain first documentation date and exact own patient versions only',async()=>{
  await signIn(admin);const result=await context();
@@ -81,6 +83,26 @@ await test('chart identity and dated choices retain first documentation date and
  assert.doesNotMatch(JSON.stringify(result),/PRIVATE|000000000031|000000000041/);
  assert.deepEqual(Object.keys(result.plans[0]).sort(),['id','planId','revision','firstRecordedAt','recordedAt','title','status'].sort());
  await signIn(otherAdmin);assert.equal((await context()).plans.length,1);assert.equal((await context()).plans[0].id,id(31));
+});
+await test('active chart name falls back to the linked account and latest own workspace demographics',async()=>{
+ await db.exec('reset role');
+ await db.query('update profiles set full_name=$1 where id=$2',['Fictional Linked Patient',patientAccount]);
+ await db.query('update clinical_patients set demographics=$1,account_id=$2 where id=$3',[{},patientAccount,chart]);
+ await signIn(admin);assert.equal((await context()).patientName,'Fictional Linked Patient');
+ await db.exec('reset role');await db.query('update clinical_patients set demographics=$1 where id=$2',[{first_name:'Chart'},chart]);
+ await signIn(admin);assert.equal((await context()).patientName,'Chart Linked Patient');
+ await db.exec('reset role');
+ const state=(first,last)=>({records:[{kind:'demographics',body:JSON.stringify({schema:'demographics/2',first_name:first,last_name:last})}]});
+ await db.query('insert into emr_workspaces values($1,$2,$3)',[chart,admin,state('Workspace','Active Patient')]);
+ await db.query('insert into emr_workspaces values($1,$2,$3)',[chart,otherAdmin,state('Other','Author Must Not Be Used')]);
+ await db.query('update clinical_patients set demographics=$1 where id=$2',[{last_name:'Central'},chart]);
+ await signIn(admin);assert.equal((await context()).patientName,'Workspace Central');
+ await db.exec('reset role');await db.query('update clinical_patients set demographics=$1 where id=$2',[{first_name:'Chart',last_name:'Current'},chart]);
+ await signIn(admin);assert.equal((await context()).patientName,'Chart Current');
+ await db.exec('reset role');await db.query('update clinical_patients set demographics=$1 where id=$2',[{first_name:'',last_name:''},chart]);
+ await signIn(admin);assert.equal((await context()).patientName,'Fictional Linked Patient');
+ await db.exec('reset role');await db.query('delete from emr_workspaces where patient_id=$1',[chart]);
+ await db.query('update clinical_patients set demographics=$1,account_id=null where id=$2',[{first_name:'Fictional',last_name:'Chart Patient'},chart]);
 });
 await test('assigned staff receive only chart identity, with no expansion of plan visibility',async()=>{
  await signIn(therapist);const result=await context();assert.equal(result.patientName,'Fictional Chart Patient');assert.deepEqual(result.plans,[]);

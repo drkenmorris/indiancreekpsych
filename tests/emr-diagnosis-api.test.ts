@@ -39,3 +39,12 @@ test('updates only diagnoses with revision check and returns conflicts without o
  writeData=null;writeError={code:'40001'};
  expect((await POST(post({patientId,revision:2,diagnoses:[]}))).status).toBe(409);
 });
+test('unrelated modality revisions do not block saving an unchanged diagnosis snapshot',async()=>{
+ const result=await POST(post({patientId,revision:1,originalDiagnoses:[],diagnoses:[diagnosis]}));
+ expect(result.status).toBe(200);expect(writes).toEqual([{revision:3,diagnoses:[diagnosis]}]);
+});
+test('another clinician diagnosis edit remains a conflict and is never overwritten',async()=>{
+ record={revision:3,diagnoses:[diagnosis]};
+ const result=await POST(post({patientId,revision:2,originalDiagnoses:[],diagnoses:[]}));
+ expect(result.status).toBe(409);expect(writes).toHaveLength(0);
+});

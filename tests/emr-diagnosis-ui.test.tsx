@@ -101,3 +101,12 @@ test('related codes are added explicitly from the connected Actions line as unsa
  expect((screen.getByLabelText('Diagnosis 2 status') as HTMLSelectElement).value).toBe('provisional');
  expect(calls).toHaveLength(0);
 });
+test('incomplete rows announce the row requiring completion instead of native validation silently blocking save',async()=>{
+ render(<DiagnosisTable patientId={patientId}/>);await screen.findByText('Add diagnosis');fireEvent.click(screen.getByText('Add diagnosis'));
+ fireEvent.click(screen.getByText('Save diagnoses'));await screen.findByText(/Diagnosis 1: choose a diagnostic family/);expect(calls).toHaveLength(0);
+ expect(document.activeElement).toBe(screen.getByLabelText('Diagnosis 1 family'));
+});
+test('save includes the originally loaded list and updates that baseline after each confirmed save',async()=>{
+ render(<DiagnosisTable patientId={patientId}/>);await choose();fireEvent.click(screen.getByText('Save diagnoses'));await screen.findByText('Diagnoses saved.');expect(calls[0].originalDiagnoses).toEqual([]);
+ fireEvent.change(screen.getByLabelText('Diagnosis 1 clinical notes'),{target:{value:'Fictional changed note'}});expect(screen.queryByText('Diagnoses saved.')).toBeNull();fireEvent.click(screen.getByText('Save diagnoses'));await screen.findByText('Diagnoses saved.');expect(calls[1].originalDiagnoses).toEqual(calls[0].diagnoses);
+});

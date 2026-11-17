@@ -205,7 +205,11 @@ export async function GET(request:Request){
   // above but returns only source provenance and current-revision review state.
   if(new URL(request.url).searchParams.get('summary')==='1'){
    const currentVersionReviewed=reviews.some(review=>
-    review.reviewed===true&&review.source_version===source.intake.version&&
+    // A historical checkbox-only row is not an independently documented review.
+    // Match the full clinician review's note allowlist and substantive-text gate
+    // so all seven original BPS pages cannot display a false reviewed status.
+    review.reviewed===true&&hasIndependentBpsReviewNote(sanitizeBpsClinicianNotes(review.clinician_notes).notes)&&
+    review.source_version===source.intake.version&&
     review.source_status===source.intake.status&&
     equalBpsTimestampInstants(review.source_updated_at,source.intake.updated_at));
    return reply({patientId:id,source:{

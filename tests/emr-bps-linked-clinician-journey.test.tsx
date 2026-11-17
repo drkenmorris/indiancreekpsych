@@ -111,11 +111,22 @@ test.each([['lowercase',false],['uppercase',true]])('fictional 21-section linked
  ])expect(before).not.toContain(protectedValue);
 
  fireEvent.click(screen.getByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i}));
+ const saveButton=()=>screen.getByRole('button',{name:/Save reviewed BPS history snapshot/i}) as HTMLButtonElement;
+ expect(saveButton().disabled).toBe(true);
+ expect(screen.getByText(/A checkbox alone does not document a clinical review/)).toBeTruthy();
+ fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed this intake/i}));
+ expect(saveButton().disabled).toBe(true);
+ fireEvent.change(screen.getByLabelText('Presenting concerns and functional impact'),{
+  target:{value:'  '}
+ });
+ expect(saveButton().disabled).toBe(true);
  fireEvent.change(screen.getByLabelText('Presenting concerns and functional impact'),{
   target:{value:'Independent fictional clinician observation'}
  });
+ expect(saveButton().disabled).toBe(true); // editing clinician notes clears prior acknowledgment
  fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed this intake/i}));
- fireEvent.click(screen.getByRole('button',{name:/Save reviewed BPS history snapshot/i}));
+ expect(saveButton().disabled).toBe(false);
+ fireEvent.click(saveButton());
  await screen.findByText(/snapshot saved AND independently verified in the protected chart history/);
  expect(writes).toBe(1);
  expect(reviews).toHaveLength(1);

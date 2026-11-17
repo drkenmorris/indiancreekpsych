@@ -48,7 +48,8 @@ test('clinician reconciliation independently withholds separate, structured, ref
  // An upstream API may mislabel source privacy; a known section/key is not permission to show raw data.
  for(const section of sections)for(const field of section.fields){
   if(field.key==='counseling_goals'){field.reported=false;section.answered--;}
-  if(field.key==='prior_mental_health_treatment')field.sourceOnly=undefined as unknown as boolean;
+  // Keep valid protected sources marked source-only; contradictory markers
+  // are covered separately by the fail-closed regression cases below.
  }
  vi.stubGlobal('fetch',vi.fn(async()=>Response.json({patientId:id,source:{accountId:id,status:'submitted',version:2,updatedAt:'2026-11-11T12:00:00Z',submittedAt:'2026-11-11T12:00:00Z'},sections,unmappedKeys:[],reviews:[]})));
  render(<PatientBpsIntakeReview patientId={id}/>);

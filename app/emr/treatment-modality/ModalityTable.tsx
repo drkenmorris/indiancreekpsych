@@ -72,7 +72,20 @@ export default function ModalityTable({ patientId }: { patientId: string }) {
 
  async function save(event: FormEvent<HTMLFormElement>) {
   event.preventDefault();
+  const sessionIndex = rows.findIndex(row => !row.code || !row.count || !row.frequency || !available.some(provider => provider.id === row.providerId));
+  const careIndex = careRows.findIndex(period => !validCarePeriod(period));
+  if (sessionIndex >= 0 || careIndex >= 0) {
+   setStatus(sessionIndex >= 0
+    ? `Session ${sessionIndex + 1}: select a session type, expected sessions, frequency, and an active provider before saving.`
+    : `Care period ${careIndex + 1}: choose a level of care and a valid start date; the end date must be on or after the start.`);
+   const target = sessionIndex >= 0
+    ? event.currentTarget.querySelector<HTMLElement>(`[aria-label="Session type ${sessionIndex + 1}"]`)
+    : event.currentTarget.querySelector<HTMLElement>(`[data-care-index="${careIndex}"] input`);
+   target?.focus();
+   return;
+  }
   setBusy(true);
+  setStatus('Saving Modality…');
   try {
    const data = await post({
     patientId, revision, assignedProviderId: assigned || null,
@@ -106,11 +119,13 @@ export default function ModalityTable({ patientId }: { patientId: string }) {
  function update(key: string, patch: Partial<ModalitySession>) {
   setRows(previous => previous.map(row => row.key === key ? { ...row, ...patch } : row));
   setDirty(true);
+  setStatus('Unsaved modality changes.');
  }
 
  function updateCare(key: string, patch: Partial<CarePeriod>) {
   setCareRows(previous => previous.map(row => row.key === key ? { ...row, ...patch } : row));
   setDirty(true);
+  setStatus('Unsaved modality changes.');
  }
 
  function providerOptions(value: string) {
@@ -127,11 +142,11 @@ export default function ModalityTable({ patientId }: { patientId: string }) {
   <p>Confirm coverage and provider eligibility for the patient’s plan. For technician-administered testing, select the responsible supervising clinician.</p>
   {!loaded && status && <p role="status">{status}</p>}
   {loaded && <>
-   <form onSubmit={save}>
+   <form onSubmit={save} noValidate>
     <fieldset disabled={busy}>
      <legend>Planned sessions</legend>
      {admin && <label>Therapist assigned to this chart
-      <select value={assigned} onChange={event => { setAssigned(event.target.value); setDirty(true); }}>
+      <select value={assigned} onChange={event => { setAssigned(event.target.value); setDirty(true); setStatus('Unsaved modality changes.'); }}>
        {providerOptions(assigned)}
       </select>
      </label>}
@@ -166,6 +181,7 @@ export default function ModalityTable({ patientId }: { patientId: string }) {
          <td><button type="button" aria-label={'Remove session ' + (index + 1)} onClick={() => {
           setRows(previous => previous.filter(session => session.key !== row.key));
           setDirty(true);
+          setStatus('Unsaved modality changes.');
          }}>Remove</button></td>
         </tr>)}
        </tbody>
@@ -175,13 +191,14 @@ export default function ModalityTable({ patientId }: { patientId: string }) {
       <button type="button" disabled={rows.length >= maxSessionRows} onClick={() => {
        setRows(previous => [...previous, { key: crypto.randomUUID(), code: '', count: 0, frequency: '', providerId: assigned || userId }]);
        setDirty(true);
+       setStatus('Unsaved modality changes.');
       }}>Add session type</button>
      </div>
     </fieldset>
     <fieldset disabled={busy}>
      <legend>Recommended level of care</legend>
      {!careRows.length && <p>No care periods recorded.</p>}
-     {careRows.map((row, index) => <fieldset key={row.key}>
+     {careRows.map((row, index) => <fieldset key={row.key} data-care-index={index}>
       <legend>Care period {index + 1}</legend>
       <p>Choose one level for this period.</p>
       <div className="treatmentFields">
@@ -215,16 +232,16 @@ export default function ModalityTable({ patientId }: { patientId: string }) {
       <button type="button" aria-label={'Remove care period ' + (index + 1)} onClick={() => {
        setCareRows(previous => previous.filter(period => period.key !== row.key));
        setDirty(true);
+       setStatus('Unsaved modality changes.');
       }}>Remove care period</button>
      </fieldset>)}
      <button type="button" disabled={careRows.length >= maxCarePeriods} onClick={() => {
       setCareRows(previous => [...previous, { key: crypto.randomUUID(), level: '', agreement: null, startDate: '', endDate: '' }]);
       setDirty(true);
+      setStatus('Unsaved modality changes.');
      }}>Add care period</button>
     </fieldset>
-    <button type="submit" disabled={busy || !dirty || careRows.some(period => !validCarePeriod(period)) ||
-     rows.some(row => !row.code || !row.count || !row.frequency ||
-      !available.some(provider => provider.id === row.providerId))}>Save Modality</button>
+    <button type="submit" disabled={busy || !dirty}>{busy ? 'Saving Modality…' : 'Save Modality'}</button>
     {status && <p role="status">{status}</p>}
    </form>
    {admin && <details>

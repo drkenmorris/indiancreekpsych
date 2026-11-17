@@ -18,10 +18,10 @@ await db.exec([
  "CREATE FUNCTION auth.jwt() RETURNS jsonb LANGUAGE sql STABLE AS $$ SELECT coalesce(nullif(current_setting('request.jwt.claims',true),''),'{}')::jsonb $$;",
  'CREATE TABLE public.profiles(id uuid PRIMARY KEY,account_type text,full_name text,preferred_name text);',
  "INSERT INTO public.profiles VALUES ('"+admin+"','admin','Fictional Administrator',null),('"+patient+"','patient','Fictional Patient',null),('"+unrelated+"','patient','Fictional Other Patient',null);",
- "CREATE FUNCTION private.current_user_is_admin() RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path='' AS $ SELECT EXISTS(SELECT 1 FROM public.profiles WHERE id=auth.uid() AND account_type='admin') $;",
+ "CREATE FUNCTION private.current_user_is_admin() RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path='' AS $$ SELECT EXISTS(SELECT 1 FROM public.profiles WHERE id=auth.uid() AND account_type='admin') $$;",
  // Simplified identity/MFA fixture for the legacy production session rule. The
  // combined SQL policies below are executed exactly from their migrations.
- "CREATE FUNCTION private.patient_secure_session() RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path='' AS $ SELECT auth.uid() IS NOT NULL AND EXISTS(SELECT 1 FROM public.profiles p WHERE p.id=auth.uid() AND ((p.account_type='admin' AND auth.jwt()->>'aal'='aal2') OR (p.account_type='patient' AND auth.jwt()->>'aal' IN ('aal1','aal2')))) $;",
+ "CREATE FUNCTION private.patient_secure_session() RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path='' AS $$ SELECT auth.uid() IS NOT NULL AND EXISTS(SELECT 1 FROM public.profiles p WHERE p.id=auth.uid() AND ((p.account_type='admin' AND auth.jwt()->>'aal'='aal2') OR (p.account_type='patient' AND auth.jwt()->>'aal' IN ('aal1','aal2')))) $$;",
  'CREATE TABLE public.appointment_settings(id boolean PRIMARY KEY,scheduling_enabled boolean);',
  'INSERT INTO public.appointment_settings VALUES(true,true);',
  'CREATE TABLE public.appointment_availability_rules(id integer PRIMARY KEY,enabled boolean);',

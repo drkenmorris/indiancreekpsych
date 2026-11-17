@@ -147,6 +147,17 @@ test.each([['lowercase',false],['uppercase',true]])('fictional 21-section linked
  expect(queries.some(q=>q.table==='emr_bps_intake_reviews'&&
   q.filters.some(([key,value])=>key==='patient_id'&&value===patient)&&
   q.filters.some(([key,value])=>key==='source_account_id'&&value===account))).toBe(true);
+ // A legacy reviewed=true row without independent clinical notes is not a
+ // documented BPS review. Preserve its history/version lock, do not rewrite it.
+ reviews[0].clinician_notes={};
+ cleanup();
+ render(<PatientBpsIntakeReview patientId={patient}/>);
+ await screen.findByText(/Documented clinician reviews: 0/);
+ expect(screen.getByText(/Some saved history records lack confirmed clinician-review attestation or independent clinical documentation/)).toBeTruthy();
+ expect(screen.getByText(/This historical row lacks confirmed clinician-review attestation or independently documented clinical observations/)).toBeTruthy();
+ expect(screen.getByText(/version remains locked; investigate chart provenance/)).toBeTruthy();
+ expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
+ expect(writes).toBe(1);
  cleanup();
  render(<PatientBpsIntakeReview patientId={otherPatient}/>);
  await screen.findByRole('alert');

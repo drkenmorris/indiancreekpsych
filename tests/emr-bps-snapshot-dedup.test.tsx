@@ -23,6 +23,10 @@ test('two rapid clinician form submits transmit only one append-only BPS review 
  render(<PatientBpsIntakeReview patientId={patient}/>);
  await screen.findByText(/Version 7/);
  fireEvent.click(screen.getByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i}));
+ // A real clinician-review workflow requires independently entered contextual documentation.
+ fireEvent.change(screen.getByLabelText('Presenting concerns and functional impact'),{
+  target:{value:'Independent fictional clinician review note'}
+ });
  fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed this intake/i}));
  const form=screen.getByRole('button',{name:/Save reviewed BPS history snapshot/i}).closest('form');
  expect(form).not.toBeNull();
@@ -88,6 +92,10 @@ test('an acknowledged save stays locked if the history read-back fails',async()=
  render(<PatientBpsIntakeReview patientId={patient}/>);
  await screen.findByText(/Version 7/);
  fireEvent.click(screen.getByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i}));
+ // A real clinician-review workflow requires independently entered contextual documentation.
+ fireEvent.change(screen.getByLabelText('Presenting concerns and functional impact'),{
+  target:{value:'Independent fictional clinician review note'}
+ });
  fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed this intake/i}));
  fireEvent.click(screen.getByRole('button',{name:/Save reviewed BPS history snapshot/i}));
  await screen.findByText(/save was acknowledged by the database, but the exact clinician review was NOT verified/);
@@ -113,6 +121,10 @@ test('clinician BPS save is independently confirmed only after exact source-prov
  render(<PatientBpsIntakeReview patientId={patient}/>);
  await screen.findByText(/Version 7/);
  fireEvent.click(screen.getByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i}));
+ // A real clinician-review workflow requires independently entered contextual documentation.
+ fireEvent.change(screen.getByLabelText('Presenting concerns and functional impact'),{
+  target:{value:'Independent fictional clinician review note'}
+ });
  fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed this intake/i}));
  fireEvent.click(screen.getByRole('button',{name:/Save reviewed BPS history snapshot/i}));
  await screen.findByText(/snapshot saved AND independently verified in the protected chart history/);
@@ -135,6 +147,10 @@ test('clinician BPS save cannot claim verified chart history when readback has m
  render(<PatientBpsIntakeReview patientId={patient}/>);
  await screen.findByText(/Version 7/);
  fireEvent.click(screen.getByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i}));
+ // A real clinician-review workflow requires independently entered contextual documentation.
+ fireEvent.change(screen.getByLabelText('Presenting concerns and functional impact'),{
+  target:{value:'Independent fictional clinician review note'}
+ });
  fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed this intake/i}));
  fireEvent.click(screen.getByRole('button',{name:/Save reviewed BPS history snapshot/i}));
  await screen.findByText(/NOT verified in chart history/);
@@ -158,6 +174,10 @@ test('an acknowledged BPS save remains unverified until protected history readba
  render(<PatientBpsIntakeReview patientId={patient}/>);
  await screen.findByText(/Version 7/);
  fireEvent.click(screen.getByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i}));
+ // A real clinician-review workflow requires independently entered contextual documentation.
+ fireEvent.change(screen.getByLabelText('Presenting concerns and functional impact'),{
+  target:{value:'Independent fictional clinician review note'}
+ });
  fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed this intake/i}));
  fireEvent.click(screen.getByRole('button',{name:/Save reviewed BPS history snapshot/i}));
  await screen.findByText(/save acknowledged; verifying the saved review ID and source provenance/);
@@ -214,6 +234,10 @@ test.each([
  render(<PatientBpsIntakeReview patientId={patient}/>);
  await screen.findByText(/Version 7/);
  fireEvent.click(screen.getByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i}));
+ // A real clinician-review workflow requires independently entered contextual documentation.
+ fireEvent.change(screen.getByLabelText('Presenting concerns and functional impact'),{
+  target:{value:'Independent fictional clinician review note'}
+ });
  fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed this intake/i}));
  fireEvent.click(screen.getByRole('button',{name:/Save reviewed BPS history snapshot/i}));
  await screen.findByText(/linked intake source changed during chart-history verification/);
@@ -245,6 +269,10 @@ test.each(['lost POST response','indeterminate server error','malformed success 
  render(<PatientBpsIntakeReview patientId={patient}/>);
  await screen.findByText(/Version 7/);
  fireEvent.click(screen.getByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i}));
+ // A real clinician-review workflow requires independently entered contextual documentation.
+ fireEvent.change(screen.getByLabelText('Presenting concerns and functional impact'),{
+  target:{value:'Independent fictional clinician review note'}
+ });
  fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed this intake/i}));
  fireEvent.click(screen.getByRole('button',{name:/Save reviewed BPS history snapshot/i}));
  await screen.findByText(/no save receipt was verified/i);
@@ -271,6 +299,10 @@ test.each([false,undefined])('a saved row with review attestation %s cannot prov
  render(<PatientBpsIntakeReview patientId={patient}/>);
  await screen.findByText(/Version 7/);
  fireEvent.click(screen.getByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i}));
+ // A real clinician-review workflow requires independently entered contextual documentation.
+ fireEvent.change(screen.getByLabelText('Presenting concerns and functional impact'),{
+  target:{value:'Independent fictional clinician review note'}
+ });
  fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed this intake/i}));
  fireEvent.click(screen.getByRole('button',{name:/Save reviewed BPS history snapshot/i}));
  if(attestation===undefined){
@@ -303,6 +335,10 @@ test('matching BPS review ID is insufficient when chart history timestamp differ
  render(<PatientBpsIntakeReview patientId={patient}/>);
  await screen.findByText(/Version 7/);
  fireEvent.click(screen.getByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i}));
+ // A real clinician-review workflow requires independently entered contextual documentation.
+ fireEvent.change(screen.getByLabelText('Presenting concerns and functional impact'),{
+  target:{value:'Independent fictional clinician review note'}
+ });
  fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed this intake/i}));
  fireEvent.click(screen.getByRole('button',{name:/Save reviewed BPS history snapshot/i}));
  await screen.findByText(/exact clinician review was NOT independently verified/);
@@ -335,6 +371,10 @@ test.each([
  render(<PatientBpsIntakeReview patientId={patient}/>);
  await screen.findByText(/Version 7/);
  fireEvent.click(screen.getByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i}));
+ // A real clinician-review workflow requires independently entered contextual documentation.
+ fireEvent.change(screen.getByLabelText('Presenting concerns and functional impact'),{
+  target:{value:'Independent fictional clinician review note'}
+ });
  fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed this intake/i}));
  fireEvent.click(screen.getByRole('button',{name:/Save reviewed BPS history snapshot/i}));
  await screen.findByText(/outcome of this submission is unknown/i);
@@ -367,6 +407,10 @@ test('clinician save cannot be independently verified if the patient submission 
  render(<PatientBpsIntakeReview patientId={patient}/>);
  await screen.findByText(/Version 7/);
  fireEvent.click(screen.getByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i}));
+ // A real clinician-review workflow requires independently entered contextual documentation.
+ fireEvent.change(screen.getByLabelText('Presenting concerns and functional impact'),{
+  target:{value:'Independent fictional clinician review note'}
+ });
  fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed this intake/i}));
  fireEvent.click(screen.getByRole('button',{name:/Save reviewed BPS history snapshot/i}));
  await screen.findByText(/linked intake source changed during chart-history verification/i);
@@ -393,6 +437,10 @@ test('equivalent patient attestation instants in different timezone offsets stil
  render(<PatientBpsIntakeReview patientId={patient}/>);
  await screen.findByText(/Version 7/);
  fireEvent.click(screen.getByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i}));
+ // A real clinician-review workflow requires independently entered contextual documentation.
+ fireEvent.change(screen.getByLabelText('Presenting concerns and functional impact'),{
+  target:{value:'Independent fictional clinician review note'}
+ });
  fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed this intake/i}));
  fireEvent.click(screen.getByRole('button',{name:/Save reviewed BPS history snapshot/i}));
  await screen.findByText(/snapshot saved AND independently verified in the protected chart history/);

@@ -28,7 +28,7 @@ function packet(version=7){
   version,updatedAt:stamp,submittedAt:stamp
  },sections,reviews:[],unmappedKeys:[]};
 }
-function harness(reply:(call:number)=>Promise<Response>,bpsPage:'developmental_personal'|'family_origin'='developmental_personal'){
+function harness(reply:(call:number)=>Promise<Response>,bpsPage:'symptoms'|'treatment_history'|'medications'|'family_origin'|'medical_substance'|'developmental_personal'|'trauma_history'='developmental_personal'){
  const dom=new JSDOM('<main id="content"></main>',{
   url:'https://www.indiancreekpsych.com/emr/workspace?module=assessment&bps_page='+bpsPage
  });
@@ -497,6 +497,55 @@ test('original BPS withholds raw trauma even when upstream relabels it as ordina
   await vi.waitFor(()=>expect(h.dom.window.document.body.textContent).toContain('Linked patient intake — BPS source context'));
   expect(h.dom.window.document.body.textContent).toContain('FICTIONAL FRIEND SUPPORT');
   expect(h.dom.window.document.body.textContent).not.toContain('PRIVATE FICTIONAL TRAUMA');
+  expect(h.requests.every(request=>request.method==='GET')).toBe(true);
+ }finally{h.dom.window.close();}
+});
+
+
+test.each([
+ ['symptoms','Current symptom checklist'],
+ ['treatment_history','Counseling and psychiatric history'],
+ ['medications','Psychiatric medications'],
+ ['family_origin','Family of origin'],
+ ['medical_substance','Medical and substance-use history'],
+ ['developmental_personal','Developmental and personal history'],
+ ['trauma_history','Trauma history']
+] as const)('all seven original BPS pages independently show exact patient source receipts and keep separate-source data protected (%s)',async(page,label)=>{
+ const h=harness(async()=>Response.json(packet()),page);
+ try{
+  await vi.waitFor(()=>expect(h.dom.window.document.querySelector(
+   '[aria-label="Source context for selected original BPS page"]')).toBeTruthy());
+  const content=h.dom.window.document.body.textContent||'';
+  const pageContext=h.dom.window.document.querySelector(
+   '[aria-label="Source context for selected original BPS page"]')!;
+  expect(pageContext.textContent).toContain('Patient-reported source context for '+label);
+  expect(content).toContain('source version 7');
+  expect(content).toContain('exact revision receipt '+stamp);
+  expect(content).toContain('patient submission receipt '+stamp);
+  expect(content).toContain('patient attestation only; not a clinician signature');
+  expect(pageContext.textContent).not.toContain('PRIVATE FICTIONAL TRAUMA');
+  expect(pageContext.textContent).not.toContain('PRIVATE FICTIONAL MEDICATION');
+  expect(h.note.value).toBe('');
+  expect(h.requests).toEqual([{url:'/api/emr/bps-intake?patient='+patient,method:'GET'}]);
+  if(page==='medications'||page==='medical_substance')
+   expect(pageContext.textContent).toContain('Dedicated protected reconciliation required');
+  if(page==='family_origin'||page==='developmental_personal')
+   expect(pageContext.textContent).toContain('FICTIONAL FRIEND SUPPORT');
+ }finally{h.dom.window.close();}
+});
+
+test('unsubmitted patient intake shows no submission attestation on every original BPS source view',async()=>{
+ const h=harness(async()=>{
+  const source=packet();
+  return Response.json({...source,source:{...source.source,status:'draft',submittedAt:null}});
+ },'symptoms');
+ try{
+  await vi.waitFor(()=>expect(h.dom.window.document.body.textContent)
+   .toContain('no patient submission receipt (draft)'));
+  const content=h.dom.window.document.body.textContent||'';
+  expect(content).toContain('exact revision receipt '+stamp);
+  expect(content).not.toContain('patient submission receipt '+stamp);
+  expect(h.button()).toBeUndefined();
   expect(h.requests.every(request=>request.method==='GET')).toBe(true);
  }finally{h.dom.window.close();}
 });

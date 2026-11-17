@@ -279,6 +279,15 @@ test('BPS summary records current reviewed attestation only for the same patient
  expect(response.status).toBe(200);
  expect((await response.json()).currentVersionReviewed).toBe(true);
  expect(JSON.stringify(await (await GET(url)).json())).not.toContain('PRIVATE_FICTIONAL_CLINICIAN_790');
+ // Legacy reviewed=true rows can predate mandatory independent clinician notes.
+ // The original seven-page BPS indicator must not certify checkbox-only history.
+ for(const clinician_notes of [{},{presenting:'   '},{presenting:'\u200B\u2060'},
+  {unapproved:'FICTIONAL_PRIVATE_PROTECTED_NOTE'}]){
+  reviewRows=[{...reviewRows[0],reviewed:true,clinician_notes}];
+  const historical=await GET(url);
+  expect(historical.status).toBe(200);
+  expect((await historical.json()).currentVersionReviewed).toBe(false);
+ }
  reviewRows=[{...reviewRows[0],reviewed:false}];
  response=await GET(url);
  expect(response.status).toBe(200);

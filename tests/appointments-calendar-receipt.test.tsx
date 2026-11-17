@@ -13,10 +13,10 @@ const booking={
  starts_at:nextMonth+'-10T16:00:00Z',ends_at:nextMonth+'-10T17:00:00Z',
  status:'booked',series_id:'00000000-0000-4000-8000-000000000200'
 };
-function prepare(receipt:unknown){
+function prepare(receipt:unknown, row=booking){
  const q:any={};
  for(const method of ['select','eq','gte','lt','order'])q[method]=vi.fn(()=>q);
- q.abortSignal=vi.fn(async()=>({data:[booking],error:null}));
+ q.abortSignal=vi.fn(async()=>({data:[row],error:null}));
  m.from.mockReturnValue(q);
  m.rpc.mockImplementation((name:string)=>({abortSignal:async()=>({
   data:name==='scheduling_patients'?[]:receipt,error:null
@@ -145,4 +145,18 @@ test('definitive calendar conflict rejection allows a corrected retry',async()=>
  fireEvent.submit(form);
  await screen.findByText('2 appointments updated. Adjacent openings have been recalculated.');
  expect(m.rpc.mock.calls.filter(([name])=>name==='edit_calendar_appointments')).toHaveLength(2);
+});
+
+test('a name-only recurring booking never implies a link to the central patient chart',async()=>{
+ prepare(2);
+ await openFutureRecurringEditor();
+ expect(screen.getByText(/name-only booking, not a central patient chart link/i)).toBeTruthy();
+ expect(screen.getByText(/Renaming this booking will not create a chart link/i)).toBeTruthy();
+});
+
+test('a centrally linked patient booking does not show the name-only warning',async()=>{
+ prepare(1,{...booking,patient_id:'00000000-0000-4000-8000-000000000901'});
+ await openFutureRecurringEditor();
+ expect(screen.queryByText(/name-only booking, not a central patient chart link/i)).toBeNull();
+ expect(screen.queryByText(/Renaming this booking will not create a chart link/i)).toBeNull();
 });

@@ -418,7 +418,21 @@ async function populateOriginalBpsIntake(panel,id,generation){
       .map(field=>({key:field.key,label:field.label,value:field.value})):[];
     };
     const fields=getDraftFields(result.sections);
-    if(fields.length){
+    // Free-text patient reports may contain invisible control or bidirectional
+    // formatting marks. These can visually reverse patient-source prefixes or
+    // impersonate clinician-authored text even when every newline is labeled.
+    // Preserve the protected patient report, but never copy such text into an
+    // editable clinician note. Ordinary newlines and Unicode paragraph breaks
+    // remain supported and are attributed separately below.
+    const unsafeAttributedText=/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/u;
+    const unsafeDraftField=fields.some(field=>unsafeAttributedText.test(field.value));
+    if(unsafeDraftField){
+     const warning=document.createElement('p');
+     warning.setAttribute('role','alert');
+     warning.textContent='Patient-reported source contains directional or control characters that cannot be safely attributed in editable BPS notes. Review the protected original intake; no source text was copied.';
+     pageContext.append(warning);
+    }
+    if(fields.length&&!unsafeDraftField){
      // A patient may include newlines or Unicode paragraph separators in a
      // free-text answer. Attribute EACH physical line to the patient so a
      // continuation cannot visually impersonate a clinician-authored finding,

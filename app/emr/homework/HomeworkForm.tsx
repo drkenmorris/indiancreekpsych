@@ -1,5 +1,5 @@
 'use client';
-import {useEffect,useRef,useState} from 'react';
+import {useEffect,useId,useRef,useState} from 'react';
 import {flushSync} from 'react-dom';
 import Link from 'next/link';
 import {homeworkChoices,validHomeworkInput,type HomeworkPlanVersion,type SavedHomework} from '@/lib/emr/homework';
@@ -7,6 +7,7 @@ import {emptyRichDoc,type RichNode} from '@/lib/emr/treatment-response';
 import RichTextEditor from '../treatment-response/RichTextEditor';
 import RichTextReadOnly from '../treatment-response/RichTextReadOnly';
 export default function HomeworkForm({patientId}:{patientId:string}){
+ const selectionId=useId();
  const [versions,setVersions]=useState<HomeworkPlanVersion[]>([]),[versionId,setVersionId]=useState(''),[problemId,setProblemId]=useState(''),[objectiveId,setObjectiveId]=useState(''),[interventionId,setInterventionId]=useState('');
  const [narrative,setNarrative]=useState<RichNode>(emptyRichDoc),[draftId,setDraftId]=useState(''),[editorKey,setEditorKey]=useState(0);
  const [history,setHistory]=useState<SavedHomework[]>([]),[offset,setOffset]=useState(0),[hasMore,setHasMore]=useState(false),[preview,setPreview]=useState<SavedHomework|null>(null);
@@ -29,6 +30,7 @@ export default function HomeworkForm({patientId}:{patientId:string}){
  useEffect(()=>{const warn=(event:BeforeUnloadEvent)=>{if(dirty){event.preventDefault();event.returnValue='';}};window.addEventListener('beforeunload',warn);return()=>window.removeEventListener('beforeunload',warn);},[dirty]);
  const version=versions.find(v=>v.id===versionId)??null;
  const {problems,problem,objectives,objective,interventions}=homeworkChoices(version,problemId,objectiveId);
+ const intervention=interventions.find(item=>item.id===interventionId);
  function edit(){setDirty(true);}
  function newAssignment(){if(dirty&&!window.confirm('Discard unsaved homework changes and start a new assignment?'))return;setProblemId('');setObjectiveId('');setInterventionId('');setNarrative(emptyRichDoc());setEditorKey(n=>n+1);setDraftId(crypto.randomUUID());setDirty(false);setPreview(null);setMessage('Choose a problem for a new homework assignment.');}
  async function save(){
@@ -61,9 +63,9 @@ export default function HomeworkForm({patientId}:{patientId:string}){
      <label>Treatment plan version<select value={versionId} onChange={event=>{setVersionId(event.target.value);setProblemId('');setObjectiveId('');setInterventionId('');edit();}}>{versions.map(v=><option key={v.id} value={v.id}>{v.snapshot.title} · Version {v.revision} · {v.snapshot.status} · {new Date(v.created_at).toLocaleString()}</option>)}</select></label>
      {version?.snapshot.status==='draft'&&<p>This saved treatment plan is a draft. Review its selected items before assigning homework.</p>}
      <label>Homework for<select required value={problemId} onChange={event=>{setProblemId(event.target.value);setObjectiveId('');setInterventionId('');edit();}}><option value="">Choose a patient problem</option>{problems.map(p=><option key={p.id} value={p.id}>{p.text}</option>)}</select></label>
-     <label>Objective<select required disabled={!problemId||!objectives.length} value={objectiveId} onChange={event=>{setObjectiveId(event.target.value);setInterventionId('');edit();}}><option value="">{!problemId?'Choose a problem first':objectives.length?'Choose a linked objective':'No objectives saved for this problem'}</option>{objectives.map(o=><option key={o.id} value={o.id}>{o.text}</option>)}</select></label>
+     <div className="homeworkSelectionField"><label>Objective<select aria-describedby={objective?selectionId+'-objective':undefined} required disabled={!problemId||!objectives.length} value={objectiveId} onChange={event=>{setObjectiveId(event.target.value);setInterventionId('');edit();}}><option value="">{!problemId?'Choose a problem first':objectives.length?'Choose a linked objective':'No objectives saved for this problem'}</option>{objectives.map(o=><option key={o.id} value={o.id}>{o.text}</option>)}</select></label>{objective&&<div id={selectionId+'-objective'} className="homeworkSelectedNarrative"><strong>Selected objective</strong><p>{objective.text}</p></div>}</div>
      {problemId&&!objectives.length&&<p>No objective has been saved for this problem. Add and save its objectives in the treatment plan, then reload Homework.</p>}
-     <label>Intervention<select required disabled={!objectiveId||!interventions.length} value={interventionId} onChange={event=>{setInterventionId(event.target.value);edit();}}><option value="">{!objectiveId?'Choose an objective first':interventions.length?'Choose a linked intervention':'No interventions saved for this objective'}</option>{interventions.map(i=><option key={i.id} value={i.id}>{i.text}</option>)}</select></label>
+     <div className="homeworkSelectionField"><label>Intervention<select aria-describedby={intervention?selectionId+'-intervention':undefined} required disabled={!objectiveId||!interventions.length} value={interventionId} onChange={event=>{setInterventionId(event.target.value);edit();}}><option value="">{!objectiveId?'Choose an objective first':interventions.length?'Choose a linked intervention':'No interventions saved for this objective'}</option>{interventions.map(i=><option key={i.id} value={i.id}>{i.text}</option>)}</select></label>{intervention&&<div id={selectionId+'-intervention'} className="homeworkSelectedNarrative"><strong>Selected intervention</strong><p>{intervention.text}</p></div>}</div>
      {objectiveId&&!interventions.length&&<p>No intervention has been saved for this objective. Add and save its interventions in the treatment plan, then reload Homework.</p>}
      <RichTextEditor key={patientId+':'+editorKey} label="Homework assignment" value={narrative} disabled={busy} onChange={value=>{setNarrative(value);edit();}}/>
      <div className="treatmentActions"><button type="submit" disabled={!dirty||busy}>Save homework assignment</button><button type="button" onClick={newAssignment}>New homework assignment</button><button type="button" onClick={()=>{if(!dirty||window.confirm('Reload Homework and discard unsaved changes?'))setAttempt(n=>n+1);}}>Reload treatment plan and homework</button><button type="button" disabled={!preview||dirty} onClick={()=>preview&&print(preview)}>Print saved homework</button></div>

@@ -42,3 +42,16 @@ test('failed save keeps the draft, missing objectives explain the next step, and
 test('Homework menu opens dedicated patient editor without the legacy assessment prompt',async()=>{
  const {readFileSync}=await import('node:fs'),vm=await import('node:vm');const ctx=vm.createContext({patientId,activeSection:{module:'plan',key:'homework'},standalone:false,URLSearchParams,esc:(v:string)=>v});vm.runInContext(readFileSync('public/emr-assets/planner.js','utf8'),ctx);const html=vm.runInContext('libraryPlanView()',ctx);expect(html).toContain('/emr/homework?patient='+patientId);expect(html).not.toContain('Select library problems');
 });
+
+test('long selected objective and intervention wording is fully displayed and cleared when their parent changes',async()=>{
+ const objective='Fictional long objective: '+('Practice the agreed skill and review the results. '.repeat(18));
+ const intervention='Fictional long intervention: '+('Review progress and adapt the planned strategy together. '.repeat(18));
+ versions[0].snapshot.problems[0].children[0].text=objective;versions[0].snapshot.problems[0].children[0].children[0].text=intervention;
+ render(<HomeworkForm patientId={patientId}/>);await screen.findByLabelText('Homework for');
+ fireEvent.change(screen.getByLabelText('Homework for'),{target:{value:'p1'}});fireEvent.change(screen.getByLabelText('Objective'),{target:{value:'o1'}});fireEvent.change(screen.getByLabelText('Intervention'),{target:{value:'i1'}});
+ const objectiveCopy=document.getElementById(screen.getByLabelText('Objective').getAttribute('aria-describedby')!)!;
+ const interventionCopy=document.getElementById(screen.getByLabelText('Intervention').getAttribute('aria-describedby')!)!;
+ expect(objectiveCopy.querySelector('p')?.textContent).toBe(objective);expect(interventionCopy.querySelector('p')?.textContent).toBe(intervention);
+ fireEvent.change(screen.getByLabelText('Objective'),{target:{value:'o2'}});expect(screen.queryByText('Selected intervention')).toBeNull();expect((screen.getByLabelText('Intervention') as HTMLSelectElement).value).toBe('');
+ fireEvent.change(screen.getByLabelText('Homework for'),{target:{value:'p2'}});expect(screen.queryByText('Selected objective')).toBeNull();expect(screen.queryByText('Selected intervention')).toBeNull();
+});

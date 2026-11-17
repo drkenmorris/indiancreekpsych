@@ -1,5 +1,5 @@
-export const responseRoles={patient:'Identified patient',significant_other:'Significant other',parent:'Parent',guardian:'Guardian',family:'Family member'} as const;
-export const narrativeLabels={patient:'Identified patient narrative',significantOther:'Significant other narrative',family:'Parents, guardians, or family members narrative'} as const;
+export const responseRoles={patient:'Active patient',significant_other:'Significant other',parent:'Parent',guardian:'Guardian',family:'Family member'} as const;
+export const narrativeLabels={patient:'Active patient narrative',significantOther:'Significant other narrative',family:'Parents, guardians, or family members narrative'} as const;
 export const fontFamilies=['Arial','Calibri','Georgia','Times New Roman','Verdana','Courier New'] as const;
 export const fontSizes=['10pt','11pt','12pt','14pt','16pt','18pt','20pt','24pt'] as const;
 export type RichNode={type:string;text?:string;attrs?:Record<string,unknown>;marks?:{type:string;attrs?:Record<string,unknown>}[];content?:RichNode[]};

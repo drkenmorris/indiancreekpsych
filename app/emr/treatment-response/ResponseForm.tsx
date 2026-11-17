@@ -17,7 +17,7 @@ export default function ResponseForm({patientId}:{patientId:string}) {
   async function load(){try{
    const result=await fetch(endpoint+'?patient='+encodeURIComponent(patientId),{signal:controller.signal,cache:'no-store'});const data=await result.json();
    if(!result.ok)throw Error(data.error||'Treatment response unavailable.');
-   if(data.patientId!==patientId||typeof data.patientName!=='string'||!Array.isArray(data.plans)||!Number.isSafeInteger(data.revision)||data.response!==null&&!validTreatmentResponse(data.response)||!Array.isArray(data.history))throw Error('The response record did not match this patient.');
+   if(data.patientId!==patientId||typeof data.patientName!=='string'||!data.patientName.trim()||!Array.isArray(data.plans)||!Number.isSafeInteger(data.revision)||data.response!==null&&!validTreatmentResponse(data.response)||!Array.isArray(data.history))throw Error('The response record did not match this patient.');
    if(!controller.signal.aborted){setPatientName(data.patientName);setPlans(data.plans);const current=data.response??emptyTreatmentResponse();setResponse({...current,participants:current.participants.map((row:ResponseParticipant)=>row.role==='patient'?{...row,name:data.patientName}:row)});setRevision(data.revision);setHistory(data.history);setLoaded(true);setMessage('Response loaded. Unchecked Yes/No boxes mean approval has not been recorded.');}
   }catch(error){if(!controller.signal.aborted)setMessage(error instanceof Error?error.message:'Treatment response unavailable.');}}
   void load();return()=>controller.abort();
@@ -55,8 +55,8 @@ export default function ResponseForm({patientId}:{patientId:string}) {
      <div className="responseTableScroll" role="region" aria-label="Treatment plan approvals" tabIndex={0}>
       <table className="responseApprovalTable"><caption>Who is on board with treatment?</caption><thead><tr><th scope="col">Person / role</th><th scope="col">Name</th><th scope="col">Yes</th><th scope="col">No</th><th scope="col">Recorded approval</th><th scope="col">Actions</th></tr></thead><tbody>
        {response.participants.map((row,index)=>{const label=responseRoles[row.role]+' '+(index+1);return <tr key={row.id}>
-        <td>{row.role==='patient'?'Identified patient':<select aria-label={label+' role'} value={row.role} onChange={event=>person(row.id,{role:event.target.value as ResponseParticipant['role']})}>{Object.entries(responseRoles).filter(([role])=>role!=='patient').map(([role,name])=><option key={role} value={role}>{name}</option>)}</select>}</td>
-        <td>{row.role==='patient'?<span className="responsePatientName">{patientName||'Name not recorded in the open chart'}</span>:<input aria-label={label+' name'} value={row.name} maxLength={120} onChange={event=>person(row.id,{name:event.target.value})}/>}</td>
+        <td>{row.role==='patient'?'Active patient':<select aria-label={label+' role'} value={row.role} onChange={event=>person(row.id,{role:event.target.value as ResponseParticipant['role']})}>{Object.entries(responseRoles).filter(([role])=>role!=='patient').map(([role,name])=><option key={role} value={role}>{name}</option>)}</select>}</td>
+        <td>{row.role==='patient'?<span className="responsePatientName">{patientName}</span>:<input aria-label={label+' name'} value={row.name} maxLength={120} onChange={event=>person(row.id,{name:event.target.value})}/>}</td>
         <td><label><input type="checkbox" aria-label={label+' approves Yes'} checked={row.approval==='yes'} onChange={event=>person(row.id,{approval:event.target.checked?'yes':'unanswered'})}/> Yes</label></td>
         <td><label><input type="checkbox" aria-label={label+' approves No'} checked={row.approval==='no'} onChange={event=>person(row.id,{approval:event.target.checked?'no':'unanswered'})}/> No</label></td>
         <td>{row.approval==='unanswered'?'Not recorded':row.approval==='yes'?'Approves':'Does not approve'}</td>

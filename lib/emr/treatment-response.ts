@@ -50,3 +50,10 @@ export function validTreatmentResponse(value:unknown):value is TreatmentResponse
  if(!value.participants.every((p:unknown)=>object(p)&&Object.keys(p).length===4&&keys(p,['id','role','name','approval'])&&uuid(p.id)&&Object.hasOwn(responseRoles,p.role)&&typeof p.name==='string'&&p.name.length<=120&&['yes','no','unanswered'].includes(p.approval)&&(p.role==='patient'||p.approval==='unanswered'||p.name.trim().length>0)))return false;
  return object(value.narratives)&&Object.keys(value.narratives).length===3&&Object.keys(narrativeLabels).every(k=>validRichDoc(value.narratives[k]));
 }
+
+export type ResponsePlanChoice={id:string;planId:string;revision:number;firstRecordedAt:string;recordedAt:string;title:string;status:string};
+export const responsePlanReference=(id:string)=>'plan-version:'+id;
+export function responsePlanLabel(plan:ResponsePlanChoice){
+ const date=(value:string)=>new Date(value).toLocaleString('en-US',{timeZone:'America/Chicago',year:'numeric',month:'long',day:'numeric',hour:'numeric',minute:'2-digit',second:'2-digit'});
+ return date(plan.firstRecordedAt)+' — '+plan.title+' — Version '+plan.revision+(plan.revision>1?' (recorded '+date(plan.recordedAt)+')':'');
+}

@@ -342,3 +342,25 @@ test('family-of-origin draft rejects cross-section intake changes at the same re
   expect(h.dom.window.document.body.textContent).not.toContain('PRIVATE FICTIONAL MEDICATION');
  }finally{h.dom.window.close();}
 });
+
+test('original BPS source draft is not populated if clinician navigates to another page while receipt recheck is pending',async()=>{
+ let navigate=()=>{};
+ const h=harness(async call=>{
+  // Keep the old editable form mounted to reproduce a client-side route change
+  // before the asynchronous clinical source verification resolves.
+  if(call===2)navigate();
+  return Response.json(packet());
+ });
+ navigate=()=>h.dom.window.history.pushState({},'','/emr/workspace?module=assessment&bps_page=family_origin');
+ try{
+  await vi.waitFor(()=>expect(h.button()).toBeTruthy());
+  h.button().click();
+  await vi.waitFor(()=>expect(h.requests).toHaveLength(2));
+  await vi.waitFor(()=>expect(h.button().disabled).toBe(false));
+  expect(h.dom.window.location.search).toContain('bps_page=family_origin');
+  expect(h.note.isConnected).toBe(true);
+  expect(h.note.value).toBe('');
+  expect(h.requests.every(request=>request.method==='GET')).toBe(true);
+  expect(h.dom.window.document.body.textContent).not.toContain('no clinician finding or signature was created');
+ }finally{h.dom.window.close();}
+});

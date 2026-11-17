@@ -1,6 +1,6 @@
 import {expect,test} from 'vitest';
 import {intakeSections,intakeSectionsForVersion,retiredMentalHealthFields,retiredContextFields} from '@/lib/patient/intake';
-import {bpsNoteDomains,bpsSectionClassification,mapIntakeToBps,mapSavedBpsReportedFields,sanitizeBpsSnapshotAnswers,bpsSnapshotClinicalKeys,bpsVisibleSourceKeys,distinctBpsQuestionIdentities,approvedBpsQuestionSection,equalBpsTimestampInstants,validBpsSubmissionChronology,validBpsHistoricalSourceBoundary} from '@/lib/emr/intake-bps';
+import {bpsNoteDomains,hasIndependentBpsReviewNote,bpsSectionClassification,mapIntakeToBps,mapSavedBpsReportedFields,sanitizeBpsSnapshotAnswers,bpsSnapshotClinicalKeys,bpsVisibleSourceKeys,distinctBpsQuestionIdentities,approvedBpsQuestionSection,equalBpsTimestampInstants,validBpsSubmissionChronology,validBpsHistoricalSourceBoundary} from '@/lib/emr/intake-bps';
 test('versioned BPS questions cannot be reassigned to an unrelated known section',()=>{
  expect(approvedBpsQuestionSection('Presenting concerns and functional impact','counseling_reason')).toBe(true);
  expect(approvedBpsQuestionSection('Safety and risk screening','counseling_reason')).toBe(false);
@@ -310,4 +310,12 @@ test('free-text trauma narrative remains protected from BPS source rendering reg
  expect(sanitized.answers).toEqual({counseling_reason:'Fictional concern'});
  expect(sanitized.excludedCount).toBe(1);
  expect(JSON.stringify(sanitized)).not.toContain(confidential);
+});
+
+// Fictional text only. A format-only note must not satisfy a clinician attestation.
+test('invisible formatting alone does not constitute independent BPS clinician documentation',()=>{
+ for(const text of ['\u200b','\u2060\u200e','\u202e\u2066\u2069','\u00ad\u034f\u061c\u180e','\ufeff\u200b \n\t'])
+  expect(hasIndependentBpsReviewNote({presenting:text})).toBe(false);
+ expect(hasIndependentBpsReviewNote({presenting:'\u200b \n\t',limitations:'Independent fictional follow-up: verify source.'})).toBe(true);
+ expect(hasIndependentBpsReviewNote({presenting:'Patient\u200d-reported fictional context'})).toBe(true);
 });

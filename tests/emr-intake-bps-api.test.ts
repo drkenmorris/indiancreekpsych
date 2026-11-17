@@ -35,7 +35,8 @@ beforeEach(()=>{
  m.access.mockResolvedValue({supabase:{from:m.from,rpc:m.rpc}});
 });
 test('blank or whitespace-only clinician notes cannot falsely attest a completed BPS review',async()=>{
- for(const notes of [{},{presenting:''},{presenting:'   ',safety:'\n\t'},{goals:'\u2003'}]){
+ for(const notes of [{},{presenting:''},{presenting:'   ',safety:'\n\t'},{goals:'\u2003'},{presenting:'\u200B\u2060\u200E'},{limitations:'\u202E\u2066\u2069'},
+  {presenting:' \u00AD\u034F\u061C\u180E\uFEFF\n'}]){
   const result=await POST(submit({...payload,notes}));
   expect(result.status).toBe(400);
   expect(result.headers.get('Cache-Control')).toContain('no-store');

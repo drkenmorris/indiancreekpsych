@@ -121,8 +121,14 @@ export const emptyBpsNotes=():BpsNotes=>Object.fromEntries(Object.keys(bpsNoteDo
  * This guard verifies only substantive non-whitespace input; it cannot establish clinical quality.
  * Keep the seven approved note domains unchanged and preserve the actual entered text.
  */
+// These formatting controls are not clinical documentation when they are the
+// entire note. Preserve the original text unchanged when real wording exists;
+// this predicate decides only whether an independent note was entered.
+// Keep this list aligned with the additive PostgreSQL review trigger.
+const invisibleOnlyBpsNoteCharacters=/[\u00ad\u034f\u061c\u180e\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff]/g;
 export const hasIndependentBpsReviewNote=(notes:Record<string,string>):boolean=>
- Object.keys(bpsNoteDomains).some(key=>typeof notes[key]==='string'&&notes[key].trim().length>0);
+ Object.keys(bpsNoteDomains).some(key=>typeof notes[key]==='string'&&
+  notes[key].replace(invisibleOnlyBpsNoteCharacters,'').trim().length>0);
 
 // Previous questionnaire versions retained patient reports that no longer have
 // inputs on the current 21-section form. Route every retired clinical-context

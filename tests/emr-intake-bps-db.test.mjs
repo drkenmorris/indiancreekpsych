@@ -32,7 +32,8 @@ for(const migration of [
  '20261114050000_emr_bps_submitted_chronology_boundary.sql',
  '20261114121500_emr_bps_review_after_patient_submission.sql',
  '20261115071500_emr_bps_draft_attestation_boundary.sql',
- '20261117181000_require_documented_bps_review.sql'
+ '20261117181000_require_documented_bps_review.sql',
+ '20261117185800_bps_review_visible_note_guard.sql'
 ])await db.exec(readFileSync('supabase/migrations/'+migration,'utf8'));
 const q=(s,args=[])=>db.query(s,args);
 const as=async(id,aal='aal2')=>{await db.exec('reset role');await q("select set_config('request.user',$1,false),set_config('request.aal',$2,false)",[id,aal]);await db.exec('set role authenticated');};
@@ -54,7 +55,9 @@ await test('contradictory draft patient submission receipt cannot create an atte
 });
 await test('direct authorized BPS RPC cannot create checkbox-only, whitespace-only review history',async()=>{
  await as(admin);
- for(const notes of [{},{presenting:'   '},{presenting:'\n\t',goals:''}]){
+ for(const notes of [{},{presenting:'   '},{presenting:'\n\t',goals:''},
+  {presenting:'\u200B\u2060\u200E'},{goals:'\u202E\u2066\u2069'},
+  {limitations:' \u00AD\u034F\u061C\u180E\uFEFF\n'}]){
   await assert.rejects(
    q('select public.save_emr_bps_intake_review($1)',[{...payload,clinician_notes:notes}]),
    /Document an independent clinician observation or follow-up need/

@@ -54,7 +54,7 @@ await test('contradictory draft patient submission receipt cannot create an atte
 });
 await test('direct authorized BPS RPC cannot create checkbox-only, whitespace-only review history',async()=>{
  await as(admin);
- for(const notes of [{},{presenting:'   '},{presenting:'\\n\\t',goals:''}]){
+ for(const notes of [{},{presenting:'   '},{presenting:'\n\t',goals:''}]){
   await assert.rejects(
    q('select public.save_emr_bps_intake_review($1)',[{...payload,clinician_notes:notes}]),
    /Document an independent clinician observation or follow-up need/

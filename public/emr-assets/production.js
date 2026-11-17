@@ -412,9 +412,21 @@ async function populateOriginalBpsIntake(panel,id,generation){
     };
     const fields=getDraftFields(result.sections);
     if(fields.length){
+     // A patient may include newlines or Unicode paragraph separators in a
+     // free-text answer. Attribute EACH physical line to the patient so a
+     // continuation cannot visually impersonate a clinician-authored finding,
+     // order, diagnosis or signature in the editable original BPS draft.
+     // Raw patient wording remains available in the protected source view.
+     const patientAttributedLines=field=>{
+      const lines=field.value.split(/\r\n?|\n|\u2028|\u2029/);
+      return lines.map((line,index)=>
+       'Patient-reported '+field.label+
+       (lines.length>1?' (line '+(index+1)+'/'+lines.length+')':'')+
+       ': '+line).join('\n');
+     };
      const draft=['Unverified patient-reported website intake, version '+source.version+
       ', submitted '+source.submittedAt+'. Clinician review required.',
-      ...fields.map(field=>field.label+': '+field.value)].join('\n');
+      ...fields.map(patientAttributedLines)].join('\n');
      const notice=document.createElement('p');
      notice.setAttribute('role','status');
      const button=document.createElement('button');

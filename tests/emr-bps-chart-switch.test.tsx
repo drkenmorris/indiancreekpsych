@@ -396,7 +396,8 @@ test('clinician save readback cannot verify a changed questionnaire packet at th
  const account='00000000-0000-4000-8000-000000000962';
  const reviewId='00000000-0000-4000-8000-000000000963';
  const stamp='2026-11-15T16:00:00Z';
- const sections=mapIntakeToBps({}).sections;
+ const legacySections=mapIntakeToBps({}).sections;
+ const directorySections=mapIntakeToBps({legal_packet_version:'2026-11-02-directory-1'}).sections;
  let reads=0,posts=0;
  vi.stubGlobal('fetch',vi.fn(async(_url:string,options?:RequestInit)=>{
   if(options?.method==='POST'){
@@ -409,7 +410,7 @@ test('clinician save readback cannot verify a changed questionnaire packet at th
    source:{accountId:account,status:'submitted',version:4,
     updatedAt:stamp,submittedAt:stamp,
     questionnairePacketVersion:reads===1?'2026-10-11':'2026-11-02-directory-1'},
-   sections,unmappedKeys:[],
+   sections:reads===1?legacySections:directorySections,unmappedKeys:[],
    reviews:reads===1?[]:[{
     id:reviewId,reviewed:true,source_version:4,source_status:'submitted',
     source_updated_at:stamp,created_at:stamp,clinical_answers:{},clinician_notes:{}

@@ -10,6 +10,9 @@ create function private.current_user_is_admin() returns boolean language sql sec
 grant usage on schema public,auth,private to authenticated,anon;grant select on profiles to authenticated;`);
 for(const [id,role,email] of [[admin,'admin','admin@example.invalid'],[other,'admin','other@example.invalid'],[patient,'patient','patient@example.invalid'],[stranger,'patient','stranger@example.invalid']]){await db.query('insert into auth.users values($1,$2,now())',[id,email]);await db.query('insert into profiles values($1,$2)',[id,role]);}await db.query('insert into clinical_patients values($1)',[subject]);
 for(const p of ['20261013094000_psych_test_assignments.sql','20261103234805_asq_recipient_assignments.sql','20261103235256_asq_recipient_policy_compatibility.sql','20261104193723_connected_five_test_assignments.sql'])await db.exec(readFileSync('supabase/migrations/'+p,'utf8'));
+// The shared migration also covers DSM; provide empty DSM history tables
+// in this connected-only fixture without creating any recipient records.
+await db.exec('create table dsm_assignment_responses(assignment_id uuid,respondent_id uuid);create table dsm_assignment_response_versions(assignment_id uuid);create function private.dsm_recipient_allowed(uuid) returns boolean language sql as $select false$;');
 await db.exec(readFileSync('supabase/migrations/20261117041500_respondent_history_explicit_owner_scoping.sql','utf8'));
 async function as(id,aal='aal2',email='spoof@example.invalid'){await db.exec('reset role');await db.query("select set_config('request.user',$1,false),set_config('request.aal',$2,false),set_config('request.email',$3,false)",[id,aal,email]);await db.exec('set role authenticated');}
 const keys=['cseq','srrci','rtafi','rdii','rvti'];

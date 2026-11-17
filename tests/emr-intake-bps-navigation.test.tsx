@@ -163,7 +163,8 @@ test('clinician BPS retains two valid, strictly ordered historical reviews',asyn
  const row=(id:string,created_at:string)=>({
   id,reviewed:true,source_version:2,source_status:'submitted',
   source_updated_at:'2026-11-10T08:00:00Z',created_at,
-  clinical_answers:{counseling_reason:'FICTIONAL_PRESERVED_REPORT'},clinician_notes:{}
+  clinical_answers:{counseling_reason:'FICTIONAL_PRESERVED_REPORT'},
+  clinician_notes:{presenting:'FICTIONAL_INDEPENDENT_CLINICIAN_OBSERVATION'}
  });
  vi.stubGlobal('fetch',vi.fn(async()=>({ok:true,json:async()=>({
   patientId:patient,source:{accountId:patient,status:'submitted',version:3,
@@ -176,5 +177,6 @@ test('clinician BPS retains two valid, strictly ordered historical reviews',asyn
  const {container}=render(<PatientBpsIntakeReview patientId={patient}/>);
  await screen.findByText(/Previously saved immutable clinician reviews \(2\)/);
  expect(container.textContent).toContain('FICTIONAL_PRESERVED_REPORT');
+ expect(container.textContent).toContain('Documented clinician reviews: 2');
  expect(screen.queryByRole('alert')).toBeNull();
 });

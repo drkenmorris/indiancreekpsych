@@ -34,6 +34,20 @@ beforeEach(()=>{
  });
  m.access.mockResolvedValue({supabase:{from:m.from,rpc:m.rpc}});
 });
+test('blank or whitespace-only clinician notes cannot falsely attest a completed BPS review',async()=>{
+ for(const notes of [{},{presenting:''},{presenting:'   ',safety:'\\n\\t'},{goals:'\\u2003'}]){
+  const result=await POST(submit({...payload,notes}));
+  expect(result.status).toBe(400);
+  expect(result.headers.get('Cache-Control')).toContain('no-store');
+  expect(JSON.stringify(await result.json())).not.toContain('source_account_id');
+ }
+ expect(m.rpc).not.toHaveBeenCalled();
+ const observed=await POST(submit({...payload,notes:{limitations:'Reviewed context; requires fictional follow-up.'}}));
+ expect(observed.status).toBe(201);
+ expect(m.rpc).toHaveBeenCalledTimes(1);
+ expect(m.rpc.mock.calls[0][1].p_payload.clinician_notes.limitations).toBe('Reviewed context; requires fictional follow-up.');
+});
+
 test('existing MFA and same-origin gates prevent unauthorized BPS source and saves',async()=>{
  m.access.mockResolvedValue(null);
  expect((await GET(request())).status).toBe(403);expect((await POST(submit(payload))).status).toBe(403);

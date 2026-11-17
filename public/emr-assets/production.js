@@ -442,6 +442,11 @@ async function populateOriginalBpsIntake(panel,id,generation){
        }
        target.value=draft;
        target.dispatchEvent(new window.Event('input',{bubbles:true}));
+       // Both original forms keep source notes inside a collapsed optional
+       // disclosure. Reveal the filled field so the clinician can inspect it
+       // before choosing whether to save the independent assessment.
+       const noteDisclosure=target.closest('details');
+       if(noteDisclosure)noteDisclosure.open=true;
        notice.textContent='Patient report placed in the unsaved original '+draftDestination.label+' draft. Review independently before explicit save; no clinician finding or signature was created.';
       }catch{
        if(stillCurrent())notice.textContent='The protected source could not be reverified; original clinical notes remain unchanged.';

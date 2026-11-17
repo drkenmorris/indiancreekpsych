@@ -1,6 +1,6 @@
 import {afterEach,beforeEach,expect,test,vi} from 'vitest';
 import {act,cleanup,fireEvent,render,screen} from '@testing-library/react';
-import {localParts,shiftMonth} from '@/lib/scheduling/calendar';
+import {type CalendarAppointment,localParts,shiftMonth} from '@/lib/scheduling/calendar';
 import CalendarClient from '@/app/appointments/calendar/CalendarClient';
 
 const m=vi.hoisted(()=>({from:vi.fn(),rpc:vi.fn()}));
@@ -13,7 +13,7 @@ const booking={
  starts_at:nextMonth+'-10T16:00:00Z',ends_at:nextMonth+'-10T17:00:00Z',
  status:'booked',series_id:'00000000-0000-4000-8000-000000000200'
 };
-function prepare(receipt:unknown, row=booking){
+function prepare(receipt:unknown, row:CalendarAppointment=booking){
  const q:any={};
  for(const method of ['select','eq','gte','lt','order'])q[method]=vi.fn(()=>q);
  q.abortSignal=vi.fn(async()=>({data:[row],error:null}));

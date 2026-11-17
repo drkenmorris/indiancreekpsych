@@ -204,6 +204,7 @@ async function populateOriginalBpsIntake(panel,id,generation){
   // review indicator. Validate unique IDs, revisions and receipt chronology at
   // the original BPS trust boundary independently of the API.
   const reviewIds=new Set();
+  let priorReviewTime=null,priorReviewId='';
   const validReviewHistory=Array.isArray(result.reviews)&&result.reviews.every(review=>{
    if(!review||typeof review!=='object'||Array.isArray(review)||
       typeof review.id!=='string'||
@@ -212,11 +213,27 @@ async function populateOriginalBpsIntake(panel,id,generation){
       typeof review.reviewed!=='boolean'||
       !Number.isSafeInteger(review.source_version)||review.source_version<1||
       review.source_version>source.version||
-      !['draft','submitted'].includes(review.source_status))return false;
-   reviewIds.add(review.id.toLowerCase());
+      !['draft','submitted'].includes(review.source_status)||
+      // A malformed historical row is not equivalent to empty BPS history.
+      // Never count it as a clinician review or expose related patient reports.
+      !review.clinical_answers||typeof review.clinical_answers!=='object'||
+      Array.isArray(review.clinical_answers)||
+      !review.clinician_notes||typeof review.clinician_notes!=='object'||
+      Array.isArray(review.clinician_notes)||
+      (review.excluded_clinical_fields!==undefined&&
+       (!Number.isSafeInteger(review.excluded_clinical_fields)||review.excluded_clinical_fields<0))||
+      (review.excluded_clinician_notes!==undefined&&
+       (!Number.isSafeInteger(review.excluded_clinician_notes)||review.excluded_clinician_notes<0)))return false;
+   const reviewId=review.id.toLowerCase();
    const sourceAt=originalBpsInstantNanoseconds(review.source_updated_at);
    const createdAt=originalBpsInstantNanoseconds(review.created_at);
-   return sourceAt!==null&&createdAt!==null&&
+   // Enforce descending (created_at,id) history ordering, as in the protected
+   // API and clinician review. Stale, shuffled responses are not attestation.
+   if(createdAt===null||
+      (priorReviewTime!==null&&
+       (createdAt>priorReviewTime||(createdAt===priorReviewTime&&reviewId>=priorReviewId))))return false;
+   priorReviewTime=createdAt;priorReviewId=reviewId;reviewIds.add(reviewId);
+   return sourceAt!==null&&
     sourceAt<=editedInstant&&createdAt>=sourceAt&&
     // The original BPS cannot trust a review that claims the current source
     // revision but has a different source status or exact edit receipt.

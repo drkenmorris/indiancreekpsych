@@ -187,6 +187,18 @@ async function populateOriginalBpsIntake(panel,id,generation){
        (field.reported!==undefined&&typeof field.reported!=='boolean')||
        (field.sourceOnly!==undefined&&typeof field.sourceOnly!=='boolean')||
        (field.reported===true&&!field.value.trim()))return false;
+    // A reported medication, allergy, structured-history, legal or insurance
+    // answer must NEVER be classed as a BPS-readable free-text report by a
+    // malformed/stale API response. The protected source is authoritative;
+    // refuse this entire source audit before rendering or drafting anything.
+    // Even a false "text" field type cannot override a reference-only or
+    // separate-review section boundary.
+    const protectedFieldTypes=new Set(['treatment-history','medications','medical-substance',
+     'trauma-history','legal-routing','dsm-version']);
+    const protectedFieldKeys=new Set(['trauma_history','prior_psychiatric_medications','legal_history']);
+    if(field.reported===true&&
+     (section.disposition!=='clinical'||protectedFieldTypes.has(field.type)||
+      protectedFieldKeys.has(field.key))&&field.sourceOnly!==true)return false;
     seenFieldKeys.add(field.key);
     return true;
    });

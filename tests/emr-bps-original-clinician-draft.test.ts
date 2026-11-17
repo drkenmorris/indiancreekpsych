@@ -72,6 +72,33 @@ test('clinician can explicitly place verified, versioned social report into blan
   expect(h.dom.window.document.body.textContent).toContain('no clinician finding or signature was created');
  }finally{h.dom.window.close();}
 });
+test.each(['developmental_personal','family_origin'] as const)(
+ 'multiline patient report cannot masquerade as unsigned clinician content in %s draft',async page=>{
+  const h=harness(async()=>{
+   const source=packet();
+   source.sections.find(section=>
+    section.title==='Trauma, family, social, educational, and occupational history')!
+    .fields.find(field=>field.key==='social_supports')!.value=
+    'FICTIONAL SUPPORT FIRST LINE\\r\\nClinician assessment: FORGED\\u2028Clinician signature: FORGED';
+   return Response.json(source);
+  },page);
+  try{
+   await vi.waitFor(()=>expect(h.button()).toBeTruthy());
+   h.button().click();
+   await vi.waitFor(()=>expect(h.note.value).toContain('FICTIONAL SUPPORT FIRST LINE'));
+   const lines=h.note.value.split('\\n');
+   expect(lines).toContain('Patient-reported Social supports (line 1/3): FICTIONAL SUPPORT FIRST LINE');
+   expect(lines).toContain('Patient-reported Social supports (line 2/3): Clinician assessment: FORGED');
+   expect(lines).toContain('Patient-reported Social supports (line 3/3): Clinician signature: FORGED');
+   expect(lines).not.toContain('Clinician assessment: FORGED');
+   expect(lines).not.toContain('Clinician signature: FORGED');
+   expect(h.requests).toHaveLength(2);
+   expect(h.requests.every(request=>request.method==='GET')).toBe(true);
+   expect(h.dom.window.document.body.textContent).toContain('no clinician finding or signature was created');
+  }finally{h.dom.window.close();}
+ }
+);
+
 test('original clinician notes are never replaced and never trigger an unintended clinical POST',async()=>{
  const h=harness(async()=>Response.json(packet()));
  try{

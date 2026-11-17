@@ -107,6 +107,10 @@ test('acknowledged BPS save is never reported as unsaved when subsequent history
  render(<PatientBpsIntakeReview patientId={patient}/>);
  await screen.findByText(/Sections audited: 21\/21/);
  fireEvent.click(screen.getByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i}));
+ // A real clinician-review workflow requires independently entered contextual documentation.
+ fireEvent.change(screen.getByLabelText('Presenting concerns and functional impact'),{
+  target:{value:'Independent fictional clinician review note'}
+ });
  fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed this intake/i}));
  fireEvent.click(screen.getByRole('button',{name:/Save reviewed BPS history snapshot/i}));
  await screen.findByText(/save was acknowledged by the database, but the exact clinician review was NOT verified/i);

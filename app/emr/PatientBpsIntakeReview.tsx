@@ -124,7 +124,7 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
      // Reject visual line breaks, bidirectional controls and oversized labels
      // rather than rendering forged clinical headings from a malformed source.
      if(typeof field.label!=='string'||!field.label.trim()||field.label.length>200||
-      /[\\u0000-\\u001f\\u007f-\\u009f\\u2028\\u2029\\u202a-\\u202e\\u2066-\\u2069]/u.test(field.label))return false;
+      /[\u0000-\u001f\u007f-\u009f\u2028\u2029\u202a-\u202e\u2066-\u2069]/u.test(field.label))return false;
      return typeof field.key==='string'&&field.key.length>0&&
       typeof field.label==='string'&&typeof field.type==='string'&&
       typeof field.value==='string'&&

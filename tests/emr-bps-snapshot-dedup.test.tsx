@@ -115,7 +115,7 @@ test('clinician BPS save is independently confirmed only after exact source-prov
   return Response.json(reads===1?source():source([{
    id:savedId,reviewed:true,source_version:7,source_status:'submitted',
    source_updated_at:'2026-11-10T06:00:00-06:00',created_at:stamp,
-   clinical_answers:{},clinician_notes:{}
+   clinical_answers:{},clinician_notes:{presenting:'Independent fictional clinician observation'}
   }]));
  }));
  render(<PatientBpsIntakeReview patientId={patient}/>);
@@ -129,6 +129,36 @@ test('clinician BPS save is independently confirmed only after exact source-prov
  fireEvent.click(screen.getByRole('button',{name:/Save reviewed BPS history snapshot/i}));
  await screen.findByText(/snapshot saved AND independently verified in the protected chart history/);
  expect(screen.queryByText(/NOT verified in chart history/)).toBeNull();
+ expect(reads).toBe(2);
+});
+
+test.each([
+ ['blank',{}],
+ ['invisible-only',{presenting:'\\u200B\\u2060'}]
+])('matching BPS history receipt with reviewed=true and %s clinician notes cannot certify a completed clinical review',async(_kind,notes)=>{
+ const savedId='00000000-0000-4000-8000-000000000997';
+ let reads=0,posts=0;
+ vi.stubGlobal('fetch',vi.fn(async(_url:string,options?:RequestInit)=>{
+  if(options?.method==='POST'){posts++;return Response.json({saved:true,id:savedId});}
+  reads++;
+  return Response.json(reads===1?source():source([{
+   id:savedId,reviewed:true,source_version:7,source_status:'submitted',
+   source_updated_at:stamp,created_at:stamp,clinical_answers:{},clinician_notes:notes
+  }]));
+ }));
+ render(<PatientBpsIntakeReview patientId={patient}/>);
+ await screen.findByText(/Version 7/);
+ fireEvent.click(screen.getByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i}));
+ fireEvent.change(screen.getByLabelText('Presenting concerns and functional impact'),{
+  target:{value:'Independent fictional clinician observation in submitted review'}
+ });
+ fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed this intake/i}));
+ fireEvent.click(screen.getByRole('button',{name:/Save reviewed BPS history snapshot/i}));
+ await screen.findByText(/exact saved review and source provenance were NOT verified in chart history/);
+ expect(screen.queryByText(/saved AND independently verified/)).toBeNull();
+ expect(screen.getByText(/A clinician-reviewed BPS snapshot for this source version has already been saved/)).toBeTruthy();
+ expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
+ expect(posts).toBe(1);
  expect(reads).toBe(2);
 });
 
@@ -187,7 +217,7 @@ test('an acknowledged BPS save remains unverified until protected history readba
  releaseReadback(Response.json(source([{
   id:savedId,reviewed:true,source_version:7,source_status:'submitted',
   source_updated_at:stamp,created_at:stamp,
-  clinical_answers:{},clinician_notes:{}
+  clinical_answers:{},clinician_notes:{presenting:'Independent fictional clinician observation'}
  }])));
  await screen.findByText(/saved AND independently verified in the protected chart history/);
  expect(screen.queryByText(/save acknowledged; verifying/)).toBeNull();
@@ -429,7 +459,7 @@ test('equivalent patient attestation instants in different timezone offsets stil
   if(reads===1)return Response.json(source());
   const equivalent=source([{
    id:savedId,reviewed:true,source_version:7,source_status:'submitted',
-   source_updated_at:stamp,created_at:stamp,clinical_answers:{},clinician_notes:{}
+   source_updated_at:stamp,created_at:stamp,clinical_answers:{},clinician_notes:{presenting:'Independent fictional clinician observation'}
   }]);
   equivalent.source.submittedAt='2026-11-10T06:00:00-06:00';
   return Response.json(equivalent);

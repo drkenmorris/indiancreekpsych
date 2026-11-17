@@ -22,6 +22,11 @@ const readable=(field:Field,disposition:Section['disposition'])=>
  // An allowed key or upstream sourceOnly:false flag alone is not evidence of a patient response.
  disposition!=='clinical'||field.reported!==true||field.sourceOnly!==false||!bpsVisibleSourceKeys.has(field.key)||protectedSourceTypes.has(field.type)?
  'Structured questionnaire: use the protected original intake or the dedicated reconciliation module; raw content is not automatically imported.':field.value;
+// A historical reviewed flag alone is not proof that a clinician documented
+// an independent observation. Legacy checkbox-only rows remain immutable and
+// visible, but must not be counted as documented clinical review.
+const documentedClinicianReview=(review:Review):boolean=>
+ review.reviewed===true&&hasIndependentBpsReviewNote(sanitizeBpsClinicianNotes(review.clinician_notes).notes);
 async function json(response:Response){const data=await response.json();if(!response.ok)throw Error(data.error||'Protected BPS request failed.');return data;}
 export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
  const [data,setData]=useState<ResponseData|null>(null),[error,setError]=useState(''),[status,setStatus]=useState(''),
@@ -42,7 +47,7 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
  // The database allows only one append-only review per clinician, central chart and
  // source version. Show that invariant before another submit, and keep it enforced
  // locally after an acknowledged save even if the read-back request fails.
- const sourceVersionHasUnverifiedReview=!!data&&data.reviews.some(review=>review.source_version===data.source.version&&review.reviewed!==true);
+ const sourceVersionHasUnverifiedReview=!!data&&data.reviews.some(review=>review.source_version===data.source.version&&!documentedClinicianReview(review));
  const versionAlreadyReviewed=!!data&&(data.reviews.some(review=>review.source_version===data.source.version)||
    acknowledgedVersion===data.source.version||uncertainVersion===data.source.version);
  // A lost POST response does not prove the database rejected the write. Keep
@@ -307,7 +312,7 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
    {data.source.status==='submitted'&&data.source.submittedAt&&<p>Patient submission attested: <time dateTime={data.source.submittedAt}>{new Date(data.source.submittedAt).toLocaleString()}</time>. This is a patient submission receipt, not a clinician signature.</p>}
    {data.source.status==='draft'&&<p role="status">This intake remains unsubmitted and lacks a patient submission attestation. Review it only as changeable draft source context.</p>}
    <p>Saved patient-reported source answers refresh when this chart is idle and visible. Preparing a clinician review freezes the opened source version; discard and reopen if the patient's intake changes.</p>
-   <p>Sections audited: {data.sections.length}/21 · Saved clinician reviews: {data.reviews.filter(review=>review.reviewed===true).length}. {data.reviews.some(review=>review.reviewed!==true)&&'Some saved history records lack confirmed clinician-review attestation; investigate provenance.'}</p>
+   <p>Sections audited: {data.sections.length}/21 · Documented clinician reviews: {data.reviews.filter(documentedClinicianReview).length}. {data.reviews.some(review=>!documentedClinicianReview(review))&&'Some saved history records lack confirmed clinician-review attestation or independent clinical documentation; investigate provenance.'}</p>
    {data.unmappedKeys.length>0&&<p role="alert">The source contains {data.unmappedKeys.length} additional historical or unrecognized field(s) were recorded. Their raw field names are withheld from this BPS view. These are NOT silently transferred. Review the protected original intake and resolve their mapping.</p>}
    <nav aria-label="Patient-scoped clinical reconciliation shortcuts">
     <p><strong>Open dedicated clinician reviews for this patient:</strong> These existing central-chart workflows keep medications, allergies, medical/substance-use history and structured trauma separate from unsigned BPS notes. Following a link does not save or approve any patient report.</p>
@@ -335,7 +340,7 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
      return <section key={review.id}>
       <h3>{new Date(review.created_at).toLocaleString()} — source v{review.source_version} ({review.source_status})</h3>
       {review.source_status==='draft'&&<p role="status">This historical clinician review documents a patient DRAFT intake version, not an attested final patient submission. Reconcile the subsequently submitted intake independently; this draft snapshot must not be represented as a patient-submitted final report.</p>}
-      {review.reviewed!==true&&<p role="alert">This historical row lacks confirmed clinician-review attestation. Do not treat it as a reviewed BPS snapshot; investigate chart provenance.</p>}
+      {!documentedClinicianReview(review)&&<p role="alert">This historical row lacks confirmed clinician-review attestation or independently documented clinical observations. Its stored reviewed flag, if present, is not sufficient evidence of a documented BPS review. Investigate chart provenance before clinical use.</p>}
       <p>Linked intake source last updated {new Date(review.source_updated_at).toLocaleString()}. This is an immutable historical snapshot of patient-reported information, not a new import, verified clinical finding, diagnosis or signature.</p>
       {!!review.excluded_clinical_fields&&<p role="alert">{review.excluded_clinical_fields} unapproved or malformed historical field(s) were withheld by the protected server. Review source provenance before clinical use.</p>}
       {omittedNotes>0&&<p role="alert">{omittedNotes} unapproved or malformed historical clinician-note field(s) were withheld from this BPS view. Investigate provenance before clinical use.</p>}
@@ -353,7 +358,7 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
    </details>}
    {versionAlreadyReviewed?<p role="status">{uncertainSave?
     'A BPS review submission was attempted, but no save receipt was verified. This source version is locked in this session. Reopen the chart and check protected history before another attempt; do not assume the review was saved.':sourceVersionHasUnverifiedReview?
-    'A BPS history record for this source version lacks confirmed clinician-review attestation. Its version remains locked; investigate chart provenance before clinical use or another submission.':
+    'A BPS history record for this source version lacks confirmed clinician-review attestation or independent clinical documentation. Its version remains locked; investigate chart provenance before clinical use or another submission.':
     'A clinician-reviewed BPS snapshot for this source version has already been saved. Its immutable history can be reopened above; a second save of the same version is not permitted. If the source changed without a new version, resolve the intake provenance before saving.'}</p>:!prepared?<button type="button" disabled={saving} onClick={()=>{setPrepared(true);setReviewed(false);setNotes(emptyBpsNotes());setStatus('');}}>Prepare clinician-reviewed BPS intake draft</button>:
     <form onSubmit={save} autoComplete="off">
      <h3>Clinician review and contextual assessment notes</h3>

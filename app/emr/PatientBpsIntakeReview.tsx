@@ -1,6 +1,6 @@
 'use client';
 import {useEffect,useRef,useState,type FormEvent} from 'react';
-import {bpsSectionClassification,approvedBpsQuestionSection,bpsNoteDomains,emptyBpsNotes,mapSavedBpsReportedFields,bpsVisibleSourceKeys,sanitizeBpsClinicianNotes,validBpsTimestamp,bpsTimestampInstantNanoseconds,equalBpsTimestampInstants,validBpsSubmissionChronology,validBpsReviewChronology,validBpsHistoricalSourceBoundary,type BpsNotes} from '@/lib/emr/intake-bps';
+import {bpsSectionClassification,approvedBpsQuestionSection,bpsNoteDomains,emptyBpsNotes,mapSavedBpsReportedFields,bpsVisibleSourceKeys,sanitizeBpsClinicianNotes,validBpsTimestamp,bpsTimestampInstantNanoseconds,equalBpsTimestampInstants,validBpsSubmissionChronology,validBpsReviewChronology,validBpsHistoricalSourceBoundary,hasIndependentBpsReviewNote,type BpsNotes} from '@/lib/emr/intake-bps';
 type Field={key:string;label:string;type:string;value:string;sourceOnly?:boolean;reported?:boolean};
 type Section={title:string;domain:string;disposition:'clinical'|'separate-review'|'reference';fields:Field[];answered:number};
 type Review={id:string;reviewed:boolean;source_version:number;source_status:string;source_updated_at:string;created_at:string;clinical_answers:Record<string,string>;clinician_notes:BpsNotes;excluded_clinical_fields?:number;excluded_clinician_notes?:number};
@@ -217,7 +217,7 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
   return ()=>{active=false;window.clearInterval(timer);window.removeEventListener('focus',onFocus);};
  },[patientId]);
  async function save(event:FormEvent<HTMLFormElement>){
-  event.preventDefault();if(reviewSaveInFlight.current||!data||data.patientId!==patientId||!reviewed||saving||!prepared||versionAlreadyReviewed)return;
+  event.preventDefault();if(reviewSaveInFlight.current||!data||data.patientId!==patientId||!reviewed||saving||!prepared||versionAlreadyReviewed||!hasIndependentBpsReviewNote(notes))return;
   reviewSaveInFlight.current=true;
   const generation=chartScope.current.generation;
   const stillOnChart=()=>chartScope.current.patientId===patientId&&chartScope.current.generation===generation;
@@ -350,7 +350,8 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
      </label>)}
      <label><input type="checkbox" checked={reviewed} onChange={e=>setReviewed(e.target.checked)}/>
       I reviewed this intake in the context of the selected patient's chart, distinguished patient reports from clinical findings, and understand that this saves an unsigned, append-only BPS history snapshot rather than a diagnosis, signature or consent.</label>
-     <button type="submit" disabled={!reviewed||saving}>Save reviewed BPS history snapshot</button>
+     {!hasIndependentBpsReviewNote(notes)&&<p role="status">Document at least one independent clinical observation or follow-up need before this reviewed snapshot can be saved. A checkbox alone does not document a clinical review.</p>}
+     <button type="submit" disabled={!reviewed||saving||!hasIndependentBpsReviewNote(notes)}>Save reviewed BPS history snapshot</button>
      <button type="button" disabled={saving} onClick={()=>{setPrepared(false);setReviewed(false);}}>Discard unsaved draft</button>
     </form>}
    {status&&<p role="status">{status}</p>}

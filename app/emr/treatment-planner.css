@@ -59,3 +59,5 @@ body:has(.treatmentEmbedded) {
 .modalityTable td:first-child { width: 27%; }
 .modalityTable td:nth-child(4),
 .modalityTable td:nth-child(5) { width: 20%; }
+
+.treatmentReviewDate{display:grid;gap:.4rem;margin-block:1rem}.treatmentReviewDate>div{display:flex;flex-wrap:wrap;gap:.65rem;align-items:center}.treatmentReviewDate input{font:inherit;min-height:44px}.treatmentReviewDate p{margin:0;font-size:.95rem}

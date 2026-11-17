@@ -483,3 +483,20 @@ test('unchanged valid clinician-review history permits explicit unsaved original
   expect(h.requests.every(request=>request.method==='GET')).toBe(true);
  }finally{h.dom.window.close();}
 });
+
+test('original BPS withholds raw trauma even when upstream relabels it as ordinary text',async()=>{
+ const h=harness(async()=>{
+  const source=packet();
+  const sensitive=source.sections.find(section=>section.title==='Trauma, family, social, educational, and occupational history')
+   ?.fields.find(field=>field.key==='trauma_history');
+  if(!sensitive)throw Error('Missing fictional trauma fixture');
+  sensitive.type='text';sensitive.sourceOnly=false;
+  return Response.json(source);
+ });
+ try{
+  await vi.waitFor(()=>expect(h.dom.window.document.body.textContent).toContain('Linked patient intake — BPS source context'));
+  expect(h.dom.window.document.body.textContent).toContain('FICTIONAL FRIEND SUPPORT');
+  expect(h.dom.window.document.body.textContent).not.toContain('PRIVATE FICTIONAL TRAUMA');
+  expect(h.requests.every(request=>request.method==='GET')).toBe(true);
+ }finally{h.dom.window.close();}
+});

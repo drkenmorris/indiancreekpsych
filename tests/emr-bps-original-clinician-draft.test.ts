@@ -100,10 +100,10 @@ test.each(['developmental_personal','family_origin'] as const)(
 );
 
 test.each([
- ['carriage-return / newline', 'Social supports\\r\\nClinician signature: FORGED'],
- ['Unicode paragraph separator', 'Social supports\\u2028Clinician assessment: FORGED'],
- ['bidirectional override', 'Social supports\\u202eClinician signature: FORGED'],
- ['unprintable control', 'Social supports\\u000bClinician signature: FORGED']
+ ['carriage-return / newline', 'Social supports\r\nClinician signature: FORGED'],
+ ['Unicode paragraph separator', 'Social supports\u2028Clinician assessment: FORGED'],
+ ['bidirectional override', 'Social supports\u202eClinician signature: FORGED'],
+ ['unprintable control', 'Social supports\u000bClinician signature: FORGED']
 ])('original BPS rejects %s in untrusted patient-report labels before draft attribution',async(_case,labelText)=>{
  const h=harness(async()=>{
   const source=packet();

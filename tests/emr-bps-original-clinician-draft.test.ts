@@ -123,6 +123,34 @@ test.each([
  }finally{h.dom.window.close();}
 });
 
+test.each([
+ ['bidirectional override', 'FICTIONAL SUPPORT \\u202eClinician signature: FORGED', 'developmental_personal'],
+ ['bidirectional isolate', 'FICTIONAL SUPPORT \\u2066Clinician assessment: FORGED', 'family_origin'],
+ ['embedded ASCII control', 'FICTIONAL SUPPORT \\u000bClinician assessment: FORGED', 'developmental_personal']
+] as const)(
+ 'directional patient-source controls are never copied into original BPS %s draft',async(_kind,raw,page)=>{
+  // A clinical source can be safely rendered read-only, but its invisible
+  // formatting marks cannot enter editable notes with misleading attribution.
+  const h=harness(async()=>{
+   const source=packet();
+   source.sections.find(section=>
+    section.title==='Trauma, family, social, educational, and occupational history')!
+    .fields.find(field=>field.key==='social_supports')!.value=
+    raw.replace(/\\\\u([0-9a-f]{4})/gi,(_match,hex:string)=>String.fromCharCode(parseInt(hex,16)));
+   return Response.json(source);
+  },page);
+  try{
+   await vi.waitFor(()=>expect(h.dom.window.document.body.textContent).toContain(
+    'directional or control characters that cannot be safely attributed'));
+   expect(h.button()).toBeUndefined();
+   expect(h.note.value).toBe('');
+   expect(h.requests).toEqual([{url:'/api/emr/bps-intake?patient='+patient,method:'GET'}]);
+   expect(h.dom.window.document.body.textContent).not.toContain(
+    'no clinician finding or signature was created');
+  }finally{h.dom.window.close();}
+ }
+);
+
 test('original clinician notes are never replaced and never trigger an unintended clinical POST',async()=>{
  const h=harness(async()=>Response.json(packet()));
  try{

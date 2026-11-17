@@ -563,7 +563,7 @@ test('unchanged valid clinician-review history permits explicit unsaved original
  }finally{h.dom.window.close();}
 });
 
-test('original BPS withholds raw trauma even when upstream relabels it as ordinary text',async()=>{
+test('original BPS refuses the entire source when trauma is falsely labeled ordinary text',async()=>{
  const h=harness(async()=>{
   const source=packet();
   const sensitive=source.sections.find(section=>section.title==='Trauma, family, social, educational, and occupational history')
@@ -573,13 +573,15 @@ test('original BPS withholds raw trauma even when upstream relabels it as ordina
   return Response.json(source);
  });
  try{
-  await vi.waitFor(()=>expect(h.dom.window.document.body.textContent).toContain('Linked patient intake — BPS source context'));
-  expect(h.dom.window.document.body.textContent).toContain('FICTIONAL FRIEND SUPPORT');
+  await vi.waitFor(()=>expect(h.dom.window.document.body.textContent)
+   .toContain('Linked 21-section intake mapping is malformed'));
+  expect(h.dom.window.document.body.textContent).not.toContain('FICTIONAL FRIEND SUPPORT');
   expect(h.dom.window.document.body.textContent).not.toContain('PRIVATE FICTIONAL TRAUMA');
-  expect(h.requests.every(request=>request.method==='GET')).toBe(true);
+  expect(h.button()).toBeUndefined();
+  expect(h.note.value).toBe('');
+  expect(h.requests).toEqual([{url:'/api/emr/bps-intake?patient='+patient,method:'GET'}]);
  }finally{h.dom.window.close();}
 });
-
 
 test.each([
  ['symptoms','Current symptom checklist'],

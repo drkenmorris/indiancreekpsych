@@ -79,14 +79,14 @@ test.each(['developmental_personal','family_origin'] as const)(
    source.sections.find(section=>
     section.title==='Trauma, family, social, educational, and occupational history')!
     .fields.find(field=>field.key==='social_supports')!.value=
-    'FICTIONAL SUPPORT FIRST LINE\\r\\nClinician assessment: FORGED\\u2028Clinician signature: FORGED';
+    'FICTIONAL SUPPORT FIRST LINE\r\nClinician assessment: FORGED\u2028Clinician signature: FORGED';
    return Response.json(source);
   },page);
   try{
    await vi.waitFor(()=>expect(h.button()).toBeTruthy());
    h.button().click();
    await vi.waitFor(()=>expect(h.note.value).toContain('FICTIONAL SUPPORT FIRST LINE'));
-   const lines=h.note.value.split('\\n');
+   const lines=h.note.value.split('\n');
    expect(lines).toContain('Patient-reported Social supports (line 1/3): FICTIONAL SUPPORT FIRST LINE');
    expect(lines).toContain('Patient-reported Social supports (line 2/3): Clinician assessment: FORGED');
    expect(lines).toContain('Patient-reported Social supports (line 3/3): Clinician signature: FORGED');

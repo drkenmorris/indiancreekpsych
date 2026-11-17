@@ -141,6 +141,17 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
   if(!validSections||!accurateReportedCounts||
    !value.unmappedKeys.every((key:unknown)=>typeof key==='string'))
    throw Error('Linked 21-section intake mapping is malformed; patient statements are withheld. Reopen the protected source.');
+  // Source packet version and section identities must agree at the actual
+  // clinician review screen, not only at the original BPS read-only panel.
+  // A 21-section result can otherwise swap the historical communications
+  // section for the newer legal-directory section while preserving every
+  // individual field's approved domain. Reject that packet before presenting
+  // patient statements or permitting an append-only clinician attestation.
+  const directoryPacket=source.questionnairePacketVersion==='2026-11-02-directory-1';
+  const hasDirectory=seenSectionTitles.has('Legal forms directory and questionnaire');
+  const hasCommunications=seenSectionTitles.has('Communication and confidential-contact preferences');
+  if(directoryPacket?(!hasDirectory||hasCommunications):(!hasCommunications||hasDirectory))
+   throw Error('Linked 21-section intake layout does not match its questionnaire version; patient statements are withheld. Reopen the protected source.');
   // The protected API validates historical attestation provenance. Repeat the
   // identity/version/date checks at this UI trust boundary so a malformed,
   // stale or cross-chart history response cannot be displayed as clinical truth.

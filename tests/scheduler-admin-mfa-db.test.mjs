@@ -18,7 +18,10 @@ await db.exec([
  "CREATE FUNCTION auth.jwt() RETURNS jsonb LANGUAGE sql STABLE AS $$ SELECT coalesce(nullif(current_setting('request.jwt.claims',true),''),'{}')::jsonb $$;",
  'CREATE TABLE public.profiles(id uuid PRIMARY KEY,account_type text,full_name text,preferred_name text);',
  "INSERT INTO public.profiles VALUES ('"+admin+"','admin','Fictional Administrator',null),('"+patient+"','patient','Fictional Patient',null),('"+unrelated+"','patient','Fictional Other Patient',null);",
- "CREATE FUNCTION private.current_user_is_admin() RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path='' AS $$ SELECT EXISTS(SELECT 1 FROM public.profiles WHERE id=auth.uid() AND account_type='admin') $$;",
+ "CREATE FUNCTION private.current_user_is_admin() RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path='' AS $ SELECT EXISTS(SELECT 1 FROM public.profiles WHERE id=auth.uid() AND account_type='admin') $;",
+ // Simplified identity/MFA fixture for the legacy production session rule. The
+ // combined SQL policies below are executed exactly from their migrations.
+ "CREATE FUNCTION private.patient_secure_session() RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path='' AS $ SELECT auth.uid() IS NOT NULL AND EXISTS(SELECT 1 FROM public.profiles p WHERE p.id=auth.uid() AND ((p.account_type='admin' AND auth.jwt()->>'aal'='aal2') OR (p.account_type='patient' AND auth.jwt()->>'aal' IN ('aal1','aal2')))) $;",
  'CREATE TABLE public.appointment_settings(id boolean PRIMARY KEY,scheduling_enabled boolean);',
  'INSERT INTO public.appointment_settings VALUES(true,true);',
  'CREATE TABLE public.appointment_availability_rules(id integer PRIMARY KEY,enabled boolean);',
@@ -38,12 +41,19 @@ await db.exec([
  'CREATE POLICY blocks_admin ON public.appointment_blocks FOR ALL TO authenticated USING(private.current_user_is_admin()) WITH CHECK(private.current_user_is_admin());',
  'CREATE POLICY appointments_admin ON public.appointments FOR ALL TO authenticated USING(private.current_user_is_admin()) WITH CHECK(private.current_user_is_admin());',
  'CREATE POLICY appointments_patient_own ON public.appointments FOR SELECT TO authenticated USING(patient_id=auth.uid());',
+ 'CREATE POLICY appointments_patient_edit ON public.appointments FOR UPDATE TO authenticated USING(patient_id=auth.uid()) WITH CHECK(patient_id=auth.uid());',
+ // Reproduce the legacy permissive ALL policy which could once override the
+ // patient-ownership SELECT/UPDATE policy through PostgreSQL OR composition.
+ 'CREATE POLICY appointments_patient_security ON public.appointments FOR ALL TO authenticated USING(private.current_user_is_admin() OR private.patient_secure_session()) WITH CHECK(private.current_user_is_admin() OR private.patient_secure_session());',
  'GRANT USAGE ON SCHEMA public,private,auth TO authenticated;',
  'GRANT SELECT ON public.profiles TO authenticated;',
  'GRANT SELECT,UPDATE,INSERT ON public.appointment_settings,public.appointment_availability_rules,public.appointment_blocks,public.appointments TO authenticated;',
- 'GRANT EXECUTE ON FUNCTION private.current_user_is_admin() TO authenticated;'
+ 'GRANT EXECUTE ON FUNCTION private.current_user_is_admin(),private.patient_secure_session() TO authenticated;'
 ].join('\n'));
 
+// Apply BOTH pending protections to the same isolated database. Testing only
+// their separate fixtures misses policy interactions in the real scheduler.
+await db.exec(readFileSync(new URL('../supabase/migrations/20261115120000_restrict_appointment_patient_row_scope.sql',import.meta.url),'utf8'));
 const pendingMigration=readFileSync(new URL('../supabase/migrations/20261111170500_scheduler_admin_mfa_gate.sql',import.meta.url),'utf8');
 await db.exec(pendingMigration);
 async function session(id,aal){
@@ -79,9 +89,14 @@ await test('AAL2 permits an authorized administrator to read and update protecte
  const listed=await db.query('SELECT id FROM private.scheduling_patients_impl()');
  assert.deepEqual(new Set(listed.rows.map(row=>row.id)),new Set([patient,unrelated]));
 });
-await test('patient access still uses patient-specific RLS and cannot elevate through AAL2',async()=>{
+await test('composed restrictive patient-isolation and administrator-MFA policies preserve own-row care while denying cross-patient writes',async()=>{
  await session(patient,'aal1');
  assert.equal(await count('appointments'),1);
+ // An AAL1 patient may update their own fictional appointment, but a legacy
+ // permissive ALL policy must not allow updates or inserts for another chart.
+ assert.equal((await db.query("UPDATE public.appointments SET starts_at='2030-01-03T10:00:00Z' WHERE patient_id=$1 RETURNING id",[unrelated])).rows.length,0);
+ assert.equal((await db.query("UPDATE public.appointments SET starts_at='2030-01-03T10:00:00Z' WHERE patient_id=$1 RETURNING id",[patient])).rows.length,1);
+ await assert.rejects(db.query("INSERT INTO public.appointments(id,patient_id,starts_at) VALUES ('00000000-0000-4000-8000-000000000103',$1,'2030-01-04T10:00:00Z')",[unrelated]),/row-level security/i);
  assert.equal(await count('appointment_settings'),1);
  assert.equal(await count('appointment_availability_rules'),1);
  await assert.rejects(db.query('SELECT * FROM private.scheduling_patients_impl()'),/MFA required/);

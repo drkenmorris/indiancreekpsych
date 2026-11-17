@@ -117,8 +117,8 @@ test('protected historical BPS snapshots never transmit medication, structured t
   unapproved_history:'Unknown',functional_impact:37
  });
  expect(actual.answers).toEqual({counseling_reason:'Reported concern',suicidal_thoughts_current:'Yes',
-  guardian_relationship:'Parent',trauma_history:'Reported life event'});
- expect(actual.excludedCount).toBe(9);
+  guardian_relationship:'Parent'});
+ expect(actual.excludedCount).toBe(10);
  expect(bpsSnapshotClinicalKeys.has('trauma_history_checklist')).toBe(false);
  expect(bpsSnapshotClinicalKeys.has('medication_entries')).toBe(false);
 });
@@ -306,4 +306,8 @@ test('free-text trauma narrative remains protected from BPS source rendering reg
  expect(JSON.stringify(history)).not.toContain(confidential);
  // Historical clinical snapshot storage itself is not rewritten.
  expect(bpsSnapshotClinicalKeys.has('trauma_history')).toBe(true);
+ const sanitized=sanitizeBpsSnapshotAnswers({trauma_history:confidential,counseling_reason:'Fictional concern'});
+ expect(sanitized.answers).toEqual({counseling_reason:'Fictional concern'});
+ expect(sanitized.excludedCount).toBe(1);
+ expect(JSON.stringify(sanitized)).not.toContain(confidential);
 });

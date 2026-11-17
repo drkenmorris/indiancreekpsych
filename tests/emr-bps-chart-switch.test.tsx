@@ -206,8 +206,8 @@ test.each([
  const section=sections.find(section=>section.fields.some(field=>field.key===key));
  const field=section?.fields.find(field=>field.key===key);
  expect(field).toBeDefined();
- if(labelAttack===true)field!.label='Patient report\\nClinician-approved diagnosis';
- else if(labelAttack==='bidi')field!.label='Source \\u202E clinician statement';
+ if(labelAttack===true)field!.label='Patient report\nClinician-approved diagnosis';
+ else if(labelAttack==='bidi')field!.label='Source \u202E clinician statement';
  else {
   field!.sourceOnly=false;
   field!.value='PRIVATE_FICTIONAL_UNRESTRICTED_MEDICAL_OR_LEGAL_SOURCE';

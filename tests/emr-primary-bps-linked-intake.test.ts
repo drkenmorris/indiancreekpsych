@@ -22,7 +22,7 @@ function report(patientId:string){
  const sections=titles.map((title,i)=>{
   const fields=i===0?[{key:'counseling_reason',label:'Concern',type:'text',reported:true,sourceOnly:false,value:'Fictional patient-reported concern'}]:
    i===1?[{key:'medication_entries',label:'Medication',type:'medications',reported:true,sourceOnly:true,value:'SECRET MEDICATION DATA'}]:
-   i===2?[{key:'roi_authorize',label:'Authorization',type:'text',reported:true,sourceOnly:false,value:'SECRET LEGAL DATA'}]:[];
+   i===2?[{key:'roi_authorize',label:'Authorization',type:'text',reported:true,sourceOnly:true,value:'SECRET LEGAL DATA'}]:[];
   const rule=bpsSectionClassification[title];
   return {title,domain:rule.domain,disposition:rule.disposition,
    answered:fields.length,fields};
@@ -499,12 +499,12 @@ test.each([
   fields:[{key:'guardian_relationship',label:'Family relationship',type:'text',reported:true,sourceOnly:false,value:'FICTIONAL_GUARDIAN_CONTEXT'}]};
  current.sections[6].answered=1;
  current.sections[6]={...current.sections[6],title:'Medical & Substance Use History',disposition:'separate-review',
-  fields:[{key:'medical_history',label:'Medical history',type:'medical-substance',reported:true,sourceOnly:false,value:'DO_NOT_LEAK_MEDICAL'}]};
+  fields:[{key:'medical_history',label:'Medical history',type:'medical-substance',reported:true,sourceOnly:true,value:'DO_NOT_LEAK_MEDICAL'}]};
  current.sections[7].answered=2;
  current.sections[7]={...current.sections[7],title:'Trauma, family, social, educational, and occupational history',disposition:'clinical',
   fields:[
    {key:'family_household',label:'Family narrative',type:'historical-patient-report',reported:true,sourceOnly:false,value:'FICTIONAL_FAMILY_CONTEXT'},
-   {key:'trauma_entries',label:'Structured trauma',type:'trauma-history',reported:true,sourceOnly:false,value:'DO_NOT_LEAK_TRAUMA'}
+   {key:'trauma_entries',label:'Structured trauma',type:'trauma-history',reported:true,sourceOnly:true,value:'DO_NOT_LEAK_TRAUMA'}
   ]};
  const {ctx,dom}=harness(async()=>Response.json(current));
  dom.window.history.replaceState({},'', '/emr/workspace?module=assessment&section=assessment%3Abiopsychosocial&bps_page='+page);

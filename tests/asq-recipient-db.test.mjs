@@ -18,7 +18,7 @@ await db.exec(readFileSync('supabase/migrations/20261103235256_asq_recipient_pol
 // The consolidated revision-history migration also covers connected and DSM
 // histories; create empty counterparts in this focused ASQ fixture.
 await db.exec('create table connected_assignment_responses(assignment_id uuid,respondent_id uuid);create table connected_assignment_response_versions(assignment_id uuid);create table dsm_assignment_responses(assignment_id uuid,respondent_id uuid);create table dsm_assignment_response_versions(assignment_id uuid);');
-await db.exec('create function private.connected_recipient_allowed(uuid) returns boolean language sql as $select false$;create function private.dsm_recipient_allowed(uuid) returns boolean language sql as $select false$;');
+await db.exec("create function private.connected_recipient_allowed(uuid) returns boolean language sql as 'select false';create function private.dsm_recipient_allowed(uuid) returns boolean language sql as 'select false';" );
 await db.exec(readFileSync('supabase/migrations/20261117041500_respondent_history_explicit_owner_scoping.sql','utf8'));
 async function as(id,aal='aal2',email='spoofed@example.invalid'){await db.exec('reset role');await db.query("select set_config('request.user',$1,false),set_config('request.aal',$2,false),set_config('request.email',$3,false)",[id,aal,email]);await db.exec('set role authenticated');}
 const definition=role=>({version:'fixture-1',role,pageSize:7,options:[0,1,2,3,4].map(value=>({value,label:String(value)})),items:Array.from({length:8},(_,i)=>({id:role[0]+(i+1),text:'Fictional item '+(i+1)}))});

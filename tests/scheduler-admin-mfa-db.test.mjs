@@ -31,6 +31,8 @@ await db.exec([
  'ALTER TABLE public.appointment_availability_rules ENABLE ROW LEVEL SECURITY;',
  'ALTER TABLE public.appointment_blocks ENABLE ROW LEVEL SECURITY;',
  'ALTER TABLE public.appointments ENABLE ROW LEVEL SECURITY;',
+ 'CREATE POLICY settings_authenticated_read ON public.appointment_settings FOR SELECT TO authenticated USING(true);',
+ 'CREATE POLICY rules_authenticated_read ON public.appointment_availability_rules FOR SELECT TO authenticated USING(true);',
  'CREATE POLICY settings_admin ON public.appointment_settings FOR ALL TO authenticated USING(private.current_user_is_admin()) WITH CHECK(private.current_user_is_admin());',
  'CREATE POLICY rules_admin ON public.appointment_availability_rules FOR ALL TO authenticated USING(private.current_user_is_admin()) WITH CHECK(private.current_user_is_admin());',
  'CREATE POLICY blocks_admin ON public.appointment_blocks FOR ALL TO authenticated USING(private.current_user_is_admin()) WITH CHECK(private.current_user_is_admin());',
@@ -80,7 +82,8 @@ test('AAL2 permits an authorized administrator to read and update protected sche
 test('patient access still uses patient-specific RLS and cannot elevate through AAL2',async()=>{
  await session(patient,'aal1');
  assert.equal(await count('appointments'),1);
- assert.equal(await count('appointment_settings'),0);
+ assert.equal(await count('appointment_settings'),1);
+ assert.equal(await count('appointment_availability_rules'),1);
  await assert.rejects(db.query('SELECT * FROM private.scheduling_patients_impl()'),/MFA required/);
  await session(patient,'aal2');
  assert.equal(await count('appointments'),1);

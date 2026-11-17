@@ -469,7 +469,7 @@ test.each([
  ['old metadata on a legal-directory packet','2026-10-11',true],
 ] as const)('clinician review withholds the entire mismatched 21-section packet: %s',async(_caseName,version,useDirectory)=>{
  const id='00000000-0000-4000-8000-000000000801';
- const reported=useDirectory?{legal_packet_version:'2026-11-02-directory-1'}:{};
+ const reported:Record<string,string>=useDirectory?{legal_packet_version:'2026-11-02-directory-1'}:{};
  const sections=mapIntakeToBps(reported).sections;
  expect(sections).toHaveLength(21);
  vi.stubGlobal('fetch',vi.fn(async()=>Response.json({

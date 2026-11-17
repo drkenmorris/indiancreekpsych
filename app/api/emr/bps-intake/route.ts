@@ -1,7 +1,7 @@
 import {NextResponse} from 'next/server';
 import {emrAccess,privateHeaders,sameOrigin} from '@/lib/emr/access';
 import {uuid} from '@/lib/emr/demographics';
-import {bpsNoteDomains,mapIntakeToBps,sanitizeBpsClinicianNotes,sanitizeBpsSnapshotAnswers,validBpsTimestamp,validBpsSubmissionChronology,validBpsReviewChronology,validBpsHistoricalSourceBoundary,recognizedBpsQuestionnaireVersion,bpsTimestampInstantNanoseconds,equalBpsTimestampInstants} from '@/lib/emr/intake-bps';
+import {bpsNoteDomains,mapIntakeToBps,sanitizeBpsClinicianNotes,sanitizeBpsSnapshotAnswers,validBpsTimestamp,validBpsSubmissionChronology,validBpsReviewChronology,validBpsHistoricalSourceBoundary,recognizedBpsQuestionnaireVersion,bpsTimestampInstantNanoseconds,equalBpsTimestampInstants,hasIndependentBpsReviewNote} from '@/lib/emr/intake-bps';
 export const dynamic='force-dynamic';
 const reply=(data:unknown,status=200)=>NextResponse.json(data,{status,headers:privateHeaders});
 const sourceFields='patient_id,answers,status,version,updated_at,submitted_at';
@@ -266,6 +266,11 @@ export async function POST(request:Request){
    // intentional leading/trailing whitespace; validation must not rewrite it.
    notes[key]=value;
   }
+  // An empty note set is not evidence of an independently documented clinician review.
+  // Reject before the privileged RPC so a checkbox-only request cannot create a
+  // permanent, source-version-locked clinical attestation.
+  if(!hasIndependentBpsReviewNote(notes))
+   return reply({error:'Document at least one independent clinician observation or follow-up need before saving the reviewed BPS history.'},400);
   const {data,error}=await ctx.supabase.rpc('save_emr_bps_intake_review',{p_payload:{
    patient_id:body.patientId,source_account_id:body.sourceAccountId,source_version:body.sourceVersion,source_status:body.sourceStatus,
    source_updated_at:body.sourceUpdatedAt,reviewed:true,clinician_notes:notes

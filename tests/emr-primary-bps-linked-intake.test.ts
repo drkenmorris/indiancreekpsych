@@ -30,8 +30,8 @@ function report(patientId:string){
  return {patientId,source:{accountId:'00000000-0000-4000-8000-000000000803',status:'submitted',version:6,updatedAt:'2026-11-10T12:00:00Z',submittedAt:'2026-11-10T12:00:00Z'},
   sections,unmappedKeys:['unmapped_legacy_field'],reviews:[]};
 }
-function harness(fetchResponse:(url:string,options:any)=>Promise<Response>,id=firstPatient){
- const dom=new JSDOM('<main id="content"></main>',{url:'https://www.indiancreekpsych.com/emr/workspace?module=assessment&section=assessment%3Abiopsychosocial&bps_page=medications'});
+function harness(fetchResponse:(url:string,options:any)=>Promise<Response>,id=firstPatient,page='medications'){
+ const dom=new JSDOM('<main id="content"></main>',{url:'https://www.indiancreekpsych.com/emr/workspace?module=assessment&section=assessment%3Abiopsychosocial&bps_page='+encodeURIComponent(page)});
  const ctx:any={
   window:dom.window,document:dom.window.document,location:dom.window.location,
   patientId:id,view:'assessment',URLSearchParams,encodeURIComponent,fetch:fetchResponse,
@@ -68,6 +68,44 @@ test('original seven-page BPS workspace displays linked 21-section context witho
  expect(panel.textContent).toContain('unmapped intake field');
  expect(calls).toEqual([{url:'/api/emr/bps-intake?patient='+firstPatient,method:'GET',credentials:'same-origin'}]);
  dom.window.close();
+});
+
+
+test.each([
+ ['symptoms','Current symptom checklist'],
+ ['treatment_history','Counseling and psychiatric history'],
+ ['medications','Psychiatric medications'],
+ ['family_origin','Family of origin'],
+ ['medical_substance','Medical and substance-use history'],
+ ['developmental_personal','Developmental and personal history'],
+ ['trauma_history','Trauma history']
+])('original BPS source overlay covers all seven clinical subpages: %s',async(page,label)=>{
+ const requests:{url:string;method:string}[]=[];
+ const {ctx,dom}=harness(async(url,options)=>{
+  requests.push({url,method:options?.method||'GET'});
+  return Response.json(report(firstPatient));
+ },firstPatient,page);
+ try{
+  ctx.render();
+  await vi.waitFor(()=>expect(dom.window.document.querySelector(
+   'section[aria-label="Source context for selected original BPS page"]'
+  )).not.toBeNull());
+  const panel=dom.window.document.querySelector(
+   'section[aria-label="Patient intake context in original biopsychosocial workspace"]')!;
+  const focused=panel.querySelector('section[aria-label="Source context for selected original BPS page"]')!;
+  expect(focused.textContent).toContain('Patient-reported source context for '+label);
+  expect(focused.textContent).toContain('not a clinician finding or form entry');
+  expect(panel.querySelectorAll('details > ol > li')).toHaveLength(21);
+  expect(panel.textContent).not.toContain('SECRET MEDICATION DATA');
+  expect(panel.textContent).not.toContain('SECRET LEGAL DATA');
+  expect(panel.textContent).toContain('no clinical content transferred');
+  const link=Array.from(panel.querySelectorAll('a')).find((element:any)=>
+   element.textContent?.includes('Open protected clinician review and explicit BPS snapshot save')) as HTMLAnchorElement;
+  const destination=new URL(link.href);
+  expect(destination.searchParams.get('patient')).toBe(firstPatient);
+  expect(destination.searchParams.get('bps_page')).toBe(page);
+  expect(requests).toEqual([{url:'/api/emr/bps-intake?patient='+firstPatient,method:'GET'}]);
+ }finally{dom.window.close();}
 });
 
 test('unselected BPS charts and unrelated modules never query patient intake',()=>{

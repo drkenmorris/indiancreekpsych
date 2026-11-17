@@ -49,13 +49,6 @@ test('clinician reconciliation independently withholds separate, structured, ref
  for(const section of sections)for(const field of section.fields){
   if(field.key==='counseling_goals'){field.reported=false;section.answered--;}
   if(field.key==='prior_mental_health_treatment')field.sourceOnly=undefined as unknown as boolean;
-  if(typeof reported[field.key]==='string'&&
-   (field.key.startsWith('insurance_')||field.key==='roi_authorize'||
-    field.key==='prior_psychiatric_medications'||field.key==='legal_history'||
-    field.key==='medication_entries')){
-   field.sourceOnly=false;
-   field.value=reported[field.key];
-  }
  }
  vi.stubGlobal('fetch',vi.fn(async()=>Response.json({patientId:id,source:{accountId:id,status:'submitted',version:2,updatedAt:'2026-11-11T12:00:00Z',submittedAt:'2026-11-11T12:00:00Z'},sections,unmappedKeys:[],reviews:[]})));
  render(<PatientBpsIntakeReview patientId={id}/>);
@@ -192,6 +185,51 @@ test.each([
  expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
  expect(screen.queryByRole('button',{name:/Save reviewed BPS history snapshot/i})).toBeNull();
  expect(posts).toBe(0);
+});
+
+
+test.each([
+ ['medication recorded as unrestricted source','medication_entries',false],
+ ['legal consent recorded as unrestricted source','roi_authorize',false],
+ ['retired psychiatric medication recorded as unrestricted source','prior_psychiatric_medications',false],
+ ['forged multi-line patient-source label','counseling_reason',true],
+ ['bidirectional control in patient-source label','counseling_reason','bidi']
+] as const)('clinician BPS refuses contradictory or forged source attribution: %s',async(_reason,key,labelAttack)=>{
+ const patient='00000000-0000-4000-8000-000000000861';
+ const account='00000000-0000-4000-8000-000000000862';
+ const sections=mapIntakeToBps({
+  counseling_reason:'SAFE_FICTIONAL_PRESENTING_CONCERN',
+  medication_entries:'PRIVATE_FICTIONAL_MEDICATION',
+  roi_authorize:'PRIVATE_FICTIONAL_LEGAL',
+  prior_psychiatric_medications:'PRIVATE_FICTIONAL_LEGACY_MEDICATION'
+ }).sections;
+ const section=sections.find(section=>section.fields.some(field=>field.key===key));
+ const field=section?.fields.find(field=>field.key===key);
+ expect(field).toBeDefined();
+ if(labelAttack===true)field!.label='Patient report\\nClinician-approved diagnosis';
+ else if(labelAttack==='bidi')field!.label='Source \\u202E clinician statement';
+ else {
+  field!.sourceOnly=false;
+  field!.value='PRIVATE_FICTIONAL_UNRESTRICTED_MEDICAL_OR_LEGAL_SOURCE';
+ }
+ let writes=0;
+ vi.stubGlobal('fetch',vi.fn(async(_url:string,options?:RequestInit)=>{
+  if(options?.method==='POST')writes++;
+  return Response.json({patientId:patient,source:{
+   accountId:account,status:'submitted',version:4,
+   updatedAt:'2026-11-17T12:00:00Z',submittedAt:'2026-11-17T12:00:00Z'
+  },sections,unmappedKeys:[],reviews:[]});
+ }));
+ render(<PatientBpsIntakeReview patientId={patient}/>);
+ const alert=await screen.findByRole('alert');
+ expect(alert.textContent).toContain('21-section intake mapping is malformed');
+ const displayed=document.body.textContent||'';
+ expect(displayed).not.toContain('SAFE_FICTIONAL_PRESENTING_CONCERN');
+ expect(displayed).not.toContain('PRIVATE_FICTIONAL_UNRESTRICTED_MEDICAL_OR_LEGAL_SOURCE');
+ expect(displayed).not.toContain('PRIVATE_FICTIONAL_MEDICATION');
+ expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
+ expect(screen.queryByRole('button',{name:/Save reviewed BPS history snapshot/i})).toBeNull();
+ expect(writes).toBe(0);
 });
 
 test('idle linked-intake refresh is source-scoped, stops during clinician review, and fails closed on invalid refreshed provenance',async()=>{

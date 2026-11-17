@@ -175,7 +175,14 @@ async function populateOriginalBpsIntake(panel,id,generation){
    return section.fields.every(field=>{
     if(!field||typeof field!=='object'||Array.isArray(field)||
        typeof field.key!=='string'||!field.key||seenFieldKeys.has(field.key)||
-       typeof field.label!=='string'||typeof field.type!=='string'||
+       // Only application-defined, single-line labels may enter the clinician's
+       // source attribution. A forged newline, Unicode paragraph break or
+       // bidirectional override in a mislabeled API response could otherwise
+       // create a line that appears to be a clinician finding or signature.
+       typeof field.label!=='string'||!field.label.trim()||
+       field.label.length>200||
+       /[\u0000-\u001f\u007f-\u009f\u2028\u2029\u202a-\u202e\u2066-\u2069]/u.test(field.label)||
+       typeof field.type!=='string'||
        typeof field.value!=='string'||
        (field.reported!==undefined&&typeof field.reported!=='boolean')||
        (field.sourceOnly!==undefined&&typeof field.sourceOnly!=='boolean')||

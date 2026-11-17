@@ -124,19 +124,19 @@ test.each([
 });
 
 test.each([
- ['bidirectional override', 'FICTIONAL SUPPORT \\u202eClinician signature: FORGED', 'developmental_personal'],
- ['bidirectional isolate', 'FICTIONAL SUPPORT \\u2066Clinician assessment: FORGED', 'family_origin'],
- ['embedded ASCII control', 'FICTIONAL SUPPORT \\u000bClinician assessment: FORGED', 'developmental_personal']
+ ['bidirectional override', 0x202e, 'developmental_personal'],
+ ['bidirectional isolate', 0x2066, 'family_origin'],
+ ['embedded ASCII control', 0x000b, 'developmental_personal']
 ] as const)(
- 'directional patient-source controls are never copied into original BPS %s draft',async(_kind,raw,page)=>{
-  // A clinical source can be safely rendered read-only, but its invisible
-  // formatting marks cannot enter editable notes with misleading attribution.
+ 'directional patient-source controls are never copied into original BPS %s draft',async(_kind,controlCode,page)=>{
+  // An invisible control mark must not make patient-reported source text
+  // appear to be a clinician-authored finding in an editable draft.
   const h=harness(async()=>{
    const source=packet();
    source.sections.find(section=>
     section.title==='Trauma, family, social, educational, and occupational history')!
     .fields.find(field=>field.key==='social_supports')!.value=
-    raw.replace(/\\\\u([0-9a-f]{4})/gi,(_match,hex:string)=>String.fromCharCode(parseInt(hex,16)));
+     'FICTIONAL SUPPORT '+String.fromCharCode(controlCode)+'Clinician signature: FORGED';
    return Response.json(source);
   },page);
   try{

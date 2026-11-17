@@ -628,3 +628,21 @@ test('unsubmitted patient intake shows no submission attestation on every origin
   expect(h.requests.every(request=>request.method==='GET')).toBe(true);
  }finally{h.dom.window.close();}
 });
+
+// Regression: a malformed upstream intake must not move protected data to the original BPS.
+test('wrongly marked medication source cannot render or populate original BPS notes',async()=>{
+ const h=harness(async()=>{
+  const source=packet();
+  const field=source.sections.find(s=>s.title==='Medications')!.fields[0];
+  field.type='text';field.sourceOnly=false;
+  return Response.json(source);
+ });
+ try{
+  await vi.waitFor(()=>expect(h.dom.window.document.body.textContent)
+   .toContain('Linked 21-section intake mapping is malformed'));
+  expect(h.button()).toBeUndefined();
+  expect(h.note.value).toBe('');
+  expect(h.dom.window.document.body.textContent).not.toContain('FICTIONAL FRIEND SUPPORT');
+  expect(h.requests).toHaveLength(1);
+ }finally{h.dom.window.close();}
+});

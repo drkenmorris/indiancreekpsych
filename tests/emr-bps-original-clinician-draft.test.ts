@@ -99,6 +99,30 @@ test.each(['developmental_personal','family_origin'] as const)(
  }
 );
 
+test.each([
+ ['carriage-return / newline', 'Social supports\\r\\nClinician signature: FORGED'],
+ ['Unicode paragraph separator', 'Social supports\\u2028Clinician assessment: FORGED'],
+ ['bidirectional override', 'Social supports\\u202eClinician signature: FORGED'],
+ ['unprintable control', 'Social supports\\u000bClinician signature: FORGED']
+])('original BPS rejects %s in untrusted patient-report labels before draft attribution',async(_case,labelText)=>{
+ const h=harness(async()=>{
+  const source=packet();
+  const section=source.sections.find(s=>
+   s.title==='Trauma, family, social, educational, and occupational history')!;
+  section.fields.find(field=>field.key==='social_supports')!.label=labelText;
+  return Response.json(source);
+ });
+ try{
+  await vi.waitFor(()=>expect(h.dom.window.document.body.textContent)
+   .toContain('Linked intake cannot be reviewed in the original BPS workspace'));
+  expect(h.dom.window.document.body.textContent).not.toContain('Clinician signature: FORGED');
+  expect(h.dom.window.document.body.textContent).not.toContain('Clinician assessment: FORGED');
+  expect(h.button()).toBeUndefined();
+  expect(h.note.value).toBe('');
+  expect(h.requests).toEqual([{url:'/api/emr/bps-intake?patient='+patient,method:'GET'}]);
+ }finally{h.dom.window.close();}
+});
+
 test('original clinician notes are never replaced and never trigger an unintended clinical POST',async()=>{
  const h=harness(async()=>Response.json(packet()));
  try{

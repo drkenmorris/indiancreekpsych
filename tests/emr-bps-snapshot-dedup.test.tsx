@@ -53,7 +53,7 @@ test('stale clinician API cannot present a post-attestation edit as a submitted 
 test('the original clinician review never offers a duplicate save for an already reviewed source version',async()=>{
  vi.stubGlobal('fetch',vi.fn(async()=>Response.json(source([{
   id:'00000000-0000-4000-8000-000000000999',reviewed:true,source_version:7,source_status:'submitted',
-  source_updated_at:stamp,created_at:stamp,clinical_answers:{},clinician_notes:{}
+  source_updated_at:stamp,created_at:stamp,clinical_answers:{},clinician_notes:{presenting:'FICTIONAL independent clinician observation'}
  }]))));
  render(<PatientBpsIntakeReview patientId={patient}/>);
  await screen.findByText(/A clinician-reviewed BPS snapshot for this source version has already been saved/);
@@ -74,8 +74,8 @@ test('unattested saved history is not counted as a clinician review and cannot b
   }]));
  }));
  render(<PatientBpsIntakeReview patientId={patient}/>);
- await screen.findByText(/Saved clinician reviews:/);
- expect(screen.getByText(/Some saved history records lack confirmed clinician-review attestation; investigate provenance/)).toBeTruthy();
+ await screen.findByText(/Documented clinician reviews: 0/);
+ expect(screen.getByText(/Some saved history records lack confirmed clinician-review attestation or independent clinical documentation; investigate provenance/)).toBeTruthy();
  expect(screen.getByText(/A BPS history record for this source version lacks confirmed clinician-review attestation/)).toBeTruthy();
  expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
  expect(screen.queryByRole('button',{name:/Save reviewed BPS history snapshot/i})).toBeNull();

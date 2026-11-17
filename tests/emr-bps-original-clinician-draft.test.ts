@@ -364,3 +364,57 @@ test('original BPS source draft is not populated if clinician navigates to anoth
   expect(h.dom.window.document.body.textContent).not.toContain('no clinician finding or signature was created');
  }finally{h.dom.window.close();}
 });
+
+
+test('original BPS withholds 21-section source on corrupted clinician review history',async()=>{
+ const original=packet();
+ const older={
+  id:'00000000-0000-4000-8000-000000000905',
+  reviewed:true,source_version:7,source_status:'submitted',
+  source_updated_at:stamp,created_at:'2026-11-14T12:00:01.123456Z',
+  clinical_answers:{},clinician_notes:{},excluded_clinical_fields:0,excluded_clinician_notes:0
+ };
+ const newer={...older,
+  id:'00000000-0000-4000-8000-000000000906',
+  created_at:'2026-11-14T12:00:02.123456Z'
+ };
+ const cases=[
+  {name:'missing clinician note object',reviews:[{...older,clinician_notes:null}]},
+  {name:'malformed clinical snapshot array',reviews:[{...older,clinical_answers:[]}]},
+  {name:'negative withheld-field counter',reviews:[{...older,excluded_clinical_fields:-1}]},
+  {name:'out-of-order attestation',reviews:[older,newer]}
+ ];
+ for(const item of cases){
+  const h=harness(async()=>Response.json({...original,reviews:item.reviews}));
+  try{
+   await vi.waitFor(()=>expect(h.dom.window.document.querySelector('[role="alert"]')?.textContent)
+    .toContain('Linked intake review history provenance'));
+   expect(h.button(),item.name).toBeUndefined();
+   expect(h.note.value,item.name).toBe('');
+   expect(h.dom.window.document.body.textContent,item.name).not.toContain('FICTIONAL FRIEND SUPPORT');
+   expect(h.requests,item.name).toHaveLength(1);
+   expect(h.requests.every(request=>request.method==='GET'),item.name).toBe(true);
+  }finally{h.dom.window.close();}
+ }
+});
+test('original BPS accepts correctly ordered clinician review receipts without copying or saving notes',async()=>{
+ const original=packet();
+ const latest={
+  id:'00000000-0000-4000-8000-000000000906',
+  reviewed:true,source_version:7,source_status:'submitted',
+  source_updated_at:stamp,created_at:'2026-11-14T12:00:02.123456Z',
+  clinical_answers:{},clinician_notes:{},excluded_clinical_fields:0,excluded_clinician_notes:0
+ };
+ const older={...latest,
+  id:'00000000-0000-4000-8000-000000000905',
+  created_at:'2026-11-14T12:00:01.123456Z'
+ };
+ const h=harness(async()=>Response.json({...original,reviews:[latest,older]}));
+ try{
+  await vi.waitFor(()=>expect(h.button()).toBeTruthy());
+  expect(h.dom.window.document.body.textContent).toContain('FICTIONAL FRIEND SUPPORT');
+  expect(h.dom.window.document.body.textContent).toContain('2 attested clinician review(s)');
+  expect(h.note.value).toBe('');
+  expect(h.requests.every(request=>request.method==='GET')).toBe(true);
+ }finally{h.dom.window.close();}
+});

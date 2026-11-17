@@ -52,7 +52,7 @@ await test('actual hosted forms and global navigation render against central pat
   assert.equal(input.value,'',name+' must not contain prewritten synthetic clinical facts');
  }
  fixture.chart.records.push({id:'fictional-assessment-for-form-test',kind:'assessment',created:'2026-11-10T00:00:01.000Z',problems:[]});
- for(const [key,step] of [['problems','Problems'],['definitions','Definitions'],['goals','Goals'],['objectives','Objectives/Interventions']]){
+ for(const [key,step] of [['problems','Problems'],['definitions','Definitions'],['goals','Goals'],['objectives','Objectives/Planned Interventions']]){
   runInContext(`chooseSection('plan','${key}');render();`,dom.getInternalVMContext());
   const link=w.document.querySelector('#patient-plan-editor');
   assert.ok(link);

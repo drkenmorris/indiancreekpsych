@@ -18,6 +18,7 @@ export default function DiagnosisTable({patientId}:{patientId:string}) {
  const [dirty,setDirty]=useState(false);
  const [status,setStatus]=useState('Loading diagnoses…');
  const alive=useRef(true);
+ const originalDiagnoses=useRef<Diagnosis[]>([]);
  const endpoint='/api/emr/diagnoses';
  useEffect(()=>{
   alive.current=true;
@@ -30,12 +31,13 @@ export default function DiagnosisTable({patientId}:{patientId:string}) {
     if(controller.signal.aborted)return;
     if(data.patientId!==patientId)throw Error('The patient chart changed. Reload Diagnosis.');
     const library:Catalog=data.catalog;
+    originalDiagnoses.current=data.diagnoses;
     setCatalog(library);setRevision(data.revision);setHistory(data.history);
     setRows(data.diagnoses.map((d:Diagnosis)=>{
      const option=library.rows.find(c=>c.code===d.code);
      return {...d,key:crypto.randomUUID(),category:option?.category??'',group:option?.group??''};
     }));
-    setLoaded(true);setStatus('');
+    setLoaded(true);setStatus(data.diagnoses.length ? `Loaded ${data.diagnoses.length} saved diagnosis entry/entries.` : 'No saved diagnoses for this patient.');
    }catch(error){if(!controller.signal.aborted)setStatus(error instanceof Error?error.message:'Diagnoses could not be loaded.');}
    finally{if(!controller.signal.aborted)setBusy(false);}
   }
@@ -50,7 +52,7 @@ export default function DiagnosisTable({patientId}:{patientId:string}) {
  const edit=(key:string,patch:Partial<Row>)=>{
   if(Object.hasOwn(patch,'code'))setRelatedSelections(current=>({...current,[key]:null}));
   setRows(current=>current.map(row=>row.key===key?{...row,...patch}:patch.priority==='primary'?{...row,priority:'secondary'}:row));
-  setDirty(true);
+  setDirty(true);setStatus('Unsaved diagnosis changes.');
  };
  function addDiagnosis(afterKey?:string,choice?:CatalogChoice){
   if(!catalog||rows.length>=30)return;
@@ -59,20 +61,23 @@ export default function DiagnosisTable({patientId}:{patientId:string}) {
    category:choice?.category??'',group:choice?.group??'',priority:rows.some(row=>row.priority==='primary')||choice?'secondary':'primary',status:'provisional',notes:''};
   setRows(current=>{const index=current.findIndex(row=>row.key===afterKey);return index<0?[...current,next]:[...current.slice(0,index+1),next,...current.slice(index+1)];});
   setDirty(true);
+  setStatus('Unsaved diagnosis changes.');
   if(choice)setStatus('Related code added as an unsaved provisional secondary diagnosis. Review before saving.');
  }
  async function save(event:FormEvent){
   event.preventDefault();
   if(busy||!loaded||!catalog)return;
-  if(rows.some(row=>!row.code)){setStatus('Choose a specific diagnosis and code for every row, or remove the incomplete row.');return;}
+  const incomplete=rows.findIndex(row=>!row.code);
+  if(incomplete>=0){setStatus(`Diagnosis ${incomplete+1}: choose a diagnostic family, disorder group, and specific diagnosis, or remove this incomplete row.`);document.querySelector<HTMLElement>(`[aria-label="Diagnosis ${incomplete+1} family"]`)?.focus();return;}
   if(new Set(rows.map(row=>row.code)).size!==rows.length){setStatus('Each ICD-10-CM code can appear only once.');return;}
   const diagnoses=rows.map(({code,label,version,priority,status,notes})=>({code,label,version,priority,status,notes}));
   setBusy(true);setStatus('Saving diagnoses…');
   try{
-   const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({patientId,revision,diagnoses})});
+   const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({patientId,revision,diagnoses,originalDiagnoses:originalDiagnoses.current})});
    const data=await response.json();
    if(!response.ok)throw Error(data.error);
    if(!alive.current)return;
+   originalDiagnoses.current=diagnoses;
    setRevision(data.revision);setDirty(false);setStatus(data.history?'Diagnoses saved.':'Diagnoses saved. Reload to view updated history.');
    if(data.history)setHistory(data.history);
   }catch(error){if(alive.current)setStatus(error instanceof Error?error.message:'Diagnoses could not be saved.');}
@@ -81,14 +86,19 @@ export default function DiagnosisTable({patientId}:{patientId:string}) {
  return <section data-diagnosis-dirty={dirty?'true':'false'}>
   <h1 id="diagnosis-title">Diagnosis</h1>
   <p>Select a diagnostic family, disorder group, then the specific diagnosis. The ICD-10-CM code fills automatically.</p>
-  <p role="status" aria-live="polite">{status}</p>
+  <p className="diagnosisSaveStatus" role="status" aria-live="polite">{status}</p>
   {!loaded&&!busy&&<button type="button" onClick={()=>window.location.reload()}>Retry loading Diagnosis</button>}
   {catalog&&<>
    <p className="treatmentHint">{catalog.version} · Effective {catalog.effectiveFrom} through {catalog.effectiveThrough}. ICD code descriptions organized into diagnostic families; source-linked clinical overviews and advisory coding notes appear after a selection. Overviews summarize selected disorders; they are not the full DSM-5-TR criteria.</p>
    <p><a href="/emr/diagnosis?coverage=1" target="_blank" rel="noopener noreferrer">View missing DSM-referenced codes and coverage audit</a></p>
-   <form aria-labelledby="diagnosis-title" onSubmit={save}>
+   <form aria-labelledby="diagnosis-title" onSubmit={save} noValidate>
     <fieldset disabled={busy||!loaded}>
      <legend>Patient diagnoses</legend>
+     <div className="treatmentActions diagnosisActionsLine" role="group" aria-label="Diagnosis list actions">
+      <button type="button" disabled={rows.length>=30} onClick={()=>addDiagnosis()}>Add diagnosis</button>
+      <button type="submit" disabled={!dirty}>{busy?'Saving…':'Save diagnoses'}</button>
+      <button type="button" onClick={()=>{if(!dirty||window.confirm('Reload Diagnosis and discard unsaved changes?'))window.location.reload();}}>Reload saved diagnoses</button>
+     </div>
      {rows.map((row,index)=>{
         const groups=[...new Map(catalog.rows.filter(c=>c.category===row.category).map(c=>[c.group,c.groupLabel])).entries()];
         const codes=catalog.rows.filter(c=>c.category===row.category&&c.group===row.group);
@@ -122,7 +132,7 @@ export default function DiagnosisTable({patientId}:{patientId:string}) {
          </div>
          <div className="diagnosisActionsLine" role="group" aria-label={name+' actions'}>
           <strong>Actions</strong>
-          <button type="button" aria-label={'Remove diagnosis '+(index+1)} onClick={()=>{setRows(current=>current.filter(r=>r.key!==row.key));setDirty(true);}}>Remove diagnosis</button>
+          <button type="button" aria-label={'Remove diagnosis '+(index+1)} onClick={()=>{setRows(current=>current.filter(r=>r.key!==row.key));setDirty(true);setStatus('Unsaved diagnosis changes.');}}>Remove diagnosis</button>
           <button type="button" disabled={rows.length>=30} onClick={()=>addDiagnosis(row.key)}>Add diagnosis below</button>
           {relatedSelections[row.key]&&<button type="button" disabled={rows.length>=30||rows.some(r=>r.code===relatedSelections[row.key]?.code)} onClick={()=>{
            const choice=relatedSelections[row.key];
@@ -133,11 +143,7 @@ export default function DiagnosisTable({patientId}:{patientId:string}) {
         </section>;
        })}
      {!rows.length&&<p>No diagnoses entered.</p>}
-     <div className="treatmentActions diagnosisActionsLine" role="group" aria-label="Diagnosis list actions">
-      <button type="button" disabled={rows.length>=30} onClick={()=>addDiagnosis()}>Add diagnosis</button>
-      <button type="submit" disabled={!dirty}>{busy?'Saving…':'Save diagnoses'}</button>
-      <button type="button" onClick={()=>{if(!dirty||window.confirm('Reload Diagnosis and discard unsaved changes?'))window.location.reload();}}>Reload saved diagnoses</button>
-     </div>
+
     </fieldset>
    </form>
    <details><summary>Saved diagnosis history</summary>

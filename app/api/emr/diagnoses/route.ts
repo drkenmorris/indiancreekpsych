@@ -36,15 +36,24 @@ export async function POST(request: Request) {
  try {
   const raw = await request.text();
   if (Buffer.byteLength(raw)>60000) return reply({error:'Diagnosis request is too large.'},400);
-  const { patientId, revision, diagnoses } = JSON.parse(raw);
+  const { patientId, revision, diagnoses, originalDiagnoses } = JSON.parse(raw);
   const result = await access(patientId);
   if (result.error) return result.error;
   if (!Number.isSafeInteger(revision) || revision<0 || !validDiagnoses(diagnoses))
    return reply({error:'Choose valid, different diagnosis codes and at most one primary diagnosis.'},400);
-  const patch = {diagnoses, revision:revision+1};
-  const query = revision===0 && result.ctx.admin
+  // Other treatment sections share this row. Rebase only when the diagnosis
+  // snapshot is still exactly the one the clinician originally opened.
+  const currentRevision = result.record?.revision ?? 0;
+  const currentDiagnoses = result.record?.diagnoses ?? [];
+  const comparable = (items: typeof diagnoses) => JSON.stringify(items.map((d: typeof diagnoses[number]) =>
+   [d.code,d.label,d.version,d.priority,d.status,d.notes]));
+  if (revision !== currentRevision && (!validDiagnoses(originalDiagnoses) ||
+   comparable(originalDiagnoses) !== comparable(currentDiagnoses)))
+   return reply({error:'The diagnosis list changed. Your edits are retained. Reload Diagnosis and review the saved list before saving again.'},409);
+  const patch = {diagnoses, revision:currentRevision+1};
+  const query = currentRevision===0 && result.ctx.admin
    ? result.ctx.supabase.from('emr_treatment_modalities').insert({...patch,patient_id:patientId})
-   : result.ctx.supabase.from('emr_treatment_modalities').update(patch).eq('patient_id',patientId).eq('revision',revision);
+   : result.ctx.supabase.from('emr_treatment_modalities').update(patch).eq('patient_id',patientId).eq('revision',currentRevision);
   const saved = await query.select('revision').maybeSingle();
   if (!saved.data && (!saved.error || ['40001','23505'].includes(saved.error.code)))
    return reply({error:'The chart changed. Reload Diagnosis and review before saving again.'},409);

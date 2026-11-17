@@ -419,7 +419,11 @@ async function populateOriginalBpsIntake(panel,id,generation){
         {cache:'no-store',credentials:'same-origin'});
        if(!response.ok)throw Error('Source verification failed.');
        const fresh=await response.json();
-       if(!stillCurrent()||!target.isConnected)return;
+       // A BPS page may change while the protected receipt recheck is awaiting.
+       // The old form can remain connected during navigation; never populate
+       // a stale page's clinical draft even when the source is still valid.
+       if(!stillCurrent()||!target.isConnected||
+        new URLSearchParams(location.search).get('bps_page')!==bpsPage)return;
        if(fresh.patientId!==id||fresh.source?.accountId!==source.accountId||
         fresh.source?.status!=='submitted'||fresh.source?.version!==source.version||
         originalBpsInstantNanoseconds(fresh.source?.updatedAt)!==editedInstant||

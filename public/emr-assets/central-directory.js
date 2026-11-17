@@ -71,7 +71,7 @@ startClinicalWorkspace=async function(){
 const originalCentralRender=render;
 render=function(){
  const result=originalCentralRender();
- if(blankWorkspace&&chart){
+ if(blankWorkspace&&chart&&!['settings','administration'].includes(activeSection?.module)){
   document.querySelector('.local-status').textContent='Blank workspace · not saved';
   $('#chart-header').innerHTML='<section class="patient-header"><div><h2>No patient selected</h2><p>Choose a patient when you are ready to save.</p></div></section>';
   $('#content').querySelectorAll('input,textarea,select').forEach(input=>{
@@ -85,7 +85,7 @@ render=function(){
 };
 // Blank forms are available for inspection/editing; they can never write an unbound chart.
 document.addEventListener('submit',event=>{
- if(!blankWorkspace||!event.target.closest('#content'))return;
+ if(!blankWorkspace||!event.target.closest('#content')||event.target.matches('#preferences-form,#defaults-form,#shortcuts-form,#custom-field-form'))return;
  event.preventDefault();event.stopImmediatePropagation();message('Select a patient before saving clinical records.',true);
 },true);
 // The menu names/order stay identical to the demo; logout uses the clinic session.
@@ -131,6 +131,7 @@ initProviderUI=async function(){
   providerMe=identity.me;
   providerPractice={name:'Indian Creek Psychological Services',type:'Clinical practice'};
   providerInfo=null;
+  await loadCentralSettings();
   const opened=await startClinicalWorkspace();
   if(opened===false)message('The protected chart could not be opened. No patient was changed or saved.',true);
  }catch(error){
@@ -169,4 +170,21 @@ notesView=function(){
  if(blankWorkspace||!patientId)return original;
  const summary=activeSection?.module==='notes'&&activeSection.key==='planner'?'<section class="card"><iframe id="progress-plan-summary" title="Patient problems and planned interventions" src="/emr/individual-progress-planner?patient='+encodeURIComponent(patientId)+'&amp;embedded=1"></iframe></section>':'';
  return summary+'<section class="card"><h2>Saved clinical notes and author attestations</h2><p><a href="/emr/patients?patient='+encodeURIComponent(patientId)+'">Open this patient’s individual and group progress notes</a></p><p>Record and attest reviewed clinical notes in the central chart. The original workspace forms remain below; their preview signatures are separate.</p></section>'+original;
+};
+
+// Only account-scoped, server-confirmed settings are used in the central EMR.
+// Existing browser demo configuration is retained locally, never silently imported.
+let centralSettings={preferences:{density:'comfortable',large_text:false,contrast:false},defaults:{note_template:'DAP',country:'USA',modality:'Individual'},shortcuts:['personal','schedule','reports'],custom_fields:[]};
+let centralSettingsRevision=0;
+async function loadCentralSettings(){
+ const response=await fetch('/api/emr/settings',{cache:'no-store',credentials:'same-origin'});
+ const data=await response.json();if(!response.ok)throw Error(data.error||'Account settings unavailable.');
+ centralSettings=data.settings;centralSettingsRevision=data.revision;template=centralSettings.defaults.note_template;
+}
+readDemoSettings=function(){return structuredClone(centralSettings);};
+saveDemoSettings=async function(patch){
+ const settings={...centralSettings,...patch};
+ const response=await fetch('/api/emr/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({revision:centralSettingsRevision,settings})});
+ const data=await response.json();if(!response.ok)throw Error(data.error||'Account settings were not saved.');
+ centralSettings=data.settings;centralSettingsRevision=data.revision;return readDemoSettings();
 };

@@ -453,6 +453,11 @@ async function populateOriginalBpsIntake(panel,id,generation){
         JSON.stringify(fresh.sections)!==JSON.stringify(result.sections)||
         !Array.isArray(fresh.unmappedKeys)||
         JSON.stringify(fresh.unmappedKeys)!==JSON.stringify(result.unmappedKeys)||
+        // The displayed clinician-review provenance may have changed during
+        // this asynchronous read even when the questionnaire answers did not.
+        // Require a fresh review of the source panel before placing draft notes.
+        !Array.isArray(fresh.reviews)||
+        JSON.stringify(fresh.reviews)!==JSON.stringify(result.reviews)||
         JSON.stringify(getDraftFields(fresh.sections))!==JSON.stringify(fields)){
         notice.textContent='The linked intake changed or could not be reverified. No text was copied; refresh this source.';
         return;

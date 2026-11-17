@@ -646,3 +646,35 @@ test('wrongly marked medication source cannot render or populate original BPS no
   expect(h.requests).toHaveLength(1);
  }finally{h.dom.window.close();}
 });
+
+test.each(['trauma','insurance','legal','historical-legal'] as const)(
+ 'original BPS refuses %s data relabeled as unrestricted free text',async kind=>{
+ const h=harness(async()=>{
+  const source=packet();
+  const section=(name:string)=>source.sections.find(s=>s.title===name)!;
+  const trauma=section('Trauma, family, social, educational, and occupational history');
+  if(kind==='trauma'){
+   const f=trauma.fields.find(f=>f.key==='trauma_history')!;
+   f.type='text';f.sourceOnly=false;
+  }else if(kind==='historical-legal'){
+   trauma.fields.push({key:'legal_history',label:'Historical legal context',type:'text',
+    value:'RESTRICTED FICTIONAL DATA',reported:true,sourceOnly:false});
+   trauma.answered++;
+  }else{
+   const target=section(kind==='insurance'?'Insurance and benefits information':
+    'Authorization to share health information');
+   target.fields=[{key:kind+'_detail',label:'Restricted context',type:'text',
+    value:'RESTRICTED FICTIONAL DATA',reported:true,sourceOnly:false}];
+   target.answered=1;
+  }
+  return Response.json(source);
+ });
+ try{
+  await vi.waitFor(()=>expect(h.dom.window.document.body.textContent)
+   .toContain('Linked 21-section intake mapping is malformed'));
+  expect(h.note.value).toBe('');
+  expect(h.button()).toBeUndefined();
+  expect(h.requests).toHaveLength(1);
+  expect(h.dom.window.document.body.textContent).not.toContain('FICTIONAL FRIEND SUPPORT');
+ }finally{h.dom.window.close();}
+});

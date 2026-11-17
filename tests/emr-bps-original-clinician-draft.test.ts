@@ -418,3 +418,68 @@ test('original BPS accepts correctly ordered clinician review receipts without c
   expect(h.requests.every(request=>request.method==='GET')).toBe(true);
  }finally{h.dom.window.close();}
 });
+
+
+test.each([
+ ['a second clinician saves a newer review',false,true],
+ ['a previously visible clinician review disappears',true,false]
+])('original BPS withholds unsaved attribution if %s during the protected recheck',async(_label,firstHasReview,secondHasReview)=>{
+ const review={
+  id:'00000000-0000-4000-8000-000000000916',reviewed:true,
+  source_version:7,source_status:'submitted',source_updated_at:stamp,
+  created_at:'2026-11-14T12:00:02.123456Z',clinical_answers:{},
+  clinician_notes:{},excluded_clinical_fields:0,excluded_clinician_notes:0
+ };
+ const h=harness(async call=>{
+  const current:any=packet();
+  current.reviews=(call===1?firstHasReview:secondHasReview)?[review]:[];
+  return Response.json(current);
+ });
+ try{
+  await vi.waitFor(()=>expect(h.button()).toBeTruthy());
+  h.button().click();
+  await vi.waitFor(()=>expect(h.dom.window.document.body.textContent)
+   .toContain('The linked intake changed or could not be reverified'));
+  expect(h.note.value).toBe('');
+  expect(h.requests).toEqual([
+   {url:'/api/emr/bps-intake?patient='+patient,method:'GET'},
+   {url:'/api/emr/bps-intake?patient='+patient,method:'GET'}
+  ]);
+  expect(h.dom.window.document.body.textContent).not.toContain('no clinician finding or signature was created');
+ }finally{h.dom.window.close();}
+});
+
+test('original BPS rejects missing clinician-review history during source-note recheck',async()=>{
+ const h=harness(async call=>{
+  const current:any=packet();
+  if(call===2)delete current.reviews;
+  return Response.json(current);
+ });
+ try{
+  await vi.waitFor(()=>expect(h.button()).toBeTruthy());
+  h.button().click();
+  await vi.waitFor(()=>expect(h.dom.window.document.body.textContent)
+   .toContain('The linked intake changed or could not be reverified'));
+  expect(h.note.value).toBe('');
+  expect(h.requests.every(request=>request.method==='GET')).toBe(true);
+ }finally{h.dom.window.close();}
+});
+
+test('unchanged valid clinician-review history permits explicit unsaved original-BPS note attribution',async()=>{
+ const h=harness(async()=>{
+  const current:any=packet();
+  current.reviews=[{
+   id:'00000000-0000-4000-8000-000000000917',reviewed:true,
+   source_version:7,source_status:'submitted',source_updated_at:stamp,
+   created_at:'2026-11-14T12:00:02.123456Z',clinical_answers:{},
+   clinician_notes:{},excluded_clinical_fields:0,excluded_clinician_notes:0
+  }];
+  return Response.json(current);
+ });
+ try{
+  await vi.waitFor(()=>expect(h.button()).toBeTruthy());
+  h.button().click();
+  await vi.waitFor(()=>expect(h.note.value).toContain('FICTIONAL FRIEND SUPPORT'));
+  expect(h.requests.every(request=>request.method==='GET')).toBe(true);
+ }finally{h.dom.window.close();}
+});

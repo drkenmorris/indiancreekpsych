@@ -254,6 +254,9 @@ async function populateOriginalBpsIntake(panel,id,generation){
   provenance.textContent='Patient-reported '+source.status+
    ' intake · source version '+source.version+
    ' · last updated '+new Date(source.updatedAt).toLocaleString()+
+   ' · exact revision receipt '+source.updatedAt+
+   (source.status==='submitted'?' · patient submission receipt '+source.submittedAt+
+    ' (patient attestation only; not a clinician signature)':' · no patient submission receipt (draft)')+
    ' · '+result.sections.length+'/21 sections · '+
    (Array.isArray(result.reviews)?result.reviews.filter(review=>review.reviewed===true).length:0)+' attested clinician review(s).';
   panel.append(provenance);

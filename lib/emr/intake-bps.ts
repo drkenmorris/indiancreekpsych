@@ -289,8 +289,11 @@ export const bpsSnapshotClinicalKeys = new Set<string>([
  * medication keys as innocuous clinical text to expose them in this view.
  * Snapshot storage retains its stricter separate bpsSnapshotClinicalKeys list.
  */
+// Raw trauma narratives require the dedicated protected trauma reconciliation.
+// A legacy BPS snapshot may retain the original statement, but no ordinary
+// source panel or original-form draft may disclose it, regardless of type tags.
 export const bpsVisibleSourceKeys = new Set<string>([
- ...bpsSnapshotClinicalKeys,
+ ...[...bpsSnapshotClinicalKeys].filter(key=>key!=='trauma_history'),
  ...Object.keys(historicalBpsDomain).filter(key=>!protectedHistoricalKeys.has(key))
 ]);
 export function sanitizeBpsSnapshotAnswers(raw:unknown):{answers:Record<string,string>;excludedCount:number}{

@@ -57,7 +57,7 @@ async function count(table){
  const result=await db.query('SELECT count(*)::int AS n FROM public.'+table);
  return result.rows[0].n;
 }
-test('pending MFA gate blocks an administrator without AAL2 from all four scheduler tables and the SECURITY DEFINER patient list',async()=>{
+await test('pending MFA gate blocks an administrator without AAL2 from all four scheduler tables and the SECURITY DEFINER patient list',async()=>{
  await session(admin,'aal1');
  for(const table of ['appointment_settings','appointment_availability_rules','appointment_blocks','appointments']){
   assert.equal(await count(table),0,table+' should not expose scheduler records without admin MFA');
@@ -69,7 +69,7 @@ test('pending MFA gate blocks an administrator without AAL2 from all four schedu
  );
  await assert.rejects(db.query('SELECT * FROM private.scheduling_patients_impl()'),/MFA required/);
 });
-test('AAL2 permits an authorized administrator to read and update protected scheduler state and list patients',async()=>{
+await test('AAL2 permits an authorized administrator to read and update protected scheduler state and list patients',async()=>{
  await session(admin,'aal2');
  assert.equal(await count('appointment_settings'),1);
  assert.equal(await count('appointment_availability_rules'),1);
@@ -79,7 +79,7 @@ test('AAL2 permits an authorized administrator to read and update protected sche
  const listed=await db.query('SELECT id FROM private.scheduling_patients_impl()');
  assert.deepEqual(new Set(listed.rows.map(row=>row.id)),new Set([patient,unrelated]));
 });
-test('patient access still uses patient-specific RLS and cannot elevate through AAL2',async()=>{
+await test('patient access still uses patient-specific RLS and cannot elevate through AAL2',async()=>{
  await session(patient,'aal1');
  assert.equal(await count('appointments'),1);
  assert.equal(await count('appointment_settings'),1);
@@ -91,7 +91,7 @@ test('patient access still uses patient-specific RLS and cannot elevate through 
  await session(unrelated,'aal1');
  assert.equal(await count('appointments'),1);
 });
-test('missing, unrecognized, or downgraded administrator assurance cannot pass the policy',async()=>{
+await test('missing, unrecognized, or downgraded administrator assurance cannot pass the policy',async()=>{
  for(const assurance of [null,'aal0','aal3','aal1']){
   await session(admin,assurance);
   assert.equal(await count('appointments'),0);

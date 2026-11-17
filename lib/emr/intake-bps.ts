@@ -296,12 +296,16 @@ export const bpsVisibleSourceKeys = new Set<string>([
  ...[...bpsSnapshotClinicalKeys].filter(key=>key!=='trauma_history'),
  ...Object.keys(historicalBpsDomain).filter(key=>!protectedHistoricalKeys.has(key))
 ]);
+// The database's immutable historical snapshot allowlist is broader than what
+// an ordinary BPS chart-history API may disclose. Trauma narrative content is
+// reconciled in its dedicated protected clinical workflow, never in this API.
+const bpsHistoryReadbackKeys=new Set([...bpsSnapshotClinicalKeys].filter(key=>key!=='trauma_history'));
 export function sanitizeBpsSnapshotAnswers(raw:unknown):{answers:Record<string,string>;excludedCount:number}{
  const answers:Record<string,string>={};
  if(!raw||typeof raw!=='object'||Array.isArray(raw))return {answers,excludedCount:1};
  let excludedCount=0;
  for(const [key,value] of Object.entries(raw)){
-  if(bpsSnapshotClinicalKeys.has(key)&&typeof value==='string'&&value.trim())answers[key]=value;
+  if(bpsHistoryReadbackKeys.has(key)&&typeof value==='string'&&value.trim())answers[key]=value;
   else excludedCount++;
  }
  return {answers,excludedCount};

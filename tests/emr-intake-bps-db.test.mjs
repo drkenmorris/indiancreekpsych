@@ -34,7 +34,8 @@ for(const migration of [
  '20261115071500_emr_bps_draft_attestation_boundary.sql',
  '20261117181000_require_documented_bps_review.sql',
  '20261117185800_bps_review_visible_note_guard.sql',
- '20261118120500_bps_review_variation_selector_guard.sql',\n '20261118210600_bps_supplementary_variation_selector_guard.sql',
+ '20261118120500_bps_review_variation_selector_guard.sql',
+ '20261118210600_bps_supplementary_variation_selector_guard.sql',
  '20261118184500_bps_atomic_submission_receipt.sql',
  '20261118204000_bps_atomic_answer_identity.sql'
 ])await db.exec(readFileSync('supabase/migrations/'+migration,'utf8'));

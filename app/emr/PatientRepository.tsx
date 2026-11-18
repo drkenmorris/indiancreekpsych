@@ -39,13 +39,24 @@ export default function PatientRepository(){const [emailEditing,setEmailEditing]
    try{
     const response=await fetch('/api/emr/patients?id='+encodeURIComponent(id),{cache:'no-store'});
     if(!active||generation!==requestGeneration.current)return;
-    if(response.status===401||response.status===403){setIntake(null);return;}
-    if(!response.ok)return;
+    // A stale source is protected PHI, not a cache to keep showing after
+    // an authorization, identity, revision or source-provenance failure.
+    if(!response.ok)throw Error('Linked patient intake refresh was not verified.');
     const value=await response.json();
-    if(active&&generation===requestGeneration.current&&value.patients?.[0]?.id===id)
-     setIntake(previous=>previous?.updated_at===value.intake?.updated_at?previous:value.intake);
-   }catch{/* The next refresh retries transient failures. */}
-   finally{pending=false;}
+    if(!active||generation!==requestGeneration.current)return;
+    if(value.patients?.length!==1||value.patients[0]?.id!==id)
+     throw Error('Central chart identity could not be verified.');
+    // Submission timestamps alone are not a change token. A same-timestamp
+    // correction to answers, status, packet version or source revision must
+    // invalidate the earlier patient-reported display and reconciliation input.
+    setIntake(previous=>JSON.stringify(previous)===JSON.stringify(value.intake??null)
+     ?previous:value.intake??null);
+   }catch{
+    if(active&&generation===requestGeneration.current){
+     setIntake(null);
+     setMessage('Linked patient intake could not be verified during refresh. Patient-reported source information is withheld; reopen the protected chart.');
+    }
+   }finally{pending=false;}
   }
   const timer=window.setInterval(refreshIntake,5000);
   window.addEventListener('focus',refreshIntake);

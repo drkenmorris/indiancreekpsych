@@ -110,6 +110,8 @@ class Store(patients.Registry):
                     return prior
                 used=sum(r.get('byte_size',0) for r in records if r['kind'] in ['document','identity_document'])
                 if used+body['byte_size']>614400:raise ValueError('This demo chart’s document storage limit is reached.')
+            elif action == 'session_details':
+                body=workspaces.session_details(data,records)
             elif action == 'workspace_section':
                 body=workspaces.section(data)
             elif action == 'appointment':

@@ -19,7 +19,7 @@ openDirectory=function(){safeNavigate(async()=>{try{await refreshRegistry();cons
 function selectedPatientWorkspaceUrl(id){
  // Patient selection preserves the clinician's original clinical form/subpage.
  // The caller checks the central UUID, never a matching name or demo account.
- const section=activeSection?.definition?activeSection:null;
+ const section=activeSection?.key==='patient_directory'?{module:'personal',key:'demographics',definition:findMenuSection('personal','demographics')}:activeSection?.definition?activeSection:null;
  const query=new URLSearchParams({patient:id,module:section?.definition[2]||'assessment'});
  query.set('section',section?section.module+':'+section.key:'assessment:biopsychosocial');
  if(section?.module==='assessment'&&section.key==='biopsychosocial'){
@@ -61,11 +61,11 @@ api=function(path,options){
 };
 const originalCentralStart=startClinicalWorkspace;
 startClinicalWorkspace=async function(){
- if(initialPatient()){blankWorkspace=false;const opened=await originalCentralStart(false);setNavigationExpanded(true);return opened;}
+ if(initialPatient()){blankWorkspace=false;const opened=await originalCentralStart(false);setNavigationExpanded(true);if(opened!==false&&new URLSearchParams(location.search).get('directory')==='1')openDirectory();return opened;}
  try{
   const empty=await api('/api/blank-workspace');
   boot=empty.boot;chart=empty.chart;groupState=empty.groups;patientId='';blankWorkspace=true;
-  if(activeSection)view=activeSection.definition[2];setNavigationExpanded(true);render();return true;
+  if(activeSection)view=activeSection.definition[2];setNavigationExpanded(true);render();if(new URLSearchParams(location.search).get('directory')==='1')openDirectory();return true;
  }catch(error){message(error.message,true);return false;}
 };
 const originalCentralRender=render;
@@ -189,3 +189,10 @@ saveDemoSettings=async function(patch){
  const data=await response.json();if(!response.ok)throw Error(data.error||'Account settings were not saved.');
  centralSettings=data.settings;centralSettingsRevision=data.revision;return readDemoSettings();
 };
+
+// Personal Data and Home share the same guarded Find/Add Patient directory.
+document.addEventListener('click',event=>{
+ if(!event.target.closest('[data-submenu="personal:patient_directory"]'))return;
+ event.preventDefault();event.stopImmediatePropagation();
+ if(providerMe&&providerMe.account_type!=='File maintenance')openDirectory();
+},true);

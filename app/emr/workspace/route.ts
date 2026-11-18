@@ -18,6 +18,7 @@ export async function GET(request:Request){
   const value=requested.searchParams.get(key);
   if(value&&value.length<=160)params.set(key,value);
  }
+ if(requested.searchParams.get('directory')==='1')params.set('directory','1');
  const returnTo='/emr/workspace'+(params.size?'?'+params.toString():'');
  await patientAccess(true,returnTo);
  const ctx=await emrAccess();

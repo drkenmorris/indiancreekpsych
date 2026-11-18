@@ -1,0 +1,362 @@
+{
+  "sections": {
+    "personal": [
+      [
+        "patient_directory",
+        "Find/Add Patient",
+        "demographics"
+      ],
+      [
+        "demographics",
+        "Patient Demographics",
+        "demographics"
+      ],
+      [
+        "assigned_provider",
+        "Assigned Provider",
+        "module-section"
+      ],
+      [
+        "insurance",
+        "Insurance",
+        "insurance"
+      ],
+      [
+        "general_notes",
+        "General Notes",
+        "module-section"
+      ],
+      [
+        "documents",
+        "Scanned Documents",
+        "module-section"
+      ],
+      [
+        "legal",
+        "Signed Legal Notices",
+        "privacy"
+      ]
+    ],
+    "assessment": [
+      [
+        "biopsychosocial",
+        "Biopsychosocial History",
+        "assessment"
+      ],
+      [
+        "risk_assessment",
+        "Risk Assessment",
+        "module-section"
+      ],
+      [
+        "strengths",
+        "Strengths/Weaknesses",
+        "module-section"
+      ],
+      [
+        "assigned_assessments",
+        "Assigned/Completed Assessments",
+        "questionnaires"
+      ],
+      [
+        "mental_status",
+        "Mental Status",
+        "module-section"
+      ],
+      [
+        "recovery_criteria",
+        "Recovery Treatment Criteria",
+        "module-section"
+      ],
+      [
+        "summary",
+        "Summary Assessment",
+        "assessment",
+        "#field-clinical_summary"
+      ]
+    ],
+    "plan": [
+      [
+        "problems",
+        "Problem Statements",
+        "plan",
+        "#plan-hierarchy"
+      ],
+      [
+        "definitions",
+        "Definitions",
+        "plan",
+        "[data-node-kind=\"definitions\"]"
+      ],
+      [
+        "goals",
+        "Goals",
+        "plan",
+        "[data-node-kind=\"goals\"]"
+      ],
+      [
+        "objectives",
+        "Objectives/Planned Interventions",
+        "plan",
+        "[data-node-kind=\"objectives\"]"
+      ],
+      [
+        "modality",
+        "Modality",
+        "plan",
+        "#modality"
+      ],
+      [
+        "approach",
+        "Approach",
+        "plan",
+        "#field-treatment_approaches"
+      ],
+      [
+        "diagnosis",
+        "Diagnosis",
+        "plan",
+        "#field-diagnosis"
+      ],
+      [
+        "response",
+        "Response",
+        "plan",
+        "#field-response_to_treatment"
+      ],
+      [
+        "homework",
+        "Homework",
+        "plan",
+        "#field-homework"
+      ]
+    ],
+    "notes": [
+      [
+        "session_details",
+        "Session Details",
+        "module-section"
+      ],
+      [
+        "planner",
+        "Individual Progress Notes Planner",
+        "notes",
+        "#progress-plan-summary"
+      ],
+      [
+        "objective_rating",
+        "SOAP Notes",
+        "module-section"
+      ],
+      [
+        "psychotherapy_notes",
+        "Psychotherapy Notes",
+        "module-section"
+      ],
+      [
+        "session_custom_fields",
+        "Session Custom Fields",
+        "module-section"
+      ],
+      [
+        "group_notes",
+        "Group Session Notes",
+        "groups"
+      ],
+      [
+        "amendments",
+        "Amendments",
+        "notes",
+        "form[data-action=\"amendment\"]"
+      ],
+      [
+        "record_history",
+        "Record History",
+        "history"
+      ]
+    ],
+    "prognosis": [
+      [
+        "prognosis",
+        "Prognosis",
+        "prognosis"
+      ],
+      [
+        "scheduled_review",
+        "Scheduled Review",
+        "module-section"
+      ]
+    ],
+    "prognosis_details": [
+      [
+        "details",
+        "Prognosis Details",
+        "prognosis"
+      ]
+    ],
+    "discharge": [
+      [
+        "details",
+        "Discharge Details",
+        "discharge"
+      ]
+    ],
+    "schedule": [],
+    "reports": [
+      [
+        "clinical",
+        "Clinical Record Reports",
+        "reports"
+      ],
+      [
+        "administrative",
+        "Administrative Reports",
+        "module-section"
+      ],
+      [
+        "misc_documents",
+        "Miscellaneous Documents",
+        "module-section"
+      ]
+    ],
+    "settings": [
+      [
+        "system",
+        "System Settings",
+        "settings"
+      ],
+      [
+        "preferences",
+        "Preferences",
+        "module-section"
+      ],
+      [
+        "defaults",
+        "Default Settings",
+        "module-section"
+      ],
+      [
+        "shortcuts",
+        "Shortcut Bar",
+        "module-section"
+      ],
+      [
+        "custom_fields",
+        "Custom Fields",
+        "module-section"
+      ]
+    ],
+    "administration": [
+      [
+        "providers",
+        "Providers",
+        "providers"
+      ],
+      [
+        "teams",
+        "Treatment Teams/Groups",
+        "groups"
+      ],
+      [
+        "treatment_planners",
+        "Treatment Planners",
+        "module-section"
+      ],
+      [
+        "note_planners",
+        "Progress Note Planners",
+        "module-section"
+      ],
+      [
+        "libraries",
+        "Libraries",
+        "module-section"
+      ],
+      [
+        "database",
+        "Database",
+        "module-section"
+      ],
+      [
+        "backup",
+        "Backup Data",
+        "module-section"
+      ],
+      [
+        "export_patient",
+        "Export Patient Record",
+        "module-section"
+      ],
+      [
+        "patient_forms",
+        "Patient Forms",
+        "module-section"
+      ]
+    ]
+  },
+  "extra": {
+    "administration": [
+      [
+        "provider_information",
+        "Provider Information",
+        "providers"
+      ],
+      [
+        "assigned_patients",
+        "Assigned Patients List",
+        "module-section"
+      ],
+      [
+        "weekly_schedule",
+        "Weekly Therapist Schedule",
+        "module-section"
+      ]
+    ]
+  },
+  "modules": {
+    "personal": [
+      "Personal Data",
+      "demographics"
+    ],
+    "assessment": [
+      "Patient Assessments",
+      "assessment"
+    ],
+    "plan": [
+      "Treatment Plan",
+      "plan"
+    ],
+    "notes": [
+      "Progress",
+      "notes"
+    ],
+    "prognosis": [
+      "Prognosis/Utilization Review",
+      "prognosis"
+    ],
+    "prognosis_details": [
+      "Prognosis",
+      "prognosis"
+    ],
+    "discharge": [
+      "Discharge",
+      "discharge"
+    ],
+    "schedule": [
+      "Appointment Scheduler",
+      "schedule"
+    ],
+    "reports": [
+      "Reports",
+      "reports"
+    ],
+    "settings": [
+      "System Settings",
+      "settings"
+    ],
+    "administration": [
+      "Administration",
+      "providers"
+    ]
+  }
+}

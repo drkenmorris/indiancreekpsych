@@ -273,7 +273,7 @@ test('PHI-minimized BPS summary verifies linked source without returning questio
 test('BPS summary records current reviewed attestation only for the same patient source revision',async()=>{
  reviewRows=[{id:'00000000-0000-0000-0000-000000000609',patient_id:patient,source_account_id:account,
   source_version:2,source_status:'submitted',source_updated_at:stamp,created_at:stamp,
-  reviewed:true,clinical_answers:{counseling_reason:'PRIVATE_FICTIONAL_HISTORY_789'},
+  reviewed:true,clinical_answers:{counseling_reason:'Reports sadness',suicidal_thoughts_current:'Yes'},
   clinician_notes:{presenting:'PRIVATE_FICTIONAL_CLINICIAN_790'}}];
  const url=new Request(request().url+'&summary=1');
  let response=await GET(url);
@@ -310,6 +310,43 @@ test('BPS summary records current reviewed attestation only for the same patient
  expect(draft.source.status).toBe('draft');
  expect(draft.source.submittedAt).toBeNull();
  expect(draft.currentVersionReviewed).toBe(false);
+});
+
+test('original BPS reviewed badge rejects altered, omitted and protected history fields',async()=>{
+ const baseline={
+  id:'00000000-0000-0000-0000-000000000611',
+  patient_id:patient,source_account_id:account,source_version:2,
+  source_status:'submitted',source_updated_at:stamp,created_at:stamp,
+  reviewed:true,
+  clinical_answers:{counseling_reason:'Reports sadness',suicidal_thoughts_current:'Yes'},
+  clinician_notes:{presenting:'Fictional independently documented clinical context'}
+ };
+ const url=new Request(request().url+'&summary=1');
+ reviewRows=[baseline];
+ expect((await (await GET(url)).json()).currentVersionReviewed).toBe(true);
+ for(const clinical_answers of [
+  {counseling_reason:'Reports sadness'},
+  {counseling_reason:'Changed without source version',suicidal_thoughts_current:'Yes'},
+  {counseling_reason:'Reports sadness',suicidal_thoughts_current:'Yes',
+   medication_entries:'PRIVATE_FICTIONAL_MEDICATION_NOT_FOR_BPS'},
+  {counseling_reason:'Reports sadness',suicidal_thoughts_current:34},
+  null
+ ]){
+  reviewRows=[{...baseline,clinical_answers}];
+  const response=await GET(url);
+  expect(response.status).toBe(200);
+  expect((await response.json()).currentVersionReviewed).toBe(false);
+  expect(JSON.stringify(await (await GET(url)).json())).not.toContain('PRIVATE_FICTIONAL_MEDICATION_NOT_FOR_BPS');
+ }
+ // Stored free-text trauma is allowed in the immutable protected snapshot,
+ // but is checked without being disclosed by the metadata-only summary.
+ data.trauma_history='PRIVATE_FICTIONAL_STRUCTURED_TRAUMA_WORKFLOW';
+ reviewRows=[{...baseline,clinical_answers:{...baseline.clinical_answers,
+  trauma_history:'PRIVATE_FICTIONAL_STRUCTURED_TRAUMA_WORKFLOW'}}];
+ const withTrauma=await GET(url);
+ expect(withTrauma.status).toBe(200);
+ expect((await withTrauma.json()).currentVersionReviewed).toBe(true);
+ expect(JSON.stringify(await (await GET(url)).json())).not.toContain('PRIVATE_FICTIONAL_STRUCTURED_TRAUMA_WORKFLOW');
 });
 
 test('BPS provenance summary is protected by the same authorization and patient isolation as the full review',async()=>{

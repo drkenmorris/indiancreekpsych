@@ -329,6 +329,7 @@ test('save accepts only explicit reviewed provenance and clinician notes, never 
  expect(await response.json()).toEqual({id:'00000000-0000-0000-0000-000000000500',saved:true,unsigned:true,diagnosisCreated:false});
  expect(m.rpc).toHaveBeenCalledWith('save_emr_bps_intake_review',{p_payload:{
   patient_id:patient,source_account_id:account,source_version:2,source_status:'submitted',source_updated_at:stamp,source_submitted_at:stamp,
+  source_answers:data,
   reviewed:true,clinician_notes:{presenting:'Reported changes',treatment:'',medical:'',safety:'',family:'',goals:'',limitations:''}}});
 });
 

@@ -62,6 +62,26 @@ export async function GET(request:Request){
         questionnaire_packet_version:row.answers.legal_packet_version??null,
         answers:Object.fromEntries(Object.entries(row.answers)
           .filter(([key])=>directoryIntakeKeys.has(key)))};
+      // A patient may edit or resubmit the 21-section intake while the directory
+      // source is being assembled. Re-read the source before releasing any answers:
+      // the initial receipt alone cannot attest to unchanged clinical text.
+      // Compare the complete answer packet, including hidden legal/version fields,
+      // not only the allowlisted fields displayed by this directory.
+      const currentSource=await ctx.supabase.from('patient_intakes')
+        .select('patient_id,answers,status,version,updated_at,submitted_at')
+        .eq('patient_id',accountId).maybeSingle();
+      const current=currentSource.data;
+      const originalAnswers=row.answers as Record<string,string>;
+      const currentAnswers=current?.answers;
+      if(currentSource.error||!current||current.patient_id!==accountId||
+         current.status!==row.status||current.version!==row.version||
+         current.updated_at!==row.updated_at||current.submitted_at!==row.submitted_at||
+         !currentAnswers||typeof currentAnswers!=='object'||Array.isArray(currentAnswers)||
+         Object.keys(currentAnswers).length!==Object.keys(originalAnswers).length||
+         Object.entries(originalAnswers).some(([key,value])=>
+           !Object.prototype.hasOwnProperty.call(currentAnswers,key)||
+           currentAnswers[key]!==value))
+        return directoryReply({error:'Linked intake changed during clinical source retrieval; reopen the chart.'},409);
       // A chart can be archived or linked to another website account while the
       // intake query is in flight. Recheck its identity, revision and live status
       // immediately before disclosing the earlier account's clinical statements.

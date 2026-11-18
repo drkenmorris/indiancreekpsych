@@ -158,6 +158,17 @@ test.each([['lowercase',false],['uppercase',true]])('fictional 21-section linked
  expect(screen.getByText(/version remains locked; investigate chart provenance/)).toBeTruthy();
  expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
  expect(writes).toBe(1);
+ // Even when one legible clinical note remains, hidden malformed or
+ // unapproved note keys make the historical record non-attestable.
+ reviews[0].clinician_notes={presenting:'FICTIONAL_APPROVED_OBSERVATION',
+  unapproved:'FICTIONAL_REDACTED_CLINICAL_TEXT'};
+ cleanup();
+ render(<PatientBpsIntakeReview patientId={patient}/>);
+ await screen.findByText(/Documented clinician reviews: 0/);
+ expect(screen.getByText(/Some saved history records lack confirmed clinician-review attestation or independent clinical documentation/)).toBeTruthy();
+ expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
+ expect(document.body.textContent).not.toContain('FICTIONAL_REDACTED_CLINICAL_TEXT');
+ expect(writes).toBe(1);
  cleanup();
  render(<PatientBpsIntakeReview patientId={otherPatient}/>);
  await screen.findByRole('alert');

@@ -1,11 +1,33 @@
 import {NextResponse} from 'next/server';
 import {emrAccess,privateHeaders,sameOrigin} from '@/lib/emr/access';
 import {uuid} from '@/lib/emr/demographics';
-import {bpsNoteDomains,mapIntakeToBps,sanitizeBpsClinicianNotes,sanitizeBpsSnapshotAnswers,validBpsTimestamp,validBpsSubmissionChronology,validBpsReviewChronology,validBpsHistoricalSourceBoundary,recognizedBpsQuestionnaireVersion,bpsTimestampInstantNanoseconds,equalBpsTimestampInstants,hasIndependentBpsReviewNote} from '@/lib/emr/intake-bps';
+import {bpsNoteDomains,mapIntakeToBps,sanitizeBpsClinicianNotes,sanitizeBpsSnapshotAnswers,bpsSnapshotClinicalKeys,validBpsTimestamp,validBpsSubmissionChronology,validBpsReviewChronology,validBpsHistoricalSourceBoundary,recognizedBpsQuestionnaireVersion,bpsTimestampInstantNanoseconds,equalBpsTimestampInstants,hasIndependentBpsReviewNote} from '@/lib/emr/intake-bps';
 export const dynamic='force-dynamic';
 const reply=(data:unknown,status=200)=>NextResponse.json(data,{status,headers:privateHeaders});
 const sourceFields='patient_id,answers,status,version,updated_at,submitted_at';
 const maxBpsReviewBytes=35_000;
+/** A chart's seven original BPS pages must not call a review fully verified
+ * merely because its clinician note and source-version receipt are intact.
+ * An immutable DB-owned clinical snapshot also has to equal the complete,
+ * authorized clinical projection of the current patient answers. Keep raw
+ * trauma/medication/legal text out of the summary response.
+ *
+ * PostgreSQL btrim(text) without a character set removes ASCII spaces; use
+ * the same rule so a source value with other whitespace is not silently lost.
+ */
+const matchesExactBpsSnapshot=(saved:unknown,source:Record<string,string>):boolean=>{
+ if(!saved||typeof saved!=='object'||Array.isArray(saved))return false;
+ const expected:Record<string,string>={};
+ for(const [key,value] of Object.entries(source)){
+  if(bpsSnapshotClinicalKeys.has(key)&&typeof value==='string'&&value.replace(/^ +| +$/g,'')!=='')
+   expected[key]=value;
+ }
+ const actual=saved as Record<string,unknown>;
+ const keys=Object.keys(actual);
+ return keys.length===Object.keys(expected).length&&
+  keys.every(key=>Object.prototype.hasOwnProperty.call(expected,key)&&
+   typeof actual[key]==='string'&&actual[key]===expected[key]);
+};
 /** Bound the clinical POST body before materializing it. A Content-Length header
  * is only an early hint; chunked or dishonest clients must meet the same limit.
  * Never include rejected patient-supplied bytes in a response or log.
@@ -213,6 +235,9 @@ export async function GET(request:Request){
     // verifiable as a complete clinical review, even if another note is legible.
     sanitizeBpsClinicianNotes(review.clinician_notes).excludedCount===0&&
     hasIndependentBpsReviewNote(sanitizeBpsClinicianNotes(review.clinician_notes).notes)&&
+    // A complete clinical note does not certify an altered, omitted, or
+    // extra-field patient-reported history snapshot.
+    matchesExactBpsSnapshot(review.clinical_answers,originalAnswers)&&
     review.source_version===source.intake.version&&
     review.source_status===source.intake.status&&
     equalBpsTimestampInstants(review.source_updated_at,source.intake.updated_at));

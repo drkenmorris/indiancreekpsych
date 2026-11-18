@@ -482,7 +482,7 @@ test('original BPS accepts correctly ordered clinician review receipts without c
   id:'00000000-0000-4000-8000-000000000906',
   reviewed:true,source_version:7,source_status:'submitted',
   source_updated_at:stamp,created_at:'2026-11-14T12:00:02.123456Z',
-  clinical_answers:{},clinician_notes:{},excluded_clinical_fields:0,excluded_clinician_notes:0
+  clinical_answers:{},clinician_notes:{presenting:'FICTIONAL DOCUMENTED CLINICIAN OBSERVATION'},excluded_clinical_fields:0,excluded_clinician_notes:0
  };
  const older={...latest,
   id:'00000000-0000-4000-8000-000000000905',
@@ -492,7 +492,8 @@ test('original BPS accepts correctly ordered clinician review receipts without c
  try{
   await vi.waitFor(()=>expect(h.button()).toBeTruthy());
   expect(h.dom.window.document.body.textContent).toContain('FICTIONAL FRIEND SUPPORT');
-  expect(h.dom.window.document.body.textContent).toContain('2 attested clinician review(s)');
+  expect(h.dom.window.document.body.textContent).toContain('2 independently documented unsigned clinician review(s)');
+  expect(h.dom.window.document.body.textContent).not.toContain('FICTIONAL DOCUMENTED CLINICIAN OBSERVATION');
   expect(h.note.value).toBe('');
   expect(h.requests.every(request=>request.method==='GET')).toBe(true);
  }finally{h.dom.window.close();}

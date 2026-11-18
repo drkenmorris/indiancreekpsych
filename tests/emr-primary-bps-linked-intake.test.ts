@@ -3,7 +3,7 @@ import {runInNewContext} from 'node:vm';
 // @ts-expect-error This repository runs jsdom in test fixtures without @types/jsdom.
 import {JSDOM} from 'jsdom';
 import {expect,test,vi} from 'vitest';
-import {bpsVisibleSourceKeys,bpsSectionClassification} from '@/lib/emr/intake-bps';
+import {bpsVisibleSourceKeys,bpsSectionClassification,bpsNoteDomains} from '@/lib/emr/intake-bps';
 import {intakeSectionsForVersion} from '@/lib/patient/intake';
 
 const firstPatient='00000000-0000-4000-8000-000000000801';
@@ -165,7 +165,7 @@ test('primary original BPS displays immutable snapshot provenance without leakin
  ctx.render();
  await vi.waitFor(()=>expect(dom.window.document.querySelector(
   'section[aria-label="Clinician-reviewed BPS intake snapshot history"]'
- )?.textContent).toContain('Unsigned review'));
+ )?.textContent).toContain('Documented unsigned review'));
  const history=dom.window.document.querySelector(
   'section[aria-label="Clinician-reviewed BPS intake snapshot history"]')!;
  expect(history.textContent).toContain('submitted intake version 5');
@@ -182,7 +182,7 @@ test('exactly matching clinician-reviewed BPS source version, status and timesta
   id:'00000000-0000-4000-8000-000000000998',
   reviewed:true,source_version:6,source_status:'submitted',source_updated_at:'2026-11-10T12:00:00+00:00',
   created_at:'2026-11-10T12:10:00Z',
-  clinical_answers:{},clinician_notes:{}
+  clinical_answers:{},clinician_notes:{presenting:'FICTIONAL INDEPENDENT CLINICIAN NOTE'}
  }]};
  const {ctx,dom}=harness(async()=>Response.json(current));
  ctx.render();
@@ -381,7 +381,7 @@ test.each([
   id:'00000000-0000-4000-8000-000000000998',
   reviewed:true,source_version:6,source_status:'submitted',
   source_updated_at:reviewUpdatedAt,created_at:'2026-11-10T12:10:00Z',
-  clinical_answers:{},clinician_notes:{}
+  clinical_answers:{},clinician_notes:{presenting:'FICTIONAL INDEPENDENT CLINICIAN NOTE'}
  }]};
  const {ctx,dom}=harness(async()=>Response.json(receipt));
  ctx.render();
@@ -430,10 +430,47 @@ test('original BPS does not report a current source reviewed when the stored row
   'section[aria-label="Clinician-reviewed BPS intake snapshot history"]')!;
  expect(history.textContent).toContain('current intake version has changed');
  expect(history.textContent).not.toContain('Unsigned review of submitted intake version 6');
- expect(dom.window.document.querySelector('section[aria-label="Patient intake context in original biopsychosocial workspace"]')?.textContent).toContain('0 attested clinician review(s)');
+ expect(dom.window.document.querySelector('section[aria-label="Patient intake context in original biopsychosocial workspace"]')?.textContent).toContain('0 independently documented unsigned clinician review(s)');
  dom.window.close();
 });
 
+
+test.each([
+ ['checkbox-only historical attestation',{}],
+ ['invisible-only clinician observation',{presenting:'\u200b\u200f'}],
+ ['unapproved historical note domain',{unapproved:'FICTIONAL FORGED CLINICIAN OBSERVATION'}],
+ ['oversized historical note',{presenting:'A'.repeat(4001)}]
+])('original BPS withholds documented-review status for %s',async(_case,clinician_notes)=>{
+ const source={...report(firstPatient),reviews:[{
+  id:'00000000-0000-4000-8000-000000000998',
+  reviewed:true,source_version:6,source_status:'submitted',
+  source_updated_at:'2026-11-10T12:00:00Z',created_at:'2026-11-10T12:10:00Z',
+  clinical_answers:{},clinician_notes
+ }]};
+ const {ctx,dom}=harness(async()=>Response.json(source));
+ try{
+  ctx.render();
+  await vi.waitFor(()=>expect(dom.window.document.querySelector(
+   'section[aria-label="Clinician-reviewed BPS intake snapshot history"]'
+  )?.textContent).toContain('Unverified review attestation'));
+  const history=dom.window.document.querySelector(
+   'section[aria-label="Clinician-reviewed BPS intake snapshot history"]')!;
+  expect(history.textContent).toContain('current intake version has changed');
+  expect(history.textContent).toContain('no independently documented clinician notes');
+  expect(history.textContent).not.toContain('Documented unsigned review of');
+  expect(dom.window.document.querySelector(
+   'section[aria-label="Patient intake context in original biopsychosocial workspace"]'
+  )?.textContent).toContain('0 independently documented unsigned clinician review(s)');
+  expect(history.textContent).not.toContain('FICTIONAL FORGED CLINICIAN OBSERVATION');
+ }finally{dom.window.close();}
+});
+
+test('original BPS note-identity allowlist remains aligned with the protected clinical API',()=>{
+ const source=readFileSync('public/emr-assets/production.js','utf8');
+ const match=/const originalBpsNoteKeys=new Set\((\[[^\n]*\])\);/.exec(source);
+ expect(match).not.toBeNull();
+ expect(new Set(JSON.parse(match![1]) as string[])).toEqual(new Set(Object.keys(bpsNoteDomains)));
+});
 
 test.each([
  ['absent clinician history array',{reviews:undefined}],

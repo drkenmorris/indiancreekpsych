@@ -113,7 +113,17 @@ function originalBpsInstantNanoseconds(value){
  return BigInt(Math.floor(Date.parse(value)/1000))*1000000000n+
   BigInt(fraction.padEnd(9,'0')||'0');
 }
-async function populateOriginalBpsIntake(panel,id,generation){
+// Match the protected BPS API's note gate: a reviewed checkbox without actual
+ // clinician documentation must never appear as a verified clinical review.
+ const originalBpsNoteKeys=new Set(["presenting","treatment","medical","safety","family","goals","limitations"]);
+ const originalBpsInvisibleNoteCharacters=/[\u00ad\u034f\u061c\u180e\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff]/g;
+ const originalBpsDocumentedReview=review=>
+  review?.reviewed===true&&review.clinician_notes&&
+  typeof review.clinician_notes==='object'&&!Array.isArray(review.clinician_notes)&&
+  Object.entries(review.clinician_notes).some(([key,value])=>
+   originalBpsNoteKeys.has(key)&&typeof value==='string'&&value.length<=4000&&
+   value.replace(originalBpsInvisibleNoteCharacters,'').trim().length>0);
+ async function populateOriginalBpsIntake(panel,id,generation){
  const stillCurrent=()=>generation===linkedIntakeRenderGeneration&&patientId===id&&panel.isConnected;
  try{
   const response=await fetch('/api/emr/bps-intake?patient='+encodeURIComponent(id),
@@ -277,7 +287,7 @@ async function populateOriginalBpsIntake(panel,id,generation){
    (source.status==='submitted'?' · patient submission receipt '+source.submittedAt+
     ' (patient attestation only; not a clinician signature)':' · no patient submission receipt (draft)')+
    ' · '+result.sections.length+'/21 sections · '+
-   (Array.isArray(result.reviews)?result.reviews.filter(review=>review.reviewed===true).length:0)+' attested clinician review(s).';
+   result.reviews.filter(originalBpsDocumentedReview).length+' independently documented unsigned clinician review(s).';
   panel.append(provenance);
   const guidance=document.createElement('p');
   guidance.textContent='Read-only patient statements are not verified clinician findings. No diagnosis, signature, medication/allergy reconciliation or clinical save occurs here.';
@@ -315,15 +325,20 @@ async function populateOriginalBpsIntake(panel,id,generation){
     const status=['draft','submitted'].includes(review.source_status)?review.source_status:'unverified';
     const at=Date.parse(review.created_at);
     const date=Number.isFinite(at)?new Date(at).toLocaleString():'date unavailable';
-    item.textContent=(review.reviewed===true?'Unsigned review of ':'Unverified review attestation for ')+status+' intake version '+version+' · saved '+date+'.';
+    item.textContent=(originalBpsDocumentedReview(review)?'Documented unsigned review of ':'Unverified review attestation for ')+status+' intake version '+version+' · saved '+date+'.';
     list.append(item);
    }
    history.append(list);
+   if(reviews.some(review=>review.reviewed===true&&!originalBpsDocumentedReview(review))){
+    const warning=document.createElement('p');warning.setAttribute('role','alert');
+    warning.textContent='A historical BPS row has a reviewed checkbox but no independently documented clinician notes. It is NOT a verified clinical review. Investigate its provenance in the protected chart.';
+    history.append(warning);
+   }
   }else{
    const none=document.createElement('p');none.textContent='No saved clinician-reviewed BPS intake snapshots for this patient.';
    history.append(none);
   }
-  const currentReviewed=reviews.some(review=>review.reviewed===true&&
+  const currentReviewed=reviews.some(review=>originalBpsDocumentedReview(review)&&
    review.source_version===result.source?.version&&
    review.source_status===result.source?.status&&
    originalBpsInstantNanoseconds(review.source_updated_at)===editedInstant&&

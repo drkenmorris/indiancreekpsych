@@ -78,6 +78,44 @@ class FieldRoundTrip(unittest.TestCase):
   for code,label in choices:
    value=code+' · '+label
    self.assertEqual(self.save_read('workspace_section',{'section':'session_details','fields':{'session_date':'2026-11-17','duration':'60','modality':value,'location':'Fictional office'}})['fields']['modality'],value)
+ def test_patient_session_log_locations_dates_and_statuses_roundtrip(self):
+  import uuid
+  from unittest.mock import patch
+  repo=existing.Repo()
+  with patch.object(workspaces,'today',return_value='2026-11-18'):
+   for index,location in enumerate(workspaces.SESSION_LOCATIONS):
+    data={'session_id':str(uuid.uuid4()),'prior_id':'','status':'Planned','fields':{'session_date':['2026-11-17','2026-11-18','2026-12-01'][index%3],'duration':'60','modality':'Fictional type','location':location}}
+    saved=self.save_read('session_details',data,repo)
+    self.assertEqual(saved['fields'],data['fields']);self.assertEqual(saved['status'],'Planned');self.assertNotIn('text',saved)
+   self.assertEqual(len(repo.saved[0]['state']['records']),6)
+ def test_session_updates_preserve_history_and_reject_stale_or_cross_patient_references(self):
+  import uuid
+  from unittest.mock import patch
+  repo=existing.Repo()
+  data={'session_id':str(uuid.uuid4()),'prior_id':'','status':'Planned','fields':{'session_date':'2026-11-17','duration':'30','modality':'Fictional type','location':"Doctor's Office"}}
+  with patch.object(workspaces,'today',return_value='2026-11-18'):
+   original=self.save_read('session_details',data,repo)
+   revised={**data,'prior_id':original['id'],'status':'Completed'}
+   updated=self.save_read('session_details',revised,repo);self.assertEqual(updated['prior_id'],original['id']);self.assertEqual(updated['session_id'],original['session_id']);self.assertEqual(len(repo.saved[0]['state']['records']),2)
+   for invalid in [revised,data,{**revised,'prior_id':str(uuid.uuid4())}]:
+    with self.assertRaises(ValueError):self.save_read('session_details',invalid,repo)
+   with self.assertRaises(ValueError):self.save_read('session_details',revised,existing.Repo())
+ def test_session_log_rejects_invalid_fields_notes_and_future_attendance(self):
+  import uuid
+  from unittest.mock import patch
+  base={'session_id':str(uuid.uuid4()),'prior_id':'','status':'Planned','fields':{'session_date':'2026-12-01','duration':'60','modality':'Fictional type','location':'Hospital'}}
+  with patch.object(workspaces,'today',return_value='2026-11-18'):
+   invalid=[{**base,'status':status} for status in ['Completed','No show','Unknown']]+[{**base,'notes':'Not allowed'},{**base,'text':'Not allowed'}]+[{**base,'fields':{**base['fields'],key:value}} for key,value in [('session_date','2026-02-30'),('location','Unrecognized'),('duration','17'),('modality','')]]
+   for value in invalid:
+    repo=existing.Repo()
+    with self.assertRaises(ValueError):self.save_read('session_details',value,repo)
+    self.assertEqual(repo.saved,[])
+ def test_legacy_session_can_be_revised_without_rewriting_its_original(self):
+  import uuid
+  repo=existing.Repo();old=self.save_read('workspace_section',{'section':'session_details','fields':{'session_date':'2026-01-01','duration':'45','modality':'Old type','location':'Fictional original location'},'text':'Original historical text'},repo)
+  saved=self.save_read('session_details',{'session_id':old['id'],'prior_id':old['id'],'status':'Completed','fields':old['fields']},repo)
+  self.assertEqual(saved['fields'],old['fields']);self.assertNotIn('text',saved)
+  self.assertEqual(json.loads(repo.saved[0]['state']['records'][0]['body'])['text'],'Original historical text')
  def test_document_bytes_and_metadata_roundtrip(self):
   raw=b'%PDF-1.4\nFictional audit document only\n%%EOF'
   saved=self.save_read('document',{'title':'Fictional audit PDF','category':'General Scan','synthetic_confirmed':True,'data_url':'data:application/pdf;base64,'+base64.b64encode(raw).decode()})

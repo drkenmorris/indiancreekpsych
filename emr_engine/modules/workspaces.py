@@ -88,3 +88,28 @@ def day_view(db,patient_id,day):
  occupied={a['start_time'] for a in rows if a['status']!='Cancelled'}
  slots=[f'{h:02}:00' for h in range(8,17) if f'{h:02}:00' not in occupied and (day>today() or f'{h:02}:00'>local_now().strftime('%H:%M'))] if day>=today() and date.fromisoformat(day).weekday()<5 else []
  return {'date':day,'timezone':'America/Chicago','events':events,'available_slots':slots,'live_connected':False,'source':'demo-scheduler/1','today':today()}
+
+SESSION_LOCATIONS=["Doctor's Office",'Home Visit','Treatment Facility','Residential Treatment Facility','Hospital','Other']
+SESSION_STATUSES=['Planned','Completed','Cancelled','No show']
+def session_details(data,records):
+ import uuid
+ sid=string(data,'session_id',maximum=80);prior_id=string(data,'prior_id',maximum=80)
+ try:uuid.UUID(sid)
+ except (ValueError,TypeError):raise ValueError('A valid session identifier is required.')
+ entries=[r for r in records if r['kind']=='session_details' or (r['kind']=='workspace_section' and r.get('section')=='session_details')]
+ same=[r for r in entries if r.get('session_id',r['id'])==sid]
+ prior=next((r for r in entries if r['id']==prior_id),None) if prior_id else None
+ if prior_id and (not prior or prior.get('session_id',prior['id'])!=sid or not same or same[-1]['id']!=prior_id):raise ValueError('This session changed or does not belong to the active patient. Reopen its latest entry.')
+ if not prior_id and same:raise ValueError('This session was already saved. Reopen the session log before adding another.')
+ fields=data.get('fields')
+ if not isinstance(fields,dict) or set(fields)!={'session_date','duration','modality','location'}:raise ValueError('Complete the four session fields.')
+ if any(not isinstance(value,str) or not value.strip() or len(value)>2000 for value in fields.values()):raise ValueError('Complete the date, session time, type and location.')
+ fields={key:value.strip() for key,value in fields.items()}
+ fields['session_date']=calendar(fields['session_date'],'Session date',True)
+ if fields['duration'] not in ['15','30','60','90','120','180'] and fields['duration']!=(prior or {}).get('fields',{}).get('duration'):raise ValueError('Choose a supported session time.')
+ if fields['location'] not in SESSION_LOCATIONS and fields['location']!=(prior or {}).get('fields',{}).get('location'):raise ValueError('Choose a supported session location.')
+ status=string(data,'status',maximum=40)
+ if status not in SESSION_STATUSES:raise ValueError('Choose the session status.')
+ if status in ['Completed','No show'] and fields['session_date']>today():raise ValueError('Future sessions cannot be marked completed or no show.')
+ if data.get('text') or data.get('notes'):raise ValueError('Session notes are recorded elsewhere, not in Session Details.')
+ return {'schema':'session-details/1','session_id':sid,'prior_id':prior_id,'status':status,'fields':fields}

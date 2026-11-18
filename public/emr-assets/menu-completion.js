@@ -49,12 +49,20 @@ const recoveryCriteriaChoices={
  criteria:['Recovery goals are documented','Symptoms are improving','Daily functioning is improving','Coping skills are used outside sessions','Treatment attendance is consistent','Patient participates in treatment decisions','Support resources are available','Progress toward substance-use recovery goals, if applicable','A follow-up or relapse-prevention plan is documented','Continued treatment is needed','Further assessment is needed','Other criteria — describe in notes','Not assessed'],
  evidence:['Patient reports improvement','Patient reports ongoing symptoms','Patient reports worsening symptoms','Therapist observes progress toward goals','Skills demonstrated during the session','Skills reported between sessions','Functional changes are documented','Attendance or participation concerns','Barriers to treatment are reported','Family or support-person input is available','Safety concerns require separate assessment','Progress is unclear or more information is needed','Other observations — describe in notes','Not assessed']
 };
+function recoverySelectionSummary(fields){
+ return sectionSchemas.recovery_criteria.map(([key,label])=>{const values=(fields?.[key]||'').split('\n').filter(Boolean);return values.length?label+'\n'+values.map(value=>'• '+value).join('\n'):'';}).filter(Boolean).join('\n\n');
+}
+function updateRecoverySelectionSummary(form){
+ const output=form.querySelector('#recovery-selection-summary');if(!output)return;
+ const fields=Object.fromEntries(Array.from(form.querySelectorAll('[data-section-checklist]'),group=>[group.dataset.sectionChecklist,Array.from(group.querySelectorAll('input:checked'),input=>input.value).join('\n')]));
+ output.value=recoverySelectionSummary(fields);
+}
 function recoveryCriteriaFields(saved){
  return '<p>Select the criteria and observations supported by this encounter. Add context in the optional notes below. These selections do not automatically determine recovery, discharge readiness, or level of care.</p><div class="medical-substance-grid">'+sectionSchemas.recovery_criteria.map(([key,label])=>{
   const previous=(saved?.fields?.[key]||'').split('\n').filter(Boolean),choices=recoveryCriteriaChoices[key];
   const legacy=previous.filter(value=>!choices.includes(value));
   return `<fieldset data-section-checklist="${key}"><legend>${esc(label)}</legend>${[...choices,...legacy].map((value,index)=>`<label class="check" for="recovery-${key}-${index}"><input id="recovery-${key}-${index}" type="checkbox" value="${esc(value)}" ${previous.includes(value)?'checked':''}>${esc(choices.includes(value)?value:'Previously documented: '+value)}</label>`).join('')}</fieldset>`;
- }).join('')+'</div>';
+ }).join('')+'</div><label class="field" for="recovery-selection-summary">Selected criteria and observations<textarea id="recovery-selection-summary" readonly rows="10" aria-describedby="recovery-summary-help">'+esc(recoverySelectionSummary(saved?.fields))+'</textarea></label><p id="recovery-summary-help" class="hint">This summary updates from the checked items above. Saving this page retains those selections in the patient chart so this wording can be included in a later chart printout.</p>';
 }
 function mentalStatusFields(saved){
  return '<p>Select the observations that apply. Use Mental Status Notes for context or additional findings.</p>'+sectionSchemas.mental_status.map(([key,label])=>{

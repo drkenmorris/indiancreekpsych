@@ -148,3 +148,11 @@ form[data-action="biopsychosocial_trauma_history"] .check{min-height:44px}
 }
 
 #progress-plan-summary{display:block;width:100%;height:80vh;min-height:500px;border:0;background:#f7faf7}
+
+/* Compact session date/time/type row, preserving DOM and keyboard order. */
+.session-details-row{display:flex;flex-wrap:wrap;align-items:flex-end;gap:1rem}
+.session-details-row>.field{min-inline-size:0;margin-block:0 1rem}
+.session-details-row>[data-session-field="session_date"]{flex:0 1 11rem}
+.session-details-row>[data-session-field="duration"]{flex:0 1 8rem}
+.session-details-row>[data-session-field="modality"]{flex:1 1 18rem}
+.session-details-row input,.session-details-row select{inline-size:100%;min-inline-size:0;min-block-size:44px}

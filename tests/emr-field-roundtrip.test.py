@@ -70,6 +70,14 @@ class FieldRoundTrip(unittest.TestCase):
   for value in ('15','30','60','90','120','180'):
    repo=existing.Repo();data={'section':'session_details','fields':{'session_date':'2026-01-01','duration':value,'modality':'Fictional individual','location':'Fictional office'},'text':'Fictional session'}
    self.assertEqual(self.save_read('workspace_section',data,repo)['fields']['duration'],value)
+ def test_all_thirteen_session_type_values(self):
+  import re
+  source=(Path(__file__).parents[1]/'lib/emr/treatment-modality.ts').read_text()
+  choices=re.findall(r" '(\d{5})': '([^']+)'",source)
+  self.assertEqual(len(choices),13)
+  for code,label in choices:
+   value=code+' · '+label
+   self.assertEqual(self.save_read('workspace_section',{'section':'session_details','fields':{'session_date':'2026-11-17','duration':'60','modality':value,'location':'Fictional office'}})['fields']['modality'],value)
  def test_document_bytes_and_metadata_roundtrip(self):
   raw=b'%PDF-1.4\nFictional audit document only\n%%EOF'
   saved=self.save_read('document',{'title':'Fictional audit PDF','category':'General Scan','synthetic_confirmed':True,'data_url':'data:application/pdf;base64,'+base64.b64encode(raw).decode()})

@@ -1,6 +1,7 @@
 import {NextResponse} from 'next/server';
 import {emrAccess,privateHeaders,sameOrigin} from '@/lib/emr/access';
 import {demographics,uuid} from '@/lib/emr/demographics';
+import {recognizedBpsQuestionnaireVersion,validBpsSubmissionChronology} from '@/lib/emr/intake-bps';
 export const dynamic='force-dynamic';
 /** Read-only directory intake context is separate from the reviewed BPS snapshot.
  * Database filters alone are not a provenance receipt: verify each returned row
@@ -39,7 +40,7 @@ export async function GET(request:Request){
     if(!uuid(accountId))
       return directoryReply({error:'Central patient account linkage is invalid.'},409);
     const result=await ctx.supabase.from('patient_intakes')
-      .select('patient_id,answers,status,version,updated_at')
+      .select('patient_id,answers,status,version,updated_at,submitted_at')
       .eq('patient_id',accountId).maybeSingle();
     if(result.error)return directoryReply({error:'Intake source unavailable.'},503);
     if(result.data){
@@ -48,11 +49,17 @@ export async function GET(request:Request){
       // this chart. Withhold all intake answers on ambiguous provenance.
       if(row.patient_id!==accountId||!['draft','submitted'].includes(row.status)||
          !Number.isSafeInteger(row.version)||row.version<1||
+         !validBpsSubmissionChronology(row.status,row.updated_at,row.submitted_at)||
          !row.answers||typeof row.answers!=='object'||Array.isArray(row.answers)||
-         Object.values(row.answers).some(value=>typeof value!=='string')){
+         Object.values(row.answers).some(value=>typeof value!=='string')||
+         !recognizedBpsQuestionnaireVersion(row.answers.legal_packet_version)){
         return directoryReply({error:'Linked intake provenance or answer format could not be verified.'},409);
       }
-      intake={status:row.status,updated_at:row.updated_at,
+      // Preserve source revision and patient submission receipt separately from
+      // clinician attestation. A status flag without verified chronology is insufficient.
+      intake={status:row.status,version:row.version,updated_at:row.updated_at,
+        submitted_at:row.submitted_at??null,
+        questionnaire_packet_version:row.answers.legal_packet_version??null,
         answers:Object.fromEntries(Object.entries(row.answers)
           .filter(([key])=>directoryIntakeKeys.has(key)))};
     }

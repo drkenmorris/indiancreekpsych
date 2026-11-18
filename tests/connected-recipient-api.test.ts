@@ -7,6 +7,74 @@ let email:string,assignment:Record<string,unknown>,rpc:ReturnType<typeof vi.fn>,
 beforeEach(()=>{vi.stubEnv('ASQ_RECIPIENT_RELEASE_APPROVED','true');email='fictional@example.invalid';assignment={id,recipient_first_name:'Fictional',recipient_last_name:'Recipient',recipient_email:email,test_key:'cseq',patient_id:'00000000-0000-0000-0000-000000000201',status:'sent',expires_at:'2099-01-01T00:00:00Z',connected_source:source.definition,connected_source_hash:source.hash};saved=null;readbackFails=false;revocationOnSecondLookup=false;assignmentLookups=0;rpc=vi.fn(async (_name:string,p:Record<string,unknown>)=>{const revision=(p.p_expected as number)+1;saved={answers:p.p_answers,page:p.p_page,revision,status:p.p_submit?'submitted':'draft',identity_confirmed:true};return {data:revision,error:null};});mocks.access.mockImplementation(async()=>({user:{id:'fictional-user',email},supabase:{rpc,from:(table:string)=>{const chain={select:()=>chain,eq:()=>chain,maybeSingle:async()=>{if(readbackFails&&table==='connected_assignment_responses')throw Error('synthetic readback connection lost');if(table==='psych_test_assignments'){assignmentLookups++;if(revocationOnSecondLookup&&assignmentLookups===2)assignment={...assignment,status:'revoked'};}return {data:table==='psych_test_assignments'?assignment:saved?{assignment_id:id,respondent_id:'fictional-user',...saved}:null,error:null};}};return chain;}}}));});afterEach(()=>{vi.unstubAllEnvs();vi.clearAllMocks();});
 const request=(value:unknown,origin='https://www.indiancreekpsych.com')=>new Request('https://www.indiancreekpsych.com/api/assigned-tests/connected',{method:'POST',headers:{origin,'content-type':'application/json'},body:JSON.stringify(value)});
 const answers=()=>Object.fromEntries(source.definition.items.slice(0,7).map(i=>[i.id,0]));
+
+test('connected assessment refuses oversized declared request bytes before recipient lookup or RPC',async()=>{
+ const body={id,expectedRevision:0,page:1,submit:false,identityConfirmed:true,answers:answers()};
+ const r=new Request('https://www.indiancreekpsych.com/api/assigned-tests/connected',{
+  method:'POST',headers:{origin:'https://www.indiancreekpsych.com','content-type':'application/json','content-length':'150001'},
+  body:JSON.stringify(body)});
+ const response=await POST(r);
+ expect(response.status).toBe(413);
+ expect(response.headers.get('Cache-Control')).toContain('no-store');
+ expect((await response.json()).saved).toBeUndefined();
+ expect(mocks.access).not.toHaveBeenCalled();
+ expect(rpc).not.toHaveBeenCalled();
+});
+
+test('connected assessment rejects chunked oversized body even with dishonest small Content-Length',async()=>{
+ const marker='FICTIONAL_PRIVATE_ASSESSMENT_RESPONSE';
+ const bytes=new TextEncoder().encode(marker.repeat(5000));
+ const stream=new ReadableStream<Uint8Array>({start(controller){
+  controller.enqueue(bytes.subarray(0,50_000));controller.enqueue(bytes.subarray(50_000));controller.close();
+ }});
+ const r=new Request('https://www.indiancreekpsych.com/api/assigned-tests/connected',{
+  method:'POST',headers:{origin:'https://www.indiancreekpsych.com','content-length':'1'},
+  body:stream,duplex:'half'
+ } as RequestInit&{duplex:'half'});
+ const response=await POST(r);
+ expect(response.status).toBe(413);
+ expect(response.headers.get('Cache-Control')).toContain('no-store');
+ expect(JSON.stringify(await response.json())).not.toContain(marker);
+ expect(mocks.access).not.toHaveBeenCalled();
+ expect(rpc).not.toHaveBeenCalled();
+});
+
+test('connected assessment never decodes malformed UTF-8 into altered clinical answers',async()=>{
+ const marker='FICTIONAL_PRIVATE_ASSESSMENT_RESPONSE';
+ const body=JSON.stringify({id,expectedRevision:0,page:1,submit:false,identityConfirmed:true,answers:answers(),uiNote:marker});
+ const bytes=new TextEncoder().encode(body);
+ const pos=body.indexOf(marker);
+ expect(pos).toBeGreaterThan(0);
+ bytes[pos]=0xff;
+ const r=new Request('https://www.indiancreekpsych.com/api/assigned-tests/connected',{
+  method:'POST',headers:{origin:'https://www.indiancreekpsych.com'},body:bytes});
+ const response=await POST(r);
+ expect(response.status).toBe(400);
+ expect(response.headers.get('Cache-Control')).toContain('no-store');
+ expect(JSON.stringify(await response.json())).not.toContain(marker);
+ expect(mocks.access).not.toHaveBeenCalled();
+ expect(rpc).not.toHaveBeenCalled();
+});
+
+test('connected assessment decodes valid multibyte UTF-8 split across chunks without changing answers',async()=>{
+ const body=JSON.stringify({id,expectedRevision:0,page:1,submit:false,identityConfirmed:true,answers:answers(),uiNote:'Fictional café 🧪'});
+ const bytes=new TextEncoder().encode(body);
+ const split=bytes.indexOf(0xc3);
+ expect(split).toBeGreaterThan(0);
+ const stream=new ReadableStream<Uint8Array>({start(controller){
+  controller.enqueue(bytes.subarray(0,split+1));controller.enqueue(bytes.subarray(split+1));controller.close();
+ }});
+ const r=new Request('https://www.indiancreekpsych.com/api/assigned-tests/connected',{
+  method:'POST',headers:{origin:'https://www.indiancreekpsych.com','content-type':'application/json'},
+  body:stream,duplex:'half'
+ } as RequestInit&{duplex:'half'});
+ const response=await POST(r);
+ expect(response.status).toBe(200);
+ expect((await response.json()).revision).toBe(1);
+ expect(rpc).toHaveBeenCalledWith('save_connected_assignment',
+  expect.objectContaining({p_id:id,p_answers:answers()}));
+});
+
 test('missing account, email mismatch and expiry deny recipient access',async()=>{vi.stubEnv('ASQ_RECIPIENT_RELEASE_APPROVED','true');email='different@example.invalid';expect((await GET(new Request('https://www.indiancreekpsych.com/api/assigned-tests/connected?id='+id))).status).toBe(403);email='fictional@example.invalid';assignment.expires_at='2000-01-01';expect((await GET(new Request('https://www.indiancreekpsych.com/api/assigned-tests/connected?id='+id))).status).toBe(403);mocks.access.mockResolvedValue(null);expect((await POST(request({id}))).status).toBe(403);});
 test('GET returns only assigned source and saved recipient state, without other informant or chart data',async()=>{saved={answers:answers(),page:1,revision:3,status:'draft',identity_confirmed:true};const response=await GET(new Request('https://www.indiancreekpsych.com/api/assigned-tests/connected?id='+id));expect(response.status).toBe(200);const json=await response.json();expect(json.response).toEqual(saved);expect(json.assignment).toEqual({id,recipientName:'Fictional Recipient',expiresAt:assignment.expires_at});expect(json.definition.items).toHaveLength(source.definition.items.length);expect(json.assignment.recipient_email).toBeUndefined();expect(json.patient).toBeUndefined();});
 

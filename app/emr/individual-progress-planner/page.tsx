@@ -10,6 +10,6 @@ export default async function Page({searchParams}:{searchParams:Promise<{patient
  if(patientId)query.set('patient',patientId);
  if(embedded==='1')query.set('embedded','1');
  await patientAccess(true,'/emr/individual-progress-planner'+(query.size?'?'+query.toString():''));
- const content=<main className="progressPlanWorkspace"><IndividualProgressPlanner key={patientId} patientId={patientId}/></main>;
+ const content=<main className="progressPlanWorkspace" tabIndex={0} aria-label="Individual Progress Notes Planner workspace"><IndividualProgressPlanner key={patientId} patientId={patientId}/></main>;
  return embedded==='1'?content:<AdministrativeShell>{content}</AdministrativeShell>;
 }

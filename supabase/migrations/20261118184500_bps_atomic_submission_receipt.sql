@@ -40,12 +40,15 @@ begin
   raise exception 'Linked intake is missing or changed: review current source' using errcode='22023';end if;
  -- The HTTP preflight is not atomic. Bind the patient submission receipt while
  -- source is row-locked and before creating an immutable clinician review.
+ if source.status='submitted' and source.submitted_at is null then
+  raise exception 'Submitted BPS source lacks a verified intake submission receipt' using errcode='22023';
+ end if;
  if source.status='submitted' and
     (source_submitted_at is null or source.submitted_at is distinct from source_submitted_at) then
   raise exception 'Patient submission receipt changed: reopen current linked intake' using errcode='22023';
  end if;
  if source.status='draft' and source_submitted_at is not null then
-  raise exception 'Draft BPS source cannot carry a final patient submission receipt' using errcode='22023';
+  raise exception 'Draft BPS source cannot retain a final patient submission attestation' using errcode='22023';
  end if;
  notes:=p_payload->'clinician_notes';
  if jsonb_typeof(notes) is distinct from 'object' then raise exception 'Clinician notes must be a keyed object' using errcode='22023';end if;

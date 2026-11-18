@@ -313,7 +313,8 @@ test('clinic migrations replay in order on an empty application database', async
     assert.equal(mutation.rows.length,0,'A submitted intake may not be modified by its patient');
 
     const submittedPayload={...payload,source_version:submitted.version,
-      source_status:submitted.status,source_updated_at:new Date(submitted.updated_at).toISOString()};
+      source_status:submitted.status,source_updated_at:new Date(submitted.updated_at).toISOString(),
+      source_submitted_at:new Date(submitted.submitted_at).toISOString()};
     // Simulate a malformed historical submission receipt in the isolated
     // replay database only. The existing patient trigger normally ensures
     // submitted_at is populated; a direct privileged RPC must still reject a
@@ -381,15 +382,18 @@ test('clinic migrations replay in order on an empty application database', async
     // The existing review table must not gain a fabricated submitted review.
     await db.exec('reset role');
     await db.exec('alter table public.patient_intakes disable trigger user');
+    let futureReceipt;
     try {
-      await db.query("update public.patient_intakes set submitted_at=now() + interval '1 day' where patient_id=$1",
+      const {rows:[changedReceipt]}=await db.query("update public.patient_intakes set submitted_at=now() + interval '1 day' where patient_id=$1 returning submitted_at",
         [patientId]);
+      futureReceipt=changedReceipt.submitted_at;
     } finally {
       await db.exec('alter table public.patient_intakes enable trigger user');
     }
     await as(adminId,'aal2');
     await assert.rejects(
-      db.query('select public.save_emr_bps_intake_review($1) as id',[submittedPayload]),
+      db.query('select public.save_emr_bps_intake_review($1) as id',[{...submittedPayload,
+        source_submitted_at:new Date(futureReceipt).toISOString()}]),
       /cannot predate patient submission attestation/,
       'A direct privileged RPC must not create a review before patient submission');
     await db.exec('reset role');

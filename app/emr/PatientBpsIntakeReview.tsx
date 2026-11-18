@@ -1,6 +1,6 @@
 'use client';
 import {useEffect,useRef,useState,type FormEvent} from 'react';
-import {bpsSectionClassification,approvedBpsQuestionSection,bpsNoteDomains,emptyBpsNotes,mapSavedBpsReportedFields,bpsVisibleSourceKeys,sanitizeBpsClinicianNotes,validBpsTimestamp,bpsTimestampInstantNanoseconds,equalBpsTimestampInstants,validBpsSubmissionChronology,validBpsReviewChronology,validBpsHistoricalSourceBoundary,hasIndependentBpsReviewNote,type BpsNotes} from '@/lib/emr/intake-bps';
+import {bpsSectionClassification,approvedBpsQuestionSection,validBpsQuestionnaireTopology,bpsNoteDomains,emptyBpsNotes,mapSavedBpsReportedFields,bpsVisibleSourceKeys,sanitizeBpsClinicianNotes,validBpsTimestamp,bpsTimestampInstantNanoseconds,equalBpsTimestampInstants,validBpsSubmissionChronology,validBpsReviewChronology,validBpsHistoricalSourceBoundary,hasIndependentBpsReviewNote,type BpsNotes} from '@/lib/emr/intake-bps';
 type Field={key:string;label:string;type:string;value:string;sourceOnly?:boolean;reported?:boolean};
 type Section={title:string;domain:string;disposition:'clinical'|'separate-review'|'reference';fields:Field[];answered:number};
 type Review={id:string;reviewed:boolean;source_version:number;source_status:string;source_updated_at:string;created_at:string;clinical_answers:Record<string,string>;clinician_notes:BpsNotes;excluded_clinical_fields?:number;excluded_clinician_notes?:number};
@@ -176,6 +176,11 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
   const hasCommunications=seenSectionTitles.has('Communication and confidential-contact preferences');
   if(directoryPacket?(!hasDirectory||hasCommunications):(!hasCommunications||hasDirectory))
    throw Error('Linked 21-section intake layout does not match its questionnaire version; patient statements are withheld. Reopen the protected source.');
+  // A nominal 21/21 section audit is not complete if a source adapter omits
+  // unanswered questions, relabels them, swaps their types, or injects
+  // unsanctioned legacy entries. Keep all statements and save controls hidden.
+  if(!validBpsQuestionnaireTopology(value.sections,source.questionnairePacketVersion??''))
+   throw Error('Linked 21-section intake question inventory does not match its approved questionnaire version; patient statements are withheld. Reopen the protected source.');
   // The protected API validates historical attestation provenance. Repeat the
   // identity/version/date checks at this UI trust boundary so a malformed,
   // stale or cross-chart history response cannot be displayed as clinical truth.

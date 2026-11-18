@@ -385,7 +385,7 @@ test('stale clinical API cannot expose fictional private identifiers through unm
  render(<PatientBpsIntakeReview patientId={patient}/>);
  await screen.findByText(/additional historical or unrecognized field\(s\) were recorded/i);
  expect(document.body.textContent).not.toContain(privateFieldName);
- expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeTruthy();
+ expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
 });
 
 test.each([

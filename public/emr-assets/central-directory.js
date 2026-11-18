@@ -19,7 +19,7 @@ openDirectory=function(){safeNavigate(async()=>{try{await refreshRegistry();cons
 function selectedPatientWorkspaceUrl(id){
  // Patient selection preserves the clinician's original clinical form/subpage.
  // The caller checks the central UUID, never a matching name or demo account.
- const section=activeSection?.definition?activeSection:null;
+ const section=activeSection?.key==='patient_directory'?{module:'personal',key:'demographics',definition:findMenuSection('personal','demographics')}:activeSection?.definition?activeSection:null;
  const query=new URLSearchParams({patient:id,module:section?.definition[2]||'assessment'});
  query.set('section',section?section.module+':'+section.key:'assessment:biopsychosocial');
  if(section?.module==='assessment'&&section.key==='biopsychosocial'){
@@ -61,11 +61,11 @@ api=function(path,options){
 };
 const originalCentralStart=startClinicalWorkspace;
 startClinicalWorkspace=async function(){
- if(initialPatient()){blankWorkspace=false;const opened=await originalCentralStart(false);setNavigationExpanded(true);return opened;}
+ if(initialPatient()){blankWorkspace=false;const opened=await originalCentralStart(false);setNavigationExpanded(true);if(opened!==false&&new URLSearchParams(location.search).get('directory')==='1')openDirectory();return opened;}
  try{
   const empty=await api('/api/blank-workspace');
   boot=empty.boot;chart=empty.chart;groupState=empty.groups;patientId='';blankWorkspace=true;
-  if(activeSection)view=activeSection.definition[2];setNavigationExpanded(true);render();return true;
+  if(activeSection)view=activeSection.definition[2];setNavigationExpanded(true);render();if(new URLSearchParams(location.search).get('directory')==='1')openDirectory();return true;
  }catch(error){message(error.message,true);return false;}
 };
 const originalCentralRender=render;
@@ -148,7 +148,7 @@ initProviderUI=async function(){
 const clinicOriginalModuleSectionView=moduleSectionView;
 moduleSectionView=function(){
  const section=activeSection?.module+':'+activeSection?.key;
- if(section==='notes:objective_rating')return patientId?`<iframe id="patient-soap-editor" title="SOAP Notes" src="/emr/soap-notes?patient=${encodeURIComponent(patientId)}&amp;embedded=1"></iframe>`:'<section class="card"><h2>SOAP Notes</h2><p>Select a patient using Home → Find/Add Patient to enter SOAP notes.</p></section>';
+ if(section==='notes:objective_rating')return patientId?`<div id="patient-soap-page" class="centralEmr" data-patient-id="${esc(patientId)}"><p role="status">Loading SOAP Notes…</p></div>`:'<section class="card"><h2>SOAP Notes</h2><p>Select a patient using Home → Find/Add Patient to enter SOAP notes.</p></section>';
  if(section==='administration:weekly_schedule')return '<section class="card"><h2>Weekly Therapist Schedule</h2><p>The clinic appointment scheduler is the source of booked and recurring appointments. No separate fictional calendar is shown or edited here.</p><p><a class="button-link" href="/appointments">Open actual clinic appointments and calendar</a></p></section>';
  if(section==='administration:assigned_patients')return '<section class="card"><h2>Assigned Patients List</h2><p>Open the protected central patient directory to find existing patient records. This page does not infer clinician assignments from prototype provider accounts.</p><p><a class="button-link" href="/emr/patients">Open central patient directory</a></p></section>';
  if(section==='personal:assigned_provider'&&patientId)return `<section class="card"><h2>Assigned Provider</h2><p>Set the therapist assigned to this chart in Modality.</p><button type="button" data-submenu="plan:modality">Open Modality</button></section>`;
@@ -189,3 +189,10 @@ saveDemoSettings=async function(patch){
  const data=await response.json();if(!response.ok)throw Error(data.error||'Account settings were not saved.');
  centralSettings=data.settings;centralSettingsRevision=data.revision;return readDemoSettings();
 };
+
+// Personal Data and Home share the same guarded Find/Add Patient directory.
+document.addEventListener('click',event=>{
+ if(!event.target.closest('[data-submenu="personal:patient_directory"]'))return;
+ event.preventDefault();event.stopImmediatePropagation();
+ if(providerMe&&providerMe.account_type!=='File maintenance')openDirectory();
+},true);

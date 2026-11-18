@@ -125,3 +125,7 @@ test('authentication return destination ignores untrusted redirect parameters',a
   .toBe('/emr/workspace?module=assessment&section=assessment%3Abiopsychosocial');
  expect(m.from).not.toHaveBeenCalled();
 });
+
+test('explicit Find/Add Patient link preserves the directory action through MFA without accepting arbitrary flags',async()=>{
+ m.emrAccess.mockResolvedValue(null);const response=await GET(new Request('https://www.indiancreekpsych.com/emr/workspace?module=demographics&section=personal%3Apatient_directory&directory=1'));const next=new URL(response.headers.get('location')!).searchParams.get('next');expect(next).toContain('directory=1');
+});

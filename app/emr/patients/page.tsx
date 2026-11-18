@@ -1,6 +1,6 @@
 import {patientAccess} from '@/lib/patient/access';
 import {uuid} from '@/lib/emr/demographics';
-import AdministrativeShell from '@/app/components/AdministrativeShell';
+
 import PatientRepository from '../PatientRepository';
 export const dynamic='force-dynamic';
 const reviewAnchors=new Set(['emr-intake-medication-review','emr-intake-allergy-review',
@@ -18,5 +18,5 @@ export default async function EmrPatientsPage({searchParams}:Props={}){
  }
  const returnTo='/emr/patients'+(query.size?'?'+query.toString():'');
  await patientAccess(true,returnTo);
- return <AdministrativeShell><main className="centralEmr"><PatientRepository/></main></AdministrativeShell>;
+ return <><main className="centralEmr"><PatientRepository/></main></>;
 }

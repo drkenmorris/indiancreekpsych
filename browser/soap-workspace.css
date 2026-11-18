@@ -1,0 +1,16 @@
+/* SOAP occupies the workspace document flow; the workspace owns scrolling. */
+#patient-soap-page.centralEmr{max-width:none;min-width:0;margin:0;padding:0 0 2rem;background:transparent}
+.soapWorkspacePage{min-width:0;padding:0;margin:0}
+.soapWorkspacePage>h1{display:none}
+.soapWorkspacePage>form>fieldset{min-width:0;padding:0;border:0;margin:0}
+.soapWorkspacePage>form>fieldset>legend{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
+.soapWorkspacePage .soapSection{padding:1.25rem;border:1px solid #c5d0c9;border-radius:.7rem;background:white;max-height:none;overflow:visible}
+.soapWorkspacePage .soapSection h2{margin-top:0}
+.soapWorkspacePage input:not([type=checkbox]),.soapWorkspacePage select,.soapWorkspacePage textarea{width:100%;box-sizing:border-box}
+.soapWorkspacePage .soapQuickFields{align-items:start}
+.soapWorkspacePage .soapQuickFields>label{align-self:start}
+.soapWorkspacePage .soapChoiceGroup{background:transparent}
+.soapWorkspacePage .soapPreview,.soapWorkspacePage>details{background:white;padding:1rem;border:1px solid #c5d0c9;border-radius:.5rem;margin-block:1rem}
+.soapWorkspacePage .soapCharacterCount{margin-top:.6rem}
+.soapNoteWording{white-space:pre-wrap;overflow-wrap:anywhere}
+@media(max-width:600px){.soapWorkspacePage .soapSection{padding:.85rem}.soapWorkspacePage .soapQuickFields{grid-template-columns:minmax(0,1fr)}}

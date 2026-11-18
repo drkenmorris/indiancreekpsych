@@ -3,7 +3,7 @@ import {notFound,redirect} from 'next/navigation';
 import {patientAccess} from '@/lib/patient/access';
 import {emrAccess} from '@/lib/emr/access';
 import {uuid} from '@/lib/emr/demographics';
-import AdministrativeShell from '@/app/components/AdministrativeShell';
+
 import PatientBpsIntakeReview from '../PatientBpsIntakeReview';
 import '../central-emr.css';
 
@@ -41,7 +41,7 @@ export default async function EmrBpsIntakePage({searchParams}:Props){
  if(!data||data.id!==patient||data.directory_deleted_at!==null)notFound();
  const params=new URLSearchParams({patient,module:'assessment',section:'assessment:biopsychosocial'});
  if(bps_page&&bpsPages.has(bps_page))params.set('bps_page',bps_page);
- return <AdministrativeShell><main className="centralEmr" aria-label="Protected clinician-reviewed biopsychosocial intake">
+ return <><main className="centralEmr" aria-label="Protected clinician-reviewed biopsychosocial intake">
   <header><p>Indian Creek Psychological Services · Central clinical chart</p>
    <h1>Patient intake → Biopsychosocial assessment</h1>
    <p>This linked patient chart uses the clinic's existing administrator credentials, MFA and Supabase authorization. No synthetic or browser-local intake record is imported.</p>
@@ -59,5 +59,5 @@ export default async function EmrBpsIntakePage({searchParams}:Props){
    </nav>
   </header>
   <PatientBpsIntakeReview patientId={patient}/>
- </main></AdministrativeShell>;
+ </main></>;
 }

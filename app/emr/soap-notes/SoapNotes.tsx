@@ -3,7 +3,7 @@ import {useCallback,useEffect,useRef,useState,type FormEvent} from 'react';
 import {soapLabels as labels,soapGroups,objectiveProgress,blankSoapQuick,blankSoapSections,assembleSoap,emptySoapPlan,soapPlanChoices,type SoapKey,type SoapQuickState,type SoapPlanChoices} from '@/lib/emr/soap-quick-entry';
 type Note={id:string;patient_id:string;template:string;encounter_at:string;encounter_type:string;created_at:string;sections:Record<string,string>};
 const blank=blankSoapSections;
-export default function SoapNotes({patientId}:{patientId:string}){
+export default function SoapNotes({patientId,inWorkspace=false}:{patientId:string;inWorkspace?:boolean}){
  const [notes,setNotes]=useState<Note[]>([]),[narrative,setNarrative]=useState(blank);
  const [quick,setQuick]=useState(blankSoapQuick),[openNarrative,setOpenNarrative]=useState<Record<string,boolean>>({});
  const [planSource,setPlanSource]=useState<SoapPlanChoices>(emptySoapPlan),[planMessage,setPlanMessage]=useState('');
@@ -62,7 +62,7 @@ export default function SoapNotes({patientId}:{patientId:string}){
   }catch(e){if(generation.current===request)setMessage(e instanceof Error?e.message:'SOAP note could not be saved.');}
   finally{if(generation.current===request)setSaving(false);}
  }
- return <section className="centralCard" data-soap-dirty={dirty?'true':'false'}>
+ return <section className={inWorkspace?'soapWorkspacePage':'centralCard'} data-soap-dirty={dirty?'true':'false'}>
   <h1>SOAP Notes</h1><p>Record the patient’s subjective report, objective observations, clinical assessment, and plan for this encounter.</p>
   {!patientId?<p>Select a patient from Find/Add Patient before entering a note.</p>:loading?<p role="status">Loading SOAP notes…</p>:error?<p role="alert">{error}</p>:<>
    <form onSubmit={save} noValidate aria-label="New SOAP note"><fieldset disabled={saving}><legend>New SOAP note</legend>
@@ -83,11 +83,11 @@ export default function SoapNotes({patientId}:{patientId:string}){
      {!openNarrative[key]&&narrative[key]&&<p>Narrative retained and included in the note.</p>}
      <p className="soapCharacterCount">{sections[key].length} / 4000 characters</p>
     </section>)}
-    <details className="soapPreview"><summary>Review assembled SOAP note</summary>{(Object.keys(labels) as SoapKey[]).map(key=><section key={key}><h3>{labels[key]}</h3><p style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>{sections[key]||'No content entered.'}</p></section>)}</details>
+    <details className="soapPreview"><summary>Review assembled SOAP note</summary>{(Object.keys(labels) as SoapKey[]).map(key=><section key={key}><h3>{labels[key]}</h3><p className="soapNoteWording">{sections[key]||'No content entered.'}</p></section>)}</details>
     <label className="soapReview"><input type="checkbox" checked={reviewed} onChange={event=>setReviewed(event.target.checked)}/>I reviewed the date, patient identity and note content. Save as an unsigned, append-only clinical record.</label>
     <button type="submit">{saving?'Saving…':'Save SOAP note'}</button>
    </fieldset></form>
-   <h2>Saved SOAP notes</h2>{!notes.length?<p>No SOAP notes have been recorded for this patient.</p>:notes.map(note=><details key={note.id}><summary>{new Date(note.encounter_at).toLocaleString()} · {note.encounter_type}</summary><dl>{(Object.keys(labels) as SoapKey[]).map(key=><div key={key}><dt>{labels[key]}</dt><dd style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>{note.sections[key]}</dd></div>)}</dl><p>Recorded {new Date(note.created_at).toLocaleString()}. Original content is retained in the patient record; corrections use the existing progress-note addendum workflow.</p></details>)}
+   <h2>Saved SOAP notes</h2>{!notes.length?<p>No SOAP notes have been recorded for this patient.</p>:notes.map(note=><details key={note.id}><summary>{new Date(note.encounter_at).toLocaleString()} · {note.encounter_type}</summary><dl>{(Object.keys(labels) as SoapKey[]).map(key=><div key={key}><dt>{labels[key]}</dt><dd className="soapNoteWording">{note.sections[key]}</dd></div>)}</dl><p>Recorded {new Date(note.created_at).toLocaleString()}. Original content is retained in the patient record; corrections use the existing progress-note addendum workflow.</p></details>)}
   </>}{message&&<p role="status">{message}</p>}
  </section>;
 }

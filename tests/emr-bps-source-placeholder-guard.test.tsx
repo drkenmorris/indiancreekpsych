@@ -19,7 +19,7 @@ function fixture(){
  return {
   patientId:patient,
   source:{accountId:account,status:'submitted',version:3,updatedAt:stamp,submittedAt:stamp},
-  sections:mapIntakeToBps(patientAnswers).sections,unmappedKeys:[],reviews:[]
+  sections:mapIntakeToBps(patientAnswers).sections,unmappedKeys:[] as string[],reviews:[]
  };
 }
 type Source=ReturnType<typeof fixture>;

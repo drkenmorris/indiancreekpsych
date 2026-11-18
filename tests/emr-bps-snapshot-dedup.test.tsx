@@ -2,7 +2,7 @@ import React from 'react';
 import {afterEach,expect,test,vi} from 'vitest';
 import {cleanup,fireEvent,render,screen} from '@testing-library/react';
 import PatientBpsIntakeReview from '@/app/emr/PatientBpsIntakeReview';
-import {mapIntakeToBps} from '@/lib/emr/intake-bps';
+import {mapIntakeToBps,emptyBpsNotes} from '@/lib/emr/intake-bps';
 
 afterEach(()=>{cleanup();vi.unstubAllGlobals();});
 const patient='00000000-0000-4000-8000-000000000801';
@@ -115,7 +115,7 @@ test('clinician BPS save is independently confirmed only after exact source-prov
   return Response.json(reads===1?source():source([{
    id:savedId,reviewed:true,source_version:7,source_status:'submitted',
    source_updated_at:'2026-11-10T06:00:00-06:00',created_at:stamp,
-   clinical_answers:{},clinician_notes:{presenting:'Independent fictional clinician review note'}
+   clinical_answers:{},clinician_notes:{...emptyBpsNotes(),presenting:'Independent fictional clinician review note'}
   }]));
  }));
  render(<PatientBpsIntakeReview patientId={patient}/>);
@@ -250,7 +250,7 @@ test('an acknowledged BPS save remains unverified until protected history readba
  releaseReadback(Response.json(source([{
   id:savedId,reviewed:true,source_version:7,source_status:'submitted',
   source_updated_at:stamp,created_at:stamp,
-  clinical_answers:{},clinician_notes:{presenting:'Independent fictional clinician review note'}
+  clinical_answers:{},clinician_notes:{...emptyBpsNotes(),presenting:'Independent fictional clinician review note'}
  }])));
  await screen.findByText(/saved AND independently verified in the protected chart history/);
  expect(screen.queryByText(/save acknowledged; verifying/)).toBeNull();
@@ -492,7 +492,7 @@ test('equivalent patient attestation instants in different timezone offsets stil
   if(reads===1)return Response.json(source());
   const equivalent=source([{
    id:savedId,reviewed:true,source_version:7,source_status:'submitted',
-   source_updated_at:stamp,created_at:stamp,clinical_answers:{},clinician_notes:{presenting:'Independent fictional clinician observation'}
+   source_updated_at:stamp,created_at:stamp,clinical_answers:{},clinician_notes:{...emptyBpsNotes(),presenting:'Independent fictional clinician review note'}
   }]);
   equivalent.source.submittedAt='2026-11-10T06:00:00-06:00';
   return Response.json(equivalent);

@@ -14,7 +14,7 @@ const localDateTime=()=>{
 };
 const endpoint='/api/emr/progress-notes';
 
-export default function PatientProgressNotes({patientId}:{patientId:string}){
+export default function PatientProgressNotes({patientId,inWorkspace=false}:{patientId:string;inWorkspace?:boolean}){
  const [notes,setNotes]=useState<Note[]>([]);
  const [addenda,setAddenda]=useState<Addendum[]>([]);
  const [attestations,setAttestations]=useState<Attestation[]>([]);
@@ -96,6 +96,8 @@ export default function PatientProgressNotes({patientId}:{patientId:string}){
   }catch(e){setMessage(e instanceof Error?e.message:'Note attestation unavailable.');}
   finally{setSaving(false);}
  }
+ const workspaceDirty=Object.values(sections).some(value=>value.trim().length>0)||!!reason.trim()||!!amendment.trim()||!!signerName.trim();
+ useEffect(()=>{if(!inWorkspace)return;const warn=(event:BeforeUnloadEvent)=>{if(workspaceDirty)event.preventDefault();};window.addEventListener('beforeunload',warn);return()=>window.removeEventListener('beforeunload',warn);},[inWorkspace,workspaceDirty]);
  const valid=fields[template].every(key=>{const length=sections[key]?.trim().length??0;return length>=2&&length<=4000;});
  const validAdd=reason.trim().length>=5&&reason.trim().length<=200&&amendment.trim().length>=5&&amendment.trim().length<=4000;
  function submitNote(event:FormEvent<HTMLFormElement>){
@@ -108,7 +110,7 @@ export default function PatientProgressNotes({patientId}:{patientId:string}){
   event.preventDefault();if(loading||saving||error||!addendumReviewed||!validAdd||!addTo)return;
   void save({action:'addendum',patient_id:patientId,note_id:addTo,reason:reason.trim(),amendment:amendment.trim(),reviewed:true},'addendum');
  }
- return <article className="centralCard" aria-label="Individual clinical progress notes">
+ return <article className="centralCard" aria-label="Individual clinical progress notes" data-clinical-note-dirty={inWorkspace?(workspaceDirty?'true':'false'):undefined}>
   <h2>Individual clinical progress notes</h2>
   <p>Patient-bound outpatient notes and dated corrections. Original notes may receive an irreversible, MFA-protected author attestation; later addenda remain unsigned. Attestation does not independently verify professional licensure or authorize billing. No prototype synthetic data is used.</p>
   {loading?<p role="status">Loading this patient's clinical notes…</p>:error?

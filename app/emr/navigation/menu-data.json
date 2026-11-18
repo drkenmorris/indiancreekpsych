@@ -165,8 +165,7 @@
       [
         "amendments",
         "Amendments",
-        "notes",
-        "form[data-action=\"amendment\"]"
+        "notes"
       ],
       [
         "record_history",

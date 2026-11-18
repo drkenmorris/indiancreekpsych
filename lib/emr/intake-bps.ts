@@ -209,7 +209,7 @@ export function validBpsQuestionnaireTopology(
    if(!field||field.key!==key||field.label!==label||field.type!==type)return false;
   }
   const active=new Set(original.fields.map(([key])=>key));
-  return actual.fields.slice(original.fields.length).every(field=>{
+  return actual.fields.slice(original.fields.length).every((field:{key:string;label:string;type:string;reported?:boolean})=>{
    if(!field||active.has(field.key)||field.type!=='historical-patient-report'||
     field.reported!==true)return false;
    const retired=historicalClinicalFields.find(([key,label])=>

@@ -288,6 +288,15 @@ test('BPS summary records current reviewed attestation only for the same patient
   expect(historical.status).toBe(200);
   expect((await historical.json()).currentVersionReviewed).toBe(false);
  }
+ // A legible approved note does NOT make an otherwise malformed or
+ // unapproved historical note record a fully verified clinical review.
+ reviewRows=[{...reviewRows[0],reviewed:true,clinician_notes:{
+  presenting:'FICTIONAL_LEGIBLE_CLINICIAN_NOTE',
+  unapproved:'FICTIONAL_PROTECTED_WITHHELD_NOTE'
+ }}];
+ const partial=await GET(url);
+ expect(partial.status).toBe(200);
+ expect((await partial.json()).currentVersionReviewed).toBe(false);
  reviewRows=[{...reviewRows[0],reviewed:false}];
  response=await GET(url);
  expect(response.status).toBe(200);

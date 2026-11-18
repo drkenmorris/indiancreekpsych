@@ -1,4 +1,8 @@
--- Supplementary Unicode variation selectors U+E0100 through U+E01EF are also\n-- invisible formatting marks, not clinical documentation on their own.\n-- Reaffirm the existing insert trigger without modifying any stored patient records.\n-- The PostgreSQL Unicode regex was confirmed by read-only production SELECT.\n-- Additional fail-closed clinical attestation guard for format-only Unicode variation selectors.
+-- Supplementary Unicode variation selectors U+E0100 through U+E01EF are also
+-- invisible formatting marks, not clinical documentation on their own.
+-- Reaffirm the existing insert trigger without modifying any stored patient records.
+-- The PostgreSQL Unicode regex was confirmed by read-only production SELECT.
+-- Additional fail-closed clinical attestation guard for format-only Unicode variation selectors.
 -- The existing trigger invokes this function; no data, clinical rows or permissions are changed.
 -- Additive defense in depth: invisible formatting marks and Unicode variation selectors alone cannot
 -- satisfy independent clinical documentation in an append-only BPS review.

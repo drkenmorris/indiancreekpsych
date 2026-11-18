@@ -317,7 +317,8 @@ test('invisible formatting alone does not constitute independent BPS clinician d
  for(const text of ['\u200b','\u2060\u200e','\u202e\u2066\u2069','\u00ad\u034f\u061c\u180e','\ufeff\u200b \n\t','\ufe0f','\ufe00\ufe0e\ufe0f','\ufe0e\ufe0f \n','\u{E0100}','\u{E01EF} \n','\u{E0100}\ufe0f\u{E01EF} \n'])
   expect(hasIndependentBpsReviewNote({presenting:text})).toBe(false);
  expect(hasIndependentBpsReviewNote({presenting:'\u200b \n\t',limitations:'Independent fictional follow-up: verify source.'})).toBe(true);
- expect(hasIndependentBpsReviewNote({presenting:'Patient\u200d-reported fictional context'})).toBe(true);\n expect(hasIndependentBpsReviewNote({presenting:'Fictional clinician observation \u{E0100}\u{E01EF}'})).toBe(true);
+ expect(hasIndependentBpsReviewNote({presenting:'Patient\u200d-reported fictional context'})).toBe(true);
+ expect(hasIndependentBpsReviewNote({presenting:'Fictional clinician observation \u{E0100}\u{E01EF}'})).toBe(true);
 });
 
 test('complete 21-section source inventory is verified for both approved layouts and eligible retired patient reports',()=>{

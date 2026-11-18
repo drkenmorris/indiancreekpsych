@@ -83,9 +83,9 @@ test('directory contact display excludes blank, malformed and unknown intake val
 });
 
 test.each([
-  ['multiline address carrying hidden clinical history', {address: '100 Fictional Street\\nPRIVATE_TRAUMA_DETAIL'}],
-  ['bidirectional override in a patient name', {full_name: 'Patient\\u202EPROTECTED_HISTORY'}],
-  ['invisible direction control in phone', {phone: '555-0100\\u200FPRIVATE_MEDICATION'}],
+  ['multiline address carrying hidden clinical history', {address: '100 Fictional Street\nPRIVATE_TRAUMA_DETAIL'}],
+  ['bidirectional override in a patient name', {full_name: 'Patient\u202EPROTECTED_HISTORY'}],
+  ['invisible direction control in phone', {phone: '555-0100\u200FPRIVATE_MEDICATION'}],
   ['overlength contact narrative', {city: 'X'.repeat(301) + 'PRIVATE_HISTORY'}],
   ['invalid email masquerading as contact', {email: 'patient@example.invalid PRIVATE_LEGAL'}],
 ])('directory rejects disguised clinical narratives in %s', (_label, attack) => {
@@ -101,10 +101,10 @@ test.each([
 test('unsafe reported contact values never enter an unsaved clinician demographics draft', () => {
   const draft = {address1: '', city: '', postal_code: '', email: ''};
   const source = {
-    address: '100 Fictional Street\\nPRIVATE_MEDICAL',
-    city: 'Olathe\\u202EPRIVATE_TRAUMA',
+    address: '100 Fictional Street\nPRIVATE_MEDICAL',
+    city: 'Olathe\u202EPRIVATE_TRAUMA',
     postal_code: ' 66062 ',
-    email: 'patient@example.invalid\\u200F',
+    email: 'patient@example.invalid\u200F',
   };
   const result = intakeContactPrefill(draft, source);
   expect(result.fields).toEqual(['postal_code']);

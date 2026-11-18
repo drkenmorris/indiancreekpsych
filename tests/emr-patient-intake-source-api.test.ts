@@ -16,6 +16,8 @@ let returnedPatientId:string;
 let returnedIntakeAccountId:string;
 let returnedIntakeVersion:number;
 let returnedIntakeStatus:string;
+let returnedIntakeUpdatedAt:string;
+let returnedIntakeSubmittedAt:string|null;
 let returnedArchivedAt:string|null;
 const makeRequest=(id=patientId)=>new Request('https://www.indiancreekpsych.com/api/emr/patients?id='+id);
 
@@ -27,8 +29,11 @@ beforeEach(()=>{
   returnedIntakeAccountId=accountId;
   returnedIntakeVersion=1;
   returnedIntakeStatus='submitted';
+  returnedIntakeUpdatedAt='2026-11-09T00:00:00Z';
+  returnedIntakeSubmittedAt='2026-11-09T00:00:00Z';
   returnedArchivedAt=null;
   intakeAnswers={
+    legal_packet_version:'2026-11-02-directory-1',
     full_name:'Fictional Patient',email:'fictional@example.invalid',
     medication_entries:'[{"medication":"Example"}]',
     medication_allergy_status:'Medication allergies reported',
@@ -54,7 +59,7 @@ beforeEach(()=>{
       const chain={
         select:()=>chain,
         eq:vi.fn((_key:string,_id:string)=>chain),
-        maybeSingle:async()=>({data:{patient_id:returnedIntakeAccountId,status:returnedIntakeStatus,version:returnedIntakeVersion,updated_at:'2026-11-09T00:00:00Z',answers:intakeAnswers},error:null}),
+        maybeSingle:async()=>({data:{patient_id:returnedIntakeAccountId,status:returnedIntakeStatus,version:returnedIntakeVersion,updated_at:returnedIntakeUpdatedAt,submitted_at:returnedIntakeSubmittedAt,answers:intakeAnswers},error:null}),
       };
       return chain;
     }
@@ -83,6 +88,9 @@ test('medical sources are limited to allowlisted fields of the explicitly linked
     trauma_history_checklist:intakeAnswers.trauma_history_checklist,
     trauma_history:intakeAnswers.trauma_history,
   });
+  expect(json.intake.version).toBe(1);
+  expect(json.intake.submitted_at).toBe('2026-11-09T00:00:00Z');
+  expect(json.intake.questionnaire_packet_version).toBe('2026-11-02-directory-1');
   expect(json.intake.answers).not.toHaveProperty('secret_token');
   expect(json.intake.answers).not.toHaveProperty('roi_signature');
   expect(json.intake.answers).not.toHaveProperty('private_clinician_note');
@@ -128,6 +136,36 @@ test.each([0,1.5,-1])('directory rejects invalid intake version %s without discl
   const result=await GET(makeRequest());
   expect(result.status).toBe(409);
   expect(JSON.stringify(await result.json())).not.toContain('Fictional reaction');
+});
+
+test.each([
+  ['submitted',null,'2026-11-09T00:00:00Z'],
+  ['submitted','2026-11-09T00:00:00Z',null],
+  ['submitted','2026-11-09T00:00:00.000002Z','2026-11-09T00:00:00.000001Z'],
+  ['draft','2026-11-09T00:00:00Z','2026-11-09T00:00:00Z'],
+  ['submitted','2026-02-30T00:00:00Z','2026-11-09T00:00:00Z'],
+])('directory rejects contradictory source chronology: %s, updated %s, submitted %s',async(status,updated,submitted)=>{
+  returnedIntakeStatus=status;
+  returnedIntakeUpdatedAt=updated as string;
+  returnedIntakeSubmittedAt=submitted;
+  const response=await GET(makeRequest());
+  expect(response.status).toBe(409);
+  expect(JSON.stringify(await response.json())).not.toContain('Fictional reaction');
+});
+
+test('directory refuses unknown questionnaire packet version before disclosing any linked clinical answers',async()=>{
+  intakeAnswers.legal_packet_version='2040-unknown-packet';
+  const response=await GET(makeRequest());
+  expect(response.status).toBe(409);
+  expect(JSON.stringify(await response.json())).not.toContain('Fictional reaction');
+});
+
+test('a legitimate draft carries no submission receipt and never implies a reviewed final source',async()=>{
+  returnedIntakeStatus='draft';returnedIntakeSubmittedAt=null;
+  const response=await GET(makeRequest());
+  expect(response.status).toBe(200);
+  const json=await response.json();
+  expect(json.intake).toMatchObject({status:'draft',version:1,submitted_at:null,questionnaire_packet_version:'2026-11-02-directory-1'});
 });
 
 test('directory rejects structured or otherwise malformed clinical answer values',async()=>{

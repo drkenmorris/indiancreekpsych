@@ -19,6 +19,10 @@ let returnedIntakeStatus:string;
 let returnedIntakeUpdatedAt:string;
 let returnedIntakeSubmittedAt:string|null;
 let returnedArchivedAt:string|null;
+let verifiedPatientId:string;
+let verifiedAccountId:string|null;
+let verifiedArchivedAt:string|null;
+let verifiedRevision:number;
 const makeRequest=(id=patientId)=>new Request('https://www.indiancreekpsych.com/api/emr/patients?id='+id);
 
 beforeEach(()=>{
@@ -32,6 +36,10 @@ beforeEach(()=>{
   returnedIntakeUpdatedAt='2026-11-09T00:00:00Z';
   returnedIntakeSubmittedAt='2026-11-09T00:00:00Z';
   returnedArchivedAt=null;
+  verifiedPatientId=patientId;
+  verifiedAccountId=accountId;
+  verifiedArchivedAt=null;
+  verifiedRevision=3;
   intakeAnswers={
     legal_packet_version:'2026-11-02-directory-1',
     full_name:'Fictional Patient',email:'fictional@example.invalid',
@@ -49,6 +57,10 @@ beforeEach(()=>{
     if(table==='clinical_patients'){
       const chain={
         select:()=>chain,order:()=>chain,limit:()=>chain,eq:()=>chain,is:()=>chain,
+        maybeSingle:async()=>({data:{
+          id:verifiedPatientId,account_id:verifiedAccountId,revision:verifiedRevision,
+          directory_deleted_at:verifiedArchivedAt
+        },error:null}),
         then:(resolve:(result:unknown)=>unknown,reject?:(reason:unknown)=>unknown)=>Promise.resolve({
           data:[{id:returnedPatientId,account_id,directory_deleted_at:returnedArchivedAt,demographics:{first_name:'Fictional'},revision:3}],error:null,
         }).then(resolve,reject),
@@ -95,6 +107,35 @@ test('medical sources are limited to allowlisted fields of the explicitly linked
   expect(json.intake.answers).not.toHaveProperty('roi_signature');
   expect(json.intake.answers).not.toHaveProperty('private_clinician_note');
   expect(mocks.from).toHaveBeenCalledWith('patient_intakes');
+});
+
+test('directory withholds fetched intake if its chart was relinked during the source read',async()=>{
+  verifiedAccountId='00000000-0000-0000-0000-000000000498';
+  const response=await GET(makeRequest());
+  expect(response.status).toBe(409);
+  expect(JSON.stringify(await response.json())).not.toContain('Fictional reaction');
+  expect(mocks.from).toHaveBeenCalledWith('patient_intakes');
+});
+
+test('directory withholds fetched intake if the chart was archived during the source read',async()=>{
+  verifiedArchivedAt='2026-11-09T01:00:00Z';
+  const response=await GET(makeRequest());
+  expect(response.status).toBe(409);
+  expect(JSON.stringify(await response.json())).not.toContain('Fictional reaction');
+});
+
+test('directory withholds fetched intake when the chart revision changes during its read',async()=>{
+  verifiedRevision=4;
+  const response=await GET(makeRequest());
+  expect(response.status).toBe(409);
+  expect(JSON.stringify(await response.json())).not.toContain('Fictional reaction');
+});
+
+test('directory withholds fetched intake when the rechecked chart identity is not the requested patient',async()=>{
+  verifiedPatientId='00000000-0000-0000-0000-000000000499';
+  const response=await GET(makeRequest());
+  expect(response.status).toBe(409);
+  expect(JSON.stringify(await response.json())).not.toContain('Fictional reaction');
 });
 
 test('unlinked clinical patients cannot receive intake information by matching names',async()=>{

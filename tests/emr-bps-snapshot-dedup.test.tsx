@@ -186,7 +186,7 @@ test.each([
  });
  fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed this intake/i}));
  fireEvent.click(screen.getByRole('button',{name:/Save reviewed BPS history snapshot/i}));
- await screen.findByText(/exact saved review and source provenance were NOT verified in chart history/);
+ await screen.findByText(/exact saved review, clinician note text and source provenance were NOT verified in chart history/);
  expect(screen.queryByText(/saved AND independently verified/)).toBeNull();
  expect(screen.getByText(/A BPS history record for this source version lacks confirmed clinician-review attestation/)).toBeTruthy();
  expect(screen.getByText(/Documented clinician reviews: 0/)).toBeTruthy();

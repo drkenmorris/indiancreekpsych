@@ -28,8 +28,8 @@ function settingsSection(key,label){if(key==='libraries')return `<section class=
 async function bindModuleSection(){const f=$('#module-section-form');if(!f)return;let assigned=[];if(activeSection.key==='assigned_provider'){const targetPatient=patientId;try{const value=await providerAPI('list');if(targetPatient!==patientId||!f.isConnected)return;assigned=value.providers.filter(p=>p.account_type!=='File maintenance');const saved=latestSection('assigned_provider');$('#assigned-provider').innerHTML='<option value="">Not assigned</option>'+assigned.map(p=>`<option value="${esc(p.id)}" ${saved?.provider_id===p.id?'selected':''}>${esc(p.profile.last_name)}, ${esc(p.profile.first_name)}</option>`).join('');$('#assignment-options').textContent=providerMe.is_admin?'Administrator-accessible providers are listed.':'Your own provider record is available. Broader assignment permissions will be defined later.';}catch(err){message(err.message,true);}}f.addEventListener('input',event=>{
  dirty=true;
  const box=event.target,group=box.closest('[data-section-checklist]');
- if(!group||!box.checked)return;
- for(const other of group.querySelectorAll('input:checked'))if(other!==box&&(box.value==='Not assessed'||other.value==='Not assessed'))other.checked=false;
+ if(group&&box.checked)for(const other of group.querySelectorAll('input:checked'))if(other!==box&&(box.value==='Not assessed'||other.value==='Not assessed'))other.checked=false;
+ if(activeSection.key==='recovery_criteria')updateRecoverySelectionSummary(f);
 });f.addEventListener('submit',async e=>{e.preventDefault();const button=f.querySelector('[type=submit]');button.disabled=true;try{const data=Object.fromEntries(new FormData(f));data.fields=Object.fromEntries([...f.querySelectorAll('[data-section-field]')].map(n=>[n.dataset.sectionField,n.value]));
  for(const group of f.querySelectorAll('[data-section-checklist]')){
   data.fields[group.dataset.sectionChecklist]=Array.from(group.querySelectorAll('input:checked'),input=>input.value).join('\n');

@@ -113,6 +113,8 @@ test('clinic migrations replay in order on an empty application database', async
     const payload={
       patient_id:chart.id,source_account_id:patientId,source_version:source.version,
       source_status:source.status,source_updated_at:new Date(source.updated_at).toISOString(),
+      // Full canonical JSONB answer set must survive API-to-RPC source locking.
+      source_answers:answers,
       reviewed:true,clinician_notes:{presenting:'Independent fictional clinician review; unsigned'},
     };
     async function as(id,aal='aal2'){

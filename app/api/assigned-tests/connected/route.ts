@@ -5,6 +5,34 @@ import {isConnectedKey,validateSave} from '@/lib/clinical-tests/connected/defini
 import {uuid} from '@/lib/emr/demographics';
 import {sameOrigin} from '@/lib/emr/access';
 export const dynamic='force-dynamic';
+// A recipient may send chunked or dishonest Content-Length requests. Bound
+// *actual UTF-8 bytes* before materializing sensitive questionnaire answers;
+// reject malformed UTF-8 rather than silently changing a clinical response.
+const maxConnectedSaveBytes=150_000;
+async function readConnectedSaveBody(r:Request):Promise<{text?:string;tooLarge?:boolean}>{
+ const declared=r.headers.get('content-length');
+ if(declared!==null&&/^[0-9]+$/.test(declared)&&Number(declared)>maxConnectedSaveBytes)
+  return {tooLarge:true};
+ if(!r.body)return {text:''};
+ const reader=r.body.getReader();
+ const chunks:Uint8Array[]=[];
+ let bytes=0;
+ try{
+  while(true){
+   const {done,value}=await reader.read();
+   if(done)break;
+   bytes+=value.byteLength;
+   if(bytes>maxConnectedSaveBytes){
+    await reader.cancel().catch(()=>undefined);
+    return {tooLarge:true};
+   }
+   chunks.push(value);
+  }
+  return {text:new TextDecoder('utf-8',{fatal:true}).decode(Buffer.concat(chunks))};
+ }catch{return {};}
+ finally{reader.releaseLock();}
+}
+
 async function access(id:string){const ctx=await asqRecipientAccess();if(!ctx)return null;const {data:a,error}=await ctx.supabase.from('psych_test_assignments').select('id,test_key,recipient_first_name,recipient_last_name,recipient_email,status,expires_at,patient_id,connected_source,connected_source_hash').eq('id',id).maybeSingle();// A filtered lookup is not proof of identity: reject mis-scoped rows, invalid
 // central-chart links, and missing/malformed expiry timestamps before exposing
 // an assigned instrument or permitting its save RPC.
@@ -41,7 +69,7 @@ if(!current||current.user.id!==ctx.user.id||
  current.a.expires_at!==ctx.a.expires_at)
  return NextResponse.json({error:'Assignment authorization changed; reopen the invitation or contact the office.'},{status:403,headers});
 return NextResponse.json({assignment:{id,recipientName:current.a.recipient_first_name+' '+current.a.recipient_last_name,expiresAt:current.a.expires_at},definition,response},{headers});}catch{return NextResponse.json({error:'Questionnaire source or saved answers could not be verified. Contact the office.'},{status:409,headers});}}
-export async function POST(r:Request){if(!sameOrigin(r))return NextResponse.json({error:'Same-origin request required.'},{status:403,headers});let b;try{const text=await r.text();if(text.length>150000)throw Error();b=JSON.parse(text);if(!uuid(b.id))throw Error();}catch{return NextResponse.json({error:'Invalid save request.'},{status:400,headers});}const ctx=await access(b.id);if(!ctx)return NextResponse.json({error:'Assignment unavailable or expired. Your latest changes have not been saved. Contact the office.'},{status:403,headers});try{const d=checkedSource(ctx.a.connected_source,ctx.a.connected_source_hash),s=validateSave(b,d);let receipt;
+export async function POST(r:Request){if(!sameOrigin(r))return NextResponse.json({error:'Same-origin request required.'},{status:403,headers});const wire=await readConnectedSaveBody(r);if(wire.tooLarge)return NextResponse.json({error:'Assessment save request too large.'},{status:413,headers});let b;try{if(typeof wire.text!=='string')throw Error();b=JSON.parse(wire.text);if(!uuid(b.id))throw Error();}catch{return NextResponse.json({error:'Invalid save request.'},{status:400,headers});}const ctx=await access(b.id);if(!ctx)return NextResponse.json({error:'Assignment unavailable or expired. Your latest changes have not been saved. Contact the office.'},{status:403,headers});try{const d=checkedSource(ctx.a.connected_source,ctx.a.connected_source_hash),s=validateSave(b,d);let receipt;
 try{receipt=await ctx.supabase.rpc('save_connected_assignment',{p_id:b.id,p_expected:s.expectedRevision,p_answers:s.answers,p_page:s.page,p_submit:s.submit,p_confirmed:true});}
 catch{return NextResponse.json({error:'Save outcome could not be verified. Keep this page open and contact the office before retrying.'},{status:503,headers});}
 const {data,error}=receipt??{};if(error)return NextResponse.json({error:error.code==='40001'?'Another session saved newer answers. Keep this page open and reopen the assignment to review.':'Saving was not confirmed. Keep this page open and contact the office if the invitation expired.'},{status:error.code==='40001'?409:503,headers});

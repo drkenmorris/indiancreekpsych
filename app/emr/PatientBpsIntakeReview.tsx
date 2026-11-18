@@ -26,7 +26,10 @@ const readable=(field:Field,disposition:Section['disposition'])=>
 // an independent observation. Legacy checkbox-only rows remain immutable and
 // visible, but must not be counted as documented clinical review.
 const documentedClinicianReview=(review:Review):boolean=>
- review.reviewed===true&&hasIndependentBpsReviewNote(sanitizeBpsClinicianNotes(review.clinician_notes).notes);
+ review.reviewed===true&&
+ (review.excluded_clinician_notes??0)===0&&
+ sanitizeBpsClinicianNotes(review.clinician_notes).excludedCount===0&&
+ hasIndependentBpsReviewNote(sanitizeBpsClinicianNotes(review.clinician_notes).notes);
 async function json(response:Response){const data=await response.json();if(!response.ok)throw Error(data.error||'Protected BPS request failed.');return data;}
 export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
  const [data,setData]=useState<ResponseData|null>(null),[error,setError]=useState(''),[status,setStatus]=useState(''),

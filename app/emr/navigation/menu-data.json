@@ -71,8 +71,7 @@
       [
         "summary",
         "Summary Assessment",
-        "assessment",
-        "#field-clinical_summary"
+        "assessment"
       ]
     ],
     "plan": [
@@ -166,8 +165,7 @@
       [
         "amendments",
         "Amendments",
-        "notes",
-        "form[data-action=\"amendment\"]"
+        "notes"
       ],
       [
         "record_history",

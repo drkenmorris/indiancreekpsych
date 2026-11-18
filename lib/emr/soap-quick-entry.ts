@@ -1,5 +1,5 @@
 import type {PlanSnapshot,PlannerNode,ResolvedNode} from './treatment-planner';
-import {implementedChoices} from './implemented-interventions';
+import {implementedChoices,type InterventionEntry} from './implemented-interventions';
 export const soapLabels={subjective:'Subjective (S)',objective:'Objective (O)',assessment:'Assessment (A)',plan:'Plan (P)'} as const;
 export type SoapKey=keyof typeof soapLabels;
 export type SoapSections=Record<SoapKey,string>;
@@ -29,7 +29,13 @@ export const soapGroups:Record<SoapKey,readonly Group[]>={
 };
 export const objectiveProgress=['Improving','Unchanged','Worsening','Not evaluated this session'] as const;
 export type SoapChoice={id:string;text:string};
-export type SoapPlanChoices={context:string;problems:SoapChoice[];objectives:SoapChoice[];implemented:SoapChoice[]};
+export type SoapProblemProgress=SoapChoice&{sessionDate:string;interventions:string[]};
+export type SoapPlanChoices={context:string;problems:SoapChoice[];objectives:SoapChoice[];implemented:SoapChoice[];problemProgress?:SoapProblemProgress[]};
+export function soapProblemProgress(problems:SoapChoice[],entries:InterventionEntry[],planVersionId:string,sessionDate:string):SoapProblemProgress[]{
+ const scoped=entries.filter(entry=>entry.plan_version_id===planVersionId);
+ const selectedDate=sessionDate||scoped.map(entry=>entry.session_date).sort().at(-1)||'';
+ return problems.map(problem=>({...problem,sessionDate:selectedDate,interventions:[...new Set(scoped.filter(entry=>entry.session_date===selectedDate).flatMap(entry=>entry.snapshot.selections.filter(selection=>selection.problemId===problem.id).map(selection=>selection.text)))]}));
+}
 export const emptySoapPlan=():SoapPlanChoices=>({context:'',problems:[],objectives:[],implemented:[]});
 export function soapPlanChoices(plan:PlanSnapshot|undefined,nodes:PlannerNode[],revision:number):SoapPlanChoices{
  if(!plan)return emptySoapPlan();
@@ -52,7 +58,10 @@ export function assembleSoap(quick:SoapQuickState,narrative:SoapSections,source:
   if(key==='objective')for(const choice of source.implemented)if(quick.implemented.includes(choice.id))linked.push('Implemented this session: '+choice.text);
   if(key==='assessment'){
    for(const choice of source.problems)if(quick.problems.includes(choice.id))linked.push('Problem addressed: '+choice.text);
-   for(const choice of source.objectives)if(objectiveProgress.includes(quick.objectives[choice.id] as typeof objectiveProgress[number]))linked.push('Objective progress: '+choice.text+' — '+quick.objectives[choice.id]);
+   for(const choice of source.problemProgress??source.problems.map(problem=>({...problem,sessionDate:'',interventions:[]})))if(objectiveProgress.includes(quick.objectives[choice.id] as typeof objectiveProgress[number])){
+    linked.push('Progress toward treatment-plan objectives — '+choice.text+': '+quick.objectives[choice.id]);
+    if(choice.interventions.length)linked.push('Implemented interventions recorded in Individual Progress Notes Planner ('+choice.sessionDate+'): '+choice.interventions.join('; '));
+   }
   }
   if(key==='plan')for(const choice of source.problems)if(quick.focus.includes(choice.id))linked.push('Next-session focus: '+choice.text);
   if(linked.length)lines.push(source.context,...linked);

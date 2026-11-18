@@ -167,6 +167,7 @@ bindCompletedPanels=function(){
 // patient-bound storage; a workspace preview signature does not sign those notes.
 const originalAttestationNotesView=notesView;
 notesView=function(){
+ if(!blankWorkspace&&patientId&&activeSection?.module==='notes'&&activeSection.key==='amendments')return '<div id="patient-amendments-page" class="centralEmr" data-patient-id="'+encodeURIComponent(patientId)+'"><p role="status">Loading this patient’s note and amendment forms…</p></div>';
  const original=originalAttestationNotesView();
  if(blankWorkspace||!patientId)return original;
  const summary=activeSection?.module==='notes'&&activeSection.key==='planner'?'<section class="card"><iframe id="progress-plan-summary" title="Patient problems and planned interventions" src="/emr/individual-progress-planner?patient='+encodeURIComponent(patientId)+'&amp;embedded=1"></iframe></section>':'';

@@ -15,6 +15,6 @@ test('original note form remains and only a selected chart receives a patient-bo
  context.activeSection={module:'notes',key:'planner'};
  assert.match(vm.runInContext('notesView()',context),/individual-progress-planner\?patient=10800000-0000-4000-8000-000000000101/);
  context.activeSection={module:'notes',key:'amendments'};
- assert.doesNotMatch(vm.runInContext('notesView()',context),/progress-plan-summary/);
+ const amendments=vm.runInContext('notesView()',context);assert.doesNotMatch(amendments,/progress-plan-summary|original-notes/);assert.match(amendments,/id="patient-amendments-page"/);assert.match(amendments,/data-patient-id="10800000-0000-4000-8000-000000000101"/);
  context.patientId='';assert.equal(vm.runInContext('notesView()',context),'<form id="original-notes"></form>');
 });

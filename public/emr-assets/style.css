@@ -156,5 +156,3 @@ form[data-action="biopsychosocial_trauma_history"] .check{min-height:44px}
 .session-details-row>[data-session-field="duration"]{flex:0 1 8rem}
 .session-details-row>[data-session-field="modality"]{flex:1 1 18rem}
 .session-details-row input,.session-details-row select{inline-size:100%;min-inline-size:0;min-block-size:44px}
-
-#patient-soap-editor{display:block;width:100%;height:85vh;min-height:550px;border:0;background:white}

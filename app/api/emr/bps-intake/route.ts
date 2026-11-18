@@ -208,7 +208,11 @@ export async function GET(request:Request){
     // A historical checkbox-only row is not an independently documented review.
     // Match the full clinician review's note allowlist and substantive-text gate
     // so all seven original BPS pages cannot display a false reviewed status.
-    review.reviewed===true&&hasIndependentBpsReviewNote(sanitizeBpsClinicianNotes(review.clinician_notes).notes)&&
+    review.reviewed===true&&
+    // A partially withheld historical clinician note is not independently
+    // verifiable as a complete clinical review, even if another note is legible.
+    sanitizeBpsClinicianNotes(review.clinician_notes).excludedCount===0&&
+    hasIndependentBpsReviewNote(sanitizeBpsClinicianNotes(review.clinician_notes).notes)&&
     review.source_version===source.intake.version&&
     review.source_status===source.intake.status&&
     equalBpsTimestampInstants(review.source_updated_at,source.intake.updated_at));

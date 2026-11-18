@@ -159,8 +159,8 @@ test('rendered directory blocks visually spoofed patient-contact statements with
               status: 'submitted', updated_at: '2026-11-09T00:00:00Z',
               answers: {
                 full_name: 'Fictional Example',
-                address: '100 Fictional Street\\nPRIVATE_TRAUMA_DETAIL',
-                phone: '555-0100\\u202EPRIVATE_MEDICATION',
+                address: '100 Fictional Street\nPRIVATE_TRAUMA_DETAIL',
+                phone: '555-0100\u202EPRIVATE_MEDICATION',
                 email: ' patient@example.invalid ',
               },
             }},

@@ -248,6 +248,9 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
  async function save(event:FormEvent<HTMLFormElement>){
   event.preventDefault();if(reviewSaveInFlight.current||!data||data.patientId!==patientId||!reviewed||saving||!prepared||versionAlreadyReviewed||data.unmappedKeys.length>0||!hasIndependentBpsReviewNote(notes))return;
   reviewSaveInFlight.current=true;
+  // Preserve the exact independently entered clinician note text sent for attestation.
+  // An ID/metadata match must not certify a different note returned by chart history.
+  const submittedNotes={...notes};
   const generation=chartScope.current.generation;
   const stillOnChart=()=>chartScope.current.patientId===patientId&&chartScope.current.generation===generation;
   setSaving(true);setStatus('');
@@ -257,7 +260,7 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
   try{
    const result=await json(await fetch('/api/emr/bps-intake',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({patientId,sourceAccountId:data.source.accountId,sourceVersion:data.source.version,sourceStatus:data.source.status,
-     sourceUpdatedAt:data.source.updatedAt,sourceSubmittedAt:data.source.submittedAt??null,notes,reviewed:true})}));
+     sourceUpdatedAt:data.source.updatedAt,sourceSubmittedAt:data.source.submittedAt??null,notes:submittedNotes,reviewed:true})}));
    if(!stillOnChart())return;
    if(result?.saved!==true||typeof result.id!=='string'||
     !/^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(result.id))
@@ -297,10 +300,17 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
       // documented clinical review if the independently read history row has
       // blank, invisible-only, or malformed clinician notes.
       review.source_status===data.source.status&&documentedClinicianReview(review)&&
+      // Matching review ID and provenance alone do not prove that the clinician's
+      // submitted narrative survived persistence unchanged. Check every approved
+      // note domain, including intentionally blank domains; a new save cannot
+      // be certified if additional unknown/malformed stored notes were withheld.
+      (review.excluded_clinician_notes??0)===0&&
+      (Object.keys(bpsNoteDomains) as (keyof BpsNotes)[]).every(key=>
+       review.clinician_notes[key]===submittedNotes[key])&&
       equalBpsTimestampInstants(review.source_updated_at,data.source.updatedAt));
      if(verified)setStatus('Clinician-reviewed, unsigned BPS intake snapshot saved AND independently verified in the protected chart history. Patient statements remain patient-reported; no diagnosis, authorization, or signature was created.');
      else if(!sameSource)setStatus('BPS save was acknowledged, but the linked intake source changed during chart-history verification (account, questionnaire packet, source revision, status or timestamp). This source is NOT independently verified. Reopen the chart and reconcile the new intake before further review; do not resubmit the prior version.');
-     else setStatus('BPS save was acknowledged, but the exact saved review and source provenance were NOT verified in chart history. Reopen this chart and investigate before relying on the new review; do not submit it again.');
+     else setStatus('BPS save was acknowledged, but the exact saved review, clinician note text and source provenance were NOT verified in chart history. Reopen this chart and investigate before relying on the new review; do not submit it again.');
     }
    }catch(e){
     if(stillOnChart()){

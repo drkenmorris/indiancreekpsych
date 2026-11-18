@@ -71,8 +71,7 @@
       [
         "summary",
         "Summary Assessment",
-        "assessment",
-        "#field-clinical_summary"
+        "assessment"
       ]
     ],
     "plan": [

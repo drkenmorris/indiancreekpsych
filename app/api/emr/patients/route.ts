@@ -62,6 +62,18 @@ export async function GET(request:Request){
         questionnaire_packet_version:row.answers.legal_packet_version??null,
         answers:Object.fromEntries(Object.entries(row.answers)
           .filter(([key])=>directoryIntakeKeys.has(key)))};
+      // A chart can be archived or linked to another website account while the
+      // intake query is in flight. Recheck its identity, revision and live status
+      // immediately before disclosing the earlier account's clinical statements.
+      // Source validation alone does not protect against a concurrent chart relink.
+      const verified=await ctx.supabase.from('clinical_patients')
+        .select('id,account_id,revision,directory_deleted_at')
+        .eq('id',id).maybeSingle();
+      if(verified.error||!verified.data||verified.data.id!==id||
+         verified.data.account_id!==accountId||
+         verified.data.revision!==data[0].revision||
+         verified.data.directory_deleted_at!==null)
+        return directoryReply({error:'Central chart linkage or status changed during intake retrieval; reopen the chart.'},409);
     }
   }
   return directoryReply({patients:data,intake});

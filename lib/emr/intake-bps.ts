@@ -125,7 +125,7 @@ export const emptyBpsNotes=():BpsNotes=>Object.fromEntries(Object.keys(bpsNoteDo
 // entire note. Preserve the original text unchanged when real wording exists;
 // this predicate decides only whether an independent note was entered.
 // Keep this list aligned with the additive PostgreSQL review trigger.
-const invisibleOnlyBpsNoteCharacters=/[\u00ad\u034f\u061c\u180e\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff]/g;
+const invisibleOnlyBpsNoteCharacters=/[\u00ad\u034f\u061c\u180e\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufe00-\ufe0f\ufeff]/g;
 export const hasIndependentBpsReviewNote=(notes:Record<string,string>):boolean=>
  Object.keys(bpsNoteDomains).some(key=>typeof notes[key]==='string'&&
   notes[key].replace(invisibleOnlyBpsNoteCharacters,'').trim().length>0);

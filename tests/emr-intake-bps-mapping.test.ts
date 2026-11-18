@@ -314,7 +314,7 @@ test('free-text trauma narrative remains protected from BPS source rendering reg
 
 // Fictional text only. A format-only note must not satisfy a clinician attestation.
 test('invisible formatting alone does not constitute independent BPS clinician documentation',()=>{
- for(const text of ['\u200b','\u2060\u200e','\u202e\u2066\u2069','\u00ad\u034f\u061c\u180e','\ufeff\u200b \n\t'])
+ for(const text of ['\u200b','\u2060\u200e','\u202e\u2066\u2069','\u00ad\u034f\u061c\u180e','\ufeff\u200b \n\t','\ufe0f','\ufe00\ufe0e\ufe0f','\ufe0e\ufe0f \n'])
   expect(hasIndependentBpsReviewNote({presenting:text})).toBe(false);
  expect(hasIndependentBpsReviewNote({presenting:'\u200b \n\t',limitations:'Independent fictional follow-up: verify source.'})).toBe(true);
  expect(hasIndependentBpsReviewNote({presenting:'Patient\u200d-reported fictional context'})).toBe(true);

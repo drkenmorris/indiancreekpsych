@@ -124,8 +124,8 @@ export const emptyBpsNotes=():BpsNotes=>Object.fromEntries(Object.keys(bpsNoteDo
 // These formatting controls are not clinical documentation when they are the
 // entire note. Preserve the original text unchanged when real wording exists;
 // this predicate decides only whether an independent note was entered.
-// Keep this list aligned with the additive PostgreSQL review trigger.
-const invisibleOnlyBpsNoteCharacters=/[\u00ad\u034f\u061c\u180e\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufe00-\ufe0f\ufeff]/g;
+// Include supplementary variation selectors U+E0100–U+E01EF as well as BMP\n// marks; otherwise a formatting-only note could be falsely attested.\n// Keep this list aligned with the additive PostgreSQL review trigger.
+const invisibleOnlyBpsNoteCharacters=/[\u00ad\u034f\u061c\u180e\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufe00-\ufe0f\ufeff\u{E0100}-\u{E01EF}]/gu;
 export const hasIndependentBpsReviewNote=(notes:Record<string,string>):boolean=>
  Object.keys(bpsNoteDomains).some(key=>typeof notes[key]==='string'&&
   notes[key].replace(invisibleOnlyBpsNoteCharacters,'').trim().length>0);

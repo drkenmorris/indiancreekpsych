@@ -12,12 +12,22 @@ const patientId='00000000-0000-0000-0000-000000000401';
 const accountId='00000000-0000-0000-0000-000000000402';
 let account_id:string|null;
 let intakeAnswers:Record<string,string>;
+let returnedPatientId:string;
+let returnedIntakeAccountId:string;
+let returnedIntakeVersion:number;
+let returnedIntakeStatus:string;
+let returnedArchivedAt:string|null;
 const makeRequest=(id=patientId)=>new Request('https://www.indiancreekpsych.com/api/emr/patients?id='+id);
 
 beforeEach(()=>{
   vi.clearAllMocks();
   mocks.sameOrigin.mockReturnValue(true);
   account_id=accountId;
+  returnedPatientId=patientId;
+  returnedIntakeAccountId=accountId;
+  returnedIntakeVersion=1;
+  returnedIntakeStatus='submitted';
+  returnedArchivedAt=null;
   intakeAnswers={
     full_name:'Fictional Patient',email:'fictional@example.invalid',
     medication_entries:'[{"medication":"Example"}]',
@@ -35,7 +45,7 @@ beforeEach(()=>{
       const chain={
         select:()=>chain,order:()=>chain,limit:()=>chain,eq:()=>chain,is:()=>chain,
         then:(resolve:(result:unknown)=>unknown,reject?:(reason:unknown)=>unknown)=>Promise.resolve({
-          data:[{id:patientId,account_id,demographics:{first_name:'Fictional'},revision:3}],error:null,
+          data:[{id:returnedPatientId,account_id,directory_deleted_at:returnedArchivedAt,demographics:{first_name:'Fictional'},revision:3}],error:null,
         }).then(resolve,reject),
       };
       return chain;
@@ -44,7 +54,7 @@ beforeEach(()=>{
       const chain={
         select:()=>chain,
         eq:vi.fn((_key:string,_id:string)=>chain),
-        maybeSingle:async()=>({data:{status:'submitted',updated_at:'2026-11-09T00:00:00Z',answers:intakeAnswers},error:null}),
+        maybeSingle:async()=>({data:{patient_id:returnedIntakeAccountId,status:returnedIntakeStatus,version:returnedIntakeVersion,updated_at:'2026-11-09T00:00:00Z',answers:intakeAnswers},error:null}),
       };
       return chain;
     }
@@ -85,6 +95,52 @@ test('unlinked clinical patients cannot receive intake information by matching n
   expect(result.status).toBe(200);
   const json=await result.json();
   expect(json.intake).toBeNull();
+  expect(mocks.from).not.toHaveBeenCalledWith('patient_intakes');
+});
+
+test('directory refuses a different central chart even when a stale patient filter returns it',async()=>{
+  returnedPatientId='00000000-0000-0000-0000-000000000499';
+  const result=await GET(makeRequest());
+  expect(result.status).toBe(409);
+  expect(await result.json()).not.toHaveProperty('intake');
+  expect(mocks.from).not.toHaveBeenCalledWith('patient_intakes');
+});
+
+test('directory refuses archived chart data even when the active-chart filter is ignored',async()=>{
+  returnedArchivedAt='2026-11-09T05:00:00Z';
+  const result=await GET(makeRequest());
+  expect(result.status).toBe(409);
+  expect(mocks.from).not.toHaveBeenCalledWith('patient_intakes');
+});
+
+test('directory fails closed when linked intake query returns a different account',async()=>{
+  returnedIntakeAccountId='00000000-0000-0000-0000-000000000498';
+  const result=await GET(makeRequest());
+  expect(result.status).toBe(409);
+  const json=await result.json();
+  expect(json).not.toHaveProperty('intake');
+  expect(JSON.stringify(json)).not.toContain('Fictional reaction');
+  expect(mocks.from).toHaveBeenCalledWith('patient_intakes');
+});
+
+test.each([0,1.5,-1])('directory rejects invalid intake version %s without disclosing answers',async version=>{
+  returnedIntakeVersion=version;
+  const result=await GET(makeRequest());
+  expect(result.status).toBe(409);
+  expect(JSON.stringify(await result.json())).not.toContain('Fictional reaction');
+});
+
+test('directory rejects structured or otherwise malformed clinical answer values',async()=>{
+  intakeAnswers.medication_entries={raw:'PRIVATE FICTIONAL MEDICATION'} as unknown as string;
+  const result=await GET(makeRequest());
+  expect(result.status).toBe(409);
+  expect(JSON.stringify(await result.json())).not.toContain('PRIVATE FICTIONAL MEDICATION');
+});
+
+test('directory does not treat an invalid central account ID as a website intake link',async()=>{
+  account_id='not-a-uuid';
+  const result=await GET(makeRequest());
+  expect(result.status).toBe(409);
   expect(mocks.from).not.toHaveBeenCalledWith('patient_intakes');
 });
 

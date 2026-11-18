@@ -10,7 +10,7 @@ const planStepIndex=(value:string|null)=>steps.indexOf((value==='Objectives/Inte
 
 type Version={id:string;plan_id:string;revision:number;snapshot:PlanSnapshot;created_at:string};
 function BranchPicker({kind,parent,selected,nodes,onChange,step}:{step:number;kind:PlannerKind;parent:string|null;selected:Selection[];nodes:PlannerNode[];onChange:(v:Selection[])=>void}){
- const control=useId(),index=plannerKinds.indexOf(kind),limit=kind==='problem'?5:kind==='definition'?2:20;
+ const control=useId(),index=(plannerKinds as readonly PlannerKind[]).indexOf(kind),limit=kind==='problem'?5:kind==='definition'?2:20;
  const editable=index===step||(step===3&&index===4);
  const choices=childChoices(nodes,kind,parent).filter(n=>!selected.some(s=>s.id===n.id));
  return <div className="treatmentBranch">{editable&&<label htmlFor={control}>Add {patientPlannerLabels[kind]}{kind==='problem'?' (up to 5)':kind==='definition'?' (up to 2)':''}<select id={control} value="" disabled={selected.length>=limit||!choices.length} onChange={e=>{const node=choices.find(n=>n.id===e.target.value);if(node)onChange([...selected,{id:node.id,text:node.text,primary:kind==='problem'&&selected.length===0,agreed:false,children:[]}]);}}><option value="">{selected.length>=limit?'Selection limit reached':choices.length?'Choose an option':'No available choices for this parent'}</option>{choices.map(n=><option key={n.id} value={n.id}>{n.text}</option>)}</select></label>}

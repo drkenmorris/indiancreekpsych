@@ -21,3 +21,8 @@ it('opens earlier patient snapshots for editing with goal wording and objective 
  ]);
  expect(prior.children[0].children[0].children[0].id).toBe('o');
 });
+it('shared editor distinguishes planned and implemented interventions and links implemented wording to the selected planned parent',async()=>{
+ let posted:any;vi.stubGlobal('fetch',vi.fn(async(_url,options)=>options?.method?{ok:true,json:async()=>{posted=JSON.parse(options.body);return {revision:2};}}:{ok:true,json:async()=>({nodes,revision:1})}));render(<TreatmentLibrary/>);await screen.findByText(/Library loaded/);
+ fireEvent.change(screen.getByLabelText('Problem / Diagnosis'),{target:{value:'p'}});fireEvent.change(screen.getByLabelText('Objective'),{target:{value:'o'}});fireEvent.change(screen.getByLabelText('Planned Intervention'),{target:{value:'i'}});expect((screen.getByLabelText('Level to add') as HTMLSelectElement).value).toBe('implemented_intervention');
+ fireEvent.change(screen.getByLabelText('New choices — one per line'),{target:{value:'Fictional implemented skill practice'}});fireEvent.click(screen.getByText('Add choices to library draft'));fireEvent.click(screen.getByText('Save shared library'));await screen.findByText(/saved as revision 2/);expect(posted.nodes.at(-1)).toMatchObject({kind:'implemented_intervention',parent:'i',text:'Fictional implemented skill practice'});
+});

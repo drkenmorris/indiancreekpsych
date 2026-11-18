@@ -550,3 +550,32 @@ test('matching legal-directory questionnaire and section layout remain available
  await screen.findByText(/Sections audited:/);
  expect(screen.getByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeTruthy();
 });
+
+test('clinician refuses a nominal 21/21 source packet that omits an unanswered original question',async()=>{
+ const patient='00000000-0000-4000-8000-000000000951';
+ const account='00000000-0000-4000-8000-000000000952';
+ const version='2026-11-02-directory-1';
+ const sections=mapIntakeToBps({legal_packet_version:version,
+  counseling_reason:'FICTIONAL_REPORTED_CONCERN_MUST_BE_WITHHELD'}).sections;
+ const section=sections.find(item=>item.fields.length>1&&
+  item.fields.some(field=>field.reported===false))!;
+ expect(section).toBeDefined();
+ const missing=section.fields.findIndex(field=>field.reported===false);
+ section.fields.splice(missing,1);
+ let writes=0;
+ vi.stubGlobal('fetch',vi.fn(async(_url:string,init?:RequestInit)=>{
+  if(init?.method==='POST')writes++;
+  return Response.json({patientId:patient,source:{
+   accountId:account,status:'submitted',version:7,
+   updatedAt:'2026-11-12T12:00:00Z',submittedAt:'2026-11-12T12:00:00Z',
+   questionnairePacketVersion:version
+  },sections,unmappedKeys:[],reviews:[]});
+ }));
+ render(<PatientBpsIntakeReview patientId={patient}/>);
+ const alert=await screen.findByRole('alert');
+ expect(alert.textContent).toContain('question inventory does not match');
+ expect(document.body.textContent).not.toContain('FICTIONAL_REPORTED_CONCERN_MUST_BE_WITHHELD');
+ expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
+ expect(screen.queryByRole('button',{name:/Save reviewed BPS history snapshot/i})).toBeNull();
+ expect(writes).toBe(0);
+});

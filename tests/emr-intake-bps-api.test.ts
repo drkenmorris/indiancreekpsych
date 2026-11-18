@@ -47,6 +47,7 @@ test('blank or whitespace-only clinician notes cannot falsely attest a completed
  expect(observed.status).toBe(201);
  expect(m.rpc).toHaveBeenCalledTimes(1);
  expect(m.rpc.mock.calls[0][1].p_payload.clinician_notes.limitations).toBe('Reviewed context; requires fictional follow-up.');
+ expect(m.rpc.mock.calls[0][1].p_payload.source_submitted_at).toBe(stamp);
 });
 
 test('existing MFA and same-origin gates prevent unauthorized BPS source and saves',async()=>{

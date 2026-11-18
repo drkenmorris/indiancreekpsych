@@ -34,11 +34,12 @@ for(const migration of [
  '20261115071500_emr_bps_draft_attestation_boundary.sql',
  '20261117181000_require_documented_bps_review.sql',
  '20261117185800_bps_review_visible_note_guard.sql',
- '20261118120500_bps_review_variation_selector_guard.sql'
+ '20261118120500_bps_review_variation_selector_guard.sql',
+ '20261118184500_bps_atomic_submission_receipt.sql'
 ])await db.exec(readFileSync('supabase/migrations/'+migration,'utf8'));
 const q=(s,args=[])=>db.query(s,args);
 const as=async(id,aal='aal2')=>{await db.exec('reset role');await q("select set_config('request.user',$1,false),set_config('request.aal',$2,false)",[id,aal]);await db.exec('set role authenticated');};
-const payload={patient_id:patient,source_account_id:account,source_version:1,source_status:'submitted',source_updated_at:stamp,
+const payload={patient_id:patient,source_account_id:account,source_version:1,source_status:'submitted',source_updated_at:stamp,source_submitted_at:stamp,
  reviewed:true,clinician_notes:{presenting:'Clinician reviewed patient account; not a diagnosis.'}};
 await test('contradictory draft patient submission receipt cannot create an attested clinician review',async()=>{
  // Protect this boundary in the database as well as the HTTP API: even a
@@ -53,6 +54,17 @@ await test('contradictory draft patient submission receipt cannot create an atte
  assert.equal((await q('select count(*)::integer n from public.emr_bps_intake_reviews')).rows[0].n,0);
  await db.exec('reset role');
  await q("update public.patient_intakes set status='submitted' where patient_id=$1",[account]);
+});
+await test('direct authorized BPS RPC atomically validates exact submission receipt',async()=>{
+ await db.exec('reset role');
+ await q("update public.patient_intakes set submitted_at=$1 where patient_id=$2",['2026-11-10T09:00:05Z',account]);
+ await as(admin);
+ await assert.rejects(q('select public.save_emr_bps_intake_review($1)',[payload]),/Patient submission receipt changed/);
+ await assert.rejects(q('select public.save_emr_bps_intake_review($1)',[{...payload,source_submitted_at:null}]),/Patient submission receipt changed/);
+ await assert.rejects(q('select public.save_emr_bps_intake_review($1)',[{...payload,source_submitted_at:'not-a-timestamp'}]),/Invalid BPS patient or intake provenance/);
+ await db.exec('reset role');
+ await q("update public.patient_intakes set submitted_at=$1 where patient_id=$2",[stamp,account]);
+ assert.equal((await q('select count(*)::integer n from public.emr_bps_intake_reviews')).rows[0].n,0);
 });
 await test('direct authorized BPS RPC cannot create checkbox-only, whitespace-only review history',async()=>{
  await as(admin);

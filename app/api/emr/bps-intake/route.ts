@@ -302,7 +302,7 @@ export async function POST(request:Request){
    return reply({error:'Linked intake includes unrecognized reported fields; reconcile the protected original intake before clinician BPS review.'},409);
   const {data,error}=await ctx.supabase.rpc('save_emr_bps_intake_review',{p_payload:{
    patient_id:body.patientId,source_account_id:body.sourceAccountId,source_version:body.sourceVersion,source_status:body.sourceStatus,
-   source_updated_at:body.sourceUpdatedAt,reviewed:true,clinician_notes:notes
+   source_updated_at:body.sourceUpdatedAt,source_submitted_at:body.sourceSubmittedAt,reviewed:true,clinician_notes:notes
   }});
   if(error)return reply({error:error.code==='42501'?'BPS review authorization denied.':
    error.code==='23505'?'This intake version was already reviewed; refresh the chart.':

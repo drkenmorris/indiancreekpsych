@@ -40,7 +40,11 @@ for(const migration of [
 const q=(s,args=[])=>db.query(s,args);
 const as=async(id,aal='aal2')=>{await db.exec('reset role');await q("select set_config('request.user',$1,false),set_config('request.aal',$2,false)",[id,aal]);await db.exec('set role authenticated');};
 const payload={patient_id:patient,source_account_id:account,source_version:1,source_status:'submitted',source_updated_at:stamp,source_submitted_at:stamp,
- reviewed:true,clinician_notes:{presenting:'Clinician reviewed patient account; not a diagnosis.'}};
+ reviewed:true,source_answers:{
+ counseling_reason:'Patient-reported sadness',suicidal_thoughts_current:'Yes',
+ medication_entries:'structured original',roi_authorize:'Yes',
+ treatment_signature:'Patient Signature',insurance_member:'protected identifier'
+},clinician_notes:{presenting:'Clinician reviewed patient account; not a diagnosis.'}};
 await test('contradictory draft patient submission receipt cannot create an attested clinician review',async()=>{
  // Protect this boundary in the database as well as the HTTP API: even a
  // legitimate MFA administrator must not save contradictory patient provenance.
@@ -65,6 +69,28 @@ await test('direct authorized BPS RPC atomically validates exact submission rece
  await db.exec('reset role');
  await q("update public.patient_intakes set submitted_at=$1 where patient_id=$2",[stamp,account]);
  assert.equal((await q('select count(*)::integer n from public.emr_bps_intake_reviews')).rows[0].n,0);
+});
+await test('atomic review refuses changed patient answers even when receipt and version are unchanged',async()=>{
+ await db.exec('reset role');
+ // Simulates an out-of-band source edit that failed to advance version or time.
+ // It must never be silently treated as the patient source the clinician reviewed.
+ await q("update public.patient_intakes set answers=jsonb_set(answers,'{counseling_reason}',to_jsonb('Altered fictional report'::text)) where patient_id=$1",[account]);
+ await as(admin);
+ await assert.rejects(
+  q('select public.save_emr_bps_intake_review($1)',[payload]),
+  /Patient answers changed during clinical review/
+ );
+ await assert.rejects(
+  q('select public.save_emr_bps_intake_review($1)',[{...payload,source_answers:null}]),
+  /Patient answers changed during clinical review/
+ );
+ await assert.rejects(
+  q('select public.save_emr_bps_intake_review($1)',[{...payload,source_answers:{}}]),
+  /Patient answers changed during clinical review/
+ );
+ assert.equal((await q('select count(*)::integer n from public.emr_bps_intake_reviews')).rows[0].n,0);
+ await db.exec('reset role');
+ await q("update public.patient_intakes set answers=jsonb_set(answers,'{counseling_reason}',to_jsonb('Patient-reported sadness'::text)) where patient_id=$1",[account]);
 });
 await test('direct authorized BPS RPC cannot create checkbox-only, whitespace-only review history',async()=>{
  await as(admin);
@@ -131,7 +157,11 @@ await test('relinking a central chart to a different account preserves original 
  await q('update public.clinical_patients set account_id=$1 where id=$2',[newlyLinked,patient]);
  await as(admin);
  await assert.rejects(q('select public.save_emr_bps_intake_review($1)',[payload]),/account link changed/);
- const currentPayload={...payload,source_account_id:newlyLinked};
+ const currentPayload={...payload,source_account_id:newlyLinked,source_answers:{
+  counseling_reason:'New linked account patient report',
+  suicidal_thoughts_current:'No response',
+  roi_authorize:'Protected new legal decision'
+ }};
  const saved=await q('select public.save_emr_bps_intake_review($1) id',[currentPayload]);
  assert.ok(saved.rows[0].id);
  const snapshots=(await q('select source_account_id,source_version,clinical_answers from public.emr_bps_intake_reviews where patient_id=$1',[patient])).rows;

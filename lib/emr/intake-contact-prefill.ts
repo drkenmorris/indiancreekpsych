@@ -31,3 +31,26 @@ export function intakeContactPrefill(
   }
   return {draft: next, fields};
 }
+
+
+/** The general patient directory may show contact source statements only.
+ * Clinical, medication, allergy, trauma, legal, insurance and future intake
+ * fields require their own separately bounded review surfaces. Fail closed on
+ * unknown or malformed keys rather than displaying a raw intake answer map.
+ */
+const directoryContactDisplayKeys = new Set([
+  'full_name', 'preferred_name', 'date_of_birth', 'address', 'address2',
+  'city', 'state', 'postal_code', 'phone', 'email',
+]);
+
+export function visibleIntakeContactEntries(
+  source: Readonly<Record<string, unknown>> | null | undefined,
+): Array<[string, string]> {
+  if (!source) return [];
+  return Object.entries(source).filter(
+    (entry): entry is [string, string] =>
+      directoryContactDisplayKeys.has(entry[0]) &&
+      typeof entry[1] === 'string' &&
+      entry[1].trim().length > 0,
+  );
+}

@@ -60,7 +60,8 @@ test('original central chart exposes matching destinations even when patient rep
  expect(source).toContain('No linked structured trauma checklist is available');
  expect(source).toContain('No linked structured counseling/psychiatric treatment history is available');
  expect(source).toContain('value={intake.answers[TREATMENT_HISTORY_KEY]} readOnly');
- expect(source).toContain("'medication_allergy_notes','treatment_history_entries'");
+ expect(source).toContain('visibleIntakeContactEntries(intake.answers)');
+ expect(source).toContain('Unverified patient-reported contact details');
  const entry=readFileSync('app/emr/patients/page.tsx','utf8');
  expect(entry).toContain("'emr-intake-treatment-history-review'");
 });

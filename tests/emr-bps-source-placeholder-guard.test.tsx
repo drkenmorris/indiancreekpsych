@@ -74,3 +74,16 @@ test.each([
  expect(screen.queryByRole('button',{name:/Save reviewed BPS history snapshot/i})).toBeNull();
  expect(countWrites()).toBe(0);
 });
+
+test('unmapped fictional reported fields remain an investigation warning and never enable clinician BPS attestation',async()=>{
+ const source=fixture();
+ source.unmappedKeys=['[unrecognized source field name withheld]'];
+ const countWrites=serve(source);
+ render(<PatientBpsIntakeReview patientId={patient}/>);
+ await screen.findByText(/Version 3/);
+ expect(screen.getByText(/Clinician BPS attestation is blocked/)).toBeTruthy();
+ expect(screen.getByText(/additional historical or unrecognized field/)).toBeTruthy();
+ expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
+ expect(screen.queryByRole('button',{name:/Save reviewed BPS history snapshot/i})).toBeNull();
+ expect(countWrites()).toBe(0);
+});

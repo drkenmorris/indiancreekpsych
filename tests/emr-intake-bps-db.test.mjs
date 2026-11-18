@@ -57,7 +57,7 @@ await test('direct authorized BPS RPC cannot create checkbox-only, whitespace-on
  await as(admin);
  for(const notes of [{},{presenting:'   '},{presenting:'\n\t',goals:''},
   {presenting:'\u200B\u2060\u200E'},{goals:'\u202E\u2066\u2069'},
-  {limitations:' \u00AD\u034F\u061C\u180E\uFEFF\n'}]){
+  {limitations:' \u00AD\u034F\u061C\u180E\uFEFF\n'},{presenting:'\uFE0F'},{goals:'\uFE00\uFE0E\uFE0F'},{limitations:'\uFE0E\uFE0F \n'}]){
   await assert.rejects(
    q('select public.save_emr_bps_intake_review($1)',[{...payload,clinician_notes:notes}]),
    /Document an independent clinician observation or follow-up need/

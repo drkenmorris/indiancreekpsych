@@ -23,6 +23,10 @@ let verifiedPatientId:string;
 let verifiedAccountId:string|null;
 let verifiedArchivedAt:string|null;
 let verifiedRevision:number;
+let intakeReads:number;
+let rereadIntake:Record<string,unknown>|null;
+let rereadMissing:boolean;
+let rereadError:boolean;
 const makeRequest=(id=patientId)=>new Request('https://www.indiancreekpsych.com/api/emr/patients?id='+id);
 
 beforeEach(()=>{
@@ -40,6 +44,10 @@ beforeEach(()=>{
   verifiedAccountId=accountId;
   verifiedArchivedAt=null;
   verifiedRevision=3;
+  intakeReads=0;
+  rereadIntake=null;
+  rereadMissing=false;
+  rereadError=false;
   intakeAnswers={
     legal_packet_version:'2026-11-02-directory-1',
     full_name:'Fictional Patient',email:'fictional@example.invalid',
@@ -71,7 +79,18 @@ beforeEach(()=>{
       const chain={
         select:()=>chain,
         eq:vi.fn((_key:string,_id:string)=>chain),
-        maybeSingle:async()=>({data:{patient_id:returnedIntakeAccountId,status:returnedIntakeStatus,version:returnedIntakeVersion,updated_at:returnedIntakeUpdatedAt,submitted_at:returnedIntakeSubmittedAt,answers:intakeAnswers},error:null}),
+        maybeSingle:async()=>{
+          intakeReads+=1;
+          return {
+            data:intakeReads===2&&rereadMissing?null:{
+              patient_id:returnedIntakeAccountId,status:returnedIntakeStatus,
+              version:returnedIntakeVersion,updated_at:returnedIntakeUpdatedAt,
+              submitted_at:returnedIntakeSubmittedAt,answers:{...intakeAnswers},
+              ...(intakeReads===2?rereadIntake??{}:{}),
+            },
+            error:intakeReads===2&&rereadError?{message:'Readback unavailable'}:null,
+          };
+        },
       };
       return chain;
     }
@@ -107,6 +126,40 @@ test('medical sources are limited to allowlisted fields of the explicitly linked
   expect(json.intake.answers).not.toHaveProperty('roi_signature');
   expect(json.intake.answers).not.toHaveProperty('private_clinician_note');
   expect(mocks.from).toHaveBeenCalledWith('patient_intakes');
+  expect(intakeReads).toBe(2);
+});
+
+test.each([
+  ['version', {version:2}],
+  ['status', {status:'draft'}],
+  ['submission receipt', {submitted_at:'2026-11-09T00:00:01Z'}],
+  ['source account', {patient_id:'00000000-0000-0000-0000-000000000498'}],
+])('directory rejects a concurrent intake %s change before releasing clinical answers',async(_label,changed)=>{
+  rereadIntake=changed;
+  const response=await GET(makeRequest());
+  expect(response.status).toBe(409);
+  expect(JSON.stringify(await response.json())).not.toContain('Fictional reaction');
+  expect(intakeReads).toBe(2);
+});
+
+test('directory refuses same-version out-of-band changes to hidden or visible patient answers',async()=>{
+  rereadIntake={answers:{...intakeAnswers,roi_signature:'Changed private signature'}};
+  let response=await GET(makeRequest());
+  expect(response.status).toBe(409);
+  expect(JSON.stringify(await response.json())).not.toContain('Fictional reaction');
+
+  intakeReads=0;
+  rereadIntake={answers:{...intakeAnswers,medication_allergy_notes:'Changed clinical reaction'}};
+  response=await GET(makeRequest());
+  expect(response.status).toBe(409);
+  expect(JSON.stringify(await response.json())).not.toContain('Changed clinical reaction');
+});
+
+test.each(['missing','error'] as const)('directory refuses %s intake source during final receipt check',async kind=>{
+  rereadMissing=kind==='missing';rereadError=kind==='error';
+  const response=await GET(makeRequest());
+  expect(response.status).toBe(409);
+  expect(JSON.stringify(await response.json())).not.toContain('Fictional reaction');
 });
 
 test('directory withholds fetched intake if its chart was relinked during the source read',async()=>{

@@ -33,7 +33,8 @@ for(const migration of [
  '20261114121500_emr_bps_review_after_patient_submission.sql',
  '20261115071500_emr_bps_draft_attestation_boundary.sql',
  '20261117181000_require_documented_bps_review.sql',
- '20261117185800_bps_review_visible_note_guard.sql'
+ '20261117185800_bps_review_visible_note_guard.sql',
+ '20261118120500_bps_review_variation_selector_guard.sql'
 ])await db.exec(readFileSync('supabase/migrations/'+migration,'utf8'));
 const q=(s,args=[])=>db.query(s,args);
 const as=async(id,aal='aal2')=>{await db.exec('reset role');await q("select set_config('request.user',$1,false),set_config('request.aal',$2,false)",[id,aal]);await db.exec('set role authenticated');};

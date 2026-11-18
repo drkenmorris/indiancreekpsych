@@ -963,3 +963,33 @@ test('BPS history accepts the same source answers in a different object-key orde
  expect(response.status).toBe(200);
  expect((await response.json()).patientId).toBe(patient);
 });
+
+test('clinician BPS save rechecks the live linked source and blocks unmapped reported intake before the privileged RPC',async()=>{
+ const confidential='PRIVATE_FICTIONAL_UNRECOGNIZED_SOURCE';
+ data={...data,unmapped_patient_report:confidential};
+ const unmapped=await POST(submit(payload));
+ expect(unmapped.status).toBe(409);
+ expect(JSON.stringify(await unmapped.json())).not.toContain(confidential);
+ expect(m.rpc).not.toHaveBeenCalled();
+
+ delete data.unmapped_patient_report;
+ linked='00000000-0000-4000-8000-000000000999';
+ const relinked=await POST(submit(payload));
+ expect(relinked.status).toBe(409);
+ expect(m.rpc).not.toHaveBeenCalled();
+
+ linked=account;version=3;
+ const revised=await POST(submit(payload));
+ expect(revised.status).toBe(409);
+ expect(m.rpc).not.toHaveBeenCalled();
+
+ version=2;intakeUpdatedAt='2026-11-10T09:00:01Z';intakeSubmittedAt=intakeUpdatedAt;
+ const edited=await POST(submit(payload));
+ expect(edited.status).toBe(409);
+ expect(m.rpc).not.toHaveBeenCalled();
+
+ intakeUpdatedAt=stamp;intakeSubmittedAt=stamp;
+ const accepted=await POST(submit(payload));
+ expect(accepted.status).toBe(201);
+ expect(m.rpc).toHaveBeenCalledTimes(1);
+});

@@ -1,6 +1,6 @@
 import {expect,test} from 'vitest';
 import {intakeSections,intakeSectionsForVersion,retiredMentalHealthFields,retiredContextFields} from '@/lib/patient/intake';
-import {bpsNoteDomains,hasIndependentBpsReviewNote,bpsSectionClassification,mapIntakeToBps,mapSavedBpsReportedFields,sanitizeBpsSnapshotAnswers,bpsSnapshotClinicalKeys,bpsVisibleSourceKeys,distinctBpsQuestionIdentities,approvedBpsQuestionSection,equalBpsTimestampInstants,validBpsSubmissionChronology,validBpsHistoricalSourceBoundary} from '@/lib/emr/intake-bps';
+import {bpsNoteDomains,hasIndependentBpsReviewNote,bpsSectionClassification,mapIntakeToBps,mapSavedBpsReportedFields,sanitizeBpsSnapshotAnswers,bpsSnapshotClinicalKeys,bpsVisibleSourceKeys,distinctBpsQuestionIdentities,validBpsQuestionnaireTopology,approvedBpsQuestionSection,equalBpsTimestampInstants,validBpsSubmissionChronology,validBpsHistoricalSourceBoundary} from '@/lib/emr/intake-bps';
 test('versioned BPS questions cannot be reassigned to an unrelated known section',()=>{
  expect(approvedBpsQuestionSection('Presenting concerns and functional impact','counseling_reason')).toBe(true);
  expect(approvedBpsQuestionSection('Safety and risk screening','counseling_reason')).toBe(false);
@@ -318,4 +318,41 @@ test('invisible formatting alone does not constitute independent BPS clinician d
   expect(hasIndependentBpsReviewNote({presenting:text})).toBe(false);
  expect(hasIndependentBpsReviewNote({presenting:'\u200b \n\t',limitations:'Independent fictional follow-up: verify source.'})).toBe(true);
  expect(hasIndependentBpsReviewNote({presenting:'Patient\u200d-reported fictional context'})).toBe(true);
+});
+
+test('complete 21-section source inventory is verified for both approved layouts and eligible retired patient reports',()=>{
+ for(const version of ['2026-10-11','2026-11-02-directory-1']){
+  const mapped=mapIntakeToBps({legal_packet_version:version,counseling_reason:'FICTIONAL_SOURCE'});
+  expect(validBpsQuestionnaireTopology(mapped.sections,version)).toBe(true);
+ }
+ const historical=mapIntakeToBps({
+  legal_packet_version:'2026-10-11',
+  prior_psychiatric_medications:'FICTIONAL_LEGACY_SOURCE'
+ });
+ expect(validBpsQuestionnaireTopology(historical.sections,'2026-10-11')).toBe(true);
+});
+
+test.each([
+ 'missing unanswered question',
+ 'changed question label',
+ 'changed question type',
+ 'reordered questions',
+ 'unrecognized historical extra',
+ 'reordered sections'
+])('21 section headings cannot conceal a %s before clinician attestation',variant=>{
+ const version='2026-11-02-directory-1';
+ const sections=mapIntakeToBps({legal_packet_version:version}).sections;
+ const section=sections.find(item=>item.fields.length>1)!;
+ expect(section).toBeDefined();
+ if(variant==='missing unanswered question')section.fields.pop();
+ if(variant==='changed question label')section.fields[0].label='Forged patient source question';
+ if(variant==='changed question type')section.fields[0].type='text-forged';
+ if(variant==='reordered questions')[section.fields[0],section.fields[1]]=[section.fields[1],section.fields[0]];
+ if(variant==='unrecognized historical extra')section.fields.push({
+  key:'fabricated_patient_question',label:'Historical patient report — Fabricated',
+  type:'historical-patient-report',value:'FICTIONAL_FORGED',sourceOnly:false,reported:true
+ });
+ if(variant==='reordered sections')[sections[0],sections[1]]=[sections[1],sections[0]];
+ expect(sections).toHaveLength(21);
+ expect(validBpsQuestionnaireTopology(sections,version)).toBe(false);
 });

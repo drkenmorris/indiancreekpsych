@@ -324,6 +324,16 @@ test('original BPS reviewed badge rejects altered, omitted and protected history
  const url=new Request(request().url+'&summary=1');
  reviewRows=[baseline];
  expect((await (await GET(url)).json()).currentVersionReviewed).toBe(true);
+ // A source answer can be appended out of band while version, status and edit
+ // receipt remain unchanged. Unknown reported information must not be omitted
+ // from the seven original BPS pages' independently reviewed badge.
+ data.unrecognized_patient_report='PRIVATE_FICTIONAL_UNMAPPED_CLINICAL_REPORT';
+ const unknownReport=await GET(url);
+ expect(unknownReport.status).toBe(200);
+ expect((await unknownReport.json()).currentVersionReviewed).toBe(false);
+ expect(JSON.stringify(await (await GET(url)).json())).not.toContain('PRIVATE_FICTIONAL_UNMAPPED_CLINICAL_REPORT');
+ delete data.unrecognized_patient_report;
+ expect((await (await GET(url)).json()).currentVersionReviewed).toBe(true);
  for(const clinical_answers of [
   {counseling_reason:'Reports sadness'},
   {counseling_reason:'Changed without source version',suicidal_thoughts_current:'Yes'},

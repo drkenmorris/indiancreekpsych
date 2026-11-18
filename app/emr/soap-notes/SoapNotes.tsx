@@ -41,11 +41,23 @@ export default function SoapNotes({patientId}:{patientId:string}){
  async function save(event:FormEvent<HTMLFormElement>){
   event.preventDefault();if(saving||loading)return;
   if(!date||!Number.isFinite(new Date(date).getTime())||!reviewed||Object.values(sections).some(value=>value.trim().length<2||value.length>4000)){setMessage('Complete the encounter date/time, add quick entries or narrative to each SOAP section (2–4000 characters), and review the note before saving.');return;}
-  const request=generation.current;setSaving(true);setMessage('Saving SOAP note…');
+  const request=generation.current;
+  // Verify the exact unsigned clinical content that the clinician reviewed.
+  // An ID-only readback can acknowledge another version or a changed note.
+  const submittedSections=Object.fromEntries(Object.entries(sections).map(([key,value])=>[key,value.trim()]));
+  const submittedEncounterAt=new Date(date).toISOString();
+  const submittedEncounterType=encounterType;
+  setSaving(true);setMessage('Saving SOAP note…');
   try{
-   const response=await fetch('/api/emr/progress-notes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'note',patient_id:patientId,encounter_at:new Date(date).toISOString(),encounter_type:encounterType,template:'SOAP',sections:Object.fromEntries(Object.entries(sections).map(([key,value])=>[key,value.trim()])),reviewed:true})});const result=await response.json();if(generation.current!==request)return;
+   const response=await fetch('/api/emr/progress-notes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'note',patient_id:patientId,encounter_at:submittedEncounterAt,encounter_type:submittedEncounterType,template:'SOAP',sections:submittedSections,reviewed:true})});const result=await response.json();if(generation.current!==request)return;
    if(!response.ok||result.saved!==true||result.unsigned!==true)throw Error(result.error||'Save was not confirmed.');
-   const current=await read();if(generation.current!==request)return;if(!current.some(note=>note.id===result.id))throw Error('The save was acknowledged but could not be confirmed in the chart. Check saved notes before retrying.');
+   const current=await read();if(generation.current!==request)return;
+   const saved=current.find(note=>note.id===result.id);
+   if(!saved||saved.encounter_type!==submittedEncounterType||
+    new Date(saved.encounter_at).getTime()!==new Date(submittedEncounterAt).getTime()||
+    !saved.sections||typeof saved.sections!=='object'||Array.isArray(saved.sections)||
+    Object.keys(submittedSections).some(key=>saved.sections[key]!==submittedSections[key]))
+    throw Error('The save was acknowledged but the independently read chart history did not match the reviewed SOAP note. Preserve this draft and inspect saved notes before retrying.');
    setNotes(current);setNarrative(blank());setQuick(blankSoapQuick());setOpenNarrative({});setReviewed(false);setDirty(false);setMessage('SOAP note saved unsigned in this patient’s clinical record.');
   }catch(e){if(generation.current===request)setMessage(e instanceof Error?e.message:'SOAP note could not be saved.');}
   finally{if(generation.current===request)setSaving(false);}

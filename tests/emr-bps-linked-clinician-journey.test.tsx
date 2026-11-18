@@ -23,7 +23,7 @@ test.each([['lowercase',false],['uppercase',true]])('fictional 21-section linked
  const otherAccount='00000000-0000-4000-8000-000000000904';
  const reviewId='00000000-0000-4000-8000-000000000905';
  const stamp='2026-11-12T12:00:00Z';
- const sourceAnswers:Record<string,string>={};
+ const sourceAnswers:Record<string,string>={legal_packet_version:'2026-11-02-directory-1'};
  for(const section of intakeSections)for(const [key] of section.fields){
   if(key!=='legal_packet_version')sourceAnswers[key]='FICTIONAL_'+key;
  }

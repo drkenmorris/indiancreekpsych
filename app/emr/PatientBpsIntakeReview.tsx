@@ -121,10 +121,16 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
      // attributed protected medication, trauma, medical or legal responses
      // must carry an explicit source-only marker. Withhold the whole packet
      // rather than permitting an attestation of contradictory PHI routing.
-     if(field.reported===true&&
-      (section.disposition!=='clinical'||protectedSourceTypes.has(field.type??'')||
-       field.key==='prior_psychiatric_medications'||field.key==='legal_history')&&
-      field.sourceOnly!==true)return false;
+     // A sourceOnly marker does not authorize the API to send raw protected
+     // PHI in the field value. Require the exact opaque placeholder produced
+     // by the server for all withheld reports, even if a stale adapter retains
+     // a correct disposition or type tag. Unknown/new keys remain withheld.
+     const mustRemainProtected=section.disposition!=='clinical'||
+      protectedSourceTypes.has(field.type??'')||!bpsVisibleSourceKeys.has(field.key);
+     if(field.sourceOnly===true&&
+      (field.reported!==true||
+       field.value!=='Recorded in protected source; not copied into BPS.'))return false;
+     if(field.reported===true&&mustRemainProtected&&field.sourceOnly!==true)return false;
      // Labels are patient-source attribution, never clinician-authored findings.
      // Reject visual line breaks, bidirectional controls and oversized labels
      // rather than rendering forged clinical headings from a malformed source.

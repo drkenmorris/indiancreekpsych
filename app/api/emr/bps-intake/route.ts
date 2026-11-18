@@ -226,7 +226,10 @@ export async function GET(request:Request){
   // summary passes through all the same chart/link/history stability checks
   // above but returns only source provenance and current-revision review state.
   if(new URL(request.url).searchParams.get('summary')==='1'){
-   const currentVersionReviewed=reviews.some(review=>
+   // A source with new/unrecognized patient-reported information cannot be
+    // certified as completely reviewed merely because the known clinical fields
+    // match an earlier snapshot. The summary must fail closed just like POST.
+    const currentVersionReviewed=report.unmappedKeys.length===0&&reviews.some(review=>
     // A historical checkbox-only row is not an independently documented review.
     // Match the full clinician review's note allowlist and substantive-text gate
     // so all seven original BPS pages cannot display a false reviewed status.

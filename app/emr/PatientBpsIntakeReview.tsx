@@ -257,7 +257,7 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
   try{
    const result=await json(await fetch('/api/emr/bps-intake',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({patientId,sourceAccountId:data.source.accountId,sourceVersion:data.source.version,sourceStatus:data.source.status,
-     sourceUpdatedAt:data.source.updatedAt,notes,reviewed:true})}));
+     sourceUpdatedAt:data.source.updatedAt,sourceSubmittedAt:data.source.submittedAt??null,notes,reviewed:true})}));
    if(!stillOnChart())return;
    if(result?.saved!==true||typeof result.id!=='string'||
     !/^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(result.id))

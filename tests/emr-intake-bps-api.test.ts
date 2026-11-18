@@ -7,7 +7,7 @@ const stamp='2026-11-10T09:00:00Z';
 const request=()=>new Request('https://www.indiancreekpsych.com/api/emr/bps-intake?patient='+patient);
 const submit=(details:Record<string,unknown>)=>new Request('https://www.indiancreekpsych.com/api/emr/bps-intake',{method:'POST',headers:{Origin:'https://www.indiancreekpsych.com'},
  body:JSON.stringify(details)});
-const payload={patientId:patient,sourceAccountId:account,sourceVersion:2,sourceStatus:'submitted',sourceUpdatedAt:stamp,reviewed:true,notes:{presenting:'Reported changes'}};
+const payload={patientId:patient,sourceAccountId:account,sourceVersion:2,sourceStatus:'submitted',sourceUpdatedAt:stamp,sourceSubmittedAt:stamp,reviewed:true,notes:{presenting:'Reported changes'}};
 let linked:string|null;
 let directoryDeletedAt:string|null;
 let returnedPatientId:string;
@@ -321,6 +321,35 @@ test('save accepts only explicit reviewed provenance and clinician notes, never 
   patient_id:patient,source_account_id:account,source_version:2,source_status:'submitted',source_updated_at:stamp,
   reviewed:true,clinician_notes:{presenting:'Reported changes',treatment:'',medical:'',safety:'',family:'',goals:'',limitations:''}}});
 });
+
+test('BPS clinical save requires the exact patient submission receipt, including draft null and equivalent timezones',async()=>{
+ for(const receipt of [undefined,null,'not-a-timestamp','2026-02-30T09:00:00Z']){
+  const response=await POST(submit({...payload,sourceSubmittedAt:receipt}));
+  expect(response.status).toBe(400);
+  expect(response.headers.get('Cache-Control')).toContain('no-store');
+ }
+ expect(m.rpc).not.toHaveBeenCalled();
+ // Submitted-at changes can occur without a source-version or updated-at change.
+ intakeSubmittedAt='2026-11-10T09:05:00Z';
+ const altered=await POST(submit(payload));
+ expect(altered.status).toBe(409);
+ expect(m.rpc).not.toHaveBeenCalled();
+ expect(JSON.stringify(await altered.json())).not.toContain('Reported changes');
+ intakeSubmittedAt=stamp;
+ const mismatched=await POST(submit({...payload,sourceSubmittedAt:'2026-11-10T09:00:01Z'}));
+ expect(mismatched.status).toBe(409);
+ expect(m.rpc).not.toHaveBeenCalled();
+ const equivalent=await POST(submit({...payload,sourceSubmittedAt:'2026-11-10T03:00:00-06:00'}));
+ expect(equivalent.status).toBe(201);
+ expect(m.rpc).toHaveBeenCalledTimes(1);
+ intakeStatus='draft';intakeSubmittedAt=null;
+ const invalidDraft=await POST(submit({...payload,sourceStatus:'draft',sourceSubmittedAt:stamp}));
+ expect(invalidDraft.status).toBe(400);
+ const allowedDraft=await POST(submit({...payload,sourceStatus:'draft',sourceSubmittedAt:null}));
+ expect(allowedDraft.status).toBe(201);
+ expect(m.rpc).toHaveBeenCalledTimes(2);
+});
+
 test('invalid identity, review, timestamps, source version or arbitrary note keys cannot reach save RPC',async()=>{
  for(const bad of [{...payload,reviewed:false},{...payload,patientId:'wrong'},{...payload,sourceAccountId:null},{...payload,sourceVersion:-1},{...payload,sourceVersion:Number.MAX_SAFE_INTEGER+1},
   {...payload,sourceUpdatedAt:'invalid'}, {...payload,sourceUpdatedAt:'2026-02-30T09:00:00Z'},

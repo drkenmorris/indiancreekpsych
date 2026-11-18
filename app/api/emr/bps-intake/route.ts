@@ -253,7 +253,9 @@ export async function POST(request:Request){
   if(!body||!uuid(body.patientId)||!uuid(body.sourceAccountId)||body.reviewed!==true||!Number.isSafeInteger(body.sourceVersion)||
     typeof body.sourceVersion!=='number'||body.sourceVersion<1||
     (body.sourceStatus!=='draft'&&body.sourceStatus!=='submitted')||
-    !validBpsTimestamp(body.sourceUpdatedAt))
+    !validBpsTimestamp(body.sourceUpdatedAt)||
+    // Bind clinical attestation to the exact patient submission receipt.
+    (body.sourceStatus==='submitted'?!validBpsTimestamp(body.sourceSubmittedAt):body.sourceSubmittedAt!==null))
    return reply({error:'Valid linked patient, source version and explicit clinical review required.'},400);
   if(!body.notes||typeof body.notes!=='object'||Array.isArray(body.notes))return reply({error:'Clinical notes are required.'},400);
   const fields=Object.keys(bpsNoteDomains);
@@ -285,7 +287,12 @@ export async function POST(request:Request){
   if(live.patient.account_id!==body.sourceAccountId||
    live.intake.version!==body.sourceVersion||
    live.intake.status!==body.sourceStatus||
-   !equalBpsTimestampInstants(live.intake.updated_at,body.sourceUpdatedAt))
+   !equalBpsTimestampInstants(live.intake.updated_at,body.sourceUpdatedAt)||
+   // A submission receipt can change without a source version/edit-time change.
+   // Never attest to a source different from the clinician-opened submission.
+   (body.sourceStatus==='submitted'?
+    !equalBpsTimestampInstants(live.intake.submitted_at,body.sourceSubmittedAt):
+    live.intake.submitted_at!==null))
    return reply({error:'Linked BPS source changed; reopen the patient chart before clinical review.'},409);
   if(mapIntakeToBps(live.intake.answers as Record<string,string>).unmappedKeys.length>0)
    return reply({error:'Linked intake includes unrecognized reported fields; reconcile the protected original intake before clinician BPS review.'},409);

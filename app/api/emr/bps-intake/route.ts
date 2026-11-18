@@ -275,6 +275,20 @@ export async function POST(request:Request){
   // permanent, source-version-locked clinical attestation.
   if(!hasIndependentBpsReviewNote(notes))
    return reply({error:'Document at least one independent clinician observation or follow-up need before saving the reviewed BPS history.'},400);
+  // The database RPC remains the atomic authority for a version-locked save.
+  // Independently inspect the live linked patient and complete questionnaire
+  // before calling it: unresolved/unknown patient-reported fields cannot be
+  // silently omitted from a clinician's final source-version attestation.
+  // The UI may display these as read-only source warnings, but not approve them.
+  const live=await linkedSource(ctx.supabase,body.patientId as string);
+  if('code' in live)return reply({error:live.error},live.code);
+  if(live.patient.account_id!==body.sourceAccountId||
+   live.intake.version!==body.sourceVersion||
+   live.intake.status!==body.sourceStatus||
+   !equalBpsTimestampInstants(live.intake.updated_at,body.sourceUpdatedAt))
+   return reply({error:'Linked BPS source changed; reopen the patient chart before clinical review.'},409);
+  if(mapIntakeToBps(live.intake.answers as Record<string,string>).unmappedKeys.length>0)
+   return reply({error:'Linked intake includes unrecognized reported fields; reconcile the protected original intake before clinician BPS review.'},409);
   const {data,error}=await ctx.supabase.rpc('save_emr_bps_intake_review',{p_payload:{
    patient_id:body.patientId,source_account_id:body.sourceAccountId,source_version:body.sourceVersion,source_status:body.sourceStatus,
    source_updated_at:body.sourceUpdatedAt,reviewed:true,clinician_notes:notes

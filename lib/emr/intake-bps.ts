@@ -181,6 +181,43 @@ export function distinctBpsQuestionIdentities(sections:ReadonlyArray<{fields:Rea
  const keys=sections.flatMap(section=>section.fields.map(field=>field.key));
  return new Set(keys).size===keys.length;
 }
+/**
+ * Verify the complete source QUESTION INVENTORY, not merely 21 distinct section
+ * headings. A truncated API response could otherwise omit an unanswered
+ * question and still appear to be a complete clinician-reviewed questionnaire.
+ * The baseline field order, label and input type are immutable for a packet
+ * version. Only separately identified retired historical reports may follow.
+ * No raw protected patient answers are examined here.
+ */
+export function validBpsQuestionnaireTopology(
+ sections:ReadonlyArray<{
+  title:string;
+  fields:ReadonlyArray<{key:string;label:string;type:string;reported?:boolean}>;
+ }>,
+ version:unknown
+):boolean{
+ if(!recognizedBpsQuestionnaireVersion(version))return false;
+ const expected=intakeSectionsForVersion(typeof version==='string'?version:'');
+ if(!Array.isArray(sections)||sections.length!==expected.length)return false;
+ return expected.every((original,index)=>{
+  const actual=sections[index];
+  if(!actual||actual.title!==original.title||!Array.isArray(actual.fields)||
+   actual.fields.length<original.fields.length)return false;
+  for(let i=0;i<original.fields.length;i++){
+   const [key,label,type]=original.fields[i];
+   const field=actual.fields[i];
+   if(!field||field.key!==key||field.label!==label||field.type!==type)return false;
+  }
+  const active=new Set(original.fields.map(([key])=>key));
+  return actual.fields.slice(original.fields.length).every(field=>{
+   if(!field||active.has(field.key)||field.type!=='historical-patient-report'||
+    field.reported!==true)return false;
+   const retired=historicalClinicalFields.find(([key,label])=>
+    key===field.key&&field.label==='Historical patient report — '+label);
+   return !!retired&&historicalBpsDomain[field.key]===original.title;
+  });
+ });
+}
 /** Only known, versioned questionnaire layouts may authorize clinical source
  * routing. The blank marker belongs to records predating packet-version capture;
  * 2026-10-11 is the known original packet and the directory packet is current.

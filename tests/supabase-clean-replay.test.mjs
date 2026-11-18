@@ -316,7 +316,10 @@ test('clinic migrations replay in order on an empty application database', async
 
     const submittedPayload={...payload,source_version:submitted.version,
       source_status:submitted.status,source_updated_at:new Date(submitted.updated_at).toISOString(),
-      source_submitted_at:new Date(submitted.submitted_at).toISOString()};
+      source_submitted_at:new Date(submitted.submitted_at).toISOString(),
+      // The patient revised counseling_reason before submitting. Bind the
+      // final submitted packet, not its earlier draft's answer object.
+      source_answers:{...answers,counseling_reason:'Updated fictional report'}};
     // Simulate a malformed historical submission receipt in the isolated
     // replay database only. The existing patient trigger normally ensures
     // submitted_at is populated; a direct privileged RPC must still reject a

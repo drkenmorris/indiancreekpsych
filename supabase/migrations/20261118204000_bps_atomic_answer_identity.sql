@@ -55,6 +55,12 @@ begin
  if source.status='draft' and source_submitted_at is not null then
   raise exception 'Draft BPS source cannot retain a final patient submission attestation' using errcode='22023';
  end if;
+ -- Keep the established database chronology rejection distinct from the
+ -- new answer-identity rejection, even if an out-of-band edit changes both.
+ if source.status='submitted' and source.updated_at > source.submitted_at then
+  raise exception 'Submitted BPS source was modified after its attested submission receipt'
+   using errcode='22023';
+ end if;
  -- Preserve the exact answers observed by the protected API's last source read.
  -- Version/timestamps can remain unchanged across a buggy or out-of-band edit.
  -- A direct privileged RPC caller must likewise provide the current full JSONB

@@ -1,14 +1,17 @@
 'use client';
 import {useCallback,useEffect,useRef,useState,type FormEvent} from 'react';
-import {soapLabels as labels,soapGroups,objectiveProgress,blankSoapQuick,blankSoapSections,assembleSoap,emptySoapPlan,soapPlanChoices,type SoapKey,type SoapQuickState,type SoapPlanChoices} from '@/lib/emr/soap-quick-entry';
+import {soapLabels as labels,soapGroups,objectiveProgress,blankSoapQuick,blankSoapSections,assembleSoap,emptySoapPlan,soapPlanChoices,soapProblemProgress,type SoapKey,type SoapQuickState,type SoapPlanChoices} from '@/lib/emr/soap-quick-entry';
+import type {InterventionEntry} from '@/lib/emr/implemented-interventions';
 type Note={id:string;patient_id:string;template:string;encounter_at:string;encounter_type:string;created_at:string;sections:Record<string,string>};
 const blank=blankSoapSections;
 export default function SoapNotes({patientId,inWorkspace=false}:{patientId:string;inWorkspace?:boolean}){
  const [notes,setNotes]=useState<Note[]>([]),[narrative,setNarrative]=useState(blank);
  const [quick,setQuick]=useState(blankSoapQuick),[openNarrative,setOpenNarrative]=useState<Record<string,boolean>>({});
  const [planSource,setPlanSource]=useState<SoapPlanChoices>(emptySoapPlan),[planMessage,setPlanMessage]=useState('');
- const sections=assembleSoap(quick,narrative,planSource);
+ const [plannerEntries,setPlannerEntries]=useState<InterventionEntry[]>([]),[planVersionId,setPlanVersionId]=useState('');
  const [date,setDate]=useState(''),[encounterType,setEncounterType]=useState('Individual therapy');
+ const problemProgress=soapProblemProgress(planSource.problems,plannerEntries,planVersionId,date.slice(0,10));
+ const sections=assembleSoap(quick,narrative,{...planSource,problemProgress});
  const [reviewed,setReviewed]=useState(false),[loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[dirty,setDirty]=useState(false);
  const [error,setError]=useState(''),[message,setMessage]=useState('');const generation=useRef(0);
  const read=useCallback(async(signal?:AbortSignal)=>{
@@ -18,15 +21,15 @@ export default function SoapNotes({patientId,inWorkspace=false}:{patientId:strin
   return (data.notes as Note[]).filter(note=>note.template==='SOAP');
  },[patientId]);
  useEffect(()=>{
-  const request=++generation.current,controller=new AbortController();setNotes([]);setNarrative(blank());setQuick(blankSoapQuick());setOpenNarrative({});setPlanSource(emptySoapPlan());setPlanMessage('Loading treatment-plan choices…');setDate('');setEncounterType('Individual therapy');setReviewed(false);setDirty(false);setLoading(true);setSaving(false);setError('');setMessage('');
+  const request=++generation.current,controller=new AbortController();setNotes([]);setNarrative(blank());setQuick(blankSoapQuick());setOpenNarrative({});setPlanSource(emptySoapPlan());setPlannerEntries([]);setPlanVersionId('');setPlanMessage('Loading treatment-plan choices…');setDate('');setEncounterType('Individual therapy');setReviewed(false);setDirty(false);setLoading(true);setSaving(false);setError('');setMessage('');
   if(!patientId){setLoading(false);return;}
   void read(controller.signal).then(items=>{if(!controller.signal.aborted&&generation.current===request)setNotes(items);}).catch(e=>{if(!controller.signal.aborted&&generation.current===request)setError(e instanceof Error?e.message:'SOAP notes unavailable.');}).finally(()=>{if(!controller.signal.aborted&&generation.current===request)setLoading(false);});
   void (async()=>{
    try{
     const response=await fetch('/api/emr/implemented-interventions?patient='+encodeURIComponent(patientId),{cache:'no-store',signal:controller.signal});const data=await response.json();
-    if(!response.ok||data.patient?.id!==patientId||!Array.isArray(data.versions)||!Array.isArray(data.nodes))throw Error('Treatment-plan choices unavailable. You can use the other quick entries and optional narratives.');
+    if(!response.ok||data.patient?.id!==patientId||!Array.isArray(data.versions)||!Array.isArray(data.nodes)||!Array.isArray(data.entries))throw Error('Treatment-plan choices unavailable. You can use the other quick entries and optional narratives.');
     if(controller.signal.aborted||generation.current!==request)return;
-    const latest=data.versions[0];setPlanSource(soapPlanChoices(latest?.snapshot,data.nodes,latest?.revision));setPlanMessage(latest?'':'No saved treatment plan is available. You can use the other quick entries and optional narratives.');
+    const latest=data.versions[0];setPlannerEntries(data.entries);setPlanVersionId(latest?.id??'');setPlanSource(soapPlanChoices(latest?.snapshot,data.nodes,latest?.revision));setPlanMessage(latest?'':'No saved treatment plan is available. You can use the other quick entries and optional narratives.');
    }catch(e){if(!controller.signal.aborted&&generation.current===request)setPlanMessage(e instanceof Error?e.message:'Treatment-plan choices unavailable.');}
   })();
   return()=>controller.abort();
@@ -64,7 +67,7 @@ export default function SoapNotes({patientId,inWorkspace=false}:{patientId:strin
      <div className="soapQuickFields">{soapGroups[key].map(group=>group.kind==='multi'?<fieldset className="soapChoiceGroup" key={group.id}><legend>{group.label}</legend><div className="soapChecks">{group.options.map(option=><label key={option}><input type="checkbox" name={group.id} value={option} checked={quick.groups[group.id]?.includes(option)??false} onChange={()=>updateQuick(previous=>{const values=previous.groups[group.id]??[];return {...previous,groups:{...previous.groups,[group.id]:values.includes(option)?values.filter(value=>value!==option):[...values,option]}};})}/><span>{option}</span></label>)}</div></fieldset>:<label key={group.id} htmlFor={'soap-'+group.id}>{group.label}<select id={'soap-'+group.id} name={group.id} value={quick.groups[group.id]?.[0]??''} onChange={event=>{const value=event.target.value;updateQuick(previous=>({...previous,groups:{...previous.groups,[group.id]:value?[value]:[]}}));}}><option value="">Select if assessed</option>{group.options.map(option=><option key={option}>{option}</option>)}</select></label>)}</div>
      {key==='objective'&&checks('implemented','Interventions implemented during this session',planSource.implemented)}
      {key==='objective'&&planSource.problems.length>0&&!planSource.implemented.length&&<p>No active implemented-intervention choices are linked to this saved plan. Use narrative to record interventions delivered.</p>}
-     {key==='assessment'&&<>{checks('problems','Treatment-plan problems addressed',planSource.problems)}{planSource.objectives.length>0&&<fieldset className="soapChoiceGroup"><legend>Progress toward treatment-plan objectives</legend>{planSource.objectives.map(choice=><label key={choice.id} htmlFor={'soap-objective-'+choice.id}>{choice.text}<select id={'soap-objective-'+choice.id} name={'objective-progress-'+choice.id} value={quick.objectives[choice.id]??''} onChange={event=>{const value=event.target.value;updateQuick(previous=>({...previous,objectives:{...previous.objectives,[choice.id]:value}}));}}><option value="">Select if assessed</option>{objectiveProgress.map(value=><option key={value}>{value}</option>)}</select></label>)}</fieldset>}</>}
+     {key==='assessment'&&<>{checks('problems','Treatment-plan problems addressed',planSource.problems)}{problemProgress.length>0&&<fieldset className="soapChoiceGroup"><legend>Progress toward treatment-plan objectives</legend><p>One entry per treatment-plan problem. Implemented interventions come from saved Individual Progress Notes Planner entries for {date?'the encounter date':'the most recent recorded planner session'}. Select the encounter date before reviewing the note.</p>{problemProgress.map((choice,index)=><section key={choice.id} aria-labelledby={'soap-problem-heading-'+index}><h3 id={'soap-problem-heading-'+index}>Problem {index+1}: {choice.text}</h3><p>Implemented interventions{choice.sessionDate?' — '+choice.sessionDate:''}</p>{choice.interventions.length?<ul>{choice.interventions.map(text=><li key={text}>{text}</li>)}</ul>:<p>No implemented interventions recorded for this problem and selected session.</p>}<label htmlFor={'soap-objective-'+choice.id}>Progress for {choice.text}<select id={'soap-objective-'+choice.id} name={'objective-progress-'+choice.id} value={quick.objectives[choice.id]??''} onChange={event=>{const value=event.target.value;updateQuick(previous=>({...previous,objectives:{...previous.objectives,[choice.id]:value}}));}}><option value="">Select if assessed</option>{objectiveProgress.map(value=><option key={value}>{value}</option>)}</select></label></section>)}</fieldset>}</>}
      {key==='plan'&&checks('focus','Next-session treatment-plan focus',planSource.problems)}
      <button type="button" aria-expanded={openNarrative[key]??false} aria-controls={'soap-narrative-'+key} onClick={()=>setOpenNarrative(previous=>({...previous,[key]:!previous[key]}))}>{openNarrative[key]?'Hide narrative':'Add narrative'} — {labels[key]}</button>
      <div id={'soap-narrative-'+key} hidden={!openNarrative[key]}><label htmlFor={'soap-text-'+key}>{labels[key]} narrative (optional)<textarea id={'soap-text-'+key} name={key} rows={4} maxLength={4000} value={narrative[key]} onChange={event=>{const value=event.target.value;setNarrative(previous=>({...previous,[key]:value}));edit();}}/></label></div>

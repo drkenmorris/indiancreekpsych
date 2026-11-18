@@ -45,6 +45,17 @@ const mentalStatusChoices={
  orientation:['Oriented to person','Oriented to place','Oriented to time','Oriented to situation','Disorientation noted','Attention intact','Attention difficulty noted','Recent memory difficulty noted','Remote memory difficulty noted'],
  judgment:['Insight intact','Insight partial','Insight limited','Judgment intact','Judgment impaired']
 };
+const recoveryCriteriaChoices={
+ criteria:['Recovery goals are documented','Symptoms are improving','Daily functioning is improving','Coping skills are used outside sessions','Treatment attendance is consistent','Patient participates in treatment decisions','Support resources are available','Progress toward substance-use recovery goals, if applicable','A follow-up or relapse-prevention plan is documented','Continued treatment is needed','Further assessment is needed','Other criteria — describe in notes','Not assessed'],
+ evidence:['Patient reports improvement','Patient reports ongoing symptoms','Patient reports worsening symptoms','Therapist observes progress toward goals','Skills demonstrated during the session','Skills reported between sessions','Functional changes are documented','Attendance or participation concerns','Barriers to treatment are reported','Family or support-person input is available','Safety concerns require separate assessment','Progress is unclear or more information is needed','Other observations — describe in notes','Not assessed']
+};
+function recoveryCriteriaFields(saved){
+ return '<p>Select the criteria and observations supported by this encounter. Add context in the optional notes below. These selections do not automatically determine recovery, discharge readiness, or level of care.</p><div class="medical-substance-grid">'+sectionSchemas.recovery_criteria.map(([key,label])=>{
+  const previous=(saved?.fields?.[key]||'').split('\n').filter(Boolean),choices=recoveryCriteriaChoices[key];
+  const legacy=previous.filter(value=>!choices.includes(value));
+  return `<fieldset data-section-checklist="${key}"><legend>${esc(label)}</legend>${[...choices,...legacy].map((value,index)=>`<label class="check" for="recovery-${key}-${index}"><input id="recovery-${key}-${index}" type="checkbox" value="${esc(value)}" ${previous.includes(value)?'checked':''}>${esc(choices.includes(value)?value:'Previously documented: '+value)}</label>`).join('')}</fieldset>`;
+ }).join('')+'</div>';
+}
 function mentalStatusFields(saved){
  return '<p>Select the observations that apply. Use Mental Status Notes for context or additional findings.</p>'+sectionSchemas.mental_status.map(([key,label])=>{
   const choices=[...mentalStatusChoices[key],'Not assessed'];
@@ -60,6 +71,7 @@ const sessionDurationOptions=[['15','15 min'],['30','30 min'],['60','60 min'],['
 const sessionTypeOptions=[["90791", "90791 · Diagnostic evaluation"], ["90832", "90832 · Individual psychotherapy (30 min)"], ["90834", "90834 · Individual psychotherapy (45 min)"], ["90837", "90837 · Individual psychotherapy (60 min)"], ["90839", "90839 · Crisis psychotherapy (first hour)"], ["90846", "90846 · Family psychotherapy without patient"], ["90847", "90847 · Family psychotherapy with patient"], ["90849", "90849 · Multiple-family group psychotherapy"], ["90853", "90853 · Group psychotherapy"], ["96130", "96130 · Psychological testing evaluation (first hour)"], ["96136", "96136 · Test administration and scoring by a qualified clinician (first 30 min)"], ["96138", "96138 · Test administration and scoring by a technician (first 30 min)"], ["96146", "96146 · Single automated test with automated result"]];
 function structuredSectionFields(key,saved){
  if(key==='mental_status')return mentalStatusFields(saved);
+ if(key==='recovery_criteria')return recoveryCriteriaFields(saved);
  const fields=key==='session_custom_fields'?readDemoSettings().custom_fields.map(f=>[f.id,f.label,f.type]):sectionSchemas[key]||[];
  const renderField=([id,label,type])=>{
   const value=saved?.fields?.[id]||'';

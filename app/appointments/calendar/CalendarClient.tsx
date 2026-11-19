@@ -60,6 +60,20 @@ function verifiedCalendarPatientRows(rows:unknown):Patient[]{
    preferred_name:patient.preferred_name as string|null};
  });
 }
+// Never expose arbitrary provider/transport exception text in a patient
+// appointment calendar. Only exact, locally authored validation messages
+// may reach a clinician; errors from rejected queries can embed PHI or SQL.
+function safeCalendarLoadFailure(failure:unknown):string{
+ const safeMessages=new Set([
+  'Calendar appointment readback could not be verified. Refresh before editing bookings.',
+  'Calendar patient roster could not be verified. Refresh before editing bookings.',
+  'Calendar linked patient identity could not be verified. Refresh before editing bookings.',
+  'Appointments could not be loaded. Try Refresh.',
+  'Patient names could not be loaded. Try Refresh.'
+ ]);
+ if(failure instanceof Error&&safeMessages.has(failure.message))return failure.message;
+ return 'Calendar could not be refreshed. Sign in and refresh before editing bookings.';
+}
 export default function CalendarClient({timezone,duration,onBook}:{timezone:string;duration:number;onBook?:()=>void}) {
  const supabase=useMemo(()=>createClient(),[]);
  const today=localParts(new Date().toISOString(),timezone).date;
@@ -122,7 +136,7 @@ export default function CalendarClient({timezone,duration,onBook}:{timezone:stri
      if(verified.some(booking=>booking.patient_id&&!verifiedChartIds.has(booking.patient_id.toLowerCase())))
       throw new Error('Calendar linked patient identity could not be verified. Refresh before editing bookings.');
      if(version===request.current){setAppointments(verified);setPatients(verifiedPatients);}
-   } catch(e){if(version===request.current)setError(e instanceof Error?e.message:'Calendar could not be refreshed.');}
+   } catch(e){if(version===request.current)setError(safeCalendarLoadFailure(e));}
    finally {if(version===request.current)setLoading(false);}
  },[month,supabase]);
  useEffect(()=>{void load();return()=>{request.current++;};},[load]);

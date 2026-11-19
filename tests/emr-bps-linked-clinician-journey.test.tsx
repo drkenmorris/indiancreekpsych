@@ -46,6 +46,11 @@ test.each([['lowercase',false],['uppercase',true]])('fictional 21-section linked
     is:(column:string,value:unknown)=>{record.filters.push([column,value]);return query;},
     order:()=>query,
     maybeSingle:async()=>{
+     if(table==='emr_bps_intake_reviews'){
+      const selected=reviews.find(row=>record.filters.every(([key,value])=>
+       key==='id'?String(row.id).toLowerCase()===String(value).toLowerCase():row[key]===value));
+      return {data:selected??null,error:null};
+     }
      if(table==='clinical_patients'){
       const id=record.filters.find(([key])=>key==='id')?.[1];
       const row=id===patient?{id:patient,account_id:account,directory_deleted_at:null}:id===otherPatient?

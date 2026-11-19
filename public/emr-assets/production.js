@@ -358,6 +358,12 @@ function originalBpsInstantNanoseconds(value){
    // A clinician review cannot verify a final patient submission that did
    // not exist until AFTER that review was created.
    (source.status!=='submitted'||originalBpsInstantNanoseconds(review.created_at)>=submittedInstant));
+  if(reviews.some(review=>review.source_version===source.version&&
+      review.current_source_snapshot_verified===false)){
+   const mismatch=document.createElement('p');mismatch.setAttribute('role','alert');
+   mismatch.textContent='Saved clinician review does not match the complete current patient-reported clinical source. The reviewed badge is withheld; reconcile the protected intake and chart history before relying on this review.';
+   history.append(mismatch);
+  }
   if(!currentReviewed){
    const warning=document.createElement('p');warning.setAttribute('role','status');
    warning.textContent=reviews.length?

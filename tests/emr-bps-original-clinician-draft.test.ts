@@ -482,6 +482,7 @@ test('original BPS accepts correctly ordered clinician review receipts without c
   id:'00000000-0000-4000-8000-000000000906',
   reviewed:true,source_version:7,source_status:'submitted',
   source_updated_at:stamp,created_at:'2026-11-14T12:00:02.123456Z',
+  current_source_snapshot_verified:true,
   clinical_answers:{},clinician_notes:{presenting:'FICTIONAL DOCUMENTED CLINICIAN OBSERVATION'},excluded_clinical_fields:0,excluded_clinician_notes:0
  };
  const older={...latest,
@@ -681,3 +682,32 @@ test.each(['trauma','insurance','legal','historical-legal'] as const)(
   expect(h.dom.window.document.body.textContent).not.toContain('FICTIONAL FRIEND SUPPORT');
  }finally{h.dom.window.close();}
 });
+
+test.each([
+ ['missing',undefined],['null',null],['negative',false]
+] as const)(
+ 'original BPS does not announce a current clinician review when source-snapshot proof is %s',
+ async (_case,verified)=>{
+  const review:Record<string,unknown>={
+   id:'00000000-0000-4000-8000-000000000907',
+   reviewed:true,source_version:7,source_status:'submitted',
+   source_updated_at:stamp,created_at:'2026-11-14T12:00:01.123456Z',
+   clinical_answers:{},clinician_notes:{presenting:'FICTIONAL CLINICIAN NOTE'},
+   excluded_clinical_fields:0,excluded_clinician_notes:0
+  };
+  if(_case!=='missing')review.current_source_snapshot_verified=verified;
+  const h=harness(async()=>Response.json({...packet(),reviews:[review]}));
+  try{
+   await vi.waitFor(()=>expect(h.dom.window.document.body.textContent)
+    .toContain('Unverified review attestation for submitted intake version 7'));
+   expect(h.dom.window.document.body.textContent)
+    .toContain('0 independently documented unsigned clinician review(s)');
+   expect(h.dom.window.document.body.textContent)
+    .not.toContain('Documented unsigned review of submitted intake version 7');
+   expect(h.note.value).toBe('');
+   expect(h.requests).toEqual([
+    {url:'/api/emr/bps-intake?patient='+patient,method:'GET'}
+   ]);
+  }finally{h.dom.window.close();}
+ }
+);

@@ -18,3 +18,7 @@ test('only the latest Response for the exact visible saved version appears, with
 test('unavailable approval/identity sources fail closed; anonymous and cross-patient workspace reads are rejected',async()=>{
  broken='emr_treatment_response_versions';expect((await read()).status).toBe(503);broken='';tables.emr_workspaces=[{patient_id:pid,owner_id:owner,state:{records:[{patient_id:'other'}]}}];expect((await read()).status).toBe(503);m.access.mockResolvedValue(null);expect((await read()).status).toBe(403);
 });
+test('earlier free-text approval is retained as explicitly unlinked and never substituted for a version-linked response',async()=>{
+ tables.emr_treatment_response_versions=[{patient_id:pid,revision:3,recorded_at:'2026-11-13T12:00:00Z',reference:'Final plan discussed in session',participants:[{role:'patient',name:'Fictional Patient',approval:'yes'}]}];
+ const body=await(await read()).json();expect(body.approvals).toEqual([]);expect(body.legacyApproval).toEqual({reference:'Final plan discussed in session',revision:3,recordedAt:'2026-11-13T12:00:00Z',patientApproval:'yes'});
+});

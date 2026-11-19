@@ -1,4 +1,5 @@
 import type {PlanSnapshot} from './treatment-planner';
+export type LegacyPlanApproval={reference:string;revision:number;recordedAt:string;patientApproval:'yes'|'no'|'unanswered'};
 export type PlanApproval={versionId:string;revision:number;recordedAt:string;participants:{role:string;name:string;approval:'yes'|'no'|'unanswered'}[]};
 export function treatmentPlanIdentity(central:Record<string,unknown>,records:{patient_id:string;kind:string;body:unknown}[],patientId:string,accountName:string){
  let prior:Record<string,unknown>={};

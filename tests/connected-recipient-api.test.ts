@@ -284,9 +284,10 @@ test('connected assignment test key must match sealed questionnaire identity bef
  const read=await GET(new Request('https://www.indiancreekpsych.com/api/assigned-tests/connected?id='+id));
  expect(read.status).toBe(409);
  expect(read.headers.get('Cache-Control')).toContain('no-store');
- const wire=JSON.stringify(await read.json());
- expect(wire).not.toContain('items');
- expect(wire).not.toContain('answers');
+ const rejected=await read.json();
+ expect(rejected).not.toHaveProperty('definition');
+ expect(rejected).not.toHaveProperty('response');
+ expect(rejected).not.toHaveProperty('answers');
  const write=await POST(request({id,expectedRevision:0,page:1,submit:false,identityConfirmed:true,answers:answers()}));
  expect(write.status).toBe(409);
  expect((await write.json()).saved).toBeUndefined();

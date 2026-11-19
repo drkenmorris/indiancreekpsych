@@ -14,7 +14,7 @@ const localDateTime=()=>{
 };
 const endpoint='/api/emr/progress-notes';
 
-export default function PatientProgressNotes({patientId,inWorkspace=false}:{patientId:string;inWorkspace?:boolean}){
+export default function PatientProgressNotes({patientId,inWorkspace=false,mode='all'}:{patientId:string;inWorkspace?:boolean;mode?:'all'|'dap'|'amendments'}){
  const [notes,setNotes]=useState<Note[]>([]);
  const [addenda,setAddenda]=useState<Addendum[]>([]);
  const [attestations,setAttestations]=useState<Attestation[]>([]);
@@ -110,14 +110,15 @@ export default function PatientProgressNotes({patientId,inWorkspace=false}:{pati
   event.preventDefault();if(loading||saving||error||!addendumReviewed||!validAdd||!addTo)return;
   void save({action:'addendum',patient_id:patientId,note_id:addTo,reason:reason.trim(),amendment:amendment.trim(),reviewed:true},'addendum');
  }
+ const visibleNotes=mode==='dap'?notes.filter(note=>note.template==='DAP'):notes;
  return <article className="centralCard" aria-label="Individual clinical progress notes" data-clinical-note-dirty={inWorkspace?(workspaceDirty?'true':'false'):undefined}>
-  <h2>Individual clinical progress notes</h2>
+  {mode==='dap'?<h1>DAP Notes</h1>:<h2>Individual clinical progress notes</h2>}
   <p>Patient-bound outpatient notes and dated corrections. Original notes may receive an irreversible, MFA-protected author attestation; later addenda remain unsigned. Attestation does not independently verify professional licensure or authorize billing. No prototype synthetic data is used.</p>
   {loading?<p role="status">Loading this patient's clinical notes…</p>:error?
    <p role="alert">{error} Clinical note entry is disabled until the selected chart can be verified.</p>:<>
-    <h3>Saved individual notes ({notes.length})</h3>
-    {notes.length===0?<p>No individual progress notes are saved for this patient.</p>:
-     <ol>{notes.map(note=><li key={note.id}>
+    <h3>{mode==='dap'?'Saved DAP notes':'Saved individual notes'} ({visibleNotes.length})</h3>
+    {visibleNotes.length===0?<p>{mode==='dap'?'No DAP notes are saved for this patient.':'No individual progress notes are saved for this patient.'}</p>:
+     <ol>{visibleNotes.map(note=><li key={note.id}>
       <strong>{note.encounter_type} — {note.template} — {attestations.some(att=>att.note_id===note.id)?'author-attested':'unsigned'}</strong>
       {attestations.filter(att=>att.note_id===note.id).map(att=><p key={att.id}>
        Author attestation: {att.signer_name} · {new Date(att.signed_at).toLocaleString('en-US')}
@@ -163,24 +164,24 @@ export default function PatientProgressNotes({patientId,inWorkspace=false}:{pati
        </fieldset>
       </form>}
      </li>)}</ol>}
-    <form autoComplete="off" onSubmit={submitNote}><fieldset disabled={saving}>
-     <legend>New individual progress note</legend>
+    {mode!=='amendments'&&<form autoComplete="off" onSubmit={submitNote}><fieldset disabled={saving}>
+     <legend>{mode==='dap'?'New DAP note':'New individual progress note'}</legend>
      <label>Encounter date and time (your device's timezone; verify before saving)
       <input type="datetime-local" required value={encounter} onChange={e=>{setEncounter(e.target.value);setReviewed(false);}}/>
      </label>
      <label>Clinical encounter type<select value={encounterType} onChange={e=>{setEncounterType(e.target.value);setReviewed(false);}}>
       <option>Individual therapy</option><option>Initial evaluation</option><option>Follow-up</option><option>Other clinical encounter</option>
      </select></label>
-     <label>Progress-note format<select value={template} onChange={e=>{const next=e.target.value as Template;setTemplate(next);setSections(blank(next));setReviewed(false);}}>
-      <option>DAP</option><option>SOAP</option><option>Narrative</option></select></label>
+     {mode!=='dap'&&<label>Progress-note format<select value={template} onChange={e=>{const next=e.target.value as Template;setTemplate(next);setSections(blank(next));setReviewed(false);}}>
+      <option>DAP</option><option>SOAP</option><option>Narrative</option></select></label>}
      {fields[template].map(key=><label key={key}>{labels[key]}
       <textarea required minLength={2} maxLength={4000} rows={3} value={sections[key]??''}
        onChange={e=>{setSections(current=>({...current,[key]:e.target.value}));setReviewed(false);}}/>
      </label>)}
      <label><input type="checkbox" checked={reviewed} onChange={e=>setReviewed(e.target.checked)}/>
       I reviewed the date, patient identity and note content. Save as an unsigned, append-only clinical record.</label>
-     <button type="submit" disabled={!reviewed||!valid||!encounter||saving}>Save unsigned individual note</button>
-    </fieldset></form>
+     <button type="submit" disabled={!reviewed||!valid||!encounter||saving}>{mode==='dap'?'Save DAP note':'Save unsigned individual note'}</button>
+    </fieldset></form>}
    </>}
   {message&&<p role="status">{message}</p>}
  </article>;

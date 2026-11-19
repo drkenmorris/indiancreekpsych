@@ -81,8 +81,9 @@ await test('actual hosted forms and global navigation render against central pat
  assert.equal(responseUrl.searchParams.get('embedded'),'1');
  assert.equal(w.document.querySelector('[name="response_to_treatment"]'),null,'Response uses its protected patient editor instead of the legacy plan narrative');
  fixture.chart.records.splice(-2,2);
- for(const [module,key,text] of [['personal','insurance','Insurance information'],['assessment','biopsychosocial','Current Symptom Checklist'],['notes','record_history','Record history']]){runInContext(`chooseSection(${JSON.stringify(module)},${JSON.stringify(key)});render();`,dom.getInternalVMContext());await new Promise(r=>setTimeout(r,20));assert.match(w.document.querySelector('#content').textContent,new RegExp(text,'i'));}
+ for(const [module,key,text] of [['personal','insurance','Insurance information'],['assessment','biopsychosocial','Current Symptom Checklist']]){runInContext(`chooseSection(${JSON.stringify(module)},${JSON.stringify(key)});render();`,dom.getInternalVMContext());await new Promise(r=>setTimeout(r,20));assert.match(w.document.querySelector('#content').textContent,new RegExp(text,'i'));}
  assert.equal(w.document.querySelectorAll('[aria-label="Linked 21-section intake biopsychosocial review"]').length,0,'no extra panel added to the original BPS layout');
+ runInContext("activeSection=null;view='history';mainModule='notes';render();",dom.getInternalVMContext());assert.match(w.document.querySelector('#content').textContent,/Record history/i,'existing direct history access retains records');assert.equal(w.document.querySelector('[data-submenu=\"notes:record_history\"]'),null,'Record History is removed from Progress options');
  await runInContext('refreshRegistry()',dom.getInternalVMContext());
  assert.match(w.document.querySelector('#directory-rows').textContent,/Example, Fictional/);
  assert.equal(w.document.querySelector('[data-registry-action="delete"]').disabled,false,'central directory deletion is available');

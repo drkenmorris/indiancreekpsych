@@ -1,5 +1,6 @@
 import {beforeEach,expect,test,vi} from 'vitest';
 import {GET,POST} from '@/app/api/emr/bps-intake/route';
+import {bpsSnapshotClinicalKeys} from '@/lib/emr/intake-bps';
 const m=vi.hoisted(()=>({access:vi.fn(),sameOrigin:vi.fn(),from:vi.fn(),rpc:vi.fn()}));
 vi.mock('@/lib/emr/access',()=>({emrAccess:m.access,sameOrigin:m.sameOrigin,privateHeaders:{'Cache-Control':'private, no-store'}}));
 const patient='00000000-0000-0000-0000-000000000123',account='00000000-0000-0000-0000-000000000124';
@@ -13,6 +14,9 @@ let directoryDeletedAt:string|null;
 let returnedPatientId:string;
 let returnedIntakeAccountId:string;
 let reviewRows:Record<string,unknown>[];
+let postReadbackOverride:Record<string,unknown>|null|undefined;
+let postReadbackError:boolean;
+let postReadbackThrows:boolean;
 let historyResultOverride:unknown;
 let version:number;
 let intakeStatus:string;
@@ -20,7 +24,7 @@ let intakeUpdatedAt:string;
 let intakeSubmittedAt:string|null;
 let data:Record<string,string>;
 beforeEach(()=>{
- vi.clearAllMocks();linked=account;directoryDeletedAt=null;returnedPatientId=patient;returnedIntakeAccountId=account;version=2;intakeStatus='submitted';intakeUpdatedAt=stamp;intakeSubmittedAt=stamp;reviewRows=[];historyResultOverride=undefined;
+ vi.clearAllMocks();linked=account;directoryDeletedAt=null;returnedPatientId=patient;returnedIntakeAccountId=account;version=2;intakeStatus='submitted';intakeUpdatedAt=stamp;intakeSubmittedAt=stamp;reviewRows=[];historyResultOverride=undefined;postReadbackOverride=undefined;postReadbackError=false;postReadbackThrows=false;
  data={counseling_reason:'Reports sadness',suicidal_thoughts_current:'Yes',roi_authorize:'Yes',medication_entries:'structured original'};
  m.sameOrigin.mockReturnValue(true);m.rpc.mockResolvedValue({data:'00000000-0000-0000-0000-000000000500',error:null});
  m.from.mockImplementation((table:string)=>{
@@ -29,7 +33,23 @@ beforeEach(()=>{
   if(table==='emr_bps_intake_reviews'){const q={select:()=>q,eq:vi.fn(()=>q),order:()=>q,
     range:vi.fn(async(start:number,end:number)=>({data:historyResultOverride===undefined?
       reviewRows.slice(start,end+1):typeof historyResultOverride==='function'?
-      historyResultOverride(start,end):historyResultOverride,count:reviewRows.length,error:null}))};return q;}
+      historyResultOverride(start,end):historyResultOverride,count:reviewRows.length,error:null})),
+    maybeSingle:async()=>{
+     if(postReadbackThrows)throw Error('FICTIONAL_PRIVATE_DB_PROVIDER_ERROR');
+     const payload=m.rpc.mock.calls.at(-1)?.[1]?.p_payload as Record<string,any>|undefined;
+     const source=payload?.source_answers as Record<string,string>|undefined;
+     const projected=Object.fromEntries(Object.entries(source??{}).filter(([key,value])=>
+      bpsSnapshotClinicalKeys.has(key)&&typeof value==='string'&&value.replace(/^ +| +$/g,'')!==''));
+     const row=payload?{
+      id:'00000000-0000-0000-0000-000000000500',patient_id:payload.patient_id,
+      source_account_id:payload.source_account_id,source_version:payload.source_version,
+      source_status:payload.source_status,source_updated_at:payload.source_updated_at,
+      clinical_answers:projected,clinician_notes:payload.clinician_notes,
+      reviewed:true,created_at:stamp
+     }:null;
+     return {data:postReadbackOverride===undefined?row:postReadbackOverride,
+      error:postReadbackError?{code:'PGRST_MOCK'}:null};
+    }};return q;}
   throw Error('Unexpected '+table);
  });
  m.access.mockResolvedValue({supabase:{from:m.from,rpc:m.rpc}});

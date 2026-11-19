@@ -115,4 +115,33 @@ await test('missing, unrecognized, or downgraded administrator assurance cannot 
  await db.exec('RESET ROLE');
  assert.equal((await db.query('SELECT count(*)::int AS n FROM public.appointments')).rows[0].n,2);
 });
+// Production contains recurring scheduler occurrences that predate central chart
+// linkage. Such rows have NULL patient_id. They must remain visible to an MFA
+// administrator for reconciliation, but must never become visible or writable
+// to either patient merely because the older FOR ALL scheduler policy existed.
+await test('legacy unlinked recurring occurrence remains admin-visible but patient-isolated',async()=>{
+ const legacy='00000000-0000-4000-8000-000000000199';
+ await db.exec('RESET ROLE');
+ await q("INSERT INTO public.appointments(id,patient_id,starts_at) VALUES($1,NULL,'2030-01-05T10:00:00Z')",[legacy]);
+ try{
+  for(const identity of [patient,unrelated]){
+   for(const assurance of ['aal1','aal2']){
+    await session(identity,assurance);
+    assert.equal(await count('appointments'),1,'patient sees only their own linked appointment');
+    assert.equal((await q('SELECT id FROM public.appointments WHERE id=$1',[legacy])).rows.length,0);
+    assert.equal((await q("UPDATE public.appointments SET starts_at='2030-01-06T10:00:00Z' WHERE id=$1 RETURNING id",[legacy])).rows.length,0);
+   }
+  }
+  await session(admin,'aal1');
+  assert.equal((await q('SELECT id FROM public.appointments WHERE id=$1',[legacy])).rows.length,0);
+  await session(admin,'aal2');
+  assert.equal((await q('SELECT id FROM public.appointments WHERE id=$1',[legacy])).rows.length,1);
+  assert.equal(await count('appointments'),3);
+ }finally{
+  // Tear down only the fictional fixture inside this isolated PGlite database.
+  await db.exec('RESET ROLE');
+  await q('DELETE FROM public.appointments WHERE id=$1',[legacy]);
+ }
+ assert.equal((await q('SELECT count(*)::int n FROM public.appointments')).rows[0].n,2);
+});
 await db.close();

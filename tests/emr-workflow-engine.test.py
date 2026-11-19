@@ -107,4 +107,31 @@ class PrognosisTests(unittest.TestCase):
    self.run_action('/api/save',{'action':'prognosis','data':entry},i)
   self.assertEqual(len(self.run_action('/api/chart')['value']['records']),10)
 
+class DischargeTests(unittest.TestCase):
+ setUp=WorkflowTests.setUp
+ run_action=WorkflowTests.run_action
+ def entry(self,**patch):
+  value={'schema':'discharge/2','criteria':[{'id':'00000000-0000-4000-8000-000000000001','text':'Fictional selected discharge criterion.'}],'criteria_narrative':'Fictional individual discharge criteria','self_care_competency':'Competent','financial_competency':'Competent: Needs Training','follow_up_care':'Outpatient Therapy','referral_to':'Fictional referral agency','placement_recommendation':'Own Family','vocational_plan':'Return to part-time job','actual_end_date':'2026-11-19','aftercare_summary':{'type':'doc','content':[{'type':'paragraph','attrs':{'textAlign':'center'},'content':[{'type':'text','text':'Fictional aftercare only','marks':[{'type':'bold'},{'type':'italic'},{'type':'underline'},{'type':'strike'},{'type':'textStyle','attrs':{'fontFamily':'Georgia','fontSize':'14pt'}}]}]}]},'prognosis_id':None}
+  return dict(value,**patch)
+ def test_discharge_fields_save_without_legacy_plan_or_signature_and_survive_reopen(self):
+  entry=self.entry();saved=self.run_action('/api/save',{'action':'discharge','data':entry})['value'];self.assertEqual(saved['kind'],'discharge')
+  for key,value in entry.items():self.assertEqual(saved[key],value)
+  self.assertIsNone(saved['prognosis_snapshot']);self.assertEqual(saved['recorded_by_account_id'],self.repo.user)
+  again=self.entry(referral_to='Fictional revised referral');self.run_action('/api/save',{'action':'discharge','data':again},1)
+  records=self.run_action('/api/chart')['value']['records'];self.assertEqual(len(records),2);self.assertEqual(records[0],saved)
+ def test_latest_prognosis_is_bound_and_snapshotted_server_side(self):
+  prog={'schema':'prognosis/2','discharge_percent':80,'projected_sessions':12,'projected_end_date':'2026-12-31','rating':'Satisfactory','rationale':{'type':'doc','content':[{'type':'paragraph'}]}}
+  first=self.run_action('/api/save',{'action':'prognosis','data':prog})['value'];latest=self.run_action('/api/save',{'action':'prognosis','data':dict(prog,rating='Superior')},1)['value']
+  with self.assertRaises(ValueError):self.run_action('/api/save',{'action':'discharge','data':self.entry(prognosis_id=first['id'])},2)
+  saved=self.run_action('/api/save',{'action':'discharge','data':self.entry(prognosis_id=latest['id'])},2)['value'];self.assertEqual(saved['prognosis_snapshot'],latest);self.assertEqual(saved['prognosis_hash'],latest['hash'])
+  with self.assertRaises(m.Conflict):self.run_action('/api/save',{'action':'discharge','data':self.entry(prognosis_id=latest['id'])},2)
+ def test_every_exact_discharge_choice_is_accepted_and_invalid_choices_dates_and_formatting_rejected(self):
+  from modules.discharge import CHOICES
+  revision=0
+  for key,options in CHOICES.items():
+   for value in options:self.run_action('/api/save',{'action':'discharge','data':self.entry(**{key:value})},revision);revision+=1
+  for patch in [{'self_care_competency':'Unsupported'},{'actual_end_date':'2026-02-30'},{'referral_to':'x'*501},{'criteria_narrative':'x'*20001},{'criteria':[{'id':'invalid','text':'Fictional criterion'}]},{'aftercare_summary':{'type':'doc','content':[{'type':'image','attrs':{'src':'javascript:bad'}}]}}]:
+   with self.assertRaises(ValueError):self.run_action('/api/save',{'action':'discharge','data':self.entry(**patch)},revision)
+  with self.assertRaises(PermissionError):self.run_action('/api/chart',pid=str(uuid.uuid4()))
+
 if __name__=='__main__':unittest.main()

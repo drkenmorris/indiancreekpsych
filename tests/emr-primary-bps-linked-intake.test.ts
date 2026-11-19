@@ -422,9 +422,9 @@ test.each([
   source.reviews[0].clinician_notes={presenting:'Fictional observed symptoms',unapproved:'PRIVATE FICTIONAL CLINICIAN DATA'};
  },false],
  ['supplementary variation-selector-only clinician note',(source:any)=>{
-  source.reviews[0].clinician_notes={presenting:'\\u{E0100}\\u{E01EF}'};
+  source.reviews[0].clinician_notes={presenting:'\u{E0100}\u{E01EF}'};
  },false],
- ['control-only clinician note',(source:any)=>{source.reviews[0].clinician_notes={presenting:'\\u0001\\u0085'};},false]
+ ['control-only clinician note',(source:any)=>{source.reviews[0].clinician_notes={presenting:'\u0001\u0085'};},false]
 ])('original seven-page BPS withholds current-review success for %s',async(_case,corrupt,expectMismatchAlert)=>{
  const source:any={...report(firstPatient),unmappedKeys:[],reviews:[{
   id:'00000000-0000-4000-8000-000000000998',

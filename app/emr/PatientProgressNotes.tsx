@@ -128,7 +128,7 @@ export default function PatientProgressNotes({patientId,inWorkspace=false,mode='
        <br/>Attestation covers this original note only; addenda require separate review.
       </p>)}
       <p>Encounter: {new Date(note.encounter_at).toLocaleString('en-US')} · Recorded: {new Date(note.created_at).toLocaleString('en-US')}</p>
-      <dl>{Object.entries(note.sections).map(([key,value])=><div key={key}><dt>{labels[key]||key}</dt><dd>{value}</dd></div>)}</dl>
+      <dl>{[...(fields[note.template]??[]),...Object.keys(note.sections).filter(key=>!(fields[note.template]??[]).includes(key))].filter(key=>key in note.sections).map(key=><div key={key}><dt>{labels[key]||key}</dt><dd style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>{note.sections[key]}</dd></div>)}</dl>
       {!attestations.some(att=>att.note_id===note.id)&&<>
        <button type="button" disabled={saving} onClick={()=>{setSignTo(signTo===note.id?'':note.id);setSignerName('');setAttested(false);}}>
         {signTo===note.id?'Cancel author attestation':'Attest original progress note'}

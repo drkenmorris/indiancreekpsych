@@ -178,6 +178,9 @@ test('clinician BPS retains two valid, strictly ordered historical reviews',asyn
  const {container}=render(<PatientBpsIntakeReview patientId={patient}/>);
  await screen.findByText(/Previously saved immutable clinician reviews \(2\)/);
  expect(container.textContent).toContain('FICTIONAL_PRESERVED_REPORT');
- expect(container.textContent).toContain('Documented clinician reviews: 2');
- expect(screen.queryByRole('alert')).toBeNull();
+ // Historical notes remain visible, but archived source versions cannot
+ // independently verify the CURRENT patient-reported snapshot. Do not count
+ // them as current-source documented completed reviews.
+ expect(container.textContent).toContain('Documented clinician reviews: 0');
+ expect(container.textContent).toContain('This historical row lacks confirmed clinician-review attestation');
 });

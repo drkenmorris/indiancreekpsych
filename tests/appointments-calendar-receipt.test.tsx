@@ -155,7 +155,12 @@ test('a name-only recurring booking never implies a link to the central patient 
 });
 
 test('a centrally linked patient booking does not show the name-only warning',async()=>{
- prepare(1,{...booking,patient_id:'00000000-0000-4000-8000-000000000901'});
+ const chartId='00000000-0000-4000-8000-000000000901';
+ prepare(1,{...booking,patient_id:chartId});
+ m.rpc.mockImplementation((name:string)=>({
+  abortSignal:async()=>({data:name==='scheduling_patients'?
+   [{id:chartId,full_name:'Synthetic Verified Directory Patient',preferred_name:null}]:1,error:null})
+ }));
  await openFutureRecurringEditor();
  expect(screen.queryByText(/name-only booking, not a central patient chart link/i)).toBeNull();
  expect(screen.queryByText(/Renaming this booking will not create a chart link/i)).toBeNull();
@@ -245,6 +250,49 @@ test('verified scheduler patient roster may label the exact linked chart appoint
  fireEvent.click(open);
  expect(screen.getByRole('heading',{name:'Appointment details'})).toBeTruthy();
  expect(screen.queryByText(/name-only booking, not a central patient chart link/i)).toBeNull();
+});
+
+
+test('linked appointment without a corresponding authorized central chart remains uneditable',async()=>{
+ const chartId='00000000-0000-4000-8000-000000000901';
+ prepare(1,{...booking,patient_id:chartId});
+ // An empty, otherwise successful directory result cannot verify a chart link.
+ render(<CalendarClient timezone={timezone} duration={50}/>);
+ fireEvent.click(screen.getByRole('button',{name:'Next month'}));
+ await screen.findByText(/Calendar linked patient identity could not be verified\. Refresh before editing bookings\./);
+ expect(screen.queryByRole('button',{name:/Synthetic Scheduling Patient/})).toBeNull();
+ expect(screen.queryByRole('button',{name:'Save changes'})).toBeNull();
+ expect(screen.queryByRole('button',{name:'Cancel appointment'})).toBeNull();
+ expect(m.rpc.mock.calls.filter(([name])=>name==='edit_calendar_appointments')).toHaveLength(0);
+});
+
+test('linked appointment displays the verified chart name, never stale free-text booking identity',async()=>{
+ const chartId='00000000-0000-4000-8000-000000000901';
+ prepare(1,{...booking,patient_id:chartId,patient_name:'WRONG_SYNTHETIC_PATIENT'});
+ m.rpc.mockImplementation((name:string)=>({
+  abortSignal:async()=>({data:name==='scheduling_patients'?
+   [{id:chartId,full_name:'Synthetic Verified Directory Patient',preferred_name:null}]:1,error:null})
+ }));
+ render(<CalendarClient timezone={timezone} duration={50}/>);
+ fireEvent.click(screen.getByRole('button',{name:'Next month'}));
+ const open=await screen.findByRole('button',{name:/Synthetic Verified Directory Patient/});
+ expect(document.body.textContent).not.toContain('WRONG_SYNTHETIC_PATIENT');
+ fireEvent.click(open);
+ expect(screen.getByRole('heading',{name:'Appointment details'})).toBeTruthy();
+ expect(document.body.textContent).not.toContain('WRONG_SYNTHETIC_PATIENT');
+});
+
+test('scheduler chart-directory identity comparison is UUID case-insensitive',async()=>{
+ const chartId='00000000-0000-4000-8000-000000000901';
+ prepare(1,{...booking,patient_id:chartId.toUpperCase(),patient_name:null});
+ m.rpc.mockImplementation((name:string)=>({
+  abortSignal:async()=>({data:name==='scheduling_patients'?
+   [{id:chartId,full_name:'Synthetic Verified Directory Patient',preferred_name:null}]:1,error:null})
+ }));
+ render(<CalendarClient timezone={timezone} duration={50}/>);
+ fireEvent.click(screen.getByRole('button',{name:'Next month'}));
+ expect(await screen.findByRole('button',{name:/Synthetic Verified Directory Patient/})).toBeTruthy();
+ expect(screen.queryByText(/Calendar linked patient identity could not be verified/)).toBeNull();
 });
 
 test.each([

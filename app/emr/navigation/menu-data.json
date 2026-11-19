@@ -144,33 +144,18 @@
       ],
       [
         "objective_rating",
-        "SOAP Notes",
-        "module-section"
-      ],
-      [
-        "psychotherapy_notes",
-        "Psychotherapy Notes",
-        "module-section"
-      ],
-      [
-        "session_custom_fields",
-        "Session Custom Fields",
+        "SOAP/DAP Notes",
         "module-section"
       ],
       [
         "group_notes",
-        "Group Session Notes",
+        "Individual Group Session Notes",
         "groups"
       ],
       [
         "amendments",
         "Amendments",
         "notes"
-      ],
-      [
-        "record_history",
-        "Record History",
-        "history"
       ]
     ],
     "prognosis": [

@@ -7,7 +7,7 @@ from datetime import datetime, timezone, date
 from modules.questionnaires import DEFINITION, digest, score
 from modules.billing import claim, preview, ADAPTERS
 from modules.clinical import ASSESSMENT_FIELDS, PLAN_FIELDS
-from modules import trauma_history, legal_routing, groups, patients, workspaces, biopsychosocial, family_origin, medical_substance, developmental_personal, bps_consolidation
+from modules import trauma_history, legal_routing, groups, patients, workspaces, biopsychosocial, family_origin, medical_substance, developmental_personal, bps_consolidation, prognosis
 from modules.library import LIBRARY, LIBRARY_HASH
 from modules.planning import assessment_problems, validate_tree, objective_links
 
@@ -192,20 +192,25 @@ class Store(patients.Registry):
                 if status == 'Revoked':
                     body['prior_id'] = prior['id']
             elif action == 'prognosis':
-                plan = linked(data.get('plan_id'), 'plan')
-                body = {key: text(data, key) for key in ['statement', 'supporting_factors', 'barriers', 'review_date']}
-                date.fromisoformat(body['review_date'])
-                body.update(plan_id=plan['id'], plan_hash=plan['hash'], author='Demo Clinician')
+                if data.get('schema') == 'prognosis/2':
+                    body = prognosis.validate(data)
+                elif 'schema' in data:
+                    raise ValueError('Unknown prognosis format.')
+                else:
+                    plan = linked(data.get('plan_id'), 'plan')
+                    body = {key: text(data, key) for key in ['statement', 'supporting_factors', 'barriers', 'review_date']}
+                    date.fromisoformat(body['review_date'])
+                    body.update(plan_id=plan['id'], plan_hash=plan['hash'], author='Demo Clinician')
             elif action == 'discharge':
                 note = linked(data.get('note_id'), 'note')
                 if not any(r['kind']=='signature' and r['note_id']==note['id'] for r in records):
                     raise ValueError('Select a signed demonstration note before documenting discharge.')
-                prognosis = linked(data.get('prognosis_id'), 'prognosis')
-                if prognosis['plan_id'] != note['plan_id']:
+                prognosis_entry = linked(data.get('prognosis_id'), 'prognosis')
+                if prognosis_entry.get('plan_id') != note['plan_id']:
                     raise ValueError('Discharge note and prognosis must reference the same plan version.')
                 body = {key: text(data, key) for key in ['reason', 'course', 'goal_status', 'follow_up', 'discharge_date']}
                 date.fromisoformat(body['discharge_date'])
-                body.update(note_id=note['id'], prognosis_id=prognosis['id'], author='Demo Clinician',
+                body.update(note_id=note['id'], prognosis_id=prognosis_entry['id'], author='Demo Clinician',
                             meaning='Synthetic discharge summary; does not close a real episode or arrange care.')
             elif action == 'assessment':
                 response = linked(data.get('response_id'), 'response')

@@ -1,5 +1,6 @@
 'use client';
 import {useCallback,useEffect,useState,type FormEvent} from 'react';
+import {dapLabels,dapGroups,assembleDap,type DapKey,type DapQuick} from '@/lib/emr/dap-quick-entry';
 
 type Template='DAP'|'SOAP'|'Narrative';
 type Note={id:string;patient_id:string;encounter_at:string;encounter_type:string;template:Template;sections:Record<string,string>;created_at:string};
@@ -14,7 +15,7 @@ const localDateTime=()=>{
 };
 const endpoint='/api/emr/progress-notes';
 
-export default function PatientProgressNotes({patientId,inWorkspace=false}:{patientId:string;inWorkspace?:boolean}){
+export default function PatientProgressNotes({patientId,inWorkspace=false,mode='all'}:{patientId:string;inWorkspace?:boolean;mode?:'all'|'dap'|'amendments'}){
  const [notes,setNotes]=useState<Note[]>([]);
  const [addenda,setAddenda]=useState<Addendum[]>([]);
  const [attestations,setAttestations]=useState<Attestation[]>([]);
@@ -26,6 +27,7 @@ export default function PatientProgressNotes({patientId,inWorkspace=false}:{pati
  const [error,setError]=useState('');
  const [message,setMessage]=useState('');
  const [template,setTemplate]=useState<Template>('DAP');
+ const [dapQuick,setDapQuick]=useState<DapQuick>({}),[dapNarrative,setDapNarrative]=useState<Record<string,boolean>>({});
  const [sections,setSections]=useState<Record<string,string>>(()=>blank('DAP'));
  const [encounter,setEncounter]=useState(localDateTime);
  const [encounterType,setEncounterType]=useState('Individual therapy');
@@ -68,7 +70,7 @@ export default function PatientProgressNotes({patientId,inWorkspace=false}:{pati
    if(!(kind==='note'?refreshed.notes:refreshed.addenda).some(item=>item.id===data.id))
     throw Error('Save was acknowledged but confirmation read did not include the new record. Check the chart before retrying.');
    setNotes(refreshed.notes);setAddenda(refreshed.addenda);setAttestations(refreshed.attestations);
-   if(kind==='note'){setSections(blank(template));setReviewed(false);}
+   if(kind==='note'){setSections(blank(template));setDapQuick({});setDapNarrative({});setReviewed(false);}
    else{setAddTo('');setReason('');setAmendment('');setAddendumReviewed(false);}
    setMessage(kind==='note'?
     'Reviewed individual progress note saved unsigned. No signature or claim was created.':
@@ -96,28 +98,30 @@ export default function PatientProgressNotes({patientId,inWorkspace=false}:{pati
   }catch(e){setMessage(e instanceof Error?e.message:'Note attestation unavailable.');}
   finally{setSaving(false);}
  }
- const workspaceDirty=Object.values(sections).some(value=>value.trim().length>0)||!!reason.trim()||!!amendment.trim()||!!signerName.trim();
+ const compiled=mode==='dap'?assembleDap(dapQuick,sections):sections;
+ const workspaceDirty=Object.values(dapQuick).some(values=>values.length>0)||Object.values(sections).some(value=>value.trim().length>0)||!!reason.trim()||!!amendment.trim()||!!signerName.trim();
  useEffect(()=>{if(!inWorkspace)return;const warn=(event:BeforeUnloadEvent)=>{if(workspaceDirty)event.preventDefault();};window.addEventListener('beforeunload',warn);return()=>window.removeEventListener('beforeunload',warn);},[inWorkspace,workspaceDirty]);
- const valid=fields[template].every(key=>{const length=sections[key]?.trim().length??0;return length>=2&&length<=4000;});
+ const valid=fields[template].every(key=>{const length=compiled[key]?.trim().length??0;return length>=2&&length<=4000;});
  const validAdd=reason.trim().length>=5&&reason.trim().length<=200&&amendment.trim().length>=5&&amendment.trim().length<=4000;
  function submitNote(event:FormEvent<HTMLFormElement>){
   event.preventDefault();if(loading||saving||error||!reviewed||!valid||!encounter)return;
   const date=new Date(encounter);if(!Number.isFinite(date.getTime()))return;
   void save({action:'note',patient_id:patientId,encounter_at:date.toISOString(),encounter_type:encounterType,
-   template,sections:Object.fromEntries(fields[template].map(key=>[key,sections[key].trim()])),reviewed:true},'note');
+   template,sections:Object.fromEntries(fields[template].map(key=>[key,compiled[key].trim()])),reviewed:true},'note');
  }
  function submitAddendum(event:FormEvent<HTMLFormElement>){
   event.preventDefault();if(loading||saving||error||!addendumReviewed||!validAdd||!addTo)return;
   void save({action:'addendum',patient_id:patientId,note_id:addTo,reason:reason.trim(),amendment:amendment.trim(),reviewed:true},'addendum');
  }
+ const visibleNotes=mode==='dap'?notes.filter(note=>note.template==='DAP'):notes;
  return <article className="centralCard" aria-label="Individual clinical progress notes" data-clinical-note-dirty={inWorkspace?(workspaceDirty?'true':'false'):undefined}>
-  <h2>Individual clinical progress notes</h2>
+  {mode==='dap'?<h1>DAP Notes</h1>:<h2>Individual clinical progress notes</h2>}
   <p>Patient-bound outpatient notes and dated corrections. Original notes may receive an irreversible, MFA-protected author attestation; later addenda remain unsigned. Attestation does not independently verify professional licensure or authorize billing. No prototype synthetic data is used.</p>
   {loading?<p role="status">Loading this patient's clinical notes…</p>:error?
    <p role="alert">{error} Clinical note entry is disabled until the selected chart can be verified.</p>:<>
-    <h3>Saved individual notes ({notes.length})</h3>
-    {notes.length===0?<p>No individual progress notes are saved for this patient.</p>:
-     <ol>{notes.map(note=><li key={note.id}>
+    <h3>{mode==='dap'?'Saved DAP notes':'Saved individual notes'} ({visibleNotes.length})</h3>
+    {visibleNotes.length===0?<p>{mode==='dap'?'No DAP notes are saved for this patient.':'No individual progress notes are saved for this patient.'}</p>:
+     <ol>{visibleNotes.map(note=><li key={note.id}>
       <strong>{note.encounter_type} — {note.template} — {attestations.some(att=>att.note_id===note.id)?'author-attested':'unsigned'}</strong>
       {attestations.filter(att=>att.note_id===note.id).map(att=><p key={att.id}>
        Author attestation: {att.signer_name} · {new Date(att.signed_at).toLocaleString('en-US')}
@@ -163,24 +167,29 @@ export default function PatientProgressNotes({patientId,inWorkspace=false}:{pati
        </fieldset>
       </form>}
      </li>)}</ol>}
-    <form autoComplete="off" onSubmit={submitNote}><fieldset disabled={saving}>
-     <legend>New individual progress note</legend>
+    {mode!=='amendments'&&<form autoComplete="off" noValidate={mode==='dap'} onSubmit={submitNote}><fieldset disabled={saving}>
+     <legend>{mode==='dap'?'New DAP note':'New individual progress note'}</legend>
      <label>Encounter date and time (your device's timezone; verify before saving)
       <input type="datetime-local" required value={encounter} onChange={e=>{setEncounter(e.target.value);setReviewed(false);}}/>
      </label>
      <label>Clinical encounter type<select value={encounterType} onChange={e=>{setEncounterType(e.target.value);setReviewed(false);}}>
       <option>Individual therapy</option><option>Initial evaluation</option><option>Follow-up</option><option>Other clinical encounter</option>
      </select></label>
-     <label>Progress-note format<select value={template} onChange={e=>{const next=e.target.value as Template;setTemplate(next);setSections(blank(next));setReviewed(false);}}>
-      <option>DAP</option><option>SOAP</option><option>Narrative</option></select></label>
-     {fields[template].map(key=><label key={key}>{labels[key]}
+     {mode!=='dap'&&<label>Progress-note format<select value={template} onChange={e=>{const next=e.target.value as Template;setTemplate(next);setSections(blank(next));setReviewed(false);}}>
+      <option>DAP</option><option>SOAP</option><option>Narrative</option></select></label>}
+     {mode==='dap'?<><p>Complete each DAP section with the quick entries that apply or an optional narrative. No findings are preselected.</p>{(Object.keys(dapLabels) as DapKey[]).map(key=><section className="soapSection" key={key} aria-labelledby={'dap-section-'+key}>
+      <h2 id={'dap-section-'+key}>{dapLabels[key]}</h2><div className="soapQuickFields">{dapGroups[key].map(group=>group.kind==='multi'?<fieldset className="soapChoiceGroup" key={group.id}><legend>{group.label}</legend><div className="soapChecks">{group.options.map(option=><label key={option}><input type="checkbox" checked={dapQuick[group.id]?.includes(option)??false} onChange={()=>{setDapQuick(previous=>{const selected=previous[group.id]??[];return {...previous,[group.id]:selected.includes(option)?selected.filter(value=>value!==option):[...selected,option]};});setReviewed(false);}}/><span>{option}</span></label>)}</div></fieldset>:<label key={group.id}>{group.label}<select value={dapQuick[group.id]?.[0]??''} onChange={event=>{const value=event.target.value;setDapQuick(previous=>({...previous,[group.id]:value?[value]:[]}));setReviewed(false);}}><option value="">Select if assessed</option>{group.options.map(option=><option key={option}>{option}</option>)}</select></label>)}</div>
+      <button type="button" aria-expanded={dapNarrative[key]??false} aria-controls={'dap-narrative-'+key} onClick={()=>setDapNarrative(previous=>({...previous,[key]:!previous[key]}))}>{dapNarrative[key]?'Hide narrative':'Add narrative'} — {labels[key]}</button>
+      <div id={'dap-narrative-'+key} hidden={!dapNarrative[key]}><label>{labels[key]} narrative (optional)<textarea maxLength={4000} rows={4} value={sections[key]??''} onChange={event=>{const value=event.target.value;setSections(previous=>({...previous,[key]:value}));setReviewed(false);}}/></label></div>
+      {!dapNarrative[key]&&sections[key]&&<p>Narrative retained and included in the note.</p>}<p>{compiled[key].length} / 4000 characters</p>{compiled[key].length>4000&&<p role="alert">Shorten this section to 4,000 characters before saving.</p>}
+     </section>)}<details className="soapPreview"><summary>Review assembled DAP note</summary>{(Object.keys(dapLabels) as DapKey[]).map(key=><section key={key}><h3>{dapLabels[key]}</h3><p className="soapNoteWording">{compiled[key]||'No content entered.'}</p></section>)}</details></>:fields[template].map(key=><label key={key}>{labels[key]}
       <textarea required minLength={2} maxLength={4000} rows={3} value={sections[key]??''}
        onChange={e=>{setSections(current=>({...current,[key]:e.target.value}));setReviewed(false);}}/>
      </label>)}
      <label><input type="checkbox" checked={reviewed} onChange={e=>setReviewed(e.target.checked)}/>
       I reviewed the date, patient identity and note content. Save as an unsigned, append-only clinical record.</label>
-     <button type="submit" disabled={!reviewed||!valid||!encounter||saving}>Save unsigned individual note</button>
-    </fieldset></form>
+     <button type="submit" disabled={!reviewed||!valid||!encounter||saving}>{mode==='dap'?'Save DAP note':'Save unsigned individual note'}</button>
+    </fieldset></form>}
    </>}
   {message&&<p role="status">{message}</p>}
  </article>;

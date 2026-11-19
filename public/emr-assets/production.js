@@ -338,7 +338,7 @@ function originalBpsInstantNanoseconds(value){
    history.append(list);
    if(reviews.some(review=>review.reviewed===true&&!originalBpsDocumentedReview(review))){
     const warning=document.createElement('p');warning.setAttribute('role','alert');
-    warning.textContent='A historical BPS row has a reviewed checkbox but no independently documented clinician notes. It is NOT a verified clinical review. Investigate its provenance in the protected chart.';
+    warning.textContent='A historical BPS row has a reviewed checkbox but its independent clinical documentation or source-snapshot integrity could not be verified. It is NOT a verified clinical review. Investigate its provenance in the protected chart.';
     history.append(warning);
    }
   }else{

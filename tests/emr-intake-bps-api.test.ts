@@ -1021,7 +1021,7 @@ test('clinician BPS history API withholds unexpected database columns even when 
  const review=body.reviews[0];
  expect(Object.keys(review).sort()).toEqual([
   'id','source_version','source_status','source_updated_at','created_at','reviewed',
-  'clinical_answers','clinician_notes','excluded_clinical_fields','excluded_clinician_notes'
+  'clinical_answers','clinician_notes','current_source_snapshot_verified','excluded_clinical_fields','excluded_clinician_notes'
  ].sort());
  expect(review.clinical_answers.counseling_reason).toBe('Fictional approved patient report');
  expect(review.clinician_notes.presenting).toBe('Independent fictional review');

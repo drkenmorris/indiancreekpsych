@@ -38,7 +38,8 @@ for(const migration of [
  '20261118210600_bps_supplementary_variation_selector_guard.sql',
  '20261118184500_bps_atomic_submission_receipt.sql',
  '20261118204000_bps_atomic_answer_identity.sql',
- '20261119004500_bps_control_character_attestation_guard.sql'
+ '20261119004500_bps_control_character_attestation_guard.sql',
+ '20261119033000_emr_bps_source_answer_json_guard.sql'
 ])await db.exec(readFileSync('supabase/migrations/'+migration,'utf8'));
 const q=(s,args=[])=>db.query(s,args);
 const as=async(id,aal='aal2')=>{await db.exec('reset role');await q("select set_config('request.user',$1,false),set_config('request.aal',$2,false)",[id,aal]);await db.exec('set role authenticated');};
@@ -107,6 +108,30 @@ await test('direct authorized BPS RPC cannot create checkbox-only, whitespace-on
   );
  }
  assert.equal((await q('select count(*)::integer n from public.emr_bps_intake_reviews')).rows[0].n,0);
+});
+await test('DB-attested clinician review rejects malformed patient answer values even with exact source receipt',async()=>{
+ // An MFA-authorized direct RPC caller could present the same malformed JSON
+ // as the live source. The database must not silently omit those answers when
+ // constructing an immutable reviewed BPS history.
+ for(const malformed of [
+  {...payload.source_answers,counseling_reason:{text:'Synthetic nested report'}},
+  {...payload.source_answers,medication_entries:['Synthetic structured item']},
+  {...payload.source_answers,roi_authorize:false},
+  {...payload.source_answers,suicidal_thoughts_current:null}
+ ]){
+  await db.exec('reset role');
+  await q('update public.patient_intakes set answers=$1::jsonb where patient_id=$2',
+   [JSON.stringify(malformed),account]);
+  await as(admin);
+  await assert.rejects(
+   q('select public.save_emr_bps_intake_review($1)',[{...payload,source_answers:malformed}]),
+   /BPS clinician review requires string-valued patient answers/
+  );
+  assert.equal((await q('select count(*)::integer n from public.emr_bps_intake_reviews')).rows[0].n,0);
+ }
+ await db.exec('reset role');
+ await q('update public.patient_intakes set answers=$1::jsonb where patient_id=$2',
+  [JSON.stringify(payload.source_answers),account]);
 });
 await test('MFA clinician saves an append-only BPS review using DB-owned clinical source fields',async()=>{
  await as(admin);

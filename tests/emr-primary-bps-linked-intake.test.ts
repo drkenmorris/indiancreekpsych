@@ -178,11 +178,12 @@ test('primary original BPS displays immutable snapshot provenance without leakin
 });
 
 test('exactly matching clinician-reviewed BPS source version, status and timestamp is not marked stale',async()=>{
- const current={...report(firstPatient),reviews:[{
+ const current={...report(firstPatient),unmappedKeys:[],reviews:[{
   id:'00000000-0000-4000-8000-000000000998',
   reviewed:true,source_version:6,source_status:'submitted',source_updated_at:'2026-11-10T12:00:00+00:00',
-  created_at:'2026-11-10T12:10:00Z',
-  clinical_answers:{},clinician_notes:{presenting:'FICTIONAL INDEPENDENT CLINICIAN NOTE'}
+  created_at:'2026-11-10T12:10:00Z',current_source_snapshot_verified:true,
+  clinical_answers:{counseling_reason:'Fictional patient-reported concern'},
+  clinician_notes:{presenting:'FICTIONAL INDEPENDENT CLINICIAN NOTE'}
  }]};
  const {ctx,dom}=harness(async()=>Response.json(current));
  ctx.render();
@@ -377,11 +378,13 @@ test.each([
  const current=report(firstPatient);
  current.source.updatedAt='2026-11-10T12:00:00.000002Z';
  current.source.submittedAt='2026-11-10T12:00:00.000002Z';
- const receipt={...current,reviews:[{
+ const receipt={...current,unmappedKeys:[],reviews:[{
   id:'00000000-0000-4000-8000-000000000998',
   reviewed:true,source_version:6,source_status:'submitted',
   source_updated_at:reviewUpdatedAt,created_at:'2026-11-10T12:10:00Z',
-  clinical_answers:{},clinician_notes:{presenting:'FICTIONAL INDEPENDENT CLINICIAN NOTE'}
+  current_source_snapshot_verified:true,
+  clinical_answers:{counseling_reason:'Fictional patient-reported concern'},
+  clinician_notes:{presenting:'FICTIONAL INDEPENDENT CLINICIAN NOTE'}
  }]};
  const {ctx,dom}=harness(async()=>Response.json(receipt));
  ctx.render();
@@ -403,6 +406,47 @@ test.each([
    .not.toContain('current intake version has changed');
  }
  dom.window.close();
+});
+
+// This is the actual original seven-page BPS renderer, not the central review
+// component. A matching source revision and legible note must NOT become a
+// verified current clinical review when the protected API has not certified
+// its complete DB-owned patient-source snapshot or its approved note boundary.
+test.each([
+ ['mismatched current clinical snapshot',(source:any)=>{source.reviews[0].current_source_snapshot_verified=false;},true],
+ ['absent current-snapshot verification',(source:any)=>{delete source.reviews[0].current_source_snapshot_verified;},false],
+ ['null current-snapshot verification',(source:any)=>{source.reviews[0].current_source_snapshot_verified=null;},false],
+ ['unreconciled patient-reported source fields',(source:any)=>{source.unmappedKeys=['[unrecognized source field name withheld]'];},false],
+ ['partially withheld clinician notes',(source:any)=>{source.reviews[0].excluded_clinician_notes=1;},false],
+ ['unapproved clinician note alongside legible observation',(source:any)=>{
+  source.reviews[0].clinician_notes={presenting:'Fictional observed symptoms',unapproved:'PRIVATE FICTIONAL CLINICIAN DATA'};
+ },false],
+ ['supplementary variation-selector-only clinician note',(source:any)=>{
+  source.reviews[0].clinician_notes={presenting:'\\u{E0100}\\u{E01EF}'};
+ },false],
+ ['control-only clinician note',(source:any)=>{source.reviews[0].clinician_notes={presenting:'\\u0001\\u0085'};},false]
+])('original seven-page BPS withholds current-review success for %s',async(_case,corrupt,expectMismatchAlert)=>{
+ const source:any={...report(firstPatient),unmappedKeys:[],reviews:[{
+  id:'00000000-0000-4000-8000-000000000998',
+  reviewed:true,source_version:6,source_status:'submitted',source_updated_at:'2026-11-10T12:00:00Z',
+  created_at:'2026-11-10T12:10:00Z',current_source_snapshot_verified:true,
+  excluded_clinician_notes:0,clinical_answers:{counseling_reason:'Fictional patient-reported concern'},
+  clinician_notes:{presenting:'Independent fictional clinician observation'}
+ }]};
+ corrupt(source);
+ const {ctx,dom}=harness(async()=>Response.json(source));
+ try{
+  ctx.render();
+  const history=()=>dom.window.document.querySelector(
+   'section[aria-label="Clinician-reviewed BPS intake snapshot history"]');
+  await vi.waitFor(()=>expect(history()?.textContent).toContain('current intake version has changed'));
+  expect(history()?.textContent).toContain('current intake version has changed');
+  expect(history()?.textContent).not.toContain('PRIVATE FICTIONAL CLINICIAN DATA');
+  if(expectMismatchAlert)expect(history()?.querySelector('[role="alert"]')?.textContent)
+   .toContain('does not match the complete current patient-reported clinical source');
+  expect(dom.window.document.querySelector('#clinical-form')?.textContent)
+   .toContain('Original BPS clinical form remains available');
+ }finally{dom.window.close();}
 });
 
 test('original BPS browser allowlist is synchronized with the typed clinical source mapping',()=>{

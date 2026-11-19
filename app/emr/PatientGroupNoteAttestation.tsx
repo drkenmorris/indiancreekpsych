@@ -3,7 +3,7 @@ import {useCallback,useEffect,useState,type FormEvent} from 'react';
 
 type Attestation={id:string;note_id:string;signer_name:string;signed_at:string};
 export default function PatientGroupNoteAttestation({noteId,patientId,sessionId}:{
- noteId:string;patientId:string;sessionId:string
+ noteId:string;patientId:string;sessionId:string|null
 }){
  const [attestation,setAttestation]=useState<Attestation|null>(null);
  const [loading,setLoading]=useState(true);
@@ -16,7 +16,7 @@ export default function PatientGroupNoteAttestation({noteId,patientId,sessionId}
  const url='/api/emr/groups/individual-notes/attest';
  const load=useCallback(async()=>{
   const response=await fetch(url+'?note='+encodeURIComponent(noteId)
-   +'&patient='+encodeURIComponent(patientId)+'&session='+encodeURIComponent(sessionId),{cache:'no-store'});
+   +'&patient='+encodeURIComponent(patientId)+'&session='+encodeURIComponent(sessionId??'independent'),{cache:'no-store'});
   const data=await response.json();
   if(!response.ok)throw Error(data.error||'Group note attestation unavailable.');
   if(data.noteId!==noteId||data.patientId!==patientId||data.sessionId!==sessionId
@@ -68,7 +68,7 @@ export default function PatientGroupNoteAttestation({noteId,patientId,sessionId}
          onChange={e=>{setName(e.target.value);setAttested(false);}}/>
        </label>
        <label><input type="checkbox" checked={attested} onChange={e=>setAttested(e.target.checked)}/>
-        I personally authored or reviewed this group encounter note, verified the patient and attended session, and attest its original content is accurate to the best of my knowledge.
+        {sessionId===null?'I personally authored or reviewed this group encounter note, verified the patient and documented session details, and attest its original content is accurate to the best of my knowledge.':'I personally authored or reviewed this group encounter note, verified the patient and attended session, and attest its original content is accurate to the best of my knowledge.'}
        </label>
        <button type="submit" disabled={!attested||name.trim().length<3||saving}>Record permanent group-note attestation</button>
        <button type="button" disabled={saving} onClick={()=>{setOpen(false);setAttested(false);setName('');}}>Cancel</button>

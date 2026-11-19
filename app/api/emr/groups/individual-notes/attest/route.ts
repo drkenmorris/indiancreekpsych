@@ -9,11 +9,12 @@ export async function GET(request:Request){
  const ctx=await emrAccess();
  if(!ctx)return reply({error:'Administrator sign-in and MFA required.'},403);
  const params=new URL(request.url).searchParams;
- const noteId=params.get('note'),patientId=params.get('patient'),sessionId=params.get('session');
- if(!uuid(noteId)||!uuid(patientId)||!uuid(sessionId))
+ const noteId=params.get('note'),patientId=params.get('patient'),sessionId=params.get('session')==='independent'?null:params.get('session');
+ if(!uuid(noteId)||!uuid(patientId)||!(sessionId===null&&(new URL(request.url).searchParams.get('session')==='independent')||uuid(sessionId)))
   return reply({error:'Valid note, patient and session IDs required.'},400);
- const original=await ctx.supabase.from('emr_group_individual_notes').select('id')
-  .eq('id',noteId).eq('patient_id',patientId).eq('session_id',sessionId).maybeSingle();
+ let originalQuery=ctx.supabase.from('emr_group_individual_notes').select('id')
+  .eq('id',noteId).eq('patient_id',patientId);
+ const original=await (sessionId===null?originalQuery.is('session_id',null):originalQuery.eq('session_id',sessionId)).maybeSingle();
  if(original.error)return reply({error:'Original group note unavailable.'},503);
  if(!original.data)return reply({error:'Original group note not found in selected chart.'},404);
  const result=await ctx.supabase.from('emr_group_note_attestations')
@@ -31,7 +32,7 @@ export async function POST(request:Request){
   if(Buffer.byteLength(raw)>1500)return reply({error:'Attestation request too large.'},413);
   const value=JSON.parse(raw) as Record<string,unknown>;
   if(!value||typeof value!=='object'||Array.isArray(value)
-    ||!uuid(value.note_id)||!uuid(value.patient_id)||!uuid(value.session_id)
+    ||!uuid(value.note_id)||!uuid(value.patient_id)||!(value.session_id===null||uuid(value.session_id))
     ||value.attested!==true||typeof value.typed_name!=='string'
     ||value.typed_name.trim().length<3||value.typed_name.trim().length>160)
    return reply({error:'Selected patient, group session, note, matching signer name and explicit attestation required.'},400);
@@ -43,7 +44,7 @@ export async function POST(request:Request){
    if(error.code==='42501')return reply({error:'Administrator authorization denied.'},403);
    if(error.code==='23505')return reply({error:'Original group note is already attested. Refresh the chart.'},409);
    if(error.code==='22023'||error.code==='23514')
-    return reply({error:'Check note ownership, attendance, patient or matching profile name.'},400);
+    return reply({error:value.session_id===null?'Check note ownership, patient and matching profile name.':'Check note ownership, attendance, patient or matching profile name.'},400);
    return reply({error:'Group note attestation was not confirmed.'},503);
   }
   if(!uuid(data))return reply({error:'Group note attestation was not confirmed.'},503);

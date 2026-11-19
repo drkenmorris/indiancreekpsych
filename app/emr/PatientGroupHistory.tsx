@@ -1,9 +1,8 @@
 'use client';
 import {useEffect,useState} from 'react';
-import Link from 'next/link';
 import PatientGroupProgressNotes from './PatientGroupProgressNotes';
 type Session={id:string;group_name:string;scheduled_start:string;duration_minutes:number;shared_topic:string;attendance:'Present'|'Absent'|'Excused';created_at:string};
-export default function PatientGroupHistory({patientId}:{patientId:string}){
+export default function PatientGroupHistory({patientId,showManagementLink=true,inWorkspace=false,independent=false}:{patientId:string;showManagementLink?:boolean;inWorkspace?:boolean;independent?:boolean}){
  const [sessions,setSessions]=useState<Session[]>([]);
  const [activeSession,setActiveSession]=useState<string|null>(null);
  const [timezone,setTimezone]=useState('');
@@ -23,16 +22,16 @@ export default function PatientGroupHistory({patientId}:{patientId:string}){
     .finally(()=>{if(current)setLoading(false);});
    return ()=>{current=false;};
  },[patientId]);
- return <article className="centralCard"><h2>Patient group-session history</h2>
+ return <article className="centralCard">{independent&&<PatientGroupProgressNotes key={patientId+':independent'} patientId={patientId} sessionId={null} groupName="Independent patient group notes" inWorkspace={inWorkspace}/>}<h2>{independent?'Notes linked to previous shared group sessions':'Patient group-session history'}</h2>
    <p>Read-only central attendance and shared group topics for this patient only. This is not an individualized progress note, a clinician signature, or a billing claim.</p>
    {loading?<p role="status">Loading patient group attendance…</p>:error?<p role="alert">{error} Existing chart records remain available.</p>:
    sessions.length===0?<p>No central group-session attendance has been recorded for this patient.</p>:
    <ol>{sessions.map(s=><li key={s.id}>
      <strong>{s.group_name}</strong> — {new Date(s.scheduled_start).toLocaleString('en-US',{timeZone:timezone})}
      <p>Attendance: {s.attendance} · {s.duration_minutes} minutes · Shared topic: {s.shared_topic}</p>
-     {s.attendance==='Present'&&<><button type="button" onClick={()=>setActiveSession(current=>current===s.id?null:s.id)}>{activeSession===s.id?'Close individual notes':'Open individual notes for this attended session'}</button>
-      {activeSession===s.id&&<PatientGroupProgressNotes key={patientId+':'+s.id} patientId={patientId} sessionId={s.id} groupName={s.group_name}/>}</>}
+     {s.attendance==='Present'&&<><button type="button" onClick={()=>{if(inWorkspace&&document.querySelector('#patient-group-notes-page [data-clinical-note-dirty="true"]')&&!window.confirm('Discard unsaved individual group-note edits?'))return;setActiveSession(current=>current===s.id?null:s.id);}}>{activeSession===s.id?'Close individual notes':'Open individual notes for this attended session'}</button>
+      {activeSession===s.id&&<PatientGroupProgressNotes key={patientId+':'+s.id} patientId={patientId} sessionId={s.id} groupName={s.group_name} inWorkspace={inWorkspace}/>}</>}
    </li>)}</ol>}
-   <p><Link href="/emr/groups">Open protected group session records</Link></p>
+   {showManagementLink&&<p><a href="/emr/groups">Open protected group session records</a></p>}
  </article>;
 }

@@ -71,3 +71,10 @@ test('GET fails closed on mismatched chart and missing attestation table',async(
  m.from.mockImplementation((table:string)=>table==='emr_group_individual_notes'?good:broken);
  expect((await GET(new Request(path+'?note='+note+'&patient='+patient+'&session='+session))).status).toBe(503);
 });
+test('independent attestation verifies null-session original and passes explicit null binding to the RPC',async()=>{
+ const original={select:()=>original,eq:vi.fn(()=>original),is:vi.fn(()=>original),maybeSingle:async()=>({data:{id:note},error:null})};
+ const attestation={select:()=>attestation,eq:()=>attestation,maybeSingle:async()=>({data:null,error:null})};m.from.mockImplementation((table:string)=>table==='emr_group_individual_notes'?original:attestation);
+ const response=await GET(new Request(path+'?patient='+patient+'&note='+note+'&session=independent'));expect(response.status).toBe(200);expect((await response.json()).sessionId).toBeNull();expect(original.is).toHaveBeenCalledWith('session_id',null);
+ expect((await POST(post({...payload,session_id:null}))).status).toBe(201);expect(m.rpc).toHaveBeenCalledWith('attest_emr_group_individual_note',{p_payload:{...payload,session_id:null}});
+ expect((await POST(post({...payload,session_id:undefined}))).status).toBe(400);
+});

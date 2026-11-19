@@ -387,6 +387,29 @@ export async function POST(request:Request){
    Object.keys(persistedNotes).length!==fields.length||
    fields.some(key=>persistedNotes[key]!==notes[key]))
    return reply({error:unverified},503);
+  // A durable historical row can be saved just before the central chart is
+  // relinked or the patient changes an intake. Do not certify that old row as
+  // verified for the currently selected patient and source. Keep the
+  // acknowledged-version lock: the write may already have committed.
+  let current;
+  try{current=await linkedSource(ctx.supabase,body.patientId as string);}
+  catch{return reply({error:unverified},503);}
+  const originalAnswers=live.intake.answers as Record<string,string>;
+  const currentAnswers='code' in current?null:current.intake.answers as Record<string,string>;
+  const originalKeys=Object.keys(originalAnswers);
+  if(!currentAnswers||'code' in current||
+   current.patient.id!==live.patient.id||
+   current.patient.account_id!==live.patient.account_id||
+   current.intake.patient_id!==live.intake.patient_id||
+   current.intake.version!==live.intake.version||
+   current.intake.status!==live.intake.status||
+   !equalBpsTimestampInstants(current.intake.updated_at,live.intake.updated_at)||
+   (live.intake.submitted_at==null?current.intake.submitted_at!=null:
+    !equalBpsTimestampInstants(current.intake.submitted_at,live.intake.submitted_at))||
+   Object.keys(currentAnswers).length!==originalKeys.length||
+   originalKeys.some(key=>!Object.prototype.hasOwnProperty.call(currentAnswers,key)||
+    currentAnswers[key]!==originalAnswers[key]))
+   return reply({error:unverified},503);
   return reply({id:data,saved:true,unsigned:true,diagnosisCreated:false},201);
  }catch{return reply({error:'BPS review processing failed; reopen chart history before retrying.'},503);}
 }

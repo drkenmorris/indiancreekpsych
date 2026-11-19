@@ -36,7 +36,8 @@ beforeEach(()=>{
 });
 test('blank or whitespace-only clinician notes cannot falsely attest a completed BPS review',async()=>{
  for(const notes of [{},{presenting:''},{presenting:'   ',safety:'\n\t'},{goals:'\u2003'},{presenting:'\u200B\u2060\u200E'},{limitations:'\u202E\u2066\u2069'},
-  {presenting:' \u00AD\u034F\u061C\u180E\uFEFF\n'},{goals:'\u{E0100}\u{E01EF} \n'}]){
+  {presenting:' \u00AD\u034F\u061C\u180E\uFEFF\n'},{goals:'\u{E0100}\u{E01EF} \n'},
+  {presenting:'\u0001\u001F\u007F'},{goals:'\u0085\u009F\u0002'}]){
   const result=await POST(submit({...payload,notes}));
   expect(result.status).toBe(400);
   expect(result.headers.get('Cache-Control')).toContain('no-store');

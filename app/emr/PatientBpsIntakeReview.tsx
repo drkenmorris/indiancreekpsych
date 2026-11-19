@@ -307,7 +307,11 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
       // The database receipt and reviewed flag do not constitute a genuine
       // documented clinical review if the independently read history row has
       // blank, invisible-only, or malformed clinician notes.
-      review.source_status===data.source.status&&documentedClinicianReview(review)&&
+      review.source_status===data.source.status&&
+      // A matching ID, notes and source timestamp are not affirmative proof
+      // that the DB-owned patient-answer snapshot survived unchanged. A missing
+      // or null verification flag is NOT success, even in a stale API reply.
+      review.current_source_snapshot_verified===true&&documentedClinicianReview(review)&&
       // Matching review ID and provenance alone do not prove that the clinician's
       // submitted narrative survived persistence unchanged. Check every approved
       // note domain, including intentionally blank domains; a new save cannot

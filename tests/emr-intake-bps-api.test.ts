@@ -359,6 +359,47 @@ test('original BPS reviewed badge rejects altered, omitted and protected history
  expect(JSON.stringify(await (await GET(url)).json())).not.toContain('PRIVATE_FICTIONAL_STRUCTURED_TRAUMA_WORKFLOW');
 });
 
+test('current clinician history verifies the complete clinical source, not merely the reviewed flag',async()=>{
+ const base={
+  id:'00000000-0000-0000-0000-000000000600',patient_id:patient,
+  source_account_id:account,source_version:2,source_status:'submitted',
+  source_updated_at:stamp,created_at:stamp,reviewed:true,
+  clinician_notes:{presenting:'Independent fictional clinician observation'}
+ };
+ const matching={counseling_reason:'Reports sadness',suicidal_thoughts_current:'Yes'};
+ const variants=[
+  {name:'complete',answers:matching,verified:true},
+  {name:'missing safety answer',answers:{counseling_reason:'Reports sadness'},verified:false},
+  {name:'altered presenting answer',answers:{...matching,counseling_reason:'Forged report'},verified:false},
+  {name:'extra unauthorized medication',answers:{...matching,medication_entries:'PRIVATE_FICTIONAL_MED'},verified:false}
+ ];
+ for(const variant of variants){
+  reviewRows=[{...base,clinical_answers:variant.answers}];
+  const result=await GET(request());
+  expect(result.status,variant.name).toBe(200);
+  const wire=await result.json();
+  expect(wire.reviews[0].current_source_snapshot_verified,variant.name).toBe(variant.verified);
+  expect(JSON.stringify(wire)).not.toContain('PRIVATE_FICTIONAL_MED');
+ }
+ // Even a byte-for-byte approved clinical projection cannot certify a packet
+ // containing an additional unrecognized patient report.
+ data={...data,extra_unmapped_clinical_report:'PRIVATE_FICTIONAL_UNMAPPED'};
+ reviewRows=[{...base,clinical_answers:matching}];
+ const unknown=await GET(request());
+ expect(unknown.status).toBe(200);
+ const unknownWire=await unknown.json();
+ expect(unknownWire.reviews[0].current_source_snapshot_verified).toBe(false);
+ expect(JSON.stringify(unknownWire)).not.toContain('PRIVATE_FICTIONAL_UNMAPPED');
+ // Historical revisions remain in immutable history, but cannot be certified
+ // by comparing their old clinical snapshot against today's intake answers.
+ data={counseling_reason:'Reports sadness',suicidal_thoughts_current:'Yes',
+  roi_authorize:'Yes',medication_entries:'structured original'};
+ reviewRows=[{...base,source_version:1,source_status:'draft',clinical_answers:{}}];
+ const historical=await GET(request());
+ expect(historical.status).toBe(200);
+ expect((await historical.json()).reviews[0].current_source_snapshot_verified).toBeNull();
+});
+
 test('BPS provenance summary is protected by the same authorization and patient isolation as the full review',async()=>{
  const summary=new Request(request().url+'&summary=1');
  m.access.mockResolvedValue(null);

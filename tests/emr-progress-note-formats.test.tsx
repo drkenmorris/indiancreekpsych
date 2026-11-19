@@ -41,3 +41,5 @@ test('DAP quick choices assemble all sections, optional narrative is retained wh
  expect(posted[0].sections).toEqual({data:'Information addressed: Current symptoms.\n\nObserved participation: Active.',assessment:'Clinical assessment: Further assessment needed.\n\nFictional additional clinical context',plan:'Next steps: Continue current treatment plan; Coordinate care.'});
  expect((screen.getByRole('checkbox',{name:'Current symptoms'}) as HTMLInputElement).checked).toBe(false);
 });
+
+test('saved DAP displays canonical Data Assessment Plan order even when storage returns different object key order',async()=>{notes=[{id:'prior-dap',patient_id:pid,template:'DAP',sections:{plan:'Fictional plan\n\nSecond line',data:'Fictional data',assessment:'Fictional assessment'},encounter_at:'2026-11-19T12:00:00Z',created_at:'2026-11-19T12:00:00Z',encounter_type:'Fictional'}];render(<PatientProgressNotes patientId={pid} mode="dap"/>);await screen.findByText('Fictional data');expect(Array.from(document.querySelectorAll('dl dt')).map(node=>node.textContent)).toEqual(['Data','Assessment','Plan']);expect(screen.getByText(/Second line/).style.whiteSpace).toBe('pre-wrap');});

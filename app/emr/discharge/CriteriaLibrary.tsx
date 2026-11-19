@@ -1,0 +1,19 @@
+'use client';
+import {useState,type FormEvent} from 'react';
+import {validCriteria,type CriteriaLibrary as Library,type Criterion} from '@/lib/emr/discharge';
+export default function CriteriaLibrary({library,onChange,onDirty,onReload}:{library:Library;onChange:(library:Library)=>void;onDirty:(dirty:boolean)=>void;onReload:()=>Promise<void>}){
+ const [text,setText]=useState(''),[id,setId]=useState<string|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState('');
+ async function persist(items:Criterion[],clearDraft=false){
+  if(busy)return;setBusy(true);setError('');setMessage('');
+  try{if(!validCriteria(items))throw Error('Each criterion needs unique wording within 2–500 characters.');const response=await fetch('/api/emr/discharge-criteria',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({revision:library.revision,items})});const saved=await response.json();if(!response.ok)throw Error(saved.error||'Library save failed.');const check=await fetch('/api/emr/discharge-criteria',{cache:'no-store'});const loaded=await check.json();if(!check.ok||loaded.revision!==saved.revision||!validCriteria(loaded.items)||JSON.stringify(loaded.items.map((item:Criterion)=>[item.id,item.text,item.active]))!==JSON.stringify(items.map(item=>[item.id,item.text,item.active])))throw Error('Library save could not be verified or changed in another session. Refresh and review before retrying.');onChange(loaded);if(clearDraft){setId(null);setText('');onDirty(false);}setMessage('Discharge criteria library saved and reloaded.');}
+  catch(e){setError(e instanceof Error?e.message:'Library save could not be confirmed.');}finally{setBusy(false);}
+ }
+ function edit(item:Criterion){if(text.trim()&&text!==item.text&&!window.confirm('Discard the unsaved library wording?'))return;setId(item.id);setText(item.text);onDirty(false);setError('');setMessage('');}
+ function submit(e:FormEvent){e.preventDefault();const wording=text.trim();if(wording.length<2||wording.length>500)return;const item={id:id??crypto.randomUUID(),text:wording,active:id?library.items.find(x=>x.id===id)?.active??true:true};const items=id?library.items.map(x=>x.id===id?item:x):[...library.items,item];void persist(items,true);}
+ return <details className="dischargeLibrary"><summary>Manage discharge criteria library</summary><p>Add or edit one-liners, or retire items from new selections. Wording already saved in a patient’s chart is retained.</p>
+ {error&&<p role="alert">{error}</p>}{message&&<p role="status">{message}</p>}
+ <button type="button" disabled={busy} onClick={()=>void onReload()}>Refresh library</button>
+ <form aria-label="Edit discharge criteria library" onSubmit={submit}><fieldset disabled={busy}><legend>{id?'Edit criterion':'Add a criterion'}</legend><label>Criterion one-liner<textarea rows={2} required minLength={2} maxLength={500} value={text} onChange={e=>{setText(e.target.value);onDirty(true);setError('');setMessage('');}}/></label><button type="submit" disabled={text.trim().length<2}>{busy?'Saving…':id?'Save criterion wording':'Add criterion to library'}</button><button type="button" onClick={()=>{if(text.trim()&&!window.confirm('Discard the unsaved library wording?'))return;setText('');setId(null);onDirty(false);}}>Clear library draft</button></fieldset></form>
+ <ul>{library.items.map(item=><li key={item.id}><span>{item.text}{!item.active?' (retired)':''}</span><div><button type="button" disabled={busy} aria-label={'Edit criterion '+item.text} onClick={()=>edit(item)}>Edit</button><button type="button" disabled={busy} aria-label={(item.active?'Retire criterion ':'Restore criterion ')+item.text} onClick={()=>void persist(library.items.map(x=>x.id===item.id?{...x,active:!x.active}:x))}>{item.active?'Retire':'Restore'}</button></div></li>)}</ul>
+ </details>;
+}

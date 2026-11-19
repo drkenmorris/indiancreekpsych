@@ -3,8 +3,8 @@ import {GET,POST} from '@/app/api/assigned-tests/connected/route';import {connec
 const mocks=vi.hoisted(()=>({access:vi.fn()}));
 vi.mock('@/lib/clinical-tests/asq/recipient-access',async()=>{const original=await vi.importActual<typeof import('@/lib/clinical-tests/asq/recipient-access')>('@/lib/clinical-tests/asq/recipient-access');return {...original,asqRecipientAccess:mocks.access};});
 const id='00000000-0000-0000-0000-000000000301',source={definition:connectedDefinition('cseq'),hash:hash(connectedDefinition('cseq'))};
-let email:string,assignment:Record<string,unknown>,rpc:ReturnType<typeof vi.fn>,saved:Record<string,unknown>|null,readbackFails:boolean,revocationOnSecondLookup:boolean,assignmentLookups:number;
-beforeEach(()=>{vi.stubEnv('ASQ_RECIPIENT_RELEASE_APPROVED','true');email='fictional@example.invalid';assignment={id,recipient_first_name:'Fictional',recipient_last_name:'Recipient',recipient_email:email,test_key:'cseq',patient_id:'00000000-0000-0000-0000-000000000201',status:'sent',expires_at:'2099-01-01T00:00:00Z',connected_source:source.definition,connected_source_hash:source.hash};saved=null;readbackFails=false;revocationOnSecondLookup=false;assignmentLookups=0;rpc=vi.fn(async (_name:string,p:Record<string,unknown>)=>{const revision=(p.p_expected as number)+1;saved={answers:p.p_answers,page:p.p_page,revision,status:p.p_submit?'submitted':'draft',identity_confirmed:true};return {data:revision,error:null};});mocks.access.mockImplementation(async()=>({user:{id:'fictional-user',email},supabase:{rpc,from:(table:string)=>{const chain={select:()=>chain,eq:()=>chain,maybeSingle:async()=>{if(readbackFails&&table==='connected_assignment_responses')throw Error('synthetic readback connection lost');if(table==='psych_test_assignments'){assignmentLookups++;if(revocationOnSecondLookup&&assignmentLookups===2)assignment={...assignment,status:'revoked'};}return {data:table==='psych_test_assignments'?assignment:saved?{assignment_id:id,respondent_id:'fictional-user',...saved}:null,error:null};}};return chain;}}}));});afterEach(()=>{vi.unstubAllEnvs();vi.clearAllMocks();});
+let email:string,assignment:Record<string,unknown>,rpc:ReturnType<typeof vi.fn>,saved:Record<string,unknown>|null,readbackFails:boolean,revocationOnSecondLookup:boolean,assignmentKeyChangesOnSecondLookup:boolean,assignmentLookups:number;
+beforeEach(()=>{vi.stubEnv('ASQ_RECIPIENT_RELEASE_APPROVED','true');email='fictional@example.invalid';assignment={id,recipient_first_name:'Fictional',recipient_last_name:'Recipient',recipient_email:email,test_key:'cseq',patient_id:'00000000-0000-0000-0000-000000000201',status:'sent',expires_at:'2099-01-01T00:00:00Z',connected_source:source.definition,connected_source_hash:source.hash};saved=null;readbackFails=false;revocationOnSecondLookup=false;assignmentKeyChangesOnSecondLookup=false;assignmentLookups=0;rpc=vi.fn(async (_name:string,p:Record<string,unknown>)=>{const revision=(p.p_expected as number)+1;saved={answers:p.p_answers,page:p.p_page,revision,status:p.p_submit?'submitted':'draft',identity_confirmed:true};return {data:revision,error:null};});mocks.access.mockImplementation(async()=>({user:{id:'fictional-user',email},supabase:{rpc,from:(table:string)=>{const chain={select:()=>chain,eq:()=>chain,maybeSingle:async()=>{if(readbackFails&&table==='connected_assignment_responses')throw Error('synthetic readback connection lost');if(table==='psych_test_assignments'){assignmentLookups++;if(revocationOnSecondLookup&&assignmentLookups===2)assignment={...assignment,status:'revoked'};if(assignmentKeyChangesOnSecondLookup&&assignmentLookups===2)assignment={...assignment,test_key:'rtafi'};}return {data:table==='psych_test_assignments'?assignment:saved?{assignment_id:id,respondent_id:'fictional-user',...saved}:null,error:null};}};return chain;}}}));});afterEach(()=>{vi.unstubAllEnvs();vi.clearAllMocks();});
 const request=(value:unknown,origin='https://www.indiancreekpsych.com')=>new Request('https://www.indiancreekpsych.com/api/assigned-tests/connected',{method:'POST',headers:{origin,'content-type':'application/json'},body:JSON.stringify(value)});
 const answers=()=>Object.fromEntries(source.definition.items.slice(0,7).map(i=>[i.id,0]));
 
@@ -274,4 +274,38 @@ test('POST treats a thrown provider save exception as unverified without exposin
  expect(json.saved).toBeUndefined();
  expect(json.error).toMatch(/outcome could not be verified/);
  expect(JSON.stringify(json)).not.toContain(privateError);
+});
+
+
+test('connected assignment test key must match sealed questionnaire identity before read or clinical save',async()=>{
+ // A CSEQ questionnaire cannot be served or committed under a differently
+ // labeled connected assessment, even when its original source hash is valid.
+ assignment.test_key='rtafi';
+ const read=await GET(new Request('https://www.indiancreekpsych.com/api/assigned-tests/connected?id='+id));
+ expect(read.status).toBe(409);
+ expect(read.headers.get('Cache-Control')).toContain('no-store');
+ const wire=JSON.stringify(await read.json());
+ expect(wire).not.toContain('items');
+ expect(wire).not.toContain('answers');
+ const write=await POST(request({id,expectedRevision:0,page:1,submit:false,identityConfirmed:true,answers:answers()}));
+ expect(write.status).toBe(409);
+ expect((await write.json()).saved).toBeUndefined();
+ expect(rpc).not.toHaveBeenCalled();
+});
+
+test('connected assessment blocks mid-request reassignment to a different instrument even if the sealed source hash is unchanged',async()=>{
+ const body={id,expectedRevision:0,page:1,submit:false,identityConfirmed:true,answers:answers()};
+ saved={answers:answers(),page:1,revision:1,status:'draft',identity_confirmed:true};
+ assignmentKeyChangesOnSecondLookup=true;
+ const read=await GET(new Request('https://www.indiancreekpsych.com/api/assigned-tests/connected?id='+id));
+ expect(assignmentLookups).toBe(2);
+ expect(read.status).toBe(403);
+ expect(JSON.stringify(await read.json())).not.toContain('definition');
+ assignment={...assignment,test_key:'cseq'};
+ assignmentLookups=0;
+ const write=await POST(request(body));
+ expect(rpc).toHaveBeenCalledOnce();
+ expect(assignmentLookups).toBe(2);
+ expect(write.status).toBe(503);
+ expect((await write.json()).saved).toBeUndefined();
 });

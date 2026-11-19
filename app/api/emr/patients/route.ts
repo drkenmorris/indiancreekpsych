@@ -98,7 +98,38 @@ export async function GET(request:Request){
   }
   return directoryReply({patients:data,intake});
 }
-export async function POST(request:Request){const ctx=await emrAccess();if(!ctx)return NextResponse.json({error:'Administrator sign-in and MFA required.'},{status:403,headers:privateHeaders});if(!sameOrigin(request))return NextResponse.json({error:'Same-origin request required.'},{status:403,headers:privateHeaders});try{const text=await request.text();if(text.length>30000)throw Error('Request too large.');const body=JSON.parse(text),values=demographics(body.demographics);if(body.id&&(!uuid(body.id)||!Number.isInteger(body.expectedRevision)||body.expectedRevision<1))throw Error('Invalid patient ID.');const query=body.id?ctx.supabase.from('clinical_patients').update({demographics:values}).eq('id',body.id).eq('revision',body.expectedRevision):ctx.supabase.from('clinical_patients').insert({demographics:values});const {data,error}=await query.select('id').single();if(error)return NextResponse.json({error:'Patient save was not confirmed.'},{status:409,headers:privateHeaders});return NextResponse.json({id:data.id,saved:true},{headers:privateHeaders});}catch(e){return NextResponse.json({error:e instanceof Error?e.message:'Invalid patient.'},{status:400,headers:privateHeaders});}}
+export async function POST(request:Request){
+  const ctx=await emrAccess();
+  if(!ctx)return directoryReply({error:'Administrator sign-in and MFA required.'},403);
+  if(!sameOrigin(request))return directoryReply({error:'Same-origin request required.'},403);
+  try{
+    const text=await request.text();
+    if(text.length>30000)throw Error('Request too large.');
+    const body=JSON.parse(text);
+    if(!body||typeof body!=='object'||Array.isArray(body))throw Error('Invalid patient.');
+    const values=demographics(body.demographics);
+    // An explicitly supplied empty/null/malformed chart ID must NEVER become an
+    // insert. In a clinician editor this would silently create a second patient.
+    const editing=Object.prototype.hasOwnProperty.call(body,'id');
+    if(editing&&(!uuid(body.id)||!Number.isSafeInteger(body.expectedRevision)||body.expectedRevision<1))
+      throw Error('Invalid patient ID or expected revision.');
+    const query=editing
+      ?ctx.supabase.from('clinical_patients').update({demographics:values})
+        .eq('id',body.id).eq('revision',body.expectedRevision)
+        .is('directory_deleted_at',null)
+      :ctx.supabase.from('clinical_patients').insert({demographics:values});
+    const {data,error}=await query.select('id').single();
+    // Database acknowledgments can be stale or incorrectly scoped. A successful
+    // transport/zero-error result is not evidence that this chart was saved.
+    // Never return saved:true unless an actual UUID receipt matches the chart.
+    if(error||!data||!uuid(data.id)||
+       (editing&&data.id.toLowerCase()!==body.id.toLowerCase()))
+      return directoryReply({error:'Patient save identity was not verified. Reopen the chart before retrying.'},409);
+    return directoryReply({id:data.id,saved:true});
+  }catch(e){
+    return directoryReply({error:e instanceof Error?e.message:'Invalid patient.'},400);
+  }
+}
 
 export async function PATCH(request: Request) {
   const ctx = await emrAccess();

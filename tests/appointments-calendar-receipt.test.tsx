@@ -317,6 +317,30 @@ test.each([
  else expect(screen.queryByText(/Further calendar edits and cancellations are locked in this session/)).toBeNull();
 });
 
+test.each(['appointments','scheduling_patients'])('scheduler %s readback transport exception never leaks patient details',async failingSource=>{
+ prepare(1);
+ const sentinel='SYNTHETIC_PHI_SENTINEL_123';
+ if(failingSource==='appointments'){
+  const q:any={};
+  for(const method of ['select','eq','gte','lt','order'])q[method]=vi.fn(()=>q);
+  q.abortSignal=vi.fn(async()=>{throw Error(sentinel+': private patient and SQL arguments');});
+  m.from.mockReturnValue(q);
+ } else {
+  m.rpc.mockImplementation((name:string)=>({
+   abortSignal:async()=>name==='scheduling_patients'?
+    Promise.reject(Error(sentinel+': scheduling directory private SQL')):{data:1,error:null}
+  }));
+ }
+ render(<CalendarClient timezone={timezone} duration={50}/>);
+ fireEvent.click(screen.getByRole('button',{name:'Next month'}));
+ await screen.findByText(/Calendar could not be refreshed\. Sign in and refresh before editing bookings\./);
+ expect(document.body.textContent).not.toContain(sentinel);
+ expect(screen.queryByRole('button',{name:/Synthetic Scheduling Patient/})).toBeNull();
+ expect(screen.queryByRole('button',{name:'Save changes'})).toBeNull();
+ expect(screen.queryByRole('button',{name:'Cancel appointment'})).toBeNull();
+ expect(m.rpc.mock.calls.filter(([name])=>name==='edit_calendar_appointments')).toHaveLength(0);
+});
+
 test('scheduler does not disclose details from a thrown provider transport exception',async()=>{
  prepare(1);
  m.rpc.mockImplementation((name:string)=>({

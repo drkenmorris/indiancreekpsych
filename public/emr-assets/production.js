@@ -121,8 +121,14 @@ function originalBpsInstantNanoseconds(value){
  // withheld history must not show as an independently documented review on the
  // original seven-page BPS interface.
  const originalBpsInvisibleNoteCharacters=/[\u00ad\u034f\u061c\u180e\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufe00-\ufe0f\ufeff\u{E0100}-\u{E01EF}]/gu;
- const originalBpsDocumentedReview=review=>
-  review?.reviewed===true&&review.current_source_snapshot_verified!==false&&
+ const originalBpsDocumentedReview=(review,currentVersion)=>
+  // A current clinician review requires affirmative DB-owned verification of
+  // the complete current patient source. Missing/null is not attestation.
+  // Historical revisions retain their documented notes, but are not current.
+  review?.reviewed===true&&
+  (review.source_version===currentVersion?
+   review.current_source_snapshot_verified===true:
+   review.source_version<currentVersion&&review.current_source_snapshot_verified==null)&&
   (review.excluded_clinician_notes??0)===0&&review.clinician_notes&&
   typeof review.clinician_notes==='object'&&!Array.isArray(review.clinician_notes)&&
   Object.entries(review.clinician_notes).every(([key,value])=>
@@ -294,7 +300,7 @@ function originalBpsInstantNanoseconds(value){
    (source.status==='submitted'?' · patient submission receipt '+source.submittedAt+
     ' (patient attestation only; not a clinician signature)':' · no patient submission receipt (draft)')+
    ' · '+result.sections.length+'/21 sections · '+
-   result.reviews.filter(originalBpsDocumentedReview).length+' independently documented unsigned clinician review(s).';
+   result.reviews.filter(review=>originalBpsDocumentedReview(review,source.version)).length+' independently documented unsigned clinician review(s).';
   panel.append(provenance);
   const guidance=document.createElement('p');
   guidance.textContent='Read-only patient statements are not verified clinician findings. No diagnosis, signature, medication/allergy reconciliation or clinical save occurs here.';
@@ -332,11 +338,11 @@ function originalBpsInstantNanoseconds(value){
     const status=['draft','submitted'].includes(review.source_status)?review.source_status:'unverified';
     const at=Date.parse(review.created_at);
     const date=Number.isFinite(at)?new Date(at).toLocaleString():'date unavailable';
-    item.textContent=(originalBpsDocumentedReview(review)?'Documented unsigned review of ':'Unverified review attestation for ')+status+' intake version '+version+' · saved '+date+'.';
+    item.textContent=(originalBpsDocumentedReview(review,source.version)?'Documented unsigned review of ':'Unverified review attestation for ')+status+' intake version '+version+' · saved '+date+'.';
     list.append(item);
    }
    history.append(list);
-   if(reviews.some(review=>review.reviewed===true&&!originalBpsDocumentedReview(review))){
+   if(reviews.some(review=>review.reviewed===true&&!originalBpsDocumentedReview(review,source.version))){
     const warning=document.createElement('p');warning.setAttribute('role','alert');
     warning.textContent='A historical BPS row has a reviewed checkbox but its independent clinical documentation or source-snapshot integrity could not be verified. It is NOT a verified clinical review. Investigate its provenance in the protected chart.';
     history.append(warning);
@@ -350,7 +356,7 @@ function originalBpsInstantNanoseconds(value){
   // changed, or have unresolved fields. The protected API explicitly supplies
   // this verdict; missing evidence is never an affirmative review.
   const currentReviewed=result.unmappedKeys.length===0&&reviews.some(review=>
-   originalBpsDocumentedReview(review)&&
+   originalBpsDocumentedReview(review,source.version)&&
    review.current_source_snapshot_verified===true&&
    review.source_version===result.source?.version&&
    review.source_status===result.source?.status&&

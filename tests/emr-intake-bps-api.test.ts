@@ -462,6 +462,48 @@ test('BPS provenance summary is protected by the same authorization and patient 
  expect(JSON.stringify(await blocked.json())).not.toContain('Reports sadness');
 });
 
+test('BPS review receipt stays unverified if the chart link, source, or final-submission attestation changes after the RPC',async()=>{
+ const id='00000000-0000-0000-0000-000000000500';
+ const otherAccount='00000000-0000-0000-0000-000000000994';
+ const changes=[
+  {name:'patient silently edits clinical answers without incrementing source version',
+   change:()=>{data={...data,counseling_reason:'PRIVATE_FICTIONAL_CHANGED_AFTER_SAVE'};}},
+  {name:'central chart relinked to another website account',
+   change:()=>{linked=otherAccount;returnedIntakeAccountId=otherAccount;}},
+  {name:'same-version patient submission receipt changes',
+   change:()=>{intakeSubmittedAt='2026-11-10T09:00:01Z';}},
+  {name:'newer patient intake revision',
+   change:()=>{version=3;}},
+  {name:'source reverts to a draft',
+   change:()=>{intakeStatus='draft';intakeSubmittedAt=null;}}
+ ];
+ for(const scenario of changes){
+  linked=account;returnedIntakeAccountId=account;version=2;
+  intakeStatus='submitted';intakeUpdatedAt=stamp;intakeSubmittedAt=stamp;
+  data={counseling_reason:'Reports sadness',suicidal_thoughts_current:'Yes',
+   roi_authorize:'Yes',medication_entries:'structured original'};
+  m.rpc.mockImplementationOnce(async()=>{scenario.change();return {data:id,error:null};});
+  const response=await POST(submit(payload));
+  expect(response.status,scenario.name).toBe(503);
+  expect(response.headers.get('Cache-Control')).toContain('no-store');
+  const wire=JSON.stringify(await response.json());
+  expect(wire,scenario.name).toContain('could not be independently verified');
+  expect(wire).not.toContain('"saved":true');
+  expect(wire).not.toContain('PRIVATE_FICTIONAL_CHANGED_AFTER_SAVE');
+ }
+});
+
+test('equivalent timezone representations on a rechecked BPS source do not invalidate its saved review',async()=>{
+ m.rpc.mockImplementationOnce(async()=>{
+  intakeUpdatedAt='2026-11-10T03:00:00-06:00';
+  intakeSubmittedAt='2026-11-10T03:00:00-06:00';
+  return {data:'00000000-0000-0000-0000-000000000500',error:null};
+ });
+ const response=await POST(submit(payload));
+ expect(response.status).toBe(201);
+ expect((await response.json()).saved).toBe(true);
+});
+
 test('BPS POST reports no verified save when durable readback is missing, mismatched or unavailable',async()=>{
  const id='00000000-0000-0000-0000-000000000500';
  const verified={

@@ -15,7 +15,7 @@ await test('actual hosted forms and global navigation render against central pat
  const menuLabels=id=>Array.from(w.document.querySelector(id).querySelectorAll('nav button,nav a')).map(node=>node.textContent.trim());
  assert.deepEqual(menuLabels('#home-quick-menu'),['Logout','Find/Add Patient','Appointment Scheduler','Manage Treatment Planners','Weekly Therapist Schedule']);
  assert.deepEqual(menuLabels('#provider-quick-menu'),['Provider Assignment','Provider Information','Assigned Patients List','Patient Overview','Patient Questionnaire Assignment','Patient Session Check-in','Billing']);
- assert.deepEqual(Array.from(w.document.querySelectorAll('#main-modules button')).map(node=>node.textContent),['Personal Data','Patient Assessments','Treatment Plan','Progress','Prognosis/Utilization Review','Prognosis','Discharge','Appointment Scheduler','Reports','System Settings','Administration']);
+ assert.deepEqual(Array.from(w.document.querySelectorAll('#main-modules button')).map(node=>node.textContent),['Personal Data','Patient Assessments','Treatment Plan','Progress','Prognosis/Utilization Review','Discharge','Appointment Scheduler','Reports','System Settings','Administration']);
 
  runInContext("chooseSection('notes','planner');render();",dom.getInternalVMContext());
  const progressSummary=new URL(w.document.querySelector('#progress-plan-summary').src);

@@ -355,6 +355,34 @@ export async function POST(request:Request){
    'BPS review save was not confirmed.'},
    error.code==='42501'?403:error.code==='23505'?409:error.code==='22023'?409:503);
   if(!uuid(data))return reply({error:'BPS review save was not confirmed.'},503);
+  // A privileged RPC receipt is not independent proof that the complete
+  // clinician-reviewed history was durably saved to the intended patient chart.
+  // Do not report "saved" until the exact immutable row can be read back.
+  // If the readback is uncertain the write MAY have committed: never invite a
+  // blind retry that could falsely duplicate clinical documentation.
+  const unverified='BPS review was acknowledged but its saved chart history could not be independently verified. Reopen the protected chart and contact the office before retrying.';
+  let saved:Record<string,any>|null;
+  try{
+   const readback=await ctx.supabase.from('emr_bps_intake_reviews')
+    .select('id,patient_id,source_account_id,source_version,source_status,source_updated_at,clinical_answers,clinician_notes,reviewed,created_at')
+    .eq('id',data).eq('patient_id',body.patientId).eq('source_account_id',body.sourceAccountId)
+    .maybeSingle();
+   if(readback.error)return reply({error:unverified},503);
+   saved=readback.data;
+  }catch{return reply({error:unverified},503);}
+  const persistedNotes=saved?.clinician_notes;
+  if(!saved||!uuid(saved.id)||saved.id.toLowerCase()!==data.toLowerCase()||
+   saved.patient_id!==body.patientId||saved.source_account_id!==body.sourceAccountId||
+   saved.source_version!==body.sourceVersion||saved.source_status!==body.sourceStatus||
+   !equalBpsTimestampInstants(saved.source_updated_at,body.sourceUpdatedAt)||
+   saved.reviewed!==true||!validBpsTimestamp(saved.created_at)||
+   !validBpsReviewChronology(saved.source_updated_at,saved.created_at,
+    body.sourceStatus==='submitted'?body.sourceSubmittedAt:undefined)||
+   !matchesExactBpsSnapshot(saved.clinical_answers,live.intake.answers as Record<string,string>)||
+   !persistedNotes||typeof persistedNotes!=='object'||Array.isArray(persistedNotes)||
+   Object.keys(persistedNotes).length!==fields.length||
+   fields.some(key=>persistedNotes[key]!==notes[key]))
+   return reply({error:unverified},503);
   return reply({id:data,saved:true,unsigned:true,diagnosisCreated:false},201);
  }catch{return reply({error:'BPS review processing failed; reopen chart history before retrying.'},503);}
 }

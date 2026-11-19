@@ -140,7 +140,7 @@ test('definitive calendar conflict rejection allows a corrected retry',async()=>
  }));
  const form=await openFutureRecurringEditor();
  fireEvent.submit(form);
- await screen.findByText('Appointment conflict');
+ await screen.findByText(/Appointment conflict\. Refresh the calendar and choose another time\./);
  expect(screen.queryByText(/Further calendar edits and cancellations are locked/)).toBeNull();
  fireEvent.submit(form);
  await screen.findByText('2 appointments updated. Adjacent openings have been recalculated.');
@@ -245,4 +245,41 @@ test('verified scheduler patient roster may label the exact linked chart appoint
  fireEvent.click(open);
  expect(screen.getByRole('heading',{name:'Appointment details'})).toBeTruthy();
  expect(screen.queryByText(/name-only booking, not a central patient chart link/i)).toBeNull();
+});
+
+test.each([
+ ['conflict rejection','23505','Appointment conflict',false],
+ ['MFA authorization rejection','42501','Appointment authorization denied',false],
+ ['lost connection','08006','Appointment change could not be confirmed',true],
+ ['unknown database error','XX000','Appointment change could not be confirmed',true]
+])('scheduler %s must not disclose provider-supplied patient or database details',async(_reason,code,expected,uncertain)=>{
+ prepare(1);
+ m.rpc.mockImplementation((name:string)=>({
+  abortSignal:async()=>name==='scheduling_patients'?{data:[],error:null}:{
+   data:null,error:{code,message:'SYNTHETIC_PHI_SENTINEL_123: private chart and SQL argument details'}
+  }
+ }));
+ const form=await openFutureRecurringEditor();
+ fireEvent.submit(form);
+ await screen.findByText(new RegExp(expected));
+ expect(document.body.textContent).not.toContain('SYNTHETIC_PHI_SENTINEL_123');
+ expect(screen.queryByText(/private chart and SQL argument details/)).toBeNull();
+ expect(m.rpc.mock.calls.filter(([name])=>name==='edit_calendar_appointments')).toHaveLength(1);
+ if(uncertain)expect((screen.getByRole('button',{name:'Save changes'}) as HTMLButtonElement).disabled).toBe(true);
+ else expect(screen.queryByText(/Further calendar edits and cancellations are locked in this session/)).toBeNull();
+});
+
+test('scheduler does not disclose details from a thrown provider transport exception',async()=>{
+ prepare(1);
+ m.rpc.mockImplementation((name:string)=>({
+  abortSignal:async()=> {
+   if(name==='scheduling_patients')return {data:[],error:null};
+   throw new Error('SYNTHETIC_PHI_SENTINEL_123: failed SQL containing chart ID');
+  }
+ }));
+ const form=await openFutureRecurringEditor();
+ fireEvent.submit(form);
+ await screen.findByText(/Appointment change could not be confirmed/);
+ expect(document.body.textContent).not.toContain('SYNTHETIC_PHI_SENTINEL_123');
+ expect((screen.getByRole('button',{name:'Save changes'}) as HTMLButtonElement).disabled).toBe(true);
 });

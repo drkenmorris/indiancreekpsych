@@ -109,8 +109,11 @@ async function linkedSource(supabase:NonNullable<Awaited<ReturnType<typeof emrAc
 }
 export async function GET(request:Request){
  const ctx=await emrAccess();if(!ctx)return reply({error:'Administrator sign-in and MFA required.'},403);
- const id=new URL(request.url).searchParams.get('patient');
- if(!uuid(id))return reply({error:'Valid central patient ID required.'},400);
+ const patientParam=new URL(request.url).searchParams.get('patient');
+ if(!uuid(patientParam))return reply({error:'Valid central patient ID required.'},400);
+ // PostgreSQL UUID comparisons are case-insensitive. Canonicalize the request
+ // before scope checks so mixed-case URLs cannot falsely break a linked chart.
+ const id=patientParam.toLowerCase();
  try{
   const source=await linkedSource(ctx.supabase,id);
   if('code' in source)return reply({error:source.error},source.code);
@@ -307,6 +310,10 @@ export async function POST(request:Request){
     // Bind clinical attestation to the exact patient submission receipt.
     (body.sourceStatus==='submitted'?!validBpsTimestamp(body.sourceSubmittedAt):body.sourceSubmittedAt!==null))
    return reply({error:'Valid linked patient, source version and explicit clinical review required.'},400);
+  // Normalize only after UUID validation. Patient and explicitly linked account
+  // remain exact, chart-scoped UUID identities, never a name-based fallback.
+  body.patientId=(body.patientId as string).toLowerCase();
+  body.sourceAccountId=(body.sourceAccountId as string).toLowerCase();
   if(!body.notes||typeof body.notes!=='object'||Array.isArray(body.notes))return reply({error:'Clinical notes are required.'},400);
   const fields=Object.keys(bpsNoteDomains);
   if(Object.keys(body.notes).some(key=>!fields.includes(key)))return reply({error:'Unsupported BPS notes field.'},400);

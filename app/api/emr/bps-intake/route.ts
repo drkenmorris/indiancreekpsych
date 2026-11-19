@@ -221,6 +221,18 @@ export async function GET(request:Request){
     latest[0].source_account_id!==source.patient.account_id||
     !equalBpsTimestampInstants(latest[0].created_at,reviews[0].created_at))))
    return reply({error:'BPS clinical review history changed after retrieval; reopen the chart for a complete source-verified history.'},409);
+  // The full clinician history and the original seven-page BPS status must
+  // agree about source integrity. A historical reviewed flag and complete
+  // clinician notes cannot certify a CURRENT patient report whose DB-owned
+  // clinical snapshot omitted, altered, or added clinical answers (or whose
+  // packet has unresolved reported fields). Historical revisions cannot be
+  // compared to today's answers and are deliberately reported as unverifiable.
+  const currentSourceSnapshotVerified=(review:Record<string,any>):boolean=>
+   review.source_version===source.intake.version&&
+   review.source_status===source.intake.status&&
+   equalBpsTimestampInstants(review.source_updated_at,source.intake.updated_at)&&
+   report.unmappedKeys.length===0&&
+   matchesExactBpsSnapshot(review.clinical_answers,originalAnswers);
   // Original seven-page BPS forms need a live source/attestation indicator,
   // not a second copy of questionnaire or clinician-note PHI. This read-only
   // summary passes through all the same chart/link/history stability checks
@@ -240,10 +252,7 @@ export async function GET(request:Request){
     hasIndependentBpsReviewNote(sanitizeBpsClinicianNotes(review.clinician_notes).notes)&&
     // A complete clinical note does not certify an altered, omitted, or
     // extra-field patient-reported history snapshot.
-    matchesExactBpsSnapshot(review.clinical_answers,originalAnswers)&&
-    review.source_version===source.intake.version&&
-    review.source_status===source.intake.status&&
-    equalBpsTimestampInstants(review.source_updated_at,source.intake.updated_at));
+    currentSourceSnapshotVerified(review));
    return reply({patientId:id,source:{
     status:source.intake.status,version:source.intake.version,
     updatedAt:source.intake.updated_at,submittedAt:source.intake.submitted_at??null,
@@ -260,6 +269,11 @@ export async function GET(request:Request){
     id:review.id,source_version:review.source_version,source_status:review.source_status,
     source_updated_at:review.source_updated_at,created_at:review.created_at,
     reviewed:review.reviewed===true,clinical_answers:clean.answers,clinician_notes:safeNotes.notes,
+    // Null for older revisions: today's source cannot attest to past answers.
+    // False for current revisions with altered/incomplete clinical snapshots.
+    // This is informational integrity evidence, NOT a clinician signature.
+    current_source_snapshot_verified:review.source_version===source.intake.version?
+     currentSourceSnapshotVerified(review):null,
     excluded_clinical_fields:clean.excludedCount,excluded_clinician_notes:safeNotes.excludedCount
    };
   });

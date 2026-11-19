@@ -187,7 +187,8 @@ test.each([
 
 test.each([
  ['blank',{}],
- ['invisible-only',{presenting:'\u200B\u2060'}]
+ ['invisible-only',{presenting:'\u200B\u2060'}],
+ ['control-only',{presenting:'\u0001\u001F\u007F'}]
 ])('matching BPS history receipt with reviewed=true and %s clinician notes cannot certify a completed clinical review',async(_kind,notes)=>{
  const savedId='00000000-0000-4000-8000-000000000997';
  let reads=0,posts=0;

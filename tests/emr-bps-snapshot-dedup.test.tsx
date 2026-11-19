@@ -82,6 +82,27 @@ test('unattested saved history is not counted as a clinician review and cannot b
  expect(posts).toBe(0);
 });
 
+test('current BPS snapshot mismatch is not counted as a documented clinical review and remains locked',async()=>{
+ let posts=0;
+ vi.stubGlobal('fetch',vi.fn(async(_url:string,options?:RequestInit)=>{
+  if(options?.method==='POST'){posts++;return Response.json({saved:true});}
+  return Response.json(source([{
+   id:'00000000-0000-4000-8000-000000000994',
+   reviewed:true,source_version:7,source_status:'submitted',
+   source_updated_at:stamp,created_at:stamp,
+   clinical_answers:{},clinician_notes:{presenting:'Independent fictional clinical observation'},
+   current_source_snapshot_verified:false
+  }]));
+ }));
+ render(<PatientBpsIntakeReview patientId={patient}/>);
+ await screen.findByText(/Documented clinician reviews: 0/);
+ expect(screen.getByText(/Current-source clinical snapshot mismatches are also unverified/)).toBeTruthy();
+ expect(screen.getByText(/A clinical snapshot mismatch also invalidates source verification/)).toBeTruthy();
+ expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
+ expect(screen.queryByRole('button',{name:/Save reviewed BPS history snapshot/i})).toBeNull();
+ expect(posts).toBe(0);
+});
+
 test('an acknowledged save stays locked if the history read-back fails',async()=>{
  let reads=0,posts=0;
  vi.stubGlobal('fetch',vi.fn(async (_url:string,options?:RequestInit)=>{

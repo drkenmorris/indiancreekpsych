@@ -62,7 +62,14 @@ const response=data?{answers:data.answers,page:data.page,revision:data.revision,
 // source identity before disclosing any questionnaire or historical answers.
 // This is an additional boundary; database RLS remains authoritative.
 const current=await access(id);
-if(!current||current.user.id!==ctx.user.id||
+// The source hash column may be unchanged while the JSON source changes
+// between recipient authorization and answer readback. Verify the actual
+// CURRENT sealed instrument again before releasing any clinical answers.
+let currentInstrumentVerified=false;
+if(current)try{
+ currentInstrumentVerified=checkedSource(current.a.connected_source,current.a.connected_source_hash).testKey===definition.testKey;
+}catch{ /* Fail closed on changed or malformed instrument content. */ }
+if(!current||!currentInstrumentVerified||current.user.id!==ctx.user.id||
  current.a.patient_id!==ctx.a.patient_id||
  current.a.test_key!==ctx.a.test_key||
  current.a.recipient_email!==ctx.a.recipient_email||
@@ -106,7 +113,14 @@ if(readError||!stored||stored.assignment_id!==b.id||stored.respondent_id!==ctx.u
 let current;
 try{current=await access(b.id);}
 catch{return NextResponse.json({error:unverifiedSave},{status:503,headers});}
-if(!current||current.user.id!==ctx.user.id||
+// A post-commit reassignment can change the questionnaire content without
+// updating the stored source hash. A stale pre-save definition cannot prove the
+// CURRENT assignment is still a valid, sealed instrument.
+let currentInstrumentVerified=false;
+if(current)try{
+ currentInstrumentVerified=checkedSource(current.a.connected_source,current.a.connected_source_hash).testKey===d.testKey;
+}catch{ /* Keep an acknowledged-but-unverified save locked from blind retry. */ }
+if(!current||!currentInstrumentVerified||current.user.id!==ctx.user.id||
  current.a.patient_id!==ctx.a.patient_id||
  current.a.test_key!==ctx.a.test_key||
  current.a.recipient_email!==ctx.a.recipient_email||

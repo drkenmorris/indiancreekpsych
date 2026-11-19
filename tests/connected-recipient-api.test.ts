@@ -3,8 +3,8 @@ import {GET,POST} from '@/app/api/assigned-tests/connected/route';import {connec
 const mocks=vi.hoisted(()=>({access:vi.fn()}));
 vi.mock('@/lib/clinical-tests/asq/recipient-access',async()=>{const original=await vi.importActual<typeof import('@/lib/clinical-tests/asq/recipient-access')>('@/lib/clinical-tests/asq/recipient-access');return {...original,asqRecipientAccess:mocks.access};});
 const id='00000000-0000-0000-0000-000000000301',source={definition:connectedDefinition('cseq'),hash:hash(connectedDefinition('cseq'))};
-let email:string,assignment:Record<string,unknown>,rpc:ReturnType<typeof vi.fn>,saved:Record<string,unknown>|null,readbackFails:boolean,revocationOnSecondLookup:boolean,assignmentKeyChangesOnSecondLookup:boolean,assignmentLookups:number;
-beforeEach(()=>{vi.stubEnv('ASQ_RECIPIENT_RELEASE_APPROVED','true');email='fictional@example.invalid';assignment={id,recipient_first_name:'Fictional',recipient_last_name:'Recipient',recipient_email:email,test_key:'cseq',patient_id:'00000000-0000-0000-0000-000000000201',status:'sent',expires_at:'2099-01-01T00:00:00Z',connected_source:source.definition,connected_source_hash:source.hash};saved=null;readbackFails=false;revocationOnSecondLookup=false;assignmentKeyChangesOnSecondLookup=false;assignmentLookups=0;rpc=vi.fn(async (_name:string,p:Record<string,unknown>)=>{const revision=(p.p_expected as number)+1;saved={answers:p.p_answers,page:p.p_page,revision,status:p.p_submit?'submitted':'draft',identity_confirmed:true};return {data:revision,error:null};});mocks.access.mockImplementation(async()=>({user:{id:'fictional-user',email},supabase:{rpc,from:(table:string)=>{const chain={select:()=>chain,eq:()=>chain,maybeSingle:async()=>{if(readbackFails&&table==='connected_assignment_responses')throw Error('synthetic readback connection lost');if(table==='psych_test_assignments'){assignmentLookups++;if(revocationOnSecondLookup&&assignmentLookups===2)assignment={...assignment,status:'revoked'};if(assignmentKeyChangesOnSecondLookup&&assignmentLookups===2)assignment={...assignment,test_key:'rtafi'};}return {data:table==='psych_test_assignments'?assignment:saved?{assignment_id:id,respondent_id:'fictional-user',...saved}:null,error:null};}};return chain;}}}));});afterEach(()=>{vi.unstubAllEnvs();vi.clearAllMocks();});
+let email:string,assignment:Record<string,unknown>,rpc:ReturnType<typeof vi.fn>,saved:Record<string,unknown>|null,readbackFails:boolean,revocationOnSecondLookup:boolean,assignmentKeyChangesOnSecondLookup:boolean,assignmentSourceChangesOnSecondLookup:boolean,assignmentLookups:number;
+beforeEach(()=>{vi.stubEnv('ASQ_RECIPIENT_RELEASE_APPROVED','true');email='fictional@example.invalid';assignment={id,recipient_first_name:'Fictional',recipient_last_name:'Recipient',recipient_email:email,test_key:'cseq',patient_id:'00000000-0000-0000-0000-000000000201',status:'sent',expires_at:'2099-01-01T00:00:00Z',connected_source:source.definition,connected_source_hash:source.hash};saved=null;readbackFails=false;revocationOnSecondLookup=false;assignmentKeyChangesOnSecondLookup=false;assignmentSourceChangesOnSecondLookup=false;assignmentLookups=0;rpc=vi.fn(async (_name:string,p:Record<string,unknown>)=>{const revision=(p.p_expected as number)+1;saved={answers:p.p_answers,page:p.p_page,revision,status:p.p_submit?'submitted':'draft',identity_confirmed:true};return {data:revision,error:null};});mocks.access.mockImplementation(async()=>({user:{id:'fictional-user',email},supabase:{rpc,from:(table:string)=>{const chain={select:()=>chain,eq:()=>chain,maybeSingle:async()=>{if(readbackFails&&table==='connected_assignment_responses')throw Error('synthetic readback connection lost');if(table==='psych_test_assignments'){assignmentLookups++;if(revocationOnSecondLookup&&assignmentLookups===2)assignment={...assignment,status:'revoked'};if(assignmentKeyChangesOnSecondLookup&&assignmentLookups===2)assignment={...assignment,test_key:'rtafi'};if(assignmentSourceChangesOnSecondLookup&&assignmentLookups===2)assignment={...assignment,connected_source:{testKey:'cseq',items:[]}};}return {data:table==='psych_test_assignments'?assignment:saved?{assignment_id:id,respondent_id:'fictional-user',...saved}:null,error:null};}};return chain;}}}));});afterEach(()=>{vi.unstubAllEnvs();vi.clearAllMocks();});
 const request=(value:unknown,origin='https://www.indiancreekpsych.com')=>new Request('https://www.indiancreekpsych.com/api/assigned-tests/connected',{method:'POST',headers:{origin,'content-type':'application/json'},body:JSON.stringify(value)});
 const answers=()=>Object.fromEntries(source.definition.items.slice(0,7).map(i=>[i.id,0]));
 
@@ -309,4 +309,29 @@ test('connected assessment blocks mid-request reassignment to a different instru
  expect(assignmentLookups).toBe(2);
  expect(write.status).toBe(503);
  expect((await write.json()).saved).toBeUndefined();
+});
+
+test('connected GET withholds answers if a sealed questionnaire is tampered after first authorization',async()=>{
+ saved={answers:answers(),page:1,revision:3,status:'draft',identity_confirmed:true};
+ assignmentSourceChangesOnSecondLookup=true;
+ const response=await GET(new Request('https://www.indiancreekpsych.com/api/assigned-tests/connected?id='+id));
+ expect(assignmentLookups).toBe(2);
+ expect(response.status).toBe(403);
+ expect(response.headers.get('Cache-Control')).toContain('no-store');
+ const body=await response.json();
+ expect(body).not.toHaveProperty('definition');
+ expect(body).not.toHaveProperty('response');
+ expect(JSON.stringify(body)).not.toContain('fictional-user');
+});
+
+test('connected POST does not certify saved answers when current sealed questionnaire changes after RPC',async()=>{
+ assignmentSourceChangesOnSecondLookup=true;
+ const response=await POST(request({id,expectedRevision:0,page:1,submit:false,identityConfirmed:true,answers:answers()}));
+ expect(rpc).toHaveBeenCalledOnce();
+ expect(assignmentLookups).toBe(2);
+ expect(response.status).toBe(503);
+ expect(response.headers.get('Cache-Control')).toContain('no-store');
+ const body=await response.json();
+ expect(body).not.toHaveProperty('saved');
+ expect(body.error).toMatch(/authorization changed during save/);
 });

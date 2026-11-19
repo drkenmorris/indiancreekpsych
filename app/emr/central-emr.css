@@ -4,3 +4,5 @@
 
 .soapNoteWording{white-space:pre-wrap;overflow-wrap:anywhere}
 .noteFormatChoice{display:flex;flex-wrap:wrap;gap:.5rem;margin-block:1rem}.noteFormatChoice button[aria-pressed="false"]{background:white;color:#173e35;border:1px solid #7a9387}.noteFormatChoice button[aria-pressed="true"]{background:#174b3c;color:white;border:1px solid #174b3c}
+
+.prognosisPage>form>fieldset{display:grid;gap:1rem;min-width:0}.prognosisPage>form>fieldset>label{display:grid;gap:.4rem}.prognosisPage input,.prognosisPage select{max-width:100%;box-sizing:border-box}.prognosisPage details{margin-block:1rem;padding:1rem;border:1px solid #b7cdd2}.prognosisPage dd{margin-block:.35rem 1rem;overflow-wrap:anywhere}

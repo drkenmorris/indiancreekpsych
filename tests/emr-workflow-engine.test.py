@@ -83,4 +83,28 @@ class WorkflowTests(unittest.TestCase):
  def test_schedule_and_shared_group_writes_disabled(self):
   with self.assertRaises(ValueError):self.run_action('/api/save',{'action':'appointment','data':{}})
   self.assertEqual(self.run_action('/api/groups')['value']['group']['roster'],[])
+class PrognosisTests(unittest.TestCase):
+ setUp=WorkflowTests.setUp
+ run_action=WorkflowTests.run_action
+ def entry(self):return {'schema':'prognosis/2','discharge_percent':80,'projected_sessions':12,'projected_end_date':'2026-12-31','rating':'Satisfactory','rationale':{'type':'doc','content':[{'type':'paragraph','attrs':{'textAlign':'center','indent':1},'content':[{'type':'text','text':'Fictional rationale 🙂','marks':[{'type':'bold'},{'type':'italic'},{'type':'underline'},{'type':'strike'},{'type':'textStyle','attrs':{'fontFamily':'Georgia','fontSize':'14pt'}}]}]}]}}
+ def test_prognosis_saves_without_plan_and_preserves_history_and_formatting(self):
+  entry=self.entry();saved=self.run_action('/api/save',{'action':'prognosis','data':entry})
+  record=saved['value'];self.assertEqual(record['kind'],'prognosis');self.assertNotIn('plan_id',record)
+  for key,value in entry.items():self.assertEqual(record[key],value)
+  self.assertEqual(record['recorded_by_account_id'],self.repo.user)
+  next_entry=dict(entry,rating='Superior');self.run_action('/api/save',{'action':'prognosis','data':next_entry},1)
+  records=self.run_action('/api/chart')['value']['records'];self.assertEqual(len(records),2);self.assertEqual(records[0],record);self.assertEqual(records[1]['rating'],'Superior')
+  with self.assertRaises(m.Conflict):self.run_action('/api/save',{'action':'prognosis','data':entry},1)
+ def test_prognosis_invalid_values_never_write(self):
+  for key,values in {'discharge_percent':[0,15,110,True,'80'],'projected_sessions':[0,101,1.5,True],'projected_end_date':['2026-02-30','invalid'],'rating':['Excellent'],'rationale':[{'type':'doc','content':[{'type':'image','attrs':{'src':'javascript:alert(1)'}}]}]}.items():
+   for value in values:
+    with self.subTest(key=key,value=value):
+     with self.assertRaises(ValueError):self.run_action('/api/save',{'action':'prognosis','data':dict(self.entry(),**{key:value})})
+  self.assertEqual(self.repo.saved,[])
+ def test_prognosis_all_exact_dropdown_choices_and_optional_rationale(self):
+  for i,percent in enumerate(range(10,101,10)):
+   entry=dict(self.entry(),discharge_percent=percent,projected_sessions=None,projected_end_date='',rating=('Superior','Satisfactory','Fair','Deficient','Failure')[i%5],rationale={'type':'doc','content':[{'type':'paragraph'}]})
+   self.run_action('/api/save',{'action':'prognosis','data':entry},i)
+  self.assertEqual(len(self.run_action('/api/chart')['value']['records']),10)
+
 if __name__=='__main__':unittest.main()

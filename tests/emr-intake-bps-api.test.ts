@@ -1260,3 +1260,34 @@ test('clinician BPS save rechecks the live linked source and blocks unmapped rep
  expect(accepted.status).toBe(201);
  expect(m.rpc).toHaveBeenCalledTimes(1);
 });
+
+test('mixed-case UUID requests preserve exact linked-chart scope on GET and clinician save',async()=>{
+ // PostgreSQL UUIDs identify the same row regardless of letter casing. The
+ // protected API must neither reject a valid chart nor fall back to names.
+ const chart='abcdefab-cdef-4abc-8def-abcdefabcdef';
+ const websiteAccount='abcdefab-cdef-4abc-8def-abcdefabcdea';
+ returnedPatientId=chart;
+ linked=websiteAccount;
+ returnedIntakeAccountId=websiteAccount;
+ const url=new Request('https://www.indiancreekpsych.com/api/emr/bps-intake?patient='+chart.toUpperCase());
+ const source=await GET(url);
+ expect(source.status).toBe(200);
+ const response=await source.json();
+ expect(response.patientId).toBe(chart);
+ expect(response.source.accountId).toBe(websiteAccount);
+ expect(m.from.mock.results[0].value.eq).toHaveBeenCalledWith('id',chart);
+ expect(m.from.mock.results[1].value.eq).toHaveBeenCalledWith('patient_id',websiteAccount);
+ const saved=await POST(submit({...payload,patientId:chart.toUpperCase(),sourceAccountId:websiteAccount.toUpperCase()}));
+ expect(saved.status).toBe(201);
+ expect((await saved.json()).saved).toBe(true);
+ expect(m.rpc).toHaveBeenCalledTimes(1);
+ const rpcPayload=m.rpc.mock.calls[0][1].p_payload;
+ expect(rpcPayload.patient_id).toBe(chart);
+ expect(rpcPayload.source_account_id).toBe(websiteAccount);
+ // Casing normalization cannot turn an unrelated returned chart into a match.
+ returnedPatientId='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+ const wrongChart=await GET(url);
+ expect(wrongChart.status).toBe(409);
+ expect(JSON.stringify(await wrongChart.json())).not.toContain('Reports sadness');
+ expect(m.rpc).toHaveBeenCalledTimes(1);
+});

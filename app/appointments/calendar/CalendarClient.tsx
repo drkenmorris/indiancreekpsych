@@ -36,6 +36,30 @@ function verifiedBookedCalendarRows(rows:unknown,from:string,to:string):Calendar
    status:'booked',series_id:row.series_id as string|null};
  });
 }
+/** A successful patient-directory RPC is not proof of a valid roster.
+ * Reject malformed, duplicate, or mismatched identifiers before using any
+ * returned name to label a central patient chart's calendar appointment.
+ * Do not interpolate untrusted clinical directory contents into errors.
+ */
+function verifiedCalendarPatientRows(rows:unknown):Patient[]{
+ const invalid=()=>new Error('Calendar patient roster could not be verified. Refresh before editing bookings.');
+ const uuid=/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
+ if(!Array.isArray(rows))throw invalid();
+ const seen=new Set<string>();
+ return rows.map((entry:unknown)=>{
+  if(!entry||typeof entry!=='object'||Array.isArray(entry))throw invalid();
+  const patient=entry as Record<string,unknown>;
+  if(typeof patient.id!=='string'||!uuid.test(patient.id)||
+   (patient.full_name!==null&&(typeof patient.full_name!=='string'||patient.full_name.length>500))||
+   (patient.preferred_name!==null&&(typeof patient.preferred_name!=='string'||patient.preferred_name.length>500)))
+   throw invalid();
+  const id=patient.id.toLowerCase();
+  if(seen.has(id))throw invalid();
+  seen.add(id);
+  return {id:patient.id,full_name:patient.full_name as string|null,
+   preferred_name:patient.preferred_name as string|null};
+ });
+}
 export default function CalendarClient({timezone,duration,onBook}:{timezone:string;duration:number;onBook?:()=>void}) {
  const supabase=useMemo(()=>createClient(),[]);
  const today=localParts(new Date().toISOString(),timezone).date;
@@ -76,7 +100,8 @@ export default function CalendarClient({timezone,duration,onBook}:{timezone:stri
      if(bookings.error)throw new Error('Appointments could not be loaded. Try Refresh.');
      if(names.error)throw new Error('Patient names could not be loaded. Try Refresh.');
      const verified=verifiedBookedCalendarRows(bookings.data,range.from,range.to);
-      if(version===request.current){setAppointments(verified);setPatients(names.data??[]);}
+     const verifiedPatients=verifiedCalendarPatientRows(names.data);
+     if(version===request.current){setAppointments(verified);setPatients(verifiedPatients);}
    } catch(e){if(version===request.current)setError(e instanceof Error?e.message:'Calendar could not be refreshed.');}
    finally {if(version===request.current)setLoading(false);}
  },[month,supabase]);

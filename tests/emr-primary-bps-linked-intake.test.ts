@@ -443,7 +443,7 @@ test.each([
   expect(history()?.textContent).toContain('current intake version has changed');
   expect(history()?.textContent).not.toContain('PRIVATE FICTIONAL CLINICIAN DATA');
   if(expectMismatchAlert)expect(Array.from(history()?.querySelectorAll('[role="alert"]')||[])
-   .some(alert=>alert.textContent?.includes('does not match the complete current patient-reported clinical source'))).toBe(true);
+   .some((alert:any)=>alert.textContent?.includes('does not match the complete current patient-reported clinical source'))).toBe(true);
   expect(dom.window.document.querySelector('#clinical-form')?.textContent)
    .toContain('Original BPS clinical form remains available');
  }finally{dom.window.close();}

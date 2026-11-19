@@ -118,12 +118,12 @@ export async function POST(request:Request){
         .eq('id',body.id).eq('revision',body.expectedRevision)
         .is('directory_deleted_at',null)
       :ctx.supabase.from('clinical_patients').insert({demographics:values});
-    const {data,error}=await query.select('id').single();
+    const {data,error}=await query.select('id,directory_deleted_at').single();
     // Database acknowledgments can be stale or incorrectly scoped. A successful
     // transport/zero-error result is not evidence that this chart was saved.
     // Never return saved:true unless an actual UUID receipt matches the chart.
     if(error||!data||!uuid(data.id)||
-       (editing&&data.id.toLowerCase()!==body.id.toLowerCase()))
+       (editing&&(data.id.toLowerCase()!==body.id.toLowerCase()||data.directory_deleted_at!==null)))
       return directoryReply({error:'Patient save identity was not verified. Reopen the chart before retrying.'},409);
     return directoryReply({id:data.id,saved:true});
   }catch(e){

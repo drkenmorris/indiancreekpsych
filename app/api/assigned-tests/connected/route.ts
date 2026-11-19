@@ -37,7 +37,7 @@ async function access(id:string){const ctx=await asqRecipientAccess();if(!ctx)re
 // central-chart links, and missing/malformed expiry timestamps before exposing
 // an assigned instrument or permitting its save RPC.
 if(error||!a||a.id!==id||!isConnectedKey(a.test_key)||!uuid(a.patient_id)||a.status!=='sent'||typeof a.expires_at!=='string'||!Number.isFinite(Date.parse(a.expires_at))||Date.parse(a.expires_at)<=Date.now()||a.recipient_email!==ctx.user.email?.toLowerCase())return null;return {...ctx,a};}
-export async function GET(r:Request){const id=new URL(r.url).searchParams.get('id');if(!uuid(id))return NextResponse.json({error:'Invalid assignment.'},{status:400,headers});const ctx=await access(id);if(!ctx)return NextResponse.json({error:'Assignment unavailable. Use the invited verified email, complete security verification, or contact the office if the invitation expired.'},{status:403,headers});try{const definition=checkedSource(ctx.a.connected_source,ctx.a.connected_source_hash);const {data,error}=await ctx.supabase.from('connected_assignment_responses').select('assignment_id,respondent_id,answers,page,revision,status,identity_confirmed').eq('assignment_id',id).eq('respondent_id',ctx.user.id).maybeSingle();if(error)throw Error('Saved answers could not be loaded.');
+export async function GET(r:Request){const id=new URL(r.url).searchParams.get('id');if(!uuid(id))return NextResponse.json({error:'Invalid assignment.'},{status:400,headers});const ctx=await access(id);if(!ctx)return NextResponse.json({error:'Assignment unavailable. Use the invited verified email, complete security verification, or contact the office if the invitation expired.'},{status:403,headers});try{const definition=checkedSource(ctx.a.connected_source,ctx.a.connected_source_hash);if(definition.testKey!==ctx.a.test_key)throw Error('Assignment and questionnaire key mismatch.');const {data,error}=await ctx.supabase.from('connected_assignment_responses').select('assignment_id,respondent_id,answers,page,revision,status,identity_confirmed').eq('assignment_id',id).eq('respondent_id',ctx.user.id).maybeSingle();if(error)throw Error('Saved answers could not be loaded.');
 // Do not rely on a filtered PostgREST lookup alone to certify recipient
 // provenance. A stale/mis-scoped adapter must never show another person's answers.
 if(data){
@@ -64,12 +64,13 @@ const response=data?{answers:data.answers,page:data.page,revision:data.revision,
 const current=await access(id);
 if(!current||current.user.id!==ctx.user.id||
  current.a.patient_id!==ctx.a.patient_id||
+ current.a.test_key!==ctx.a.test_key||
  current.a.recipient_email!==ctx.a.recipient_email||
  current.a.connected_source_hash!==ctx.a.connected_source_hash||
  current.a.expires_at!==ctx.a.expires_at)
  return NextResponse.json({error:'Assignment authorization changed; reopen the invitation or contact the office.'},{status:403,headers});
 return NextResponse.json({assignment:{id,recipientName:current.a.recipient_first_name+' '+current.a.recipient_last_name,expiresAt:current.a.expires_at},definition,response},{headers});}catch{return NextResponse.json({error:'Questionnaire source or saved answers could not be verified. Contact the office.'},{status:409,headers});}}
-export async function POST(r:Request){if(!sameOrigin(r))return NextResponse.json({error:'Same-origin request required.'},{status:403,headers});const wire=await readConnectedSaveBody(r);if(wire.tooLarge)return NextResponse.json({error:'Assessment save request too large.'},{status:413,headers});let b;try{if(typeof wire.text!=='string')throw Error();b=JSON.parse(wire.text);if(!uuid(b.id))throw Error();}catch{return NextResponse.json({error:'Invalid save request.'},{status:400,headers});}const ctx=await access(b.id);if(!ctx)return NextResponse.json({error:'Assignment unavailable or expired. Your latest changes have not been saved. Contact the office.'},{status:403,headers});try{const d=checkedSource(ctx.a.connected_source,ctx.a.connected_source_hash),s=validateSave(b,d);let receipt;
+export async function POST(r:Request){if(!sameOrigin(r))return NextResponse.json({error:'Same-origin request required.'},{status:403,headers});const wire=await readConnectedSaveBody(r);if(wire.tooLarge)return NextResponse.json({error:'Assessment save request too large.'},{status:413,headers});let b;try{if(typeof wire.text!=='string')throw Error();b=JSON.parse(wire.text);if(!uuid(b.id))throw Error();}catch{return NextResponse.json({error:'Invalid save request.'},{status:400,headers});}const ctx=await access(b.id);if(!ctx)return NextResponse.json({error:'Assignment unavailable or expired. Your latest changes have not been saved. Contact the office.'},{status:403,headers});try{const d=checkedSource(ctx.a.connected_source,ctx.a.connected_source_hash);if(d.testKey!==ctx.a.test_key)throw Error('Assignment and questionnaire key mismatch.');const s=validateSave(b,d);let receipt;
 try{receipt=await ctx.supabase.rpc('save_connected_assignment',{p_id:b.id,p_expected:s.expectedRevision,p_answers:s.answers,p_page:s.page,p_submit:s.submit,p_confirmed:true});}
 catch{return NextResponse.json({error:'Save outcome could not be verified. Keep this page open and contact the office before retrying.'},{status:503,headers});}
 const {data,error}=receipt??{};if(error)return NextResponse.json({error:error.code==='40001'?'Another session saved newer answers. Keep this page open and reopen the assignment to review.':'Saving was not confirmed. Keep this page open and contact the office if the invitation expired.'},{status:error.code==='40001'?409:503,headers});
@@ -107,6 +108,7 @@ try{current=await access(b.id);}
 catch{return NextResponse.json({error:unverifiedSave},{status:503,headers});}
 if(!current||current.user.id!==ctx.user.id||
  current.a.patient_id!==ctx.a.patient_id||
+ current.a.test_key!==ctx.a.test_key||
  current.a.recipient_email!==ctx.a.recipient_email||
  current.a.connected_source_hash!==ctx.a.connected_source_hash||
  current.a.expires_at!==ctx.a.expires_at)

@@ -84,6 +84,19 @@ export default function CalendarClient({timezone,duration,onBook}:{timezone:stri
  const definitiveCalendarRejection=(code:unknown):boolean=>
    typeof code==='string'&&/^[0-9A-Z]{5}$/.test(code)&&code!=='40003'&&
    (/^(22|23|28|40|42)/.test(code)||code==='P0001');
+ // PostgREST/SQL error messages can embed names, chart IDs, SQL arguments or
+ // database internals. Never display arbitrary provider messages in the
+ // clinical scheduler. Explain a few SQLSTATE codes using authored wording.
+ const safeMutationFailure=(failure:unknown):string=>{
+   const code=failure&&typeof failure==='object'&&'code' in failure?(failure as {code:unknown}).code:null;
+   if(code==='23505'||code==='23P01')return 'Appointment conflict. Refresh the calendar and choose another time.';
+   if(code==='42501'||code==='28000')return 'Appointment authorization denied. Verify administrator MFA and scheduling permissions.';
+   if(code==='22023'||code==='23503')return 'Appointment details or patient link are invalid. Refresh the calendar before correcting them.';
+   if(code==='40001'||code==='40P01')return 'Concurrent scheduling change rejected. Refresh the calendar before retrying.';
+   // Preserve only this exact application-authored, PHI-free receipt warning.
+   if(failure instanceof Error&&failure.message==='Appointment change was not confirmed. Refresh the calendar before retrying.')return failure.message;
+   return 'Appointment change could not be confirmed. Refresh the calendar before proceeding.';
+ };
  const load=useCallback(async()=>{
    const version=++request.current;
    // A refresh (including a month switch) invalidates the previously selected
@@ -132,7 +145,7 @@ export default function CalendarClient({timezone,duration,onBook}:{timezone:stri
      if(action==='save'&&edit.date.slice(0,7)!==month)setMonth(edit.date.slice(0,7)); else await load();
    } catch(e){
      if(outcomeUnknown){mutationOutcomeUnknown.current=true;setCalendarNeedsReconciliation(true);}
-     const reason=(e as {message?:string})?.message??'The change could not be confirmed.';
+     const reason=safeMutationFailure(e);
      setEditError(reason+(outcomeUnknown?' The change may already have committed. Further calendar edits and cancellations are locked in this session. Inspect the refreshed calendar and reload the page before retrying; never repeat this action blindly.':''));
    }
    finally{mutationInFlight.current=false;setBusy(false);setConfirmCancel(false);}

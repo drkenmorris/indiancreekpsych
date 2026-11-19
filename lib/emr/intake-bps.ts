@@ -130,7 +130,10 @@ export const emptyBpsNotes=():BpsNotes=>Object.fromEntries(Object.keys(bpsNoteDo
 const invisibleOnlyBpsNoteCharacters=/[\u00ad\u034f\u061c\u180e\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufe00-\ufe0f\ufeff\u{E0100}-\u{E01EF}]/gu;
 export const hasIndependentBpsReviewNote=(notes:Record<string,string>):boolean=>
  Object.keys(bpsNoteDomains).some(key=>typeof notes[key]==='string'&&
-  notes[key].replace(invisibleOnlyBpsNoteCharacters,'').trim().length>0);
+  notes[key].replace(invisibleOnlyBpsNoteCharacters,'')
+  // Control codes cannot alone count as independent clinical documentation.
+  // Preserve actual note text unchanged when visible wording is also present.
+  .replace(/[\u0000-\u001F\u007F-\u009F]/g,'').trim().length>0);
 
 // Previous questionnaire versions retained patient reports that no longer have
 // inputs on the current 21-section form. Route every retired clinical-context

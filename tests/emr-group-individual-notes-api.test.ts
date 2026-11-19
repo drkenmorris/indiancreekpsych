@@ -77,3 +77,17 @@ test('addendum history reads only after matching the exact original patient and 
  expect(note.eq).toHaveBeenCalledWith('session_id',s);
  expect(amendments.eq).toHaveBeenCalledWith('note_id',n);
 });
+test('independent reviewed notes use the independent RPC and no shared session payload',async()=>{
+ const body={...note,session_id:null,group_name:'Fictional direct group',encounter_at:'2026-11-19T10:00:00-06:00'};
+ const r=await POST(post(body));expect(r.status).toBe(201);expect(mocks.rpc).toHaveBeenCalledWith('save_independent_group_note',{p_payload:{patient_id:p,group_name:body.group_name,encounter_at:body.encounter_at,template:'DAP',sections:note.sections,reviewed:true}});
+ for(const bad of [{...body,group_name:''},{...body,encounter_at:'2026-11-19T10:00:00'},{...body,session_id:undefined}])expect((await POST(post(bad))).status).toBe(400);
+});
+test('independent reads require an existing patient and select only null-session notes',async()=>{
+ const patient={select:()=>patient,eq:()=>patient,maybeSingle:async()=>({data:{id:p},error:null})};
+ const notes={select:()=>notes,eq:vi.fn(()=>notes),is:vi.fn(()=>notes),order:()=>notes,limit:async()=>({data:[],error:null})};mocks.from.mockImplementation((table:string)=>table==='clinical_patients'?patient:notes);
+ const r=await GET(new Request('https://www.indiancreekpsych.com/api/emr/groups/individual-notes?patient='+p+'&session=independent'));expect(r.status).toBe(200);expect(await r.json()).toEqual({patientId:p,sessionId:null,notes:[]});expect(notes.is).toHaveBeenCalledWith('session_id',null);expect(notes.eq).toHaveBeenCalledWith('patient_id',p);
+});
+test('independent amendment routes scope to null-session original and preserve patient match',async()=>{
+ const n='00000000-0000-0000-0000-000000000299';const original={select:()=>original,eq:vi.fn(()=>original),is:vi.fn(()=>original),maybeSingle:async()=>({data:{id:n},error:null})};const amendments={select:()=>amendments,eq:()=>amendments,order:()=>amendments,limit:async()=>({data:[],error:null})};mocks.from.mockImplementation((table:string)=>table==='emr_group_individual_notes'?original:amendments);
+ const r=await GET_AMENDMENTS(new Request('https://www.indiancreekpsych.com/api/emr/groups/individual-notes/amendments?note='+n+'&patient='+p+'&session=independent'));expect(r.status).toBe(200);expect((await r.json()).sessionId).toBeNull();expect(original.is).toHaveBeenCalledWith('session_id',null);
+});

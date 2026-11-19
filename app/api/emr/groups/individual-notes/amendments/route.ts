@@ -3,16 +3,17 @@ import {emrAccess,privateHeaders,sameOrigin} from '@/lib/emr/access';
 import {uuid} from '@/lib/emr/demographics';
 export const dynamic='force-dynamic';
 const reply=(data:unknown,status=200)=>NextResponse.json(data,{status,headers:privateHeaders});
-const validIds=(p:Record<string,unknown>)=>uuid(p.note_id)&&uuid(p.patient_id)&&uuid(p.session_id);
+const validIds=(p:Record<string,unknown>)=>uuid(p.note_id)&&uuid(p.patient_id)&&(p.session_id===null||uuid(p.session_id));
 
 export async function GET(request:Request){
  const ctx=await emrAccess();
  if(!ctx)return reply({error:'Administrator sign-in and MFA required.'},403);
  const search=new URL(request.url).searchParams;
- const noteId=search.get('note'),patientId=search.get('patient'),sessionId=search.get('session');
- if(!uuid(noteId)||!uuid(patientId)||!uuid(sessionId))return reply({error:'Valid note, patient and session IDs are required.'},400);
- const note=await ctx.supabase.from('emr_group_individual_notes').select('id')
-  .eq('id',noteId).eq('patient_id',patientId).eq('session_id',sessionId).maybeSingle();
+ const noteId=search.get('note'),patientId=search.get('patient'),sessionId=search.get('session')==='independent'?null:search.get('session');
+ if(!uuid(noteId)||!uuid(patientId)||!(sessionId===null&&(new URL(request.url).searchParams.get('session')==='independent')||uuid(sessionId)))return reply({error:'Valid note, patient and session IDs are required.'},400);
+ let noteQuery=ctx.supabase.from('emr_group_individual_notes').select('id')
+  .eq('id',noteId).eq('patient_id',patientId);
+ const note=await (sessionId===null?noteQuery.is('session_id',null):noteQuery.eq('session_id',sessionId)).maybeSingle();
  if(note.error)return reply({error:'Original progress note unavailable.'},503);
  if(!note.data)return reply({error:'Original progress note not found in selected chart.'},404);
  const result=await ctx.supabase.from('emr_group_note_amendments')
@@ -39,7 +40,7 @@ export async function POST(request:Request){
    reason:p.reason.trim(),amendment:p.amendment.trim(),reviewed:true};
   const result=await ctx.supabase.rpc('save_emr_group_note_amendment',{p_payload:payload});
   if(result.error)return reply({error:result.error.code==='42501'?'Amendment authorization denied.':
-    result.error.code==='22023'||result.error.code==='23514'?'Check the note, attendance and amendment details.':
+    result.error.code==='22023'||result.error.code==='23514'?(p.session_id===null?'Check the patient, note and amendment details.':'Check the note, attendance and amendment details.'):
      'Progress-note amendment save was not confirmed.'},
    result.error.code==='42501'?403:result.error.code==='22023'||result.error.code==='23514'?400:503);
   if(!uuid(result.data))return reply({error:'Amendment save was not confirmed.'},503);

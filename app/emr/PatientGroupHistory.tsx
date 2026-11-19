@@ -2,7 +2,7 @@
 import {useEffect,useState} from 'react';
 import PatientGroupProgressNotes from './PatientGroupProgressNotes';
 type Session={id:string;group_name:string;scheduled_start:string;duration_minutes:number;shared_topic:string;attendance:'Present'|'Absent'|'Excused';created_at:string};
-export default function PatientGroupHistory({patientId,showManagementLink=true,inWorkspace=false}:{patientId:string;showManagementLink?:boolean;inWorkspace?:boolean}){
+export default function PatientGroupHistory({patientId,showManagementLink=true,inWorkspace=false,independent=false}:{patientId:string;showManagementLink?:boolean;inWorkspace?:boolean;independent?:boolean}){
  const [sessions,setSessions]=useState<Session[]>([]);
  const [activeSession,setActiveSession]=useState<string|null>(null);
  const [timezone,setTimezone]=useState('');
@@ -22,7 +22,7 @@ export default function PatientGroupHistory({patientId,showManagementLink=true,i
     .finally(()=>{if(current)setLoading(false);});
    return ()=>{current=false;};
  },[patientId]);
- return <article className="centralCard"><h2>Patient group-session history</h2>
+ return <article className="centralCard">{independent&&<PatientGroupProgressNotes key={patientId+':independent'} patientId={patientId} sessionId={null} groupName="Independent patient group notes" inWorkspace={inWorkspace}/>}<h2>{independent?'Notes linked to previous shared group sessions':'Patient group-session history'}</h2>
    <p>Read-only central attendance and shared group topics for this patient only. This is not an individualized progress note, a clinician signature, or a billing claim.</p>
    {loading?<p role="status">Loading patient group attendance…</p>:error?<p role="alert">{error} Existing chart records remain available.</p>:
    sessions.length===0?<p>No central group-session attendance has been recorded for this patient.</p>:

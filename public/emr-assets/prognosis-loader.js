@@ -1,6 +1,7 @@
 'use strict';
 let prognosisBundle=null;
 prognosisView=function(){return patientId?'<div id="patient-prognosis-page" class="centralEmr" data-patient-id="'+esc(patientId)+'"><p role="status">Loading prognosis editor…</p></div>':'<section class="card"><h2>Prognosis</h2><p>Select a patient using Find/Add Patient before entering prognosis.</p></section>';};
+dischargeView=function(){return patientId?'<div id="patient-discharge-page" class="centralEmr" data-patient-id="'+esc(patientId)+'"><p role="status">Loading discharge details…</p></div>':'<section class="card"><h2>Discharge Details</h2><p>Select a patient using Find/Add Patient before entering discharge details.</p></section>';};
 function loadPrognosisBundle(){
  if(prognosisBundle)return prognosisBundle;
  prognosisBundle=new Promise((resolve,reject)=>{
@@ -9,4 +10,4 @@ function loadPrognosisBundle(){
  });return prognosisBundle;
 }
 const previousPrognosisBinder=bindContent;
-bindContent=function(){previousPrognosisBinder();const host=document.getElementById('patient-prognosis-page');if(host)void loadPrognosisBundle().catch(error=>{if(host.isConnected){host.setAttribute('role','alert');host.textContent=error.message;}});};
+bindContent=function(){previousPrognosisBinder();const host=document.querySelector('#patient-prognosis-page, #patient-discharge-page');if(host)void loadPrognosisBundle().catch(error=>{if(host.isConnected){host.setAttribute('role','alert');host.textContent=error.message;}});};

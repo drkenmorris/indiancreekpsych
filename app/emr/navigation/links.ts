@@ -2,6 +2,7 @@ import menu from './menu-data.json';
 import {uuid} from '@/lib/emr/demographics';
 export const menus=menu as {sections:Record<string,string[][]>;extra:Record<string,string[][]>;modules:Record<string,string[]>};
 export function workspaceLink(module:string,key?:string,patient?:string){
+ if(module==='prognosis_details'){module='prognosis';key='prognosis';}
  const section=key?menus.sections[module]?.find(item=>item[0]===key)??menus.extra[module]?.find(item=>item[0]===key):menus.sections[module]?.find(item=>item[0]!=='patient_directory');
  const query=new URLSearchParams({module:section?.[2]??menus.modules[module]?.[1]??module});
  if(section)query.set('section',module+':'+section[0]);

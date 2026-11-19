@@ -170,13 +170,6 @@
         "module-section"
       ]
     ],
-    "prognosis_details": [
-      [
-        "details",
-        "Prognosis Details",
-        "prognosis"
-      ]
-    ],
     "discharge": [
       [
         "details",
@@ -315,10 +308,6 @@
     ],
     "prognosis": [
       "Prognosis/Utilization Review",
-      "prognosis"
-    ],
-    "prognosis_details": [
-      "Prognosis",
       "prognosis"
     ],
     "discharge": [

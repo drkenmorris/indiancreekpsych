@@ -604,3 +604,41 @@ test.each([
  expect(posts).toBe(1);
  expect(reads).toBe(2);
 });
+
+
+test.each([
+ ['missing proof',undefined,7,'submitted',0],
+ ['null proof',null,7,'submitted',0],
+ ['negative proof',false,7,'submitted',0],
+ ['older source version',null,6,'submitted',0],
+ ['provisional draft despite positive proof',true,7,'draft',0],
+ ['current submitted and positively verified',true,7,'submitted',1]
+] as const)('historical review count requires affirmative snapshot proof: %s',async(_case,proof,version,status,expectedCount)=>{
+ // Fictional notes are kept visible in immutable history, but unverified
+ // and unsubmitted clinical records must never increase the completed-review
+ // count displayed to clinicians on the 21-section reconciliation screen.
+ const history:Record<string,unknown>={
+  id:'00000000-0000-4000-8000-000000000989',
+  reviewed:true,source_version:version,source_status:status,
+  source_updated_at:stamp,created_at:stamp,
+  clinical_answers:{},
+  clinician_notes:{...emptyBpsNotes(),presenting:'Independent fictional clinical observation'},
+  excluded_clinical_fields:0,excluded_clinician_notes:0
+ };
+ if(proof!==undefined)history.current_source_snapshot_verified=proof;
+ const packet=source([history]);
+ if(status==='draft'){
+  packet.source.status='draft';
+  packet.source.submittedAt=null as unknown as string;
+ }
+ vi.stubGlobal('fetch',vi.fn(async()=>Response.json(packet)));
+ render(<PatientBpsIntakeReview patientId={patient}/>);
+ await screen.findByText(new RegExp('Documented clinician reviews: '+expectedCount));
+ fireEvent.click(screen.getByText(/Previously saved immutable clinician reviews/i));
+ expect(screen.getByText('Independent fictional clinical observation')).toBeTruthy();
+ if(expectedCount===0){
+  expect(screen.getByText(/historical row lacks confirmed clinician-review attestation or independently documented clinical observations/)).toBeTruthy();
+ }else{
+  expect(screen.queryByText(/historical row lacks confirmed clinician-review attestation or independently documented clinical observations/)).toBeNull();
+ }
+});

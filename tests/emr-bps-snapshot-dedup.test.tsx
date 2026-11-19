@@ -272,6 +272,7 @@ test('an acknowledged BPS save remains unverified until protected history readba
  releaseReadback(Response.json(source([{
   id:savedId,reviewed:true,source_version:7,source_status:'submitted',
   source_updated_at:stamp,created_at:stamp,
+  current_source_snapshot_verified:true,
   clinical_answers:{},clinician_notes:{...emptyBpsNotes(),presenting:'Independent fictional clinician review note'}
  }])));
  await screen.findByText(/saved AND independently verified in the protected chart history/);

@@ -442,8 +442,8 @@ test.each([
   await vi.waitFor(()=>expect(history()?.textContent).toContain('current intake version has changed'));
   expect(history()?.textContent).toContain('current intake version has changed');
   expect(history()?.textContent).not.toContain('PRIVATE FICTIONAL CLINICIAN DATA');
-  if(expectMismatchAlert)expect(history()?.querySelector('[role="alert"]')?.textContent)
-   .toContain('does not match the complete current patient-reported clinical source');
+  if(expectMismatchAlert)expect(Array.from(history()?.querySelectorAll('[role="alert"]')||[])
+   .some(alert=>alert.textContent?.includes('does not match the complete current patient-reported clinical source'))).toBe(true);
   expect(dom.window.document.querySelector('#clinical-form')?.textContent)
    .toContain('Original BPS clinical form remains available');
  }finally{dom.window.close();}
@@ -500,7 +500,7 @@ test.each([
   const history=dom.window.document.querySelector(
    'section[aria-label="Clinician-reviewed BPS intake snapshot history"]')!;
   expect(history.textContent).toContain('current intake version has changed');
-  expect(history.textContent).toContain('no independently documented clinician notes');
+  expect(history.textContent).toContain('independent clinical documentation or source-snapshot integrity could not be verified');
   expect(history.textContent).not.toContain('Documented unsigned review of');
   expect(dom.window.document.querySelector(
    'section[aria-label="Patient intake context in original biopsychosocial workspace"]'

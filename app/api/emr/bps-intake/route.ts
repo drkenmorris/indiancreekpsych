@@ -241,7 +241,11 @@ export async function GET(request:Request){
    // A source with new/unrecognized patient-reported information cannot be
     // certified as completely reviewed merely because the known clinical fields
     // match an earlier snapshot. The summary must fail closed just like POST.
-    const currentVersionReviewed=report.unmappedKeys.length===0&&reviews.some(review=>
+    // A clinician may document a provisional DRAFT review, but it must not
+    // clear the original seven-page BPS as a reviewed patient submission.
+    // A completed intake requires an actual patient submission receipt.
+    const currentVersionReviewed=source.intake.status==='submitted'&&
+     report.unmappedKeys.length===0&&reviews.some(review=>
     // A historical checkbox-only row is not an independently documented review.
     // Match the full clinician review's note allowlist and substantive-text gate
     // so all seven original BPS pages cannot display a false reviewed status.

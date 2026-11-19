@@ -333,6 +333,36 @@ test('BPS summary records current reviewed attestation only for the same patient
  expect(draft.currentVersionReviewed).toBe(false);
 });
 
+test('a documented provisional draft review cannot clear the original seven-page BPS as a submitted reviewed intake',async()=>{
+ // This is a genuine draft source with no patient submission receipt; a
+ // clinician may have entered an independent preliminary note, but that is
+ // not evidence that the patient submitted and completed their intake.
+ intakeStatus='draft';intakeSubmittedAt=null;
+ reviewRows=[{
+  id:'00000000-0000-0000-0000-000000000650',
+  patient_id:patient,source_account_id:account,source_version:version,
+  source_status:'draft',source_updated_at:stamp,created_at:stamp,
+  reviewed:true,
+  clinical_answers:{counseling_reason:'Reports sadness',suicidal_thoughts_current:'Yes'},
+  clinician_notes:{presenting:'FICTIONAL DRAFT CLINICIAN OBSERVATION'}
+ }];
+ const summary=await GET(new Request(request().url+'&summary=1'));
+ expect(summary.status).toBe(200);
+ const state=await summary.json();
+ expect(state.source.status).toBe('draft');
+ expect(state.source.submittedAt).toBeNull();
+ expect(state.currentVersionReviewed).toBe(false);
+ expect(JSON.stringify(state)).not.toContain('FICTIONAL DRAFT CLINICIAN OBSERVATION');
+ const history=await GET(request());
+ expect(history.status).toBe(200);
+ const record=await history.json();
+ expect(record.reviews).toHaveLength(1);
+ expect(record.reviews[0].source_status).toBe('draft');
+ // The provisional record remains append-only and accessible, without being
+ // mislabeled as a patient-submitted final BPS review.
+ expect(record.reviews[0].current_source_snapshot_verified).toBe(true);
+});
+
 test('original BPS reviewed badge rejects altered, omitted and protected history fields',async()=>{
  const baseline={
   id:'00000000-0000-0000-0000-000000000611',

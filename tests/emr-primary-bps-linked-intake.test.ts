@@ -197,6 +197,27 @@ test('exactly matching clinician-reviewed BPS source version, status and timesta
  dom.window.close();
 });
 
+test('original seven-page BPS withholds current reviewed clearance for a documented draft even if the response says snapshot verified',async()=>{
+ const current=report(firstPatient);
+ const draft={...current,source:{...current.source,status:'draft',submittedAt:null},unmappedKeys:[],reviews:[{
+  id:'00000000-0000-4000-8000-000000000996',
+  reviewed:true,source_version:6,source_status:'draft',source_updated_at:'2026-11-10T12:00:00Z',
+  created_at:'2026-11-10T12:01:00Z',current_source_snapshot_verified:true,
+  clinical_answers:{counseling_reason:'Fictional patient-reported concern'},
+  clinician_notes:{presenting:'FICTIONAL PROVISIONAL CLINICIAN NOTES'}
+ }]};
+ const {ctx,dom}=harness(async()=>Response.json(draft),firstPatient,'symptoms');
+ try{
+  ctx.render();
+  const history=()=>dom.window.document.querySelector(
+   'section[aria-label="Clinician-reviewed BPS intake snapshot history"]');
+  await vi.waitFor(()=>expect(history()?.textContent).toContain('draft intake version 6'));
+  expect(history()?.textContent).toContain('has not yet been reviewed');
+  expect(history()?.textContent).not.toContain('The current intake version has been reviewed');
+  expect(dom.window.document.querySelector('#clinical-form')).not.toBeNull();
+ }finally{dom.window.close();}
+});
+
 test.each([
  ['historical source revision exceeds current website intake',(source:any)=>{source.reviews[0].source_version=7;}],
  ['historical source timestamp is later than current intake',(source:any)=>{

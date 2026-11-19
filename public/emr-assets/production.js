@@ -355,15 +355,18 @@ function originalBpsInstantNanoseconds(value){
   // reviewed clinical history if DB-owned patient answers are incomplete,
   // changed, or have unresolved fields. The protected API explicitly supplies
   // this verdict; missing evidence is never an affirmative review.
-  const currentReviewed=result.unmappedKeys.length===0&&reviews.some(review=>
+  // A source-verified provisional DRAFT review is not a completed patient
+  // submission; never display the current-review clearance before the
+  // patient's final submission receipt, even if a stale API says verified.
+  const currentReviewed=source.status==='submitted'&&
+   result.unmappedKeys.length===0&&reviews.some(review=>
    originalBpsDocumentedReview(review,source.version)&&
    review.current_source_snapshot_verified===true&&
    review.source_version===result.source?.version&&
    review.source_status===result.source?.status&&
    originalBpsInstantNanoseconds(review.source_updated_at)===editedInstant&&
-   // A clinician review cannot verify a final patient submission that did
-   // not exist until AFTER that review was created.
-   (source.status!=='submitted'||originalBpsInstantNanoseconds(review.created_at)>=submittedInstant));
+   // A clinician review must occur no earlier than the real patient receipt.
+   originalBpsInstantNanoseconds(review.created_at)>=submittedInstant);
   if(reviews.some(review=>review.source_version===source.version&&
       review.current_source_snapshot_verified===false)){
    const mismatch=document.createElement('p');mismatch.setAttribute('role','alert');

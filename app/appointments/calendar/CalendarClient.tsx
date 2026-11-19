@@ -114,13 +114,26 @@ export default function CalendarClient({timezone,duration,onBook}:{timezone:stri
      if(names.error)throw new Error('Patient names could not be loaded. Try Refresh.');
      const verified=verifiedBookedCalendarRows(bookings.data,range.from,range.to);
      const verifiedPatients=verifiedCalendarPatientRows(names.data);
+     // A booked row's patient_id is not an independently verified chart link.
+     // The independently fetched, authorized central directory must contain
+     // that exact chart before displaying or permitting edits to the booking.
+     // Never treat an unverified free-text patient_name as a substitute.
+     const verifiedChartIds=new Set(verifiedPatients.map(patient=>patient.id.toLowerCase()));
+     if(verified.some(booking=>booking.patient_id&&!verifiedChartIds.has(booking.patient_id.toLowerCase())))
+      throw new Error('Calendar linked patient identity could not be verified. Refresh before editing bookings.');
      if(version===request.current){setAppointments(verified);setPatients(verifiedPatients);}
    } catch(e){if(version===request.current)setError(e instanceof Error?e.message:'Calendar could not be refreshed.');}
    finally {if(version===request.current)setLoading(false);}
  },[month,supabase]);
  useEffect(()=>{void load();return()=>{request.current++;};},[load]);
  useEffect(()=>{if(selected)heading.current?.focus();},[selected]);
- const name=(a:CalendarAppointment)=>a.patient_name||patients.find(p=>p.id===a.patient_id)?.full_name||patients.find(p=>p.id===a.patient_id)?.preferred_name||'Patient account';
+ // Linked bookings use the verified central chart identity, not a possibly
+ // stale free-text scheduler label that may belong to a different patient.
+ const name=(a:CalendarAppointment)=>{
+  if(!a.patient_id)return a.patient_name||'Patient account';
+  const chart=patients.find(p=>p.id.toLowerCase()===a.patient_id?.toLowerCase());
+  return chart?.full_name||chart?.preferred_name||'Patient account';
+ };
  const days=monthDays(month);
  const groups=new Map<string,CalendarAppointment[]>();
  appointments.forEach(a=>{const day=localParts(a.starts_at,timezone).date;if(!day.startsWith(month))return;groups.set(day,[...(groups.get(day)??[]),a]);});

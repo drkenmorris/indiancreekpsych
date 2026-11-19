@@ -136,7 +136,7 @@ test('clinician BPS save is independently confirmed only after exact source-prov
   return Response.json(reads===1?source():source([{
    id:savedId,reviewed:true,source_version:7,source_status:'submitted',
    source_updated_at:'2026-11-10T06:00:00-06:00',created_at:stamp,
-   clinical_answers:{},clinician_notes:{...emptyBpsNotes(),presenting:'Independent fictional clinician review note'}
+   current_source_snapshot_verified:true,clinical_answers:{},clinician_notes:{...emptyBpsNotes(),presenting:'Independent fictional clinician review note'}
   }]));
  }));
  render(<PatientBpsIntakeReview patientId={patient}/>);
@@ -514,7 +514,7 @@ test('equivalent patient attestation instants in different timezone offsets stil
   if(reads===1)return Response.json(source());
   const equivalent=source([{
    id:savedId,reviewed:true,source_version:7,source_status:'submitted',
-   source_updated_at:stamp,created_at:stamp,clinical_answers:{},clinician_notes:{...emptyBpsNotes(),presenting:'Independent fictional clinician review note'}
+   source_updated_at:stamp,created_at:stamp,current_source_snapshot_verified:true,clinical_answers:{},clinician_notes:{...emptyBpsNotes(),presenting:'Independent fictional clinician review note'}
   }]);
   equivalent.source.submittedAt='2026-11-10T06:00:00-06:00';
   return Response.json(equivalent);
@@ -569,4 +569,37 @@ test.each([
  expect(document.body.textContent).not.toContain('PRIVATE_FICTIONAL_PATIENT_STATEMENT');
  expect(document.body.textContent).not.toContain('PRIVATE_FICTIONAL_SECOND_STATEMENT');
  expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
+});
+
+
+test.each([
+ ['missing',undefined],['null',null],['negative',false]
+])('a clinician save cannot be confirmed when current-source snapshot proof is %s',async(_kind,proof)=>{
+ const savedId='00000000-0000-4000-8000-000000000991';
+ let reads=0,posts=0;
+ vi.stubGlobal('fetch',vi.fn(async(_url:string,options?:RequestInit)=>{
+  if(options?.method==='POST'){posts++;return Response.json({saved:true,id:savedId});}
+  reads++;
+  if(reads===1)return Response.json(source());
+  const review:Record<string,unknown>={
+   id:savedId,reviewed:true,source_version:7,source_status:'submitted',
+   source_updated_at:stamp,created_at:stamp,
+   clinical_answers:{},clinician_notes:{...emptyBpsNotes(),presenting:'Independent fictional clinician review note'}
+  };
+  if(proof!==undefined)review.current_source_snapshot_verified=proof;
+  return Response.json(source([review]));
+ }));
+ render(<PatientBpsIntakeReview patientId={patient}/>);
+ await screen.findByText(/Version 7/);
+ fireEvent.click(screen.getByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i}));
+ fireEvent.change(screen.getByLabelText('Presenting concerns and functional impact'),{
+  target:{value:'Independent fictional clinician review note'}
+ });
+ fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed this intake/i}));
+ fireEvent.click(screen.getByRole('button',{name:/Save reviewed BPS history snapshot/i}));
+ await screen.findByText(/exact saved review, clinician note text and source provenance were NOT verified in chart history/);
+ expect(screen.queryByText(/snapshot saved AND independently verified/)).toBeNull();
+ expect(screen.queryByRole('button',{name:/Save reviewed BPS history snapshot/i})).toBeNull();
+ expect(posts).toBe(1);
+ expect(reads).toBe(2);
 });

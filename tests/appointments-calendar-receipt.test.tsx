@@ -161,7 +161,10 @@ test('a centrally linked patient booking does not show the name-only warning',as
   abortSignal:async()=>({data:name==='scheduling_patients'?
    [{id:chartId,full_name:'Synthetic Verified Directory Patient',preferred_name:null}]:1,error:null})
  }));
- await openFutureRecurringEditor();
+ render(<CalendarClient timezone={timezone} duration={50}/>);
+ fireEvent.click(screen.getByRole('button',{name:'Next month'}));
+ fireEvent.click(await screen.findByRole('button',{name:/Synthetic Verified Directory Patient/}));
+ expect(screen.getByRole('heading',{name:'Appointment details'})).toBeTruthy();
  expect(screen.queryByText(/name-only booking, not a central patient chart link/i)).toBeNull();
  expect(screen.queryByText(/Renaming this booking will not create a chart link/i)).toBeNull();
 });

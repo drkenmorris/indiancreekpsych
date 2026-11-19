@@ -19,3 +19,7 @@ test('real editor exposes an accessible spellchecked textbox and toolbar that ch
  expect(document.activeElement).toBe(screen.getByRole('button',{name:'Italic'}));
  expect(screen.getByRole('button',{name:'Bold'}).getAttribute('tabindex')).toBe('-1');
 });
+test('optional emoticon picker inserts plain text that is retained in the rich document',async()=>{
+ Object.defineProperty(Range.prototype,'getClientRects',{configurable:true,value:()=>[]});Object.defineProperty(Range.prototype,'getBoundingClientRect',{configurable:true,value:()=>new DOMRect()});
+ const onChange=vi.fn();render(<RichTextEditor label="Fictional prognosis" value={{type:'doc',content:[{type:'paragraph'}]}} onChange={onChange} emoticons/>);await screen.findByRole('textbox',{name:'Fictional prognosis'});fireEvent.change(screen.getByLabelText('Emoticons'),{target:{value:'🙂'}});await waitFor(()=>expect(JSON.stringify(onChange.mock.calls.at(-1)?.[0])).toContain('🙂'));
+});

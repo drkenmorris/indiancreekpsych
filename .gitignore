@@ -146,3 +146,7 @@ vite.config.ts.timestamp-*
 # Generated native SOAP workspace assets
 /public/emr-assets/soap-workspace.js
 /public/emr-assets/soap-workspace.css
+
+# Generated lazy prognosis workspace assets
+/public/emr-assets/prognosis-workspace.js
+/public/emr-assets/prognosis-workspace.css

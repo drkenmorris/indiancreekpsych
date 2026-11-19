@@ -432,6 +432,52 @@ test('BPS provenance summary is protected by the same authorization and patient 
  expect(JSON.stringify(await blocked.json())).not.toContain('Reports sadness');
 });
 
+test('BPS POST reports no verified save when durable readback is missing, mismatched or unavailable',async()=>{
+ const id='00000000-0000-0000-0000-000000000500';
+ const verified={
+  id,patient_id:patient,source_account_id:account,
+  source_version:2,source_status:'submitted',source_updated_at:stamp,
+  created_at:stamp,reviewed:true,
+  clinical_answers:{counseling_reason:'Reports sadness',suicidal_thoughts_current:'Yes'},
+  clinician_notes:{presenting:'Reported changes',treatment:'',medical:'',safety:'',family:'',goals:'',limitations:''}
+ };
+ const scenarios=[
+  {name:'missing persisted row',row:null},
+  {name:'incorrect saved review ID',row:{...verified,id:'00000000-0000-0000-0000-000000000501'}},
+  {name:'cross-patient row',row:{...verified,patient_id:'00000000-0000-0000-0000-000000000501'}},
+  {name:'different account',row:{...verified,source_account_id:'00000000-0000-0000-0000-000000000501'}},
+  {name:'stale revision',row:{...verified,source_version:1}},
+  {name:'unattested review',row:{...verified,reviewed:false}},
+  {name:'changed source timestamp',row:{...verified,source_updated_at:'2026-11-10T09:00:01Z'}},
+  {name:'review predates patient submission',row:{...verified,created_at:'2026-11-09T09:00:00Z'}},
+  {name:'omitted patient answer',row:{...verified,clinical_answers:{counseling_reason:'Reports sadness'}}},
+  {name:'extra restricted patient field',row:{...verified,clinical_answers:{...verified.clinical_answers,roi_authorize:'SECRET_FICTIONAL_LEGAL'}}},
+  {name:'altered clinician observation',row:{...verified,clinician_notes:{...verified.clinician_notes,presenting:'UNVERIFIED_FICTIONAL_NOTE'}}},
+  {name:'missing clinician note domain',row:{...verified,clinician_notes:{presenting:'Reported changes'}}}
+ ];
+ for(const scenario of scenarios){
+  postReadbackOverride=scenario.row;
+  const response=await POST(submit(payload));
+  expect(response.status).toBe(503);
+  const body=await response.json();
+  expect(body.saved).not.toBe(true);
+  expect(body.error).toMatch(/could not be independently verified/);
+  expect(response.headers.get('Cache-Control')).toContain('no-store');
+  expect(JSON.stringify(body)).not.toContain('SECRET_FICTIONAL_LEGAL');
+  expect(JSON.stringify(body)).not.toContain('UNVERIFIED_FICTIONAL_NOTE');
+ }
+ postReadbackOverride=undefined;
+ postReadbackError=true;
+ const errored=await POST(submit(payload));
+ expect(errored.status).toBe(503);
+ expect((await errored.json()).saved).not.toBe(true);
+ postReadbackError=false;
+ postReadbackThrows=true;
+ const thrown=await POST(submit(payload));
+ expect(thrown.status).toBe(503);
+ expect(JSON.stringify(await thrown.json())).not.toContain('FICTIONAL_PRIVATE_DB_PROVIDER_ERROR');
+});
+
 test('save accepts only explicit reviewed provenance and clinician notes, never client-fabricated fields',async()=>{
  const response=await POST(submit({...payload,clinical_answers:{forged:'diagnosis'},signature:'FAKE',billing:{charge:500}}));
  expect(response.status).toBe(201);

@@ -31,7 +31,11 @@ const documentedClinicianReview=(review:Review):boolean=>
  // snapshot that omits/changes patient answers. Keep the append-only record
  // visible and its version locked, but do not count it as a documented,
  // source-verified clinical review. Null denotes older unverifiable revisions.
- review.current_source_snapshot_verified!==false&&
+ // Only an affirmative CURRENT patient-source snapshot verification and
+ // submitted patient attestation can count toward documented completed reviews.
+ // Historical null/missing proofs and provisional draft notes remain visible
+ // in append-only history but must not increase the verified review count.
+ review.current_source_snapshot_verified===true&&review.source_status==='submitted'&&
  (review.excluded_clinician_notes??0)===0&&
  sanitizeBpsClinicianNotes(review.clinician_notes).excludedCount===0&&
  hasIndependentBpsReviewNote(sanitizeBpsClinicianNotes(review.clinician_notes).notes);

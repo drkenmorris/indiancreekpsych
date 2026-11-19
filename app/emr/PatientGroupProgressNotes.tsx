@@ -20,8 +20,8 @@ const fieldNames:Record<string,string>={
 const blankSections=(template:Template)=>Object.fromEntries(templateFields[template].map(key=>[key,''])) as Record<string,string>;
 
 export default function PatientGroupProgressNotes({
- patientId,sessionId,groupName,
-}:{patientId:string;sessionId:string;groupName:string}){
+ patientId,sessionId,groupName,inWorkspace=false,
+}:{patientId:string;sessionId:string;groupName:string;inWorkspace?:boolean}){
  const [template,setTemplate]=useState<Template>('DAP');
  const [sections,setSections]=useState<Record<string,string>>(()=>blankSections('DAP'));
  const [reviewed,setReviewed]=useState(false);
@@ -50,6 +50,8 @@ export default function PatientGroupProgressNotes({
    .finally(()=>{if(active)setLoading(false);});
   return ()=>{active=false;};
  },[load]);
+ const groupDirty=Object.values(sections).some(value=>value.trim().length>0);
+ useEffect(()=>{if(!inWorkspace)return;const warn=(event:BeforeUnloadEvent)=>{if(groupDirty)event.preventDefault();};window.addEventListener('beforeunload',warn);return()=>window.removeEventListener('beforeunload',warn);},[groupDirty,inWorkspace]);
  const complete=templateFields[template].every(key=>{
   const length=sections[key]?.trim().length??0;
   return length>=2&&length<=4000;
@@ -75,7 +77,7 @@ export default function PatientGroupProgressNotes({
   }catch(e){setMessage(e instanceof Error?e.message:'Individual note save was not confirmed.');}
   finally{setSaving(false);}
  }
- return <section aria-label={'Individual progress notes — '+groupName}>
+ return <section aria-label={'Individual progress notes — '+groupName} data-clinical-note-dirty={inWorkspace&&groupDirty?'true':'false'}>
   <h4>Individual progress notes — {groupName}</h4>
   <p>These notes belong only to the selected patient's documented attendance. They are separate from the shared group record. Original notes are stored unsigned and cannot be edited or treated as claims. The verified author may later attest an original note; corrections remain separate unsigned addenda.</p>
   {loading?<p role="status">Loading patient-specific group notes…</p>:error?

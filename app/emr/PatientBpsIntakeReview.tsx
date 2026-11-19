@@ -3,7 +3,7 @@ import {useEffect,useRef,useState,type FormEvent} from 'react';
 import {bpsSectionClassification,approvedBpsQuestionSection,validBpsQuestionnaireTopology,bpsNoteDomains,emptyBpsNotes,mapSavedBpsReportedFields,bpsVisibleSourceKeys,sanitizeBpsClinicianNotes,validBpsTimestamp,bpsTimestampInstantNanoseconds,equalBpsTimestampInstants,validBpsSubmissionChronology,validBpsReviewChronology,validBpsHistoricalSourceBoundary,hasIndependentBpsReviewNote,type BpsNotes} from '@/lib/emr/intake-bps';
 type Field={key:string;label:string;type:string;value:string;sourceOnly?:boolean;reported?:boolean};
 type Section={title:string;domain:string;disposition:'clinical'|'separate-review'|'reference';fields:Field[];answered:number};
-type Review={id:string;reviewed:boolean;source_version:number;source_status:string;source_updated_at:string;created_at:string;clinical_answers:Record<string,string>;clinician_notes:BpsNotes;excluded_clinical_fields?:number;excluded_clinician_notes?:number};
+type Review={id:string;reviewed:boolean;source_version:number;source_status:string;source_updated_at:string;created_at:string;clinical_answers:Record<string,string>;clinician_notes:BpsNotes;excluded_clinical_fields?:number;excluded_clinician_notes?:number;current_source_snapshot_verified?:boolean|null};
 type ResponseData={patientId:string;source:{accountId:string;status:string;version:number;updatedAt:string;submittedAt?:string|null;questionnairePacketVersion?:string|null};sections:Section[];unmappedKeys:string[];reviews:Review[]};
 const focusedReviewLinks:Record<string,{label:string;anchor:string}[]>={
  'Mental health treatment history':[
@@ -27,6 +27,11 @@ const readable=(field:Field,disposition:Section['disposition'])=>
 // visible, but must not be counted as documented clinical review.
 const documentedClinicianReview=(review:Review):boolean=>
  review.reviewed===true&&
+ // An independently entered clinical note does not certify a current-source
+ // snapshot that omits/changes patient answers. Keep the append-only record
+ // visible and its version locked, but do not count it as a documented,
+ // source-verified clinical review. Null denotes older unverifiable revisions.
+ review.current_source_snapshot_verified!==false&&
  (review.excluded_clinician_notes??0)===0&&
  sanitizeBpsClinicianNotes(review.clinician_notes).excludedCount===0&&
  hasIndependentBpsReviewNote(sanitizeBpsClinicianNotes(review.clinician_notes).notes);
@@ -339,7 +344,7 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
    {data.source.status==='submitted'&&data.source.submittedAt&&<p>Patient submission attested: <time dateTime={data.source.submittedAt}>{new Date(data.source.submittedAt).toLocaleString()}</time>. This is a patient submission receipt, not a clinician signature.</p>}
    {data.source.status==='draft'&&<p role="status">This intake remains unsubmitted and lacks a patient submission attestation. Review it only as changeable draft source context.</p>}
    <p>Saved patient-reported source answers refresh when this chart is idle and visible. Preparing a clinician review freezes the opened source version; discard and reopen if the patient's intake changes.</p>
-   <p>Sections audited: {data.sections.length}/21 · Documented clinician reviews: {data.reviews.filter(documentedClinicianReview).length}. {data.reviews.some(review=>!documentedClinicianReview(review))&&'Some saved history records lack confirmed clinician-review attestation or independent clinical documentation; investigate provenance.'}</p>
+   <p>Sections audited: {data.sections.length}/21 · Documented clinician reviews: {data.reviews.filter(documentedClinicianReview).length}. {data.reviews.some(review=>!documentedClinicianReview(review))&&'Some saved history records lack confirmed clinician-review attestation, source-snapshot integrity or independent clinical documentation; investigate provenance.'}</p>
    {data.unmappedKeys.length>0&&<p role="alert">The source contains {data.unmappedKeys.length} additional historical or unrecognized field(s) were recorded. Their raw field names are withheld from this BPS view. These are NOT silently transferred. Review the protected original intake and resolve their mapping.</p>}
    <nav aria-label="Patient-scoped clinical reconciliation shortcuts">
     <p><strong>Open dedicated clinician reviews for this patient:</strong> These existing central-chart workflows keep medications, allergies, medical/substance-use history and structured trauma separate from unsigned BPS notes. Following a link does not save or approve any patient report.</p>
@@ -367,7 +372,7 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
      return <section key={review.id}>
       <h3>{new Date(review.created_at).toLocaleString()} — source v{review.source_version} ({review.source_status})</h3>
       {review.source_status==='draft'&&<p role="status">This historical clinician review documents a patient DRAFT intake version, not an attested final patient submission. Reconcile the subsequently submitted intake independently; this draft snapshot must not be represented as a patient-submitted final report.</p>}
-      {!documentedClinicianReview(review)&&<p role="alert">This historical row lacks confirmed clinician-review attestation or independently documented clinical observations. Its stored reviewed flag, if present, is not sufficient evidence of a documented BPS review. Investigate chart provenance before clinical use.</p>}
+      {!documentedClinicianReview(review)&&<p role="alert">This historical row lacks confirmed clinician-review attestation, source-snapshot integrity, or independently documented clinical observations. Its stored reviewed flag, if present, is not sufficient evidence of a documented BPS review. Investigate chart provenance before clinical use.</p>}
       <p>Linked intake source last updated {new Date(review.source_updated_at).toLocaleString()}. This is an immutable historical snapshot of patient-reported information, not a new import, verified clinical finding, diagnosis or signature.</p>
       {!!review.excluded_clinical_fields&&<p role="alert">{review.excluded_clinical_fields} unapproved or malformed historical field(s) were withheld by the protected server. Review source provenance before clinical use.</p>}
       {omittedNotes>0&&<p role="alert">{omittedNotes} unapproved or malformed historical clinician-note field(s) were withheld from this BPS view. Investigate provenance before clinical use.</p>}
@@ -385,7 +390,7 @@ export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
    </details>}
    {data.unmappedKeys.length>0?<p role="alert">Clinician BPS attestation is blocked: reconcile unrecognized reported intake fields in the protected original questionnaire before preparing a reviewed source snapshot.</p>:versionAlreadyReviewed?<p role="status">{uncertainSave?
     'A BPS review submission was attempted, but no save receipt was verified. This source version is locked in this session. Reopen the chart and check protected history before another attempt; do not assume the review was saved.':sourceVersionHasUnverifiedReview?
-    'A BPS history record for this source version lacks confirmed clinician-review attestation or independent clinical documentation. Its version remains locked; investigate chart provenance before clinical use or another submission.':
+    'A BPS history record for this source version lacks confirmed clinician-review attestation, source-snapshot integrity or independent clinical documentation. Its version remains locked; investigate chart provenance before clinical use or another submission.':
     'A clinician-reviewed BPS snapshot for this source version has already been saved. Its immutable history can be reopened above; a second save of the same version is not permitted. If the source changed without a new version, resolve the intake provenance before saving.'}</p>:!prepared?<button type="button" disabled={saving} onClick={()=>{setPrepared(true);setReviewed(false);setNotes(emptyBpsNotes());setStatus('');}}>Prepare clinician-reviewed BPS intake draft</button>:
     <form onSubmit={save} autoComplete="off">
      <h3>Clinician review and contextual assessment notes</h3>

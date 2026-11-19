@@ -61,7 +61,12 @@ export default function CalendarClient({timezone,duration,onBook}:{timezone:stri
    typeof code==='string'&&/^[0-9A-Z]{5}$/.test(code)&&code!=='40003'&&
    (/^(22|23|28|40|42)/.test(code)||code==='P0001');
  const load=useCallback(async()=>{
-   const version=++request.current; setLoading(true);setError('');
+   const version=++request.current;
+   // A refresh (including a month switch) invalidates the previously selected
+   // edit target. Never leave a stale appointment editable while a new readback
+   // is pending, invalid, or rejected by RLS. Clear old patient names as well.
+   setSelected(null);setConfirmCancel(false);setAppointments([]);setPatients([]);
+   setLoading(true);setError('');
    const range=monthQueryRange(month);
    try {
      const [bookings,names]=await Promise.all([

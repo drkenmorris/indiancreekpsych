@@ -209,3 +209,40 @@ test('failed refresh does not leave prior recurring appointment editable or disp
  expect(screen.queryByRole('button',{name:'Cancel appointment'})).toBeNull();
  expect(m.rpc.mock.calls.filter(([name])=>name==='edit_calendar_appointments')).toHaveLength(0);
 });
+
+test.each([
+ ['non-array directory response',{id:booking.id,full_name:'Synthetic Directory Patient',preferred_name:null}],
+ ['malformed central patient ID',[{id:'not-a-valid-central-id',full_name:'Synthetic Directory Patient',preferred_name:null}]],
+ ['duplicate central chart identity',[
+  {id:booking.id,full_name:'Synthetic Directory Patient',preferred_name:null},
+  {id:booking.id.toUpperCase(),full_name:'Another Synthetic Name',preferred_name:null}
+ ]],
+ ['malformed patient name',[{id:booking.id,full_name:{secret:'untrusted'},preferred_name:null}]]
+])('invalid scheduler patient roster (%s) never displays or enables stale bookings',async (_reason,roster)=>{
+ prepare(1);
+ m.rpc.mockImplementation((name:string)=>({
+  abortSignal:async()=>({data:name==='scheduling_patients'?roster:1,error:null})
+ }));
+ render(<CalendarClient timezone={timezone} duration={50}/>);
+ fireEvent.click(screen.getByRole('button',{name:'Next month'}));
+ await screen.findByText(/Calendar patient roster could not be verified\. Refresh before editing bookings\./);
+ expect(screen.queryByRole('button',{name:/Synthetic Scheduling Patient/})).toBeNull();
+ expect(screen.queryByRole('button',{name:'Save changes'})).toBeNull();
+ expect(screen.queryByRole('button',{name:'Cancel appointment'})).toBeNull();
+ expect(m.rpc.mock.calls.filter(([name])=>name==='edit_calendar_appointments')).toHaveLength(0);
+});
+
+test('verified scheduler patient roster may label the exact linked chart appointment',async()=>{
+ const chartId='00000000-0000-4000-8000-000000000901';
+ prepare(1,{...booking,patient_id:chartId,patient_name:null});
+ m.rpc.mockImplementation((name:string)=>({
+  abortSignal:async()=>({data:name==='scheduling_patients'?
+   [{id:chartId,full_name:'Synthetic Verified Directory Patient',preferred_name:null}]:1,error:null})
+ }));
+ render(<CalendarClient timezone={timezone} duration={50}/>);
+ fireEvent.click(screen.getByRole('button',{name:'Next month'}));
+ const open=await screen.findByRole('button',{name:/Synthetic Verified Directory Patient/});
+ fireEvent.click(open);
+ expect(screen.getByRole('heading',{name:'Appointment details'})).toBeTruthy();
+ expect(screen.queryByText(/name-only booking, not a central patient chart link/i)).toBeNull();
+});

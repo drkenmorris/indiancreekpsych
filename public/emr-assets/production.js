@@ -116,13 +116,20 @@ function originalBpsInstantNanoseconds(value){
 // Match the protected BPS API's note gate: a reviewed checkbox without actual
  // clinician documentation must never appear as a verified clinical review.
  const originalBpsNoteKeys=new Set(["presenting","treatment","medical","safety","family","goals","limitations"]);
- const originalBpsInvisibleNoteCharacters=/[\u00ad\u034f\u061c\u180e\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff]/g;
+ // Keep independent clinical-note verification aligned with the protected API
+ // and database attestation. A control-only note, unknown note key, or partially
+ // withheld history must not show as an independently documented review on the
+ // original seven-page BPS interface.
+ const originalBpsInvisibleNoteCharacters=/[\u00ad\u034f\u061c\u180e\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufe00-\ufe0f\ufeff\u{E0100}-\u{E01EF}]/gu;
  const originalBpsDocumentedReview=review=>
-  review?.reviewed===true&&review.clinician_notes&&
+  review?.reviewed===true&&review.current_source_snapshot_verified!==false&&
+  (review.excluded_clinician_notes??0)===0&&review.clinician_notes&&
   typeof review.clinician_notes==='object'&&!Array.isArray(review.clinician_notes)&&
-  Object.entries(review.clinician_notes).some(([key,value])=>
-   originalBpsNoteKeys.has(key)&&typeof value==='string'&&value.length<=4000&&
-   value.replace(originalBpsInvisibleNoteCharacters,'').trim().length>0);
+  Object.entries(review.clinician_notes).every(([key,value])=>
+   originalBpsNoteKeys.has(key)&&typeof value==='string'&&value.length<=4000)&&
+  Object.values(review.clinician_notes).some(value=>
+   value.replace(originalBpsInvisibleNoteCharacters,'')
+    .replace(/[\u0000-\u001f\u007f-\u009f]/g,'').trim().length>0);
  async function populateOriginalBpsIntake(panel,id,generation){
  const stillCurrent=()=>generation===linkedIntakeRenderGeneration&&patientId===id&&panel.isConnected;
  try{
@@ -338,7 +345,13 @@ function originalBpsInstantNanoseconds(value){
    const none=document.createElement('p');none.textContent='No saved clinician-reviewed BPS intake snapshots for this patient.';
    history.append(none);
   }
-  const currentReviewed=reviews.some(review=>originalBpsDocumentedReview(review)&&
+  // A matching version and substantive clinician note do not establish
+  // reviewed clinical history if DB-owned patient answers are incomplete,
+  // changed, or have unresolved fields. The protected API explicitly supplies
+  // this verdict; missing evidence is never an affirmative review.
+  const currentReviewed=result.unmappedKeys.length===0&&reviews.some(review=>
+   originalBpsDocumentedReview(review)&&
+   review.current_source_snapshot_verified===true&&
    review.source_version===result.source?.version&&
    review.source_status===result.source?.status&&
    originalBpsInstantNanoseconds(review.source_updated_at)===editedInstant&&

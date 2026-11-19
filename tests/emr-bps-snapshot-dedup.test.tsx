@@ -53,7 +53,8 @@ test('stale clinician API cannot present a post-attestation edit as a submitted 
 test('the original clinician review never offers a duplicate save for an already reviewed source version',async()=>{
  vi.stubGlobal('fetch',vi.fn(async()=>Response.json(source([{
   id:'00000000-0000-4000-8000-000000000999',reviewed:true,source_version:7,source_status:'submitted',
-  source_updated_at:stamp,created_at:stamp,clinical_answers:{},clinician_notes:{presenting:'FICTIONAL independent clinician observation'}
+  source_updated_at:stamp,created_at:stamp,current_source_snapshot_verified:true,
+   clinical_answers:{},clinician_notes:{presenting:'FICTIONAL independent clinician observation'}
  }]))));
  render(<PatientBpsIntakeReview patientId={patient}/>);
  await screen.findByText(/A clinician-reviewed BPS snapshot for this source version has already been saved/);

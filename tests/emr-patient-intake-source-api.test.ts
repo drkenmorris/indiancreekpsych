@@ -1,5 +1,5 @@
 import {beforeEach,expect,test,vi} from 'vitest';
-import {GET,PATCH} from '@/app/api/emr/patients/route';
+import {GET,PATCH,POST} from '@/app/api/emr/patients/route';
 
 const mocks=vi.hoisted(()=>({access:vi.fn(),from:vi.fn(),sameOrigin:vi.fn()}));
 vi.mock('@/lib/emr/access',()=>({
@@ -306,4 +306,76 @@ test('directory mutation rejects cross-origin and invalid actions before accessi
   expect((await PATCH(change('archive'))).status).toBe(400);
   expect((await PATCH(change('delete', 0))).status).toBe(400);
   expect(mocks.from).not.toHaveBeenCalled();
+});
+
+const demographicsSave=(id?:unknown,revision?:unknown)=>new Request(
+  'https://www.indiancreekpsych.com/api/emr/patients',{
+    method:'POST',headers:{Origin:'https://www.indiancreekpsych.com'},
+    body:JSON.stringify({
+      ...(id!==undefined?{id}:{}),
+      expectedRevision:revision,
+      demographics:{first_name:'Fictional',last_name:'Patient'},
+    }),
+  },
+);
+
+test.each([null,'','not-a-chart-id',42,{},[]])(
+  'explicit malformed patient chart ID %j cannot silently create another patient',
+  async id=>{
+    const response=await POST(demographicsSave(id,3));
+    expect(response.status).toBe(400);
+    expect(response.headers.get('Cache-Control')).toContain('no-store');
+    expect(await response.json()).not.toHaveProperty('saved',true);
+    expect(mocks.from).not.toHaveBeenCalled();
+  },
+);
+
+test('demographics update targets only active selected chart and verifies its returned identity',async()=>{
+  const chain={
+    update:vi.fn(()=>chain),eq:vi.fn(()=>chain),is:vi.fn(()=>chain),
+    select:vi.fn(()=>chain),
+    single:vi.fn(async()=>({data:{id:patientId,directory_deleted_at:null},error:null})),
+  };
+  mocks.from.mockReturnValue(chain);
+  const response=await POST(demographicsSave(patientId,3));
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual({id:patientId,saved:true});
+  expect(chain.update).toHaveBeenCalledWith({demographics:{first_name:'Fictional',last_name:'Patient'}});
+  expect(chain.eq).toHaveBeenCalledWith('id',patientId);
+  expect(chain.eq).toHaveBeenCalledWith('revision',3);
+  expect(chain.is).toHaveBeenCalledWith('directory_deleted_at',null);
+  expect(chain.select).toHaveBeenCalledWith('id,directory_deleted_at');
+});
+
+test.each([
+  ['wrong central patient', {id:'00000000-0000-0000-0000-000000000499',directory_deleted_at:null}],
+  ['archived chart', {id:patientId,directory_deleted_at:'2026-11-12T00:00:00Z'}],
+  ['missing receipt', null],
+  ['invalid receipt identity', {id:'bad-id',directory_deleted_at:null}],
+])('demographics write never acknowledges an unverified %s receipt',async(_reason,receipt)=>{
+  const chain={
+    update:vi.fn(()=>chain),eq:vi.fn(()=>chain),is:vi.fn(()=>chain),
+    select:vi.fn(()=>chain),single:vi.fn(async()=>({data:receipt,error:null})),
+  };
+  mocks.from.mockReturnValue(chain);
+  const response=await POST(demographicsSave(patientId,3));
+  expect(response.status).toBe(409);
+  expect(response.headers.get('Cache-Control')).toContain('no-store');
+  const returned=await response.json();
+  expect(returned).not.toHaveProperty('saved',true);
+  expect(returned.error).toContain('Reopen the chart');
+  expect(chain.is).toHaveBeenCalledWith('directory_deleted_at',null);
+});
+
+test('new patient creation requires a valid returned central ID and no archived receipt',async()=>{
+  const chain={
+    insert:vi.fn(()=>chain),select:vi.fn(()=>chain),
+    single:vi.fn(async()=>({data:{id:patientId,directory_deleted_at:null},error:null})),
+  };
+  mocks.from.mockReturnValue(chain);
+  const response=await POST(demographicsSave());
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual({id:patientId,saved:true});
+  expect(chain.insert).toHaveBeenCalledOnce();
+  expect(chain.select).toHaveBeenCalledWith('id,directory_deleted_at');
 });

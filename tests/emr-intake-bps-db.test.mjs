@@ -37,7 +37,8 @@ for(const migration of [
  '20261118120500_bps_review_variation_selector_guard.sql',
  '20261118210600_bps_supplementary_variation_selector_guard.sql',
  '20261118184500_bps_atomic_submission_receipt.sql',
- '20261118204000_bps_atomic_answer_identity.sql'
+ '20261118204000_bps_atomic_answer_identity.sql',
+ '20261119004500_bps_control_character_attestation_guard.sql'
 ])await db.exec(readFileSync('supabase/migrations/'+migration,'utf8'));
 const q=(s,args=[])=>db.query(s,args);
 const as=async(id,aal='aal2')=>{await db.exec('reset role');await q("select set_config('request.user',$1,false),set_config('request.aal',$2,false)",[id,aal]);await db.exec('set role authenticated');};
@@ -98,7 +99,8 @@ await test('direct authorized BPS RPC cannot create checkbox-only, whitespace-on
  await as(admin);
  for(const notes of [{},{presenting:'   '},{presenting:'\n\t',goals:''},
   {presenting:'\u200B\u2060\u200E'},{goals:'\u202E\u2066\u2069'},
-  {limitations:' \u00AD\u034F\u061C\u180E\uFEFF\n'},{presenting:'\uFE0F'},{goals:'\uFE00\uFE0E\uFE0F'},{limitations:'\uFE0E\uFE0F \n'},{goals:'\u{E0100}'},{limitations:'\u{E0100}\u{E01EF} \n'}]){
+  {limitations:' \u00AD\u034F\u061C\u180E\uFEFF\n'},{presenting:'\uFE0F'},{goals:'\uFE00\uFE0E\uFE0F'},{limitations:'\uFE0E\uFE0F \n'},{goals:'\u{E0100}'},{limitations:'\u{E0100}\u{E01EF} \n'},
+  {presenting:'\u0001\u001F\u007F'},{limitations:'\u0085\u009F\u0002'}]){
   await assert.rejects(
    q('select public.save_emr_bps_intake_review($1)',[{...payload,clinician_notes:notes}]),
    /Document an independent clinician observation or follow-up need/

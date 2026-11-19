@@ -4,6 +4,38 @@ import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 're
 import {createClient} from '@/lib/supabase/client';
 import {CalendarAppointment,localParts,monthDays,monthQueryRange,shiftMonth} from '@/lib/scheduling/calendar';
 type Patient={id:string;full_name:string|null;preferred_name:string|null};
+/**
+ * Treat the scheduler SELECT as an untrusted readback, not proof that the
+ * requested booked rows were actually returned. A stale adapter or changed RLS
+ * response must not produce misleading calendar controls or expose a row with
+ * unverified appointment provenance. Preserve all existing database records.
+ */
+function verifiedBookedCalendarRows(rows:unknown,from:string,to:string):CalendarAppointment[]{
+ const invalid=()=>new Error('Calendar appointment readback could not be verified. Refresh before editing bookings.');
+ const id=/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
+ const lower=Date.parse(from),upper=Date.parse(to);
+ if(!Array.isArray(rows)||!Number.isFinite(lower)||!Number.isFinite(upper)||upper<=lower)throw invalid();
+ const seen=new Set<string>();
+ return rows.map((entry:unknown)=>{
+  if(!entry||typeof entry!=='object'||Array.isArray(entry))throw invalid();
+  const row=entry as Record<string,unknown>;
+  if(typeof row.id!=='string'||!id.test(row.id)||
+   (row.patient_id!==null&&(typeof row.patient_id!=='string'||!id.test(row.patient_id)))||
+   (row.series_id!==null&&(typeof row.series_id!=='string'||!id.test(row.series_id)))||
+   (row.patient_name!==null||typeof row.patient_name==='undefined')&&
+    (typeof row.patient_name!=='string'||row.patient_name.length>500)||
+   typeof row.starts_at!=='string'||typeof row.ends_at!=='string'||row.status!=='booked')throw invalid();
+  const start=Date.parse(row.starts_at as string),end=Date.parse(row.ends_at as string);
+  if(!Number.isFinite(start)||!Number.isFinite(end)||end<=start||start<lower||start>=upper)throw invalid();
+  const normalized=row.id.toLowerCase();
+  if(seen.has(normalized))throw invalid();
+  seen.add(normalized);
+  return {id:row.id,patient_id:row.patient_id as string|null,
+   patient_name:row.patient_name as string|null,
+   starts_at:row.starts_at as string,ends_at:row.ends_at as string,
+   status:'booked',series_id:row.series_id as string|null};
+ });
+}
 export default function CalendarClient({timezone,duration,onBook}:{timezone:string;duration:number;onBook?:()=>void}) {
  const supabase=useMemo(()=>createClient(),[]);
  const today=localParts(new Date().toISOString(),timezone).date;
@@ -38,7 +70,8 @@ export default function CalendarClient({timezone,duration,onBook}:{timezone:stri
      ]);
      if(bookings.error)throw new Error('Appointments could not be loaded. Try Refresh.');
      if(names.error)throw new Error('Patient names could not be loaded. Try Refresh.');
-     if(version===request.current){setAppointments(bookings.data??[]);setPatients(names.data??[]);}
+     const verified=verifiedBookedCalendarRows(bookings.data,range.from,range.to);
+      if(version===request.current){setAppointments(verified);setPatients(names.data??[]);}
    } catch(e){if(version===request.current)setError(e instanceof Error?e.message:'Calendar could not be refreshed.');}
    finally {if(version===request.current)setLoading(false);}
  },[month,supabase]);

@@ -4,7 +4,7 @@ import {cleanup,fireEvent,render,screen} from '@testing-library/react';
 import PatientBpsIntakeReview from '@/app/emr/PatientBpsIntakeReview';
 import {GET,POST} from '@/app/api/emr/bps-intake/route';
 import {intakeSections} from '@/lib/patient/intake';
-import {sanitizeBpsSnapshotAnswers} from '@/lib/emr/intake-bps';
+import {bpsSnapshotClinicalKeys} from '@/lib/emr/intake-bps';
 
 // An in-memory, fictional source-to-review-to-history integration test.
 // This runs the real HTTP route handlers and real clinician React review form.
@@ -80,7 +80,11 @@ test.each([['lowercase',false],['uppercase',true]])('fictional 21-section linked
     id:reviewId,patient_id:patient,source_account_id:account,
     source_version:7,source_status:'submitted',source_updated_at:stamp,
     created_at:stamp,reviewed:true,
-    clinical_answers:sanitizeBpsSnapshotAnswers(sourceAnswers).answers,
+    // Simulate DB-owned complete immutable clinical snapshot. The protected
+    // GET API redacts trauma/other restricted content only on readback, AFTER
+    // checking that the saved original contains the complete approved source.
+    clinical_answers:Object.fromEntries(Object.entries(sourceAnswers).filter(
+     ([key,value])=>bpsSnapshotClinicalKeys.has(key)&&value.replace(/^ +| +$/g,'')!=='')),
     clinician_notes:saved.clinician_notes
    });
    return {data:receiptUppercase?reviewId.toUpperCase():reviewId,error:null};

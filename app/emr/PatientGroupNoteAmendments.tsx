@@ -3,7 +3,7 @@ import {useCallback,useEffect,useState,type FormEvent} from 'react';
 
 type Amendment={id:string;note_id:string;reason:string;amendment:string;created_at:string};
 export default function PatientGroupNoteAmendments({noteId,patientId,sessionId}:
- {noteId:string;patientId:string;sessionId:string}){
+ {noteId:string;patientId:string;sessionId:string|null}){
  const [items,setItems]=useState<Amendment[]>([]);
  const [loading,setLoading]=useState(true);
  const [saving,setSaving]=useState(false);
@@ -15,7 +15,7 @@ export default function PatientGroupNoteAmendments({noteId,patientId,sessionId}:
  const [reviewed,setReviewed]=useState(false);
  const endpoint='/api/emr/groups/individual-notes/amendments';
  const query='?note='+encodeURIComponent(noteId)+'&patient='+encodeURIComponent(patientId)
-  +'&session='+encodeURIComponent(sessionId);
+  +'&session='+encodeURIComponent(sessionId??'independent');
  const load=useCallback(async()=>{
   const response=await fetch(endpoint+query,{cache:'no-store'});
   const data=await response.json();

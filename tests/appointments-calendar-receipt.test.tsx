@@ -13,10 +13,10 @@ const booking={
  starts_at:nextMonth+'-10T16:00:00Z',ends_at:nextMonth+'-10T17:00:00Z',
  status:'booked',series_id:'00000000-0000-4000-8000-000000000200'
 };
-function prepare(receipt:unknown, row:CalendarAppointment=booking){
+function prepare(receipt:unknown, row:CalendarAppointment|CalendarAppointment[]=booking){
  const q:any={};
  for(const method of ['select','eq','gte','lt','order'])q[method]=vi.fn(()=>q);
- q.abortSignal=vi.fn(async()=>({data:[row],error:null}));
+ q.abortSignal=vi.fn(async()=>({data:Array.isArray(row)?row:[row],error:null}));
  m.from.mockReturnValue(q);
  m.rpc.mockImplementation((name:string)=>({abortSignal:async()=>({
   data:name==='scheduling_patients'?[]:receipt,error:null
@@ -159,4 +159,18 @@ test('a centrally linked patient booking does not show the name-only warning',as
  await openFutureRecurringEditor();
  expect(screen.queryByText(/name-only booking, not a central patient chart link/i)).toBeNull();
  expect(screen.queryByText(/Renaming this booking will not create a chart link/i)).toBeNull();
+});
+
+test.each([
+ ['cancelled status returned despite booked filter',{...booking,status:'cancelled'}],
+ ['wrong linked patient identity',{...booking,patient_id:'invalid-chart-id'}],
+ ['non-positive appointment duration',{...booking,ends_at:booking.starts_at}],
+ ['duplicate appointment identities returned across rows',[booking,{...booking}]],
+])('calendar withholds edit controls on %s',async(_reason,rows)=>{
+ prepare(1,rows as CalendarAppointment|CalendarAppointment[]);
+ render(<CalendarClient timezone={timezone} duration={50}/>);
+ fireEvent.click(screen.getByRole('button',{name:'Next month'}));
+ await screen.findByText(/Calendar appointment readback could not be verified\. Refresh before editing bookings\./);
+ expect(screen.queryByRole('button',{name:/Synthetic Scheduling Patient/})).toBeNull();
+ expect(m.rpc.mock.calls.filter(([name])=>name==='edit_calendar_appointments')).toHaveLength(0);
 });

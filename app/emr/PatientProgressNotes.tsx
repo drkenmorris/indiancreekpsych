@@ -1,5 +1,6 @@
 'use client';
 import {useCallback,useEffect,useState,type FormEvent} from 'react';
+import SessionRecords from './session-records/SessionRecords';
 import {dapLabels,dapGroups,assembleDap,type DapKey,type DapQuick} from '@/lib/emr/dap-quick-entry';
 
 type Template='DAP'|'SOAP'|'Narrative';
@@ -15,7 +16,8 @@ const localDateTime=()=>{
 };
 const endpoint='/api/emr/progress-notes';
 
-export default function PatientProgressNotes({patientId,inWorkspace=false,mode='all'}:{patientId:string;inWorkspace?:boolean;mode?:'all'|'dap'|'amendments'}){
+export default function PatientProgressNotes(props:{patientId:string;inWorkspace?:boolean;mode?:'all'|'dap'|'amendments'}){return props.mode==='amendments'?<SessionRecords key={props.patientId} patientId={props.patientId} inWorkspace={props.inWorkspace}/>:<ProgressNoteEditor {...props}/>;}
+function ProgressNoteEditor({patientId,inWorkspace=false,mode='all'}:{patientId:string;inWorkspace?:boolean;mode?:'all'|'dap'|'amendments'}){
  const [notes,setNotes]=useState<Note[]>([]);
  const [addenda,setAddenda]=useState<Addendum[]>([]);
  const [attestations,setAttestations]=useState<Attestation[]>([]);

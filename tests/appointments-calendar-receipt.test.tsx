@@ -174,3 +174,38 @@ test.each([
  expect(screen.queryByRole('button',{name:/Synthetic Scheduling Patient/})).toBeNull();
  expect(m.rpc.mock.calls.filter(([name])=>name==='edit_calendar_appointments')).toHaveLength(0);
 });
+
+test('refresh clears stale patient name and edit selection while appointment readback is pending',async()=>{
+ prepare(1);
+ await openFutureRecurringEditor();
+ let finish!:(result:{data:CalendarAppointment[];error:null})=>void;
+ const pending=new Promise<{data:CalendarAppointment[];error:null}>(resolve=>{finish=resolve;});
+ const q:any={};
+ for(const method of ['select','eq','gte','lt','order'])q[method]=vi.fn(()=>q);
+ q.abortSignal=vi.fn(()=>pending);
+ m.from.mockReturnValue(q);
+ fireEvent.click(screen.getByRole('button',{name:'Refresh'}));
+ expect(screen.queryByLabelText('Apply to')).toBeNull();
+ expect(screen.queryByRole('button',{name:/Synthetic Scheduling Patient/})).toBeNull();
+ expect(screen.getByText('Loading appointments…')).toBeTruthy();
+ await act(async()=>{finish({data:[booking],error:null});});
+ await screen.findByRole('button',{name:/Synthetic Scheduling Patient/});
+ expect(screen.queryByLabelText('Apply to')).toBeNull();
+ expect(m.rpc.mock.calls.filter(([name])=>name==='edit_calendar_appointments')).toHaveLength(0);
+});
+
+test('failed refresh does not leave prior recurring appointment editable or display stale patient bookings',async()=>{
+ prepare(1);
+ await openFutureRecurringEditor();
+ const q:any={};
+ for(const method of ['select','eq','gte','lt','order'])q[method]=vi.fn(()=>q);
+ q.abortSignal=vi.fn(async()=>({data:null,error:{code:'42501',message:'Readback denied'}}));
+ m.from.mockReturnValue(q);
+ fireEvent.click(screen.getByRole('button',{name:'Refresh'}));
+ await screen.findByText(/Appointments could not be loaded\. Try Refresh\./);
+ expect(screen.queryByLabelText('Apply to')).toBeNull();
+ expect(screen.queryByRole('button',{name:/Synthetic Scheduling Patient/})).toBeNull();
+ expect(screen.queryByRole('button',{name:'Save changes'})).toBeNull();
+ expect(screen.queryByRole('button',{name:'Cancel appointment'})).toBeNull();
+ expect(m.rpc.mock.calls.filter(([name])=>name==='edit_calendar_appointments')).toHaveLength(0);
+});

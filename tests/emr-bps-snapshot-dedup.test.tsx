@@ -138,7 +138,7 @@ test('clinician BPS save is independently confirmed only after exact source-prov
   return Response.json(reads===1?source():source([{
    id:savedId,reviewed:true,source_version:7,source_status:'submitted',
    source_updated_at:'2026-11-10T06:00:00-06:00',created_at:stamp,
-   current_source_snapshot_verified:true,clinical_answers:{},clinician_notes:{...emptyBpsNotes(),presenting:'Independent fictional clinician review note'}
+   current_source_snapshot_verified:true,clinician_note_domains_complete:true,clinical_answers:{},clinician_notes:{...emptyBpsNotes(),presenting:'Independent fictional clinician review note'}
   }]));
  }));
  render(<PatientBpsIntakeReview patientId={patient}/>);
@@ -274,7 +274,7 @@ test('an acknowledged BPS save remains unverified until protected history readba
  releaseReadback(Response.json(source([{
   id:savedId,reviewed:true,source_version:7,source_status:'submitted',
   source_updated_at:stamp,created_at:stamp,
-  current_source_snapshot_verified:true,
+  current_source_snapshot_verified:true,clinician_note_domains_complete:true,
   clinical_answers:{},clinician_notes:{...emptyBpsNotes(),presenting:'Independent fictional clinician review note'}
  }])));
  await screen.findByText(/saved AND independently verified in the protected chart history/);
@@ -517,7 +517,7 @@ test('equivalent patient attestation instants in different timezone offsets stil
   if(reads===1)return Response.json(source());
   const equivalent=source([{
    id:savedId,reviewed:true,source_version:7,source_status:'submitted',
-   source_updated_at:stamp,created_at:stamp,current_source_snapshot_verified:true,clinical_answers:{},clinician_notes:{...emptyBpsNotes(),presenting:'Independent fictional clinician review note'}
+   source_updated_at:stamp,created_at:stamp,current_source_snapshot_verified:true,clinician_note_domains_complete:true,clinical_answers:{},clinician_notes:{...emptyBpsNotes(),presenting:'Independent fictional clinician review note'}
   }]);
   equivalent.source.submittedAt='2026-11-10T06:00:00-06:00';
   return Response.json(equivalent);
@@ -625,6 +625,7 @@ test.each([
   source_updated_at:stamp,created_at:stamp,
   clinical_answers:{},
   clinician_notes:{...emptyBpsNotes(),presenting:'Independent fictional clinical observation'},
+  clinician_note_domains_complete:true,
   excluded_clinical_fields:0,excluded_clinician_notes:0
  };
  if(proof!==undefined)history.current_source_snapshot_verified=proof;

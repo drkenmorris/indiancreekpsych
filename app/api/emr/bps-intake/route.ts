@@ -323,13 +323,17 @@ export async function POST(request:Request){
   body.sourceAccountId=(body.sourceAccountId as string).toLowerCase();
   if(!body.notes||typeof body.notes!=='object'||Array.isArray(body.notes))return reply({error:'Clinical notes are required.'},400);
   const fields=Object.keys(bpsNoteDomains);
-  if(Object.keys(body.notes).some(key=>!fields.includes(key)))return reply({error:'Unsupported BPS notes field.'},400);
+  const noteKeys=Object.keys(body.notes);
+  // A partial client payload must not be silently padded with blank domains:
+  // padding would make a one-domain note appear to cover all seven original
+  // BPS clinician-note categories in protected history and completion summaries.
+  // Clinicians may intentionally leave a domain blank, but the client must
+  // explicitly submit that empty string as part of the seven-domain attestation.
+  if(noteKeys.length!==fields.length||noteKeys.some(key=>!fields.includes(key)))
+   return reply({error:'Clinical review must explicitly include all seven approved BPS note domains.'},400);
   const notes:Record<string,string>={};
   for(const key of fields){
-   // Missing optional domains default to empty, but an explicitly supplied null
-   // is invalid: never silently erase an attested clinician note.
-   const value=Object.prototype.hasOwnProperty.call(body.notes,key)?
-    (body.notes as Record<string,unknown>)[key]:'';
+   const value=(body.notes as Record<string,unknown>)[key];
    if(!validBpsClinicalNoteText(value))
     return reply({error:'Clinical notes must contain valid Unicode text without NUL characters, at most 4,000 characters each.'},400);
    // Preserve the clinician's exact entered text, including line breaks and

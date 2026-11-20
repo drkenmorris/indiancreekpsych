@@ -307,6 +307,20 @@ test('BPS provenance rejects impossible UTC offsets even when Date.parse accepts
  }
 });
 
+test('BPS source provenance rejects the PostgreSQL-incompatible year zero while retaining valid leap dates',()=>{
+ for(const at of ['0000-01-01T00:00:00Z','0000-02-29T00:00:00Z']){
+  // JavaScript permits astronomical year zero; PostgreSQL clinical timestamps do not.
+  expect(Number.isFinite(Date.parse(at))).toBe(true);
+  expect(validBpsTimestamp(at)).toBe(false);
+  expect(equalBpsTimestampInstants(at,at)).toBe(false);
+  expect(validBpsSubmissionChronology('submitted',at,at)).toBe(false);
+  expect(validBpsHistoricalSourceBoundary(1,'submitted',at,1,'submitted',at)).toBe(false);
+ }
+ expect(validBpsTimestamp('0001-01-01T00:00:00Z')).toBe(true);
+ expect(validBpsTimestamp('2024-02-29T12:00:00Z')).toBe(true);
+ expect(validBpsTimestamp('2023-02-29T12:00:00Z')).toBe(false);
+});
+
 test('unknown BPS field identities containing fictional private text are counted but never echoed',()=>{
  const malformedName='FICTIONAL_PERSON 123-45-6789 confidential source';
  const report=mapIntakeToBps({counseling_reason:'Reported concern',[malformedName]:'Reported response'});

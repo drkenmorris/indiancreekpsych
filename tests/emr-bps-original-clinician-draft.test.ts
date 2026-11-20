@@ -291,6 +291,21 @@ test('unmapped patient intake fields block draft placement even when the submitt
  }finally{h.dom.window.close();}
 });
 
+test('original BPS withholds a patient source carrying unknown RFC3339 local offset',async()=>{
+ const source=packet();
+ source.source.updatedAt='2026-11-20T12:00:00-00:00';
+ source.source.submittedAt='2026-11-20T12:00:00-00:00';
+ const h=harness(async()=>Response.json(source));
+ try{
+  await vi.waitFor(()=>expect(h.dom.window.document.querySelector('[role="alert"]')?.textContent)
+   .toContain('Linked intake source identity, status, version or timestamp could not be verified'));
+  expect(h.button()).toBeUndefined();
+  expect(h.note.value).toBe('');
+  expect(h.dom.window.document.body.textContent).not.toContain('FICTIONAL FRIEND SUPPORT');
+  expect(h.requests).toEqual([{url:'/api/emr/bps-intake?patient='+patient,method:'GET'}]);
+ }finally{h.dom.window.close();}
+});
+
 test('original BPS withholds a year-zero patient source the clinical database cannot attest',async()=>{
  const malformed=packet();
  malformed.source.updatedAt='0000-02-29T00:00:00Z';

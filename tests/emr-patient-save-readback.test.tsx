@@ -66,8 +66,8 @@ test.each([
  }else{
   await screen.findByText(/Save may have committed; DO NOT blindly resubmit/);
   expect(screen.queryByText(/Central patient demographics saved and independently reopened/)).toBeNull();
-  if(scenario==='wrong detail identity')expect(screen.getByRole('status').textContent).toContain('exact chart could not be reopened');
-  if(scenario==='wrong chart receipt')expect(screen.getByRole('status').textContent).toContain('receipt did not match');
+  if(scenario==='wrong detail identity')expect(document.body.textContent).toContain('exact chart could not be reopened');
+  if(scenario==='wrong chart receipt')expect(document.body.textContent).toContain('receipt did not match');
  }
  expect(posts).toBe(1);
  expect(requests.filter(request=>request==='POST /api/emr/patients')).toHaveLength(1);

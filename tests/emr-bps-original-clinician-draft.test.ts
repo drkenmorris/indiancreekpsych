@@ -28,7 +28,7 @@ function packet(version=7){
   version,updatedAt:stamp,submittedAt:stamp
  },sections,reviews:[],unmappedKeys:[]};
 }
-function harness(reply:(call:number)=>Promise<Response>,bpsPage:'symptoms'|'treatment_history'|'medications'|'family_origin'|'medical_substance'|'developmental_personal'|'trauma_history'='developmental_personal'){
+function harness(reply:(call:number)=>Promise<Response>,bpsPage:'symptoms'|'treatment_history'|'medications'|'family_origin'|'medical_substance'|'developmental_personal'|'trauma_history'='developmental_personal',selectedPatient:string=patient){
  const dom=new JSDOM('<main id="content"></main>',{
   url:'https://www.indiancreekpsych.com/emr/workspace?module=assessment&bps_page='+bpsPage
  });
@@ -41,7 +41,7 @@ function harness(reply:(call:number)=>Promise<Response>,bpsPage:'symptoms'|'trea
  });
  const ctx:any={
   window:dom.window,document:dom.window.document,location:dom.window.location,
-  patientId:patient,view:'assessment',URLSearchParams,encodeURIComponent,fetch,
+  patientId:selectedPatient,view:'assessment',URLSearchParams,encodeURIComponent,fetch,
   settingsSection:()=>'',message:()=>{},configCard:()=>'',console,
   render:()=>{dom.window.document.querySelector('#content')!.innerHTML=
    '<nav><a data-bps-intake-review href="#">Review linked intake</a></nav>'+
@@ -70,6 +70,18 @@ test('clinician can explicitly place verified, versioned social report into blan
    {url:'/api/emr/bps-intake?patient='+patient,method:'GET'}
   ]);
   expect(h.dom.window.document.body.textContent).toContain('no clinician finding or signature was created');
+ }finally{h.dom.window.close();}
+});
+test('mixed-case central patient UUID can populate only the matching original BPS patient draft after source recheck',async()=>{
+ const h=harness(async()=>Response.json(packet()),'developmental_personal',patient.toUpperCase());
+ try{
+  await vi.waitFor(()=>expect(h.button()).toBeTruthy());
+  expect(h.requests[0].url).toBe('/api/emr/bps-intake?patient='+patient);
+  h.button().click();
+  await vi.waitFor(()=>expect(h.note.value).toContain('FICTIONAL FRIEND SUPPORT'));
+  expect(h.requests).toHaveLength(2);
+  expect(h.requests.every(request=>request.method==='GET'&&request.url.endsWith(patient))).toBe(true);
+  expect(h.dom.window.document.body.textContent).not.toContain('PRIVATE FICTIONAL TRAUMA');
  }finally{h.dom.window.close();}
 });
 test.each(['developmental_personal','family_origin'] as const)(

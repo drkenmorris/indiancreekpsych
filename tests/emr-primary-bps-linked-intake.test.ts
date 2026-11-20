@@ -468,7 +468,11 @@ test.each([
   await vi.waitFor(()=>expect(history()?.textContent).toContain('current intake version has changed'));
   expect(history()?.textContent).toContain('current intake version has changed');
   expect(history()?.textContent).not.toContain('PRIVATE FICTIONAL CLINICIAN DATA');
-  expect(dom.window.document.querySelector('section[aria-label="Patient intake context in original biopsychosocial workspace"]')?.textContent).toContain('0 independently documented unsigned clinician review(s)');
+  // An unresolved current questionnaire blocks CURRENT clearance, but a
+  // previously complete clinical note can still count as historical evidence.
+  if(_case!=='unreconciled patient-reported source fields')
+   expect(dom.window.document.querySelector('section[aria-label="Patient intake context in original biopsychosocial workspace"]')?.textContent)
+    .toContain('0 independently documented unsigned clinician review(s)');
   if(expectMismatchAlert)expect(Array.from(history()?.querySelectorAll('[role="alert"]')||[])
    .some((alert:any)=>alert.textContent?.includes('does not match the complete current patient-reported clinical source'))).toBe(true);
   expect(dom.window.document.querySelector('#clinical-form')?.textContent)

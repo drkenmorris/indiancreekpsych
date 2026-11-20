@@ -364,7 +364,10 @@ export function sanitizeBpsSnapshotAnswers(raw:unknown):{answers:Record<string,s
  if(!raw||typeof raw!=='object'||Array.isArray(raw))return {answers,excludedCount:1};
  let excludedCount=0;
  for(const [key,value] of Object.entries(raw)){
-  if(bpsHistoryReadbackKeys.has(key)&&typeof value==='string'&&value.trim())answers[key]=value;
+  // Historical DB rows may predate current source validation. Never let
+  // JSON serialization silently replace a lone surrogate in patient testimony,
+  // or return an invalid NUL-bearing clinical snapshot as a readable history.
+  if(bpsHistoryReadbackKeys.has(key)&&validBpsSourceAnswerText(value)&&value.trim())answers[key]=value;
   else excludedCount++;
  }
  return {answers,excludedCount};

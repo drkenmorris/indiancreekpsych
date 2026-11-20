@@ -50,14 +50,15 @@ test('stale clinician API cannot present a post-attestation edit as a submitted 
  expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
 });
 
-test('the original clinician review never offers a duplicate save for an already reviewed source version',async()=>{
+test('legacy single-domain clinical notes remain unverified and locked against duplicate BPS submission',async()=>{
  vi.stubGlobal('fetch',vi.fn(async()=>Response.json(source([{
   id:'00000000-0000-4000-8000-000000000999',reviewed:true,source_version:7,source_status:'submitted',
   source_updated_at:stamp,created_at:stamp,current_source_snapshot_verified:true,
    clinical_answers:{},clinician_notes:{presenting:'FICTIONAL independent clinician observation'}
  }]))));
  render(<PatientBpsIntakeReview patientId={patient}/>);
- await screen.findByText(/A clinician-reviewed BPS snapshot for this source version has already been saved/);
+ await screen.findByText(/A BPS history record for this source version lacks confirmed clinician-review attestation/);
+ expect(screen.getByText(/Documented clinician reviews: 0/)).toBeTruthy();
  expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
  expect(screen.queryByRole('button',{name:/Save reviewed BPS history snapshot/i})).toBeNull();
  expect(screen.getByText(/Previously saved immutable clinician reviews/i)).toBeTruthy();

@@ -390,7 +390,8 @@ test('malformed persisted clinician-note Unicode is withheld and cannot certify 
   expect(result.reviews).toHaveLength(1);
   expect(result.reviews[0].reviewed).toBe(true);
   expect(result.reviews[0].current_source_snapshot_verified).toBe(true);
-  expect(result.reviews[0].excluded_clinician_notes).toBe(1);
+  expect(result.reviews[0].clinician_note_domains_complete).toBe(false);
+   expect(result.reviews[0].excluded_clinician_notes).toBe(1);
   expect(result.reviews[0].clinician_notes.presenting).toBe('');
   expect(result.reviews[0].clinician_notes.safety).toBe('Independent fictional safety observation');
   expect(JSON.stringify(result)).not.toContain('FICTIONAL_PRIVATE_CORRUPT_NOTE');
@@ -1231,7 +1232,7 @@ test('clinician BPS history API withholds unexpected database columns even when 
  const review=body.reviews[0];
  expect(Object.keys(review).sort()).toEqual([
   'id','source_version','source_status','source_updated_at','created_at','reviewed',
-  'clinical_answers','clinician_notes','current_source_snapshot_verified','excluded_clinical_fields','excluded_clinician_notes'
+  'clinical_answers','clinician_notes','current_source_snapshot_verified','excluded_clinical_fields','excluded_clinician_notes','clinician_note_domains_complete'
  ].sort());
  expect(review.clinical_answers.counseling_reason).toBe('Fictional approved patient report');
  expect(review.clinician_notes.presenting).toBe('Independent fictional review');

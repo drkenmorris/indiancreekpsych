@@ -148,6 +148,7 @@ test.each([['lowercase',false],['uppercase',true]])('fictional 21-section linked
  const historyData=await history.json();
  expect(historyData.reviews[0].id).toBe(reviewId);
  expect(historyData.reviews[0].reviewed).toBe(true);
+ expect(historyData.reviews[0].clinician_note_domains_complete).toBe(true);
  expect(historyData.reviews[0].clinical_answers.counseling_reason).toBe(
   'FICTIONAL_PATIENT_PRESENTING_CONCERN'
  );

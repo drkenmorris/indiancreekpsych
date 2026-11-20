@@ -3,7 +3,7 @@ import {useEffect,useRef,useState,type FormEvent} from 'react';
 import {bpsSectionClassification,approvedBpsQuestionSection,validBpsQuestionnaireTopology,bpsNoteDomains,emptyBpsNotes,mapSavedBpsReportedFields,bpsVisibleSourceKeys,sanitizeBpsClinicianNotes,validBpsTimestamp,bpsTimestampInstantNanoseconds,equalBpsTimestampInstants,validBpsSubmissionChronology,validBpsReviewChronology,validBpsHistoricalSourceBoundary,hasIndependentBpsReviewNote,type BpsNotes} from '@/lib/emr/intake-bps';
 type Field={key:string;label:string;type:string;value:string;sourceOnly?:boolean;reported?:boolean};
 type Section={title:string;domain:string;disposition:'clinical'|'separate-review'|'reference';fields:Field[];answered:number};
-type Review={id:string;reviewed:boolean;source_version:number;source_status:string;source_updated_at:string;created_at:string;clinical_answers:Record<string,string>;clinician_notes:BpsNotes;excluded_clinical_fields?:number;excluded_clinician_notes?:number;current_source_snapshot_verified?:boolean|null};
+type Review={id:string;reviewed:boolean;source_version:number;source_status:string;source_updated_at:string;created_at:string;clinical_answers:Record<string,string>;clinician_notes:BpsNotes;excluded_clinical_fields?:number;excluded_clinician_notes?:number;current_source_snapshot_verified?:boolean|null;clinician_note_domains_complete?:boolean};
 type ResponseData={patientId:string;source:{accountId:string;status:string;version:number;updatedAt:string;submittedAt?:string|null;questionnairePacketVersion?:string|null};sections:Section[];unmappedKeys:string[];reviews:Review[]};
 const focusedReviewLinks:Record<string,{label:string;anchor:string}[]>={
  'Mental health treatment history':[
@@ -36,6 +36,9 @@ const documentedClinicianReview=(review:Review):boolean=>
  // Historical null/missing proofs and provisional draft notes remain visible
  // in append-only history but must not increase the verified review count.
  review.current_source_snapshot_verified===true&&review.source_status==='submitted'&&
+ // The stored shape must be verified BEFORE sanitation backfills missing note
+ // categories; the seven safe display slots alone cannot prove completion.
+ review.clinician_note_domains_complete===true&&
  // The original seven BPS pages and their source-verified summary require a
  // complete seven-domain clinician note payload. A legacy single-note row can
  // contain substantive observations but cannot certify all seven pages.

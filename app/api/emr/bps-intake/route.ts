@@ -272,10 +272,17 @@ export async function GET(request:Request){
    // identifiers, insurance details or PHI: none may cross this API boundary.
    const clean=sanitizeBpsSnapshotAnswers(review.clinical_answers);
    const safeNotes=sanitizeBpsClinicianNotes(review.clinician_notes);
+   // The sanitizer fills missing note domains with blank strings. Preserve
+   // a separate proof of the STORED seven-domain record shape.
+   const clinicianNoteDomainsComplete=review.clinician_notes!==null&&
+    typeof review.clinician_notes==='object'&&!Array.isArray(review.clinician_notes)&&
+    Object.keys(review.clinician_notes).length===Object.keys(bpsNoteDomains).length&&
+    safeNotes.excludedCount===0;
    return {
     id:review.id,source_version:review.source_version,source_status:review.source_status,
     source_updated_at:review.source_updated_at,created_at:review.created_at,
     reviewed:review.reviewed===true,clinical_answers:clean.answers,clinician_notes:safeNotes.notes,
+    clinician_note_domains_complete:clinicianNoteDomainsComplete,
     // Null for older revisions: today's source cannot attest to past answers.
     // False for current revisions with altered/incomplete clinical snapshots.
     // This is informational integrity evidence, NOT a clinician signature.

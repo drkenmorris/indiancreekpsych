@@ -1416,8 +1416,9 @@ test('historical BPS snapshot source cannot echo invalid Unicode through protect
   expect(readback.reviews[0].clinical_answers).toEqual({suicidal_thoughts_current:'Yes'});
   expect(readback.reviews[0].current_source_snapshot_verified).toBe(false);
   expect(JSON.stringify(readback)).not.toContain('FICTIONAL_');
-  const summary=await GET(request() /* historical attestation remains unverified */);
+  const summary=await GET(new Request(request().url+'&summary=1'));
   expect(summary.status).toBe(200);
+  expect((await summary.json()).currentVersionReviewed).toBe(false);
  }
  // Correct Unicode remains byte-for-byte available to the authorized clinician.
  const valid='Fictional source 🤝 日本語';

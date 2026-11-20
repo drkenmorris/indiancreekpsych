@@ -162,4 +162,41 @@ await test('direct DELETE stays denied for patient and administrator despite aut
  await db.exec('RESET ROLE');
  assert.deepEqual((await db.query('SELECT id,patient_id,starts_at FROM public.appointments ORDER BY id')).rows,before.rows);
 });
+// Regression for real scheduling release gates: an administrator who has not
+// completed MFA cannot create even an appointment addressed to their own UUID
+// through a permissive INSERT policy, nor rewrite patient ownership through UPDATE.
+await test('AAL1 administrator cannot create or relink appointments through a direct table write',async()=>{
+ await session(admin,'aal1');
+ await assert.rejects(
+  db.query("INSERT INTO public.appointments(id,patient_id,starts_at) VALUES($1,$2,'2030-01-08T10:00:00Z')",
+   ['00000000-0000-4000-8000-000000000198',admin]),
+  /row-level security/i
+ );
+ assert.equal((await db.query('UPDATE public.appointments SET patient_id=$1 RETURNING id',[admin])).rows.length,0);
+ await db.exec('RESET ROLE');
+ assert.equal((await db.query('SELECT count(*)::int AS n FROM public.appointments')).rows[0].n,2);
+});
+
+// Production contains name-only recurring occurrences. They remain editable
+// through the authorized scheduler for an AAL2 administrator, but must be
+// impossible for an AAL1 administrator or any patient to alter directly.
+await test('only MFA-authenticated administrators can update an unlinked recurring occurrence',async()=>{
+ const legacy='00000000-0000-4000-8000-000000000199';
+ await db.exec('RESET ROLE');
+ await db.query("INSERT INTO public.appointments(id,patient_id,starts_at) VALUES($1,NULL,'2030-01-09T10:00:00Z')",[legacy]);
+ try{
+  await session(admin,'aal1');
+  assert.equal((await db.query("UPDATE public.appointments SET starts_at='2030-01-09T11:00:00Z' WHERE id=$1 RETURNING id",[legacy])).rows.length,0);
+  await session(admin,'aal2');
+  assert.deepEqual((await db.query("UPDATE public.appointments SET starts_at='2030-01-09T11:00:00Z' WHERE id=$1 RETURNING id",[legacy])).rows.map(row=>row.id),[legacy]);
+  for(const identity of [patient,unrelated]){
+   await session(identity,'aal2');
+   assert.equal((await db.query("UPDATE public.appointments SET starts_at='2030-01-09T12:00:00Z' WHERE id=$1 RETURNING id",[legacy])).rows.length,0);
+  }
+ }finally{
+  await db.exec('RESET ROLE');
+  await db.query('DELETE FROM public.appointments WHERE id=$1',[legacy]);
+ }
+ assert.equal((await db.query('SELECT count(*)::int AS n FROM public.appointments')).rows[0].n,2);
+});
 await db.close();

@@ -61,7 +61,7 @@ test('partial clinician-note submissions cannot masquerade as a completed seven-
  const domains=Object.keys(payload.notes);
  for(const omitted of domains){
   const notes=fullNotes();
-  delete notes[omitted];
+  delete (notes as Record<string,unknown>)[omitted];
   const refused=await POST(submit({...payload,notes}));
   expect(refused.status).toBe(400);
   expect(refused.headers.get('Cache-Control')).toContain('no-store');

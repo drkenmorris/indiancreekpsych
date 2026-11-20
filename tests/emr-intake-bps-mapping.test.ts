@@ -1,6 +1,6 @@
 import {expect,test} from 'vitest';
 import {intakeSections,intakeSectionsForVersion,retiredMentalHealthFields,retiredContextFields} from '@/lib/patient/intake';
-import {bpsNoteDomains,hasIndependentBpsReviewNote,bpsSectionClassification,mapIntakeToBps,mapSavedBpsReportedFields,sanitizeBpsSnapshotAnswers,bpsSnapshotClinicalKeys,bpsVisibleSourceKeys,distinctBpsQuestionIdentities,validBpsQuestionnaireTopology,approvedBpsQuestionSection,equalBpsTimestampInstants,validBpsSubmissionChronology,validBpsHistoricalSourceBoundary} from '@/lib/emr/intake-bps';
+import {bpsNoteDomains,hasIndependentBpsReviewNote,bpsSectionClassification,mapIntakeToBps,mapSavedBpsReportedFields,sanitizeBpsSnapshotAnswers,bpsSnapshotClinicalKeys,bpsVisibleSourceKeys,distinctBpsQuestionIdentities,validBpsQuestionnaireTopology,approvedBpsQuestionSection,validBpsTimestamp,equalBpsTimestampInstants,validBpsSubmissionChronology,validBpsHistoricalSourceBoundary} from '@/lib/emr/intake-bps';
 test('versioned BPS questions cannot be reassigned to an unrelated known section',()=>{
  expect(approvedBpsQuestionSection('Presenting concerns and functional impact','counseling_reason')).toBe(true);
  expect(approvedBpsQuestionSection('Safety and risk screening','counseling_reason')).toBe(false);
@@ -281,6 +281,28 @@ test('BPS attestation comparisons preserve microseconds and normalize timezone o
  expect(validBpsSubmissionChronology('draft','2026-11-10T09:00:00.000002Z',null)).toBe(true);
  expect(validBpsSubmissionChronology('draft','2026-11-10T09:00:00.000002Z',receipt)).toBe(false);
  expect(validBpsSubmissionChronology('revoked',receipt,null)).toBe(false);
+});
+
+test('BPS provenance rejects impossible UTC offsets even when Date.parse accepts them',()=>{
+ // Distorted source timestamps could otherwise pass a chronology check while
+ // representing a civil offset unavailable to clinical/database systems.
+ for(const stamp of [
+  '2026-11-20T12:00:00+14:01','2026-11-20T12:00:00-14:01',
+  '2026-11-20T12:00:00+15:00','2026-11-20T12:00:00+23:59'
+ ]){
+  expect(Number.isFinite(Date.parse(stamp)),stamp).toBe(true);
+  expect(validBpsTimestamp(stamp),stamp).toBe(false);
+  expect(equalBpsTimestampInstants(stamp,stamp)).toBe(false);
+  expect(validBpsSubmissionChronology('submitted',stamp,stamp)).toBe(false);
+  expect(validBpsHistoricalSourceBoundary(1,'submitted',stamp,1,'submitted',stamp)).toBe(false);
+ }
+ for(const stamp of [
+  '2026-11-20T12:00:00+14:00','2026-11-20T12:00:00-14:00',
+  '2026-11-20T12:00:00-06:00','2026-11-20T12:00:00Z'
+ ]){
+  expect(validBpsTimestamp(stamp),stamp).toBe(true);
+  expect(equalBpsTimestampInstants(stamp,stamp)).toBe(true);
+ }
 });
 
 test('unknown BPS field identities containing fictional private text are counted but never echoed',()=>{

@@ -49,7 +49,11 @@ const documentedClinicianReview=(review:Review):boolean=>
  sanitizeBpsClinicianNotes(review.clinician_notes).excludedCount===0&&
  hasIndependentBpsReviewNote(sanitizeBpsClinicianNotes(review.clinician_notes).notes);
 async function json(response:Response){const data=await response.json();if(!response.ok)throw Error(data.error||'Protected BPS request failed.');return data;}
-export default function PatientBpsIntakeReview({patientId}:{patientId:string}){
+export default function PatientBpsIntakeReview({patientId:requestedPatientId}:{patientId:string}){
+ // PostgreSQL and the protected GET route normalize UUIDs to lowercase. Keep
+ // every local chart scope, save lock and API readback on that same identity so
+ // a mixed-case central-chart URL cannot hide a correctly linked patient.
+ const patientId=requestedPatientId.toLowerCase();
  const [data,setData]=useState<ResponseData|null>(null),[error,setError]=useState(''),[status,setStatus]=useState(''),
  [loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[prepared,setPrepared]=useState(false),
  [notes,setNotes]=useState<BpsNotes>(emptyBpsNotes),[reviewed,setReviewed]=useState(false),

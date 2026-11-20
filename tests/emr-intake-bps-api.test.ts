@@ -231,6 +231,35 @@ test('malformed linked JSONB answers cannot impersonate an empty but valid 21-se
  expect((await GET(request())).status).toBe(200);
 });
 
+test('malformed patient-source Unicode is withheld from BPS GET and cannot be clinician-attested through POST',async()=>{
+ const privateMarker='PRIVATE_FICTIONAL_UNICODE_SOURCE';
+ const original={...data};
+ for(const invalid of ['\u0000','\uD800','\uDC00']){
+  data={...original,counseling_reason:privateMarker+invalid};
+  m.from.mockClear();
+  const get=await GET(request());
+  expect(get.status).toBe(409);
+  expect(get.headers.get('Cache-Control')).toContain('no-store');
+  expect(JSON.stringify(await get.json())).not.toContain(privateMarker);
+  expect(m.from).not.toHaveBeenCalledWith('emr_bps_intake_reviews');
+  const post=await POST(submit(payload));
+  expect(post.status).toBe(409);
+  expect(JSON.stringify(await post.json())).not.toContain(privateMarker);
+  expect(m.rpc).not.toHaveBeenCalled();
+ }
+ // Well-formed multilingual text and supplementary characters must be left
+ // exactly as the patient wrote them, without rewriting the source statement.
+ const faithful='Fictional patient report — café 日本語 🤝';
+ data={...original,counseling_reason:faithful};
+ const response=await GET(request());
+ expect(response.status).toBe(200);
+ const packet=await response.json();
+ expect(packet.sections.flatMap((section:any)=>section.fields).find((field:any)=>field.key==='counseling_reason').value).toBe(faithful);
+ expect((await POST(submit(payload))).status).toBe(201);
+ expect(m.rpc).toHaveBeenCalledTimes(1);
+ expect(m.rpc.mock.calls[0][1].p_payload.source_answers.counseling_reason).toBe(faithful);
+});
+
 test('unrecognized explicit questionnaire packet never falls back to legacy BPS and leaks protected source',async()=>{
  data={counseling_reason:'PRIVATE_FICTIONAL_CLINICAL_SOURCE',legal_packet_version:'2026-12-unknown-packet'};
  const response=await GET(request());

@@ -229,6 +229,13 @@ function originalBpsInstantNanoseconds(value){
        (field.reported!==undefined&&typeof field.reported!=='boolean')||
        (field.sourceOnly!==undefined&&typeof field.sourceOnly!=='boolean')||
        (field.reported===true&&!field.value.trim()))return false;
+    // The server must replace every separately protected patient answer with
+    // this fixed opaque marker. Merely asserting sourceOnly:true does not make
+    // raw trauma, medication, insurance or legal text safe for the original BPS
+    // DOM. Refuse a stale/malformed API response rather than trusting its flag.
+    if(field.sourceOnly===true&&
+       (field.reported!==true||
+        field.value!=='Recorded in protected source; not copied into BPS.'))return false;
     // A reported medication, allergy, structured-history, legal or insurance
     // answer must NEVER be classed as a BPS-readable free-text report by a
     // malformed/stale API response. The protected source is authoritative;

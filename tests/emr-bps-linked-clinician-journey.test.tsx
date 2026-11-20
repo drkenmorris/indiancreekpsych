@@ -16,9 +16,11 @@ vi.mock('@/lib/emr/access',()=>({
 }));
 afterEach(()=>{cleanup();vi.clearAllMocks();vi.unstubAllGlobals();});
 
-test.each([['lowercase',false],['uppercase',true]])('fictional 21-section linked intake traverses the protected BPS API, clinician save and independently verified history without mixing patient charts (%s receipt)',async(_receiptFormat,receiptUppercase)=>{
+test.each([['lowercase receipt',false,false],['uppercase receipt',true,false],['uppercase central-chart UUID',false,true]] as const)('fictional 21-section linked intake traverses the protected BPS API, clinician save and independently verified history without mixing patient charts (%s)',async(_case,receiptUppercase,chartUppercase)=>{
  const patient='00000000-0000-4000-8000-000000000901';
  const otherPatient='00000000-0000-4000-8000-000000000902';
+ // Uppercase UUIDs in chart URLs identify the SAME PostgreSQL UUID, not a new patient.
+ const selectedPatientId=chartUppercase?patient.toUpperCase():patient;
  const account='00000000-0000-4000-8000-000000000903';
  const otherAccount='00000000-0000-4000-8000-000000000904';
  const reviewId='00000000-0000-4000-8000-000000000905';
@@ -105,7 +107,7 @@ test.each([['lowercase',false],['uppercase',true]])('fictional 21-section linked
   }));
   return GET(new Request(absolute.toString()));
  }));
- render(<PatientBpsIntakeReview patientId={patient}/>);
+ render(<PatientBpsIntakeReview patientId={selectedPatientId}/>);
  await screen.findByText(/Version 7/);
  const receipt=screen.getByText(/Patient submission attested:/);
  expect(receipt.querySelector('time')?.getAttribute('datetime')).toBe(stamp);
@@ -161,7 +163,7 @@ test.each([['lowercase',false],['uppercase',true]])('fictional 21-section linked
  // documented BPS review. Preserve its history/version lock, do not rewrite it.
  reviews[0].clinician_notes={};
  cleanup();
- render(<PatientBpsIntakeReview patientId={patient}/>);
+ render(<PatientBpsIntakeReview patientId={selectedPatientId}/>);
  await screen.findByText(/Documented clinician reviews: 0/);
  expect(screen.getByText(/Some saved history records lack confirmed clinician-review attestation or independent clinical documentation/)).toBeTruthy();
  expect(screen.getByText(/This historical row lacks confirmed clinician-review attestation or independently documented clinical observations/)).toBeTruthy();
@@ -174,7 +176,7 @@ test.each([['lowercase',false],['uppercase',true]])('fictional 21-section linked
  // This matches the protected BPS summary endpoint's cardinality rule.
  reviews[0].clinician_notes={presenting:'FICTIONAL_APPROVED_OBSERVATION'};
  cleanup();
- render(<PatientBpsIntakeReview patientId={patient}/>);
+ render(<PatientBpsIntakeReview patientId={selectedPatientId}/>);
  await screen.findByText(/Documented clinician reviews: 0/);
  expect(screen.getByText(/Some saved history records lack confirmed clinician-review attestation or independent clinical documentation/)).toBeTruthy();
  expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
@@ -184,7 +186,7 @@ test.each([['lowercase',false],['uppercase',true]])('fictional 21-section linked
  reviews[0].clinician_notes={presenting:'FICTIONAL_APPROVED_OBSERVATION',
   unapproved:'FICTIONAL_REDACTED_CLINICAL_TEXT'};
  cleanup();
- render(<PatientBpsIntakeReview patientId={patient}/>);
+ render(<PatientBpsIntakeReview patientId={selectedPatientId}/>);
  await screen.findByText(/Documented clinician reviews: 0/);
  expect(screen.getByText(/Some saved history records lack confirmed clinician-review attestation or independent clinical documentation/)).toBeTruthy();
  expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();

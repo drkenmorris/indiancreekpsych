@@ -141,8 +141,13 @@ function originalBpsInstantNanoseconds(value){
   Object.values(review.clinician_notes).some(value=>
    value.replace(originalBpsInvisibleNoteCharacters,'')
     .replace(/[\u0000-\u001f\u007f-\u009f]/g,'').trim().length>0);
- async function populateOriginalBpsIntake(panel,id,generation){
- const stillCurrent=()=>generation===linkedIntakeRenderGeneration&&patientId===id&&panel.isConnected;
+ async function populateOriginalBpsIntake(panel,requestedId,generation){
+ // The protected API returns canonical lowercase UUIDs. An uppercase UUID in
+ // an otherwise valid original-BPS patient URL must not appear unlinked, and
+ // the generation/scope guard must still reject a genuinely different chart.
+ const id=typeof requestedId==='string'?requestedId.toLowerCase():'';
+ const stillCurrent=()=>generation===linkedIntakeRenderGeneration&&
+  typeof patientId==='string'&&patientId.toLowerCase()===id&&panel.isConnected;
  try{
   const response=await fetch('/api/emr/bps-intake?patient='+encodeURIComponent(id),
    {cache:'no-store',credentials:'same-origin'});

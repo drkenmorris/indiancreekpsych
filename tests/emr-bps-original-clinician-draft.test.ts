@@ -15,9 +15,9 @@ function packet(version=7){
  const sections=intakeSectionsForVersion('').map(section=>{
   const fields=section.title==='Trauma, family, social, educational, and occupational history'?[
    {key:'social_supports',label:'Social supports',type:'text',value:'FICTIONAL FRIEND SUPPORT',reported:true,sourceOnly:false},
-   {key:'trauma_history',label:'Structured trauma history',type:'trauma-history',value:'PRIVATE FICTIONAL TRAUMA',reported:true,sourceOnly:true}
+   {key:'trauma_history',label:'Structured trauma history',type:'trauma-history',value:'Recorded in protected source; not copied into BPS.',reported:true,sourceOnly:true}
   ]:section.title==='Medications'?[
-   {key:'medication_entries',label:'Medications',type:'medications',value:'PRIVATE FICTIONAL MEDICATION',reported:true,sourceOnly:true}
+   {key:'medication_entries',label:'Medications',type:'medications',value:'Recorded in protected source; not copied into BPS.',reported:true,sourceOnly:true}
   ]:[];
   const rule=bpsSectionClassification[section.title];
   return {title:section.title,domain:rule.domain,disposition:rule.disposition,
@@ -198,7 +198,11 @@ test('selected-patient switch makes old intake draft action inert without a writ
 test('an unrelated patient-reported section change blocks source placement even with the same revision receipt',async()=>{
  const h=harness(async call=>{
   const source=packet();
-  if(call===2)source.sections.find(s=>s.title==='Medications')!.fields[0].value='CHANGED PRIVATE FICTIONAL MEDICATION';
+  if(call===2){
+   const med=source.sections.find(s=>s.title==='Medications')!;
+   med.fields[0].value='';med.fields[0].reported=false;med.fields[0].sourceOnly=false;
+   med.answered=0;
+  }
   return Response.json(source);
  });
  try{
@@ -420,7 +424,11 @@ test('family-of-origin source transfer preserves existing clinician other-notes 
 test('family-of-origin draft rejects cross-section intake changes at the same revision and discloses no protected text',async()=>{
  const h=harness(async call=>{
   const source=packet();
-  if(call===2)source.sections.find(section=>section.title==='Medications')!.fields[0].value='CHANGED PRIVATE FICTIONAL MEDICATION';
+  if(call===2){
+   const med=source.sections.find(section=>section.title==='Medications')!;
+   med.fields[0].value='';med.fields[0].reported=false;med.fields[0].sourceOnly=false;
+   med.answered=0;
+  }
   return Response.json(source);
  },'family_origin');
  try{
@@ -759,6 +767,34 @@ test.each(['-12:00','+14:00','+13:45','-06:00'])(
    expect(h.note.value).toBe('');
    expect(h.dom.window.document.body.textContent).toContain('FICTIONAL FRIEND SUPPORT');
    expect(h.dom.window.document.body.textContent).not.toContain('PRIVATE FICTIONAL TRAUMA');
+  }finally{h.dom.window.close();}
+ }
+);
+
+test.each([
+ ['medication','Medications','PRIVATE FICTIONAL MEDICATION CONTENT'],
+ ['trauma','Trauma, family, social, educational, and occupational history','PRIVATE FICTIONAL TRAUMA CONTENT']
+] as const)(
+ 'original seven-page BPS refuses raw %s text even if a stale API marks the source field protected',
+ async (_kind,title,secret)=>{
+  const h=harness(async()=>{
+   const source=packet();
+   const section=source.sections.find(s=>s.title===title)!;
+   const restricted=title==='Medications'?section.fields[0]:
+    section.fields.find(field=>field.key==='trauma_history')!;
+   restricted.value=secret;
+   // A Boolean flag does not authorize transmitting raw protected source.
+   expect(restricted.sourceOnly).toBe(true);
+   return Response.json(source);
+  });
+  try{
+   await vi.waitFor(()=>expect(h.dom.window.document.body.textContent)
+    .toContain('Linked 21-section intake mapping is malformed'));
+   expect(h.dom.window.document.body.textContent).not.toContain(secret);
+   expect(h.dom.window.document.body.textContent).not.toContain('FICTIONAL FRIEND SUPPORT');
+   expect(h.button()).toBeUndefined();
+   expect(h.note.value).toBe('');
+   expect(h.requests).toEqual([{url:'/api/emr/bps-intake?patient='+patient,method:'GET'}]);
   }finally{h.dom.window.close();}
  }
 );

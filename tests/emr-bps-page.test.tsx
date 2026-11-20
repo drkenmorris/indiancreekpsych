@@ -28,6 +28,27 @@ test('authorized linked central patient opens original BPS and 21-section source
  expect(markup).toContain('existing administrator credentials, MFA');
  expect(m.from).toHaveBeenCalledWith('clinical_patients');
 });
+test('mixed-case central UUID link opens the canonical chart across MFA, intake and all original BPS forms',async()=>{
+ const canonical='a0b1c2d3-11aa-4bcc-8dee-ff0011223344';
+ lookup.mockResolvedValue({data:{id:canonical,directory_deleted_at:null},error:null});
+ const markup=renderToStaticMarkup(await EmrBpsIntakePage(props(canonical.toUpperCase(),'trauma_history')));
+ const query=m.from.mock.results[0]?.value;
+ expect(query?.eq).toHaveBeenCalledWith('id',canonical);
+ expect(m.patientAccess).toHaveBeenCalledWith(true,'/emr/bps-intake?patient='+canonical+'&bps_page=trauma_history');
+ expect(markup).toContain('Review for central patient '+canonical);
+ expect(markup).toContain('/emr/patients?patient='+canonical);
+ expect(markup).toContain('patient='+canonical+'&amp;module=assessment');
+ expect(markup).not.toContain('patient='+canonical.toUpperCase());
+ expect((markup.match(/bps_page=/g)||[]).length).toBe(8);
+});
+test('a mixed-case patient request still rejects a different returned central chart',async()=>{
+ const canonical='a0b1c2d3-11aa-4bcc-8dee-ff0011223344';
+ const unrelated='a0b1c2d3-11aa-4bcc-8dee-ff0011223345';
+ lookup.mockResolvedValue({data:{id:unrelated,directory_deleted_at:null},error:null});
+ await expect(EmrBpsIntakePage(props(canonical.toUpperCase()))).rejects.toThrow('not-found');
+ expect(m.from.mock.results[0]?.value.eq).toHaveBeenCalledWith('id',canonical);
+});
+
 test('round-trip from original BPS preserves allowed clinical subpage without accepting unsafe navigation input',async()=>{
  const markup=renderToStaticMarkup(await EmrBpsIntakePage(props(patient,'medical_substance')));
  expect(markup).toContain('bps_page=medical_substance');

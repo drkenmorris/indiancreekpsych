@@ -44,3 +44,9 @@ test('Groups has four ordered destinations with patient context in both menu def
  expect(within(options).getByRole('link',{name:'Group Progress Notes History'}).getAttribute('aria-current')).toBe('page');expect(within(screen.getByRole('navigation',{name:'Main EMR modules'})).getByRole('button',{name:'Groups'})).toBeTruthy();
  expect(workspaceLink('group','unknown')).toBe('/emr/groups?section=administration');expect(readFileSync('public/emr-assets/production.js','utf8')).toContain("activeSection?.module==='group'");
 });
+
+test('original workspace Groups options navigate to the four direct pages without a patient requirement',()=>{
+ for(const patient of ['', '00000000-0000-4000-8000-000000000103'])for(const [key] of menus.sections.group){
+  const assign=vi.fn(),original=vi.fn();const ctx:any={window:{addEventListener:()=>{}},message:()=>{},render:original,settingsSection:()=>'',activeSection:{module:'group',key},patientId:patient,view:'module-section',location:{assign},URLSearchParams};runInNewContext(readFileSync('public/emr-assets/production.js','utf8'),ctx);ctx.render();expect(original).not.toHaveBeenCalled();const url=new URL(assign.mock.calls[0][0],'https://clinic.test');expect(url.pathname).toBe('/emr/groups');expect(url.searchParams.get('section')).toBe(key);expect(url.searchParams.get('patient')).toBe(patient||null);
+ }
+});

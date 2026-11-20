@@ -371,3 +371,19 @@ test.each([
  expect(sections).toHaveLength(21);
  expect(validBpsQuestionnaireTopology(sections,version)).toBe(false);
 });
+
+
+test('invalid historical snapshot Unicode is withheld without rewriting the original clinical record',()=>{
+ const clean='Fictional observation 🤝 cafe\u0301 日本語';
+ for(const malformed of ['FICTIONAL_NUL\u0000X','FICTIONAL_HIGH\uD800X','FICTIONAL_LOW\uDC00X']){
+  const snapshot=sanitizeBpsSnapshotAnswers({
+   counseling_reason:malformed,suicidal_thoughts_current:'Yes'
+  });
+  expect(snapshot.answers).toEqual({suicidal_thoughts_current:'Yes'});
+  expect(snapshot.excludedCount).toBe(1);
+  expect(JSON.stringify(snapshot)).not.toContain('FICTIONAL_');
+ }
+ const valid=sanitizeBpsSnapshotAnswers({counseling_reason:clean});
+ expect(valid.answers).toEqual({counseling_reason:clean});
+ expect(valid.excludedCount).toBe(0);
+});

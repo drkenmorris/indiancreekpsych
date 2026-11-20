@@ -102,6 +102,15 @@ function validOriginalBpsTimestamp(value) {
  if(typeof value!=='string')return false;
  const match=/^(\d{4})-(\d{2})-(\d{2})T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d{1,9})?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/.exec(value);
  if(!match||!Number.isFinite(Date.parse(value)))return false;
+ // Original seven-page BPS source attestation must enforce the same civil
+ // offset boundary as the protected API and the React clinician workflow.
+ // Date.parse accepts impossible values like -14:00 and +23:59.
+ const offset=/([+-])(\d{2}):(\d{2})$/.exec(value);
+ if(offset){
+  const limit=offset[1]==='-'?12:14;
+  const hours=Number(offset[2]),minutes=Number(offset[3]);
+  if(hours>limit||(hours===limit&&minutes!==0))return false;
+ }
  const year=Number(match[1]),month=Number(match[2]),day=Number(match[3]);
  return month>=1&&month<=12&&day>=1&&day<=new Date(Date.UTC(year,month,0)).getUTCDate();
 }

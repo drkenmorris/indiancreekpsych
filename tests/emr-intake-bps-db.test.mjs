@@ -39,16 +39,20 @@ for(const migration of [
  '20261118184500_bps_atomic_submission_receipt.sql',
  '20261118204000_bps_atomic_answer_identity.sql',
  '20261119004500_bps_control_character_attestation_guard.sql',
- '20261119033000_emr_bps_source_answer_json_guard.sql'
+ '20261119033000_emr_bps_source_answer_json_guard.sql',
+ '20261120101500_bps_explicit_seven_domain_review_guard.sql'
 ])await db.exec(readFileSync('supabase/migrations/'+migration,'utf8'));
 const q=(s,args=[])=>db.query(s,args);
 const as=async(id,aal='aal2')=>{await db.exec('reset role');await q("select set_config('request.user',$1,false),set_config('request.aal',$2,false)",[id,aal]);await db.exec('set role authenticated');};
+const fullNotes=(changes={})=>({
+ presenting:'',treatment:'',medical:'',safety:'',family:'',goals:'',limitations:'',...changes
+});
 const payload={patient_id:patient,source_account_id:account,source_version:1,source_status:'submitted',source_updated_at:stamp,source_submitted_at:stamp,
  reviewed:true,source_answers:{
  counseling_reason:'Patient-reported sadness',suicidal_thoughts_current:'Yes',
  medication_entries:'structured original',roi_authorize:'Yes',
  treatment_signature:'Patient Signature',insurance_member:'protected identifier'
-},clinician_notes:{presenting:'Clinician reviewed patient account; not a diagnosis.'}};
+},clinician_notes:fullNotes({presenting:'Clinician reviewed patient account; not a diagnosis.'})};
 await test('contradictory draft patient submission receipt cannot create an attested clinician review',async()=>{
  // Protect this boundary in the database as well as the HTTP API: even a
  // legitimate MFA administrator must not save contradictory patient provenance.
@@ -109,6 +113,24 @@ await test('direct authorized BPS RPC cannot create checkbox-only, whitespace-on
  }
  assert.equal((await q('select count(*)::integer n from public.emr_bps_intake_reviews')).rows[0].n,0);
 });
+await test('direct authorized RPC refuses incomplete clinician-note inventories before storage',async()=>{
+ await as(admin);
+ const seven=fullNotes({presenting:'Fictional independent clinical observation',treatment:'Fictional treatment-context observation'});
+ for(const omitted of Object.keys(seven)){
+  const incomplete={...seven};
+  delete incomplete[omitted];
+  await assert.rejects(
+   q('select public.save_emr_bps_intake_review($1)',[{...payload,clinician_notes:incomplete}]),
+   /All seven BPS clinician-note domains must be explicitly represented/
+  );
+ }
+ await assert.rejects(
+  q('select public.save_emr_bps_intake_review($1)',[{...payload,clinician_notes:{...seven,unapproved:'Fictional extra domain'}}]),
+  /Unsupported BPS clinician notes/
+ );
+ assert.equal((await q('select count(*)::integer n from public.emr_bps_intake_reviews')).rows[0].n,0);
+});
+
 await test('DB-attested clinician review rejects malformed patient answer values even with exact source receipt',async()=>{
  // An MFA-authorized direct RPC caller could present the same malformed JSON
  // as the live source. The database must not silently omit those answers when

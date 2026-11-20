@@ -1,7 +1,7 @@
 import {NextResponse} from 'next/server';
 import {emrAccess,privateHeaders,sameOrigin} from '@/lib/emr/access';
 import {uuid} from '@/lib/emr/demographics';
-import {bpsNoteDomains,mapIntakeToBps,sanitizeBpsClinicianNotes,sanitizeBpsSnapshotAnswers,bpsSnapshotClinicalKeys,validBpsTimestamp,validBpsSubmissionChronology,validBpsReviewChronology,validBpsHistoricalSourceBoundary,recognizedBpsQuestionnaireVersion,bpsTimestampInstantNanoseconds,equalBpsTimestampInstants,hasIndependentBpsReviewNote} from '@/lib/emr/intake-bps';
+import {bpsNoteDomains,mapIntakeToBps,sanitizeBpsClinicianNotes,sanitizeBpsSnapshotAnswers,bpsSnapshotClinicalKeys,validBpsTimestamp,validBpsSubmissionChronology,validBpsReviewChronology,validBpsHistoricalSourceBoundary,recognizedBpsQuestionnaireVersion,bpsTimestampInstantNanoseconds,equalBpsTimestampInstants,hasIndependentBpsReviewNote,validBpsClinicalNoteText} from '@/lib/emr/intake-bps';
 export const dynamic='force-dynamic';
 const reply=(data:unknown,status=200)=>NextResponse.json(data,{status,headers:privateHeaders});
 const sourceFields='patient_id,answers,status,version,updated_at,submitted_at';
@@ -57,14 +57,6 @@ async function limitedBpsReviewBody(request:Request):Promise<string|null|undefin
   catch{return undefined;}
  }finally{reader.releaseLock();}
 }
-/** JSON can carry NUL and unmatched UTF-16 surrogates even after the wire
- * bytes pass strict UTF-8 decoding. PostgreSQL rejects NUL and downstream JSON
- * encoders may replace lone surrogates, changing a clinician's attested note.
- * Reject both before an append-only clinical save; valid emoji pairs remain safe.
- */
-const invalidClinicalNoteText=(value:string):boolean=>
- value.includes('\u0000')||Array.from(value).some(char=>
-  char.length===1&&char.charCodeAt(0)>=0xD800&&char.charCodeAt(0)<=0xDFFF);
 async function linkedSource(supabase:NonNullable<Awaited<ReturnType<typeof emrAccess>>>['supabase'],id:string){
  const patient=await supabase.from('clinical_patients').select('id,account_id,directory_deleted_at').eq('id',id).is('directory_deleted_at',null).maybeSingle();
  if(patient.error)throw Error('Central patient repository unavailable.');
@@ -323,7 +315,7 @@ export async function POST(request:Request){
    // is invalid: never silently erase an attested clinician note.
    const value=Object.prototype.hasOwnProperty.call(body.notes,key)?
     (body.notes as Record<string,unknown>)[key]:'';
-   if(typeof value!=='string'||value.length>4000||invalidClinicalNoteText(value))
+   if(!validBpsClinicalNoteText(value))
     return reply({error:'Clinical notes must contain valid Unicode text without NUL characters, at most 4,000 characters each.'},400);
    // Preserve the clinician's exact entered text, including line breaks and
    // intentional leading/trailing whitespace; validation must not rewrite it.

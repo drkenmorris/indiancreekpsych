@@ -63,6 +63,13 @@ await db.exec([
 await db.exec(readFileSync(new URL('../supabase/migrations/20261115120000_restrict_appointment_patient_row_scope.sql',import.meta.url),'utf8'));
 const pendingMigration=readFileSync(new URL('../supabase/migrations/20261111170500_scheduler_admin_mfa_gate.sql',import.meta.url),'utf8');
 await db.exec(pendingMigration);
+// Exercise the ACTUAL public scheduler RPC's SQL wrapper from the historical
+// migration, not merely the private helper. An isolated test that bypasses the
+// public entry point can miss an authorization regression in its call chain.
+const originalSchedulerMigration=readFileSync(new URL('../supabase/migrations/20260926154213_adjacent_patient_scheduling.sql',import.meta.url),'utf8');
+const publicPatientListDefinition=originalSchedulerMigration.match(/CREATE OR REPLACE FUNCTION public\.scheduling_patients\(\)[\s\S]*?\$\$;/i)?.[0];
+assert.ok(publicPatientListDefinition,'The historical public scheduling_patients RPC must remain available for wrapper-level authorization regression');
+await db.exec(publicPatientListDefinition);
 async function session(id,aal){
  await db.exec('RESET ROLE');
  await db.query("SELECT set_config('request.user',$1,false),set_config('request.jwt.claims',$2,false)",[
@@ -198,5 +205,23 @@ await test('only MFA-authenticated administrators can update an unlinked recurri
   await db.query('DELETE FROM public.appointments WHERE id=$1',[legacy]);
  }
  assert.equal((await db.query('SELECT count(*)::int AS n FROM public.appointments')).rows[0].n,2);
+});
+await test('public scheduling_patients RPC cannot reveal any patient directory without administrator AAL2',async()=>{
+ // This is the SQL entry point used by authenticated scheduler clients.
+ // The source is extracted from the versioned historical migration above.
+ for(const [identity,assurance] of [
+  [admin,null],[admin,'aal1'],[admin,'aal0'],[patient,'aal1'],
+  [patient,'aal2'],[unrelated,'aal2'],['','aal2']
+ ]){
+  await session(identity,assurance);
+  await assert.rejects(
+   db.query('SELECT id,full_name FROM public.scheduling_patients()'),
+   /Administrator sign-in and MFA required/i,
+   'The public function must fail closed for non-MFA/non-admin sessions'
+  );
+ }
+ await session(admin,'aal2');
+ const authorized=await db.query('SELECT id FROM public.scheduling_patients()');
+ assert.deepEqual(new Set(authorized.rows.map(row=>row.id)),new Set([patient,unrelated]));
 });
 await db.close();

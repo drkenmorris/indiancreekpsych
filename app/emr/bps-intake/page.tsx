@@ -21,7 +21,12 @@ const bpsPageLabels=[
 const bpsPages=new Set<string>(bpsPageLabels.map(page=>page.key));
 
 export default async function EmrBpsIntakePage({searchParams}:Props){
- const {patient,bps_page}=await searchParams;
+ const {patient:requestedPatient,bps_page}=await searchParams;
+ // PostgreSQL UUID comparisons are case-insensitive, but server-returned IDs
+ // are canonical lowercase. Keep login, original seven-page navigation and
+ // chart-scope verification on one canonical identity rather than 404ing for
+ // an uppercase UUID in a valid patient link.
+ const patient=uuid(requestedPatient)?requestedPatient.toLowerCase():requestedPatient;
  // Keep an explicitly selected central chart and approved BPS subpage across
  // login and MFA. Do not preserve arbitrary return URLs or unsupported pages.
  const returnQuery=new URLSearchParams();
@@ -38,7 +43,7 @@ export default async function EmrBpsIntakePage({searchParams}:Props){
  if(error)throw Error('The central patient could not be verified.');
  // Never trust the query predicate alone: a stale, incorrectly scoped or mocked
  // result must not let a clinician open another patient's protected BPS page.
- if(!data||data.id!==patient||data.directory_deleted_at!==null)notFound();
+ if(!data||!uuid(data.id)||data.id.toLowerCase()!==patient||data.directory_deleted_at!==null)notFound();
  const params=new URLSearchParams({patient,module:'assessment',section:'assessment:biopsychosocial'});
  if(bps_page&&bpsPages.has(bps_page))params.set('bps_page',bps_page);
  return <><main className="centralEmr" aria-label="Protected clinician-reviewed biopsychosocial intake">

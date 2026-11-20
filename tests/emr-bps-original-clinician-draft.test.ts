@@ -483,7 +483,10 @@ test('original BPS accepts correctly ordered clinician review receipts without c
   reviewed:true,source_version:7,source_status:'submitted',
   source_updated_at:stamp,created_at:'2026-11-14T12:00:02.123456Z',
   current_source_snapshot_verified:true,
-  clinical_answers:{},clinician_notes:{presenting:'FICTIONAL DOCUMENTED CLINICIAN OBSERVATION'},excluded_clinical_fields:0,excluded_clinician_notes:0
+  clinical_answers:{},clinician_note_domains_complete:true,
+  clinician_notes:{presenting:'FICTIONAL DOCUMENTED CLINICIAN OBSERVATION',
+   treatment:'',medical:'',safety:'',family:'',goals:'',limitations:''},
+  excluded_clinical_fields:0,excluded_clinician_notes:0
  };
  const older={...latest,
   id:'00000000-0000-4000-8000-000000000905',

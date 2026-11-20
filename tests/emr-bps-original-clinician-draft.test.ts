@@ -726,3 +726,39 @@ test.each([
   }finally{h.dom.window.close();}
  }
 );
+
+test.each(['+14:01','-12:01','-13:00','-14:00','+23:59'])(
+ 'original seven-page BPS fails closed on impossible civil source offset %s',async offset=>{
+  const h=harness(async()=>{
+   const source=packet();
+   source.source.updatedAt='2026-11-14T12:00:00.123456'+offset;
+   source.source.submittedAt=source.source.updatedAt;
+   return Response.json(source);
+  });
+  try{
+   await vi.waitFor(()=>expect(h.dom.window.document.querySelector('[role="alert"]')?.textContent)
+    .toContain('Linked intake source identity, status, version or timestamp could not be verified'));
+   expect(h.button()).toBeUndefined();
+   expect(h.note.value).toBe('');
+   expect(h.dom.window.document.body.textContent).not.toContain('FICTIONAL FRIEND SUPPORT');
+   expect(h.requests.every(request=>request.method==='GET')).toBe(true);
+  }finally{h.dom.window.close();}
+ }
+);
+
+test.each(['-12:00','+14:00','+13:45','-06:00'])(
+ 'original seven-page BPS retains valid civil source offset %s',async offset=>{
+  const h=harness(async()=>{
+   const source=packet();
+   source.source.updatedAt='2026-11-14T12:00:00.123456'+offset;
+   source.source.submittedAt=source.source.updatedAt;
+   return Response.json(source);
+  });
+  try{
+   await vi.waitFor(()=>expect(h.button()).toBeTruthy());
+   expect(h.note.value).toBe('');
+   expect(h.dom.window.document.body.textContent).toContain('FICTIONAL FRIEND SUPPORT');
+   expect(h.dom.window.document.body.textContent).not.toContain('PRIVATE FICTIONAL TRAUMA');
+  }finally{h.dom.window.close();}
+ }
+);

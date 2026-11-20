@@ -1427,3 +1427,45 @@ test('historical BPS snapshot source cannot echo invalid Unicode through protect
  expect(intact.reviews[0].clinical_answers.counseling_reason).toBe(valid);
  expect(intact.reviews[0].excluded_clinical_fields).toBe(0);
 });
+
+// The lightweight status panel on the original seven BPS pages is not a
+// less-protected shortcut: it must obey the same stable account and answer
+// checks as the full clinician intake. All data here are fictional.
+test('BPS summary refuses a relinked patient account before releasing even provenance-only status',async()=>{
+ const privateStatement='FICTIONAL_CROSS_CHART_REPORT_DO_NOT_DISCLOSE';
+ data={counseling_reason:privateStatement};
+ let historyRead=false;
+ historyResultOverride=()=>{
+  historyRead=true;
+  linked='00000000-0000-4000-8000-000000000991';
+  return [];
+ };
+ const response=await GET(new Request(request().url+'&summary=1'));
+ expect(historyRead).toBe(true);
+ expect(response.status).toBe(409);
+ expect(response.headers.get('Cache-Control')).toContain('no-store');
+ const wire=JSON.stringify(await response.json());
+ expect(wire).not.toContain(privateStatement);
+ expect(wire).not.toContain(account);
+ expect(wire).not.toContain('currentVersionReviewed');
+});
+
+test('BPS summary refuses a same-version patient answer change during history retrieval',async()=>{
+ const oldAnswer='FICTIONAL_EARLIER_PATIENT_REPORT';
+ const changedAnswer='FICTIONAL_CHANGED_PATIENT_REPORT';
+ data={counseling_reason:oldAnswer};
+ let historyRead=false;
+ historyResultOverride=()=>{
+  historyRead=true;
+  data={counseling_reason:changedAnswer};
+  return [];
+ };
+ const response=await GET(new Request(request().url+'&summary=1'));
+ expect(historyRead).toBe(true);
+ expect(response.status).toBe(409);
+ expect(response.headers.get('Cache-Control')).toContain('no-store');
+ const wire=JSON.stringify(await response.json());
+ expect(wire).not.toContain(oldAnswer);
+ expect(wire).not.toContain(changedAnswer);
+ expect(wire).not.toContain('currentVersionReviewed');
+});

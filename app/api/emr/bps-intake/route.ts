@@ -1,7 +1,7 @@
 import {NextResponse} from 'next/server';
 import {emrAccess,privateHeaders,sameOrigin} from '@/lib/emr/access';
 import {uuid} from '@/lib/emr/demographics';
-import {bpsNoteDomains,mapIntakeToBps,sanitizeBpsClinicianNotes,sanitizeBpsSnapshotAnswers,bpsSnapshotClinicalKeys,validBpsTimestamp,validBpsSubmissionChronology,validBpsReviewChronology,validBpsHistoricalSourceBoundary,recognizedBpsQuestionnaireVersion,bpsTimestampInstantNanoseconds,equalBpsTimestampInstants,hasIndependentBpsReviewNote,validBpsClinicalNoteText} from '@/lib/emr/intake-bps';
+import {bpsNoteDomains,mapIntakeToBps,sanitizeBpsClinicianNotes,sanitizeBpsSnapshotAnswers,bpsSnapshotClinicalKeys,validBpsTimestamp,validBpsSubmissionChronology,validBpsReviewChronology,validBpsHistoricalSourceBoundary,recognizedBpsQuestionnaireVersion,bpsTimestampInstantNanoseconds,equalBpsTimestampInstants,hasIndependentBpsReviewNote,validBpsClinicalNoteText,validBpsSourceAnswerText} from '@/lib/emr/intake-bps';
 export const dynamic='force-dynamic';
 const reply=(data:unknown,status=200)=>NextResponse.json(data,{status,headers:privateHeaders});
 const sourceFields='patient_id,answers,status,version,updated_at,submitted_at';
@@ -91,7 +91,7 @@ async function linkedSource(supabase:NonNullable<Awaited<ReturnType<typeof emrAc
  // Reject the entire source before reading or disclosing clinician history.
  const answers=intake.data.answers;
  if(!answers||typeof answers!=='object'||Array.isArray(answers)||
-   Object.values(answers).some(value=>typeof value!=='string'))
+   Object.values(answers).some(value=>!validBpsSourceAnswerText(value)))
   return {code:409 as const,error:'Linked intake answers are malformed; reopen the protected original intake.'};
  // An unknown packet marker is not proof that the legacy questionnaire applies.
  // Reject before any source fields or clinician history can be disclosed.

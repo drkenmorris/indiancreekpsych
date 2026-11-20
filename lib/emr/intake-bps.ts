@@ -370,12 +370,22 @@ export function sanitizeBpsSnapshotAnswers(raw:unknown):{answers:Record<string,s
  * database row must not introduce unknown fields into the protected BPS API or
  * the original clinician review. This does not modify the saved source record.
  */
+/** A historical clinician note can come from a pre-validation row or an
+ * incorrectly encoded adapter. Never expose or count a note whose wire text
+ * could not survive a clinical save without mutation (NUL or lone surrogate).
+ * Leave its immutable database record intact and surface an exclusion count.
+ */
+export function validBpsClinicalNoteText(value:unknown):value is string{
+ if(typeof value!=='string'||value.length>4000||value.includes('\\u0000'))return false;
+ return !Array.from(value).some(character=>character.length===1&&
+  character.charCodeAt(0)>=0xD800&&character.charCodeAt(0)<=0xDFFF);
+}
 export function sanitizeBpsClinicianNotes(raw:unknown):{notes:BpsNotes;excludedCount:number}{
  const notes=emptyBpsNotes();
  if(!raw||typeof raw!=='object'||Array.isArray(raw))return {notes,excludedCount:1};
  let excludedCount=0;
  for(const [key,value] of Object.entries(raw)){
-  if(Object.prototype.hasOwnProperty.call(bpsNoteDomains,key)&&typeof value==='string'&&value.length<=4000)
+  if(Object.prototype.hasOwnProperty.call(bpsNoteDomains,key)&&validBpsClinicalNoteText(value))
    notes[key as BpsNoteKey]=value;
   else excludedCount++;
  }

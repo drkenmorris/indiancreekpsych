@@ -333,6 +333,42 @@ test('BPS summary records current reviewed attestation only for the same patient
  expect(draft.currentVersionReviewed).toBe(false);
 });
 
+test('malformed persisted clinician-note Unicode is withheld and cannot certify the original seven-page BPS',async()=>{
+ const base={
+  id:'00000000-0000-0000-0000-000000000691',
+  patient_id:patient,source_account_id:account,source_version:2,
+  source_status:'submitted',source_updated_at:stamp,created_at:stamp,
+  reviewed:true,
+  clinical_answers:{counseling_reason:'Reports sadness',suicidal_thoughts_current:'Yes'}
+ };
+ for(const invalidCharacter of [String.fromCharCode(0),String.fromCharCode(0xD800),String.fromCharCode(0xDC00)]){
+  const corrupted='FICTIONAL_PRIVATE_CORRUPT_NOTE'+invalidCharacter;
+  reviewRows=[{...base,clinician_notes:{
+   presenting:corrupted,safety:'Independent fictional safety observation'
+  }}];
+  const summary=await GET(new Request(request().url+'&summary=1'));
+  expect(summary.status).toBe(200);
+  expect((await summary.json()).currentVersionReviewed).toBe(false);
+  const history=await GET(request());
+  expect(history.status).toBe(200);
+  const result=await history.json();
+  expect(result.reviews).toHaveLength(1);
+  expect(result.reviews[0].reviewed).toBe(true);
+  expect(result.reviews[0].current_source_snapshot_verified).toBe(true);
+  expect(result.reviews[0].excluded_clinician_notes).toBe(1);
+  expect(result.reviews[0].clinician_notes.presenting).toBe('');
+  expect(result.reviews[0].clinician_notes.safety).toBe('Independent fictional safety observation');
+  expect(JSON.stringify(result)).not.toContain('FICTIONAL_PRIVATE_CORRUPT_NOTE');
+  const post=await POST(submit({...payload,notes:{presenting:corrupted}}));
+  expect(post.status).toBe(400);
+  expect(m.rpc).not.toHaveBeenCalled();
+ }
+ // Well-formed supplementary characters remain valid clinical text.
+ const allowed=await POST(submit({...payload,notes:{presenting:'Fictional clinician review 🩺'}}));
+ expect(allowed.status).toBe(201);
+ expect(m.rpc).toHaveBeenCalledTimes(1);
+});
+
 test('a documented provisional draft review cannot clear the original seven-page BPS as a submitted reviewed intake',async()=>{
  // This is a genuine draft source with no patient submission receipt; a
  // clinician may have entered an independent preliminary note, but that is

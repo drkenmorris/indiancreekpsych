@@ -159,7 +159,7 @@ test('primary original BPS displays immutable snapshot provenance without leakin
   reviewed:true,source_version:5,source_status:'submitted',source_updated_at:'2026-11-09T12:00:00Z',
   created_at:'2026-11-09T12:30:00Z',
   clinical_answers:{counseling_reason:'DO NOT ECHO HISTORY',roi_authorize:'DO NOT ECHO LEGAL'},
-  clinician_notes:{presenting:'DO NOT ECHO PRIVATE CLINICIAN NOTE'}
+  clinician_note_domains_complete:true,clinician_notes:{presenting:'DO NOT ECHO PRIVATE CLINICIAN NOTE',treatment:'',medical:'',safety:'',family:'',goals:'',limitations:''}
  }]};
  const {ctx,dom}=harness(async()=>Response.json(past));
  ctx.render();
@@ -183,7 +183,7 @@ test('exactly matching clinician-reviewed BPS source version, status and timesta
   reviewed:true,source_version:6,source_status:'submitted',source_updated_at:'2026-11-10T12:00:00+00:00',
   created_at:'2026-11-10T12:10:00Z',current_source_snapshot_verified:true,
   clinical_answers:{counseling_reason:'Fictional patient-reported concern'},
-  clinician_notes:{presenting:'FICTIONAL INDEPENDENT CLINICIAN NOTE'}
+  clinician_note_domains_complete:true,clinician_notes:{presenting:'FICTIONAL INDEPENDENT CLINICIAN NOTE',treatment:'',medical:'',safety:'',family:'',goals:'',limitations:''}
  }]};
  const {ctx,dom}=harness(async()=>Response.json(current));
  ctx.render();
@@ -204,7 +204,7 @@ test('original seven-page BPS withholds current reviewed clearance for a documen
   reviewed:true,source_version:6,source_status:'draft',source_updated_at:'2026-11-10T12:00:00Z',
   created_at:'2026-11-10T12:01:00Z',current_source_snapshot_verified:true,
   clinical_answers:{counseling_reason:'Fictional patient-reported concern'},
-  clinician_notes:{presenting:'FICTIONAL PROVISIONAL CLINICIAN NOTES'}
+  clinician_note_domains_complete:true,clinician_notes:{presenting:'FICTIONAL PROVISIONAL CLINICIAN NOTES',treatment:'',medical:'',safety:'',family:'',goals:'',limitations:''}
  }]};
  const {ctx,dom}=harness(async()=>Response.json(draft),firstPatient,'symptoms');
  try{
@@ -405,7 +405,7 @@ test.each([
   source_updated_at:reviewUpdatedAt,created_at:'2026-11-10T12:10:00Z',
   current_source_snapshot_verified:true,
   clinical_answers:{counseling_reason:'Fictional patient-reported concern'},
-  clinician_notes:{presenting:'FICTIONAL INDEPENDENT CLINICIAN NOTE'}
+  clinician_note_domains_complete:true,clinician_notes:{presenting:'FICTIONAL INDEPENDENT CLINICIAN NOTE',treatment:'',medical:'',safety:'',family:'',goals:'',limitations:''}
  }]};
  const {ctx,dom}=harness(async()=>Response.json(receipt));
  ctx.render();
@@ -439,6 +439,11 @@ test.each([
  ['null current-snapshot verification',(source:any)=>{source.reviews[0].current_source_snapshot_verified=null;},false],
  ['unreconciled patient-reported source fields',(source:any)=>{source.unmappedKeys=['[unrecognized source field name withheld]'];},false],
  ['partially withheld clinician notes',(source:any)=>{source.reviews[0].excluded_clinician_notes=1;},false],
+ ['missing stored note-shape receipt',(source:any)=>{delete source.reviews[0].clinician_note_domains_complete;},false],
+ ['explicitly incomplete stored seven-domain note receipt',(source:any)=>{source.reviews[0].clinician_note_domains_complete=false;},false],
+ ['sparse historical note even when source incorrectly claims complete',(source:any)=>{
+  source.reviews[0].clinician_notes={presenting:'Independent fictional clinician observation'};
+ },false],
  ['unapproved clinician note alongside legible observation',(source:any)=>{
   source.reviews[0].clinician_notes={presenting:'Fictional observed symptoms',unapproved:'PRIVATE FICTIONAL CLINICIAN DATA'};
  },false],
@@ -452,7 +457,7 @@ test.each([
   reviewed:true,source_version:6,source_status:'submitted',source_updated_at:'2026-11-10T12:00:00Z',
   created_at:'2026-11-10T12:10:00Z',current_source_snapshot_verified:true,
   excluded_clinician_notes:0,clinical_answers:{counseling_reason:'Fictional patient-reported concern'},
-  clinician_notes:{presenting:'Independent fictional clinician observation'}
+  clinician_note_domains_complete:true,clinician_notes:{presenting:'Independent fictional clinician observation',treatment:'',medical:'',safety:'',family:'',goals:'',limitations:''}
  }]};
  corrupt(source);
  const {ctx,dom}=harness(async()=>Response.json(source));
@@ -463,6 +468,7 @@ test.each([
   await vi.waitFor(()=>expect(history()?.textContent).toContain('current intake version has changed'));
   expect(history()?.textContent).toContain('current intake version has changed');
   expect(history()?.textContent).not.toContain('PRIVATE FICTIONAL CLINICIAN DATA');
+  expect(dom.window.document.querySelector('section[aria-label="Patient intake context in original biopsychosocial workspace"]')?.textContent).toContain('0 independently documented unsigned clinician review(s)');
   if(expectMismatchAlert)expect(Array.from(history()?.querySelectorAll('[role="alert"]')||[])
    .some((alert:any)=>alert.textContent?.includes('does not match the complete current patient-reported clinical source'))).toBe(true);
   expect(dom.window.document.querySelector('#clinical-form')?.textContent)

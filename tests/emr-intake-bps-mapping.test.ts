@@ -287,7 +287,8 @@ test('BPS provenance rejects impossible UTC offsets even when Date.parse accepts
  // Distorted source timestamps could otherwise pass a chronology check while
  // representing a civil offset unavailable to clinical/database systems.
  for(const stamp of [
-  '2026-11-20T12:00:00+14:01','2026-11-20T12:00:00-14:01',
+  '2026-11-20T12:00:00+14:01','2026-11-20T12:00:00-12:01',
+  '2026-11-20T12:00:00-13:00','2026-11-20T12:00:00-14:00',
   '2026-11-20T12:00:00+15:00','2026-11-20T12:00:00+23:59'
  ]){
   expect(Number.isFinite(Date.parse(stamp)),stamp).toBe(true);
@@ -297,7 +298,8 @@ test('BPS provenance rejects impossible UTC offsets even when Date.parse accepts
   expect(validBpsHistoricalSourceBoundary(1,'submitted',stamp,1,'submitted',stamp)).toBe(false);
  }
  for(const stamp of [
-  '2026-11-20T12:00:00+14:00','2026-11-20T12:00:00-14:00',
+  '2026-11-20T12:00:00+14:00','2026-11-20T12:00:00-12:00',
+  '2026-11-20T12:00:00+13:45',
   '2026-11-20T12:00:00-06:00','2026-11-20T12:00:00Z'
  ]){
   expect(validBpsTimestamp(stamp),stamp).toBe(true);

@@ -1139,7 +1139,7 @@ test('malformed UTF-8 cannot silently rewrite a fictional clinician note and ret
 
 test('valid split multibyte UTF-8 BPS clinical notes retain exact text and an authorized save receipt',async()=>{
  const text='Fictional café 🧪 follow-up note';
- const bytes=new TextEncoder().encode(JSON.stringify({...payload,notes:{presenting:text}}));
+ const bytes=new TextEncoder().encode(JSON.stringify({...payload,notes:fullNotes({presenting:text})}));
  const split=bytes.indexOf(0xc3);
  expect(split).toBeGreaterThan(0);
  const stream=new ReadableStream<Uint8Array>({

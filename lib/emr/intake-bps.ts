@@ -44,6 +44,9 @@ export function validBpsTimestamp(value:unknown):value is string {
  // Otherwise a fabricated offset can attest clinical source provenance.
  const offset=/([+-])(\d{2}):(\d{2})$/.exec(value);
  if(offset){
+  // RFC3339 -00:00 signifies UNKNOWN local offset, not known UTC.
+  // Do not certify an exact clinical source instant from this representation.
+  if(offset[1]==='-'&&offset[2]==='00'&&offset[3]==='00')return false;
   const limit=offset[1]==='-'?12:14;
   const hours=Number(offset[2]),minutes=Number(offset[3]);
   if(hours>limit||(hours===limit&&minutes!==0))return false;

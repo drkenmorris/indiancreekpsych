@@ -167,6 +167,17 @@ test.each([['lowercase',false],['uppercase',true]])('fictional 21-section linked
  expect(screen.getByText(/version remains locked; investigate chart provenance/)).toBeTruthy();
  expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
  expect(writes).toBe(1);
+ // A legacy row can contain one valid independent observation but omit the
+ // other six original BPS clinician-note domains. It remains visible and
+ // version-locked, but it must NOT count as a completed seven-page review.
+ // This matches the protected BPS summary endpoint's cardinality rule.
+ reviews[0].clinician_notes={presenting:'FICTIONAL_APPROVED_OBSERVATION'};
+ cleanup();
+ render(<PatientBpsIntakeReview patientId={patient}/>);
+ await screen.findByText(/Documented clinician reviews: 0/);
+ expect(screen.getByText(/Some saved history records lack confirmed clinician-review attestation or independent clinical documentation/)).toBeTruthy();
+ expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
+ expect(writes).toBe(1);
  // Even when one legible clinical note remains, hidden malformed or
  // unapproved note keys make the historical record non-attestable.
  reviews[0].clinician_notes={presenting:'FICTIONAL_APPROVED_OBSERVATION',

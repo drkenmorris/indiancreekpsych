@@ -36,6 +36,12 @@ const documentedClinicianReview=(review:Review):boolean=>
  // Historical null/missing proofs and provisional draft notes remain visible
  // in append-only history but must not increase the verified review count.
  review.current_source_snapshot_verified===true&&review.source_status==='submitted'&&
+ // The original seven BPS pages and their source-verified summary require a
+ // complete seven-domain clinician note payload. A legacy single-note row can
+ // contain substantive observations but cannot certify all seven pages.
+ review.clinician_notes!==null&&typeof review.clinician_notes==='object'&&
+ !Array.isArray(review.clinician_notes)&&
+ Object.keys(review.clinician_notes).length===Object.keys(bpsNoteDomains).length&&
  (review.excluded_clinician_notes??0)===0&&
  sanitizeBpsClinicianNotes(review.clinician_notes).excludedCount===0&&
  hasIndependentBpsReviewNote(sanitizeBpsClinicianNotes(review.clinician_notes).notes);

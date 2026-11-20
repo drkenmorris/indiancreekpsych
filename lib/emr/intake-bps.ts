@@ -376,7 +376,7 @@ export function sanitizeBpsSnapshotAnswers(raw:unknown):{answers:Record<string,s
  * Leave its immutable database record intact and surface an exclusion count.
  */
 export function validBpsClinicalNoteText(value:unknown):value is string{
- if(typeof value!=='string'||value.length>4000||value.includes('\\u0000'))return false;
+ if(typeof value!=='string'||value.length>4000||value.includes('\u0000'))return false;
  return !Array.from(value).some(character=>character.length===1&&
   character.charCodeAt(0)>=0xD800&&character.charCodeAt(0)<=0xDFFF);
 }

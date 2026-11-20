@@ -70,6 +70,20 @@ test('BPS rejects duplicated source question identities across separate sections
   expect(distinctBpsQuestionIdentities(sections),version||'legacy blank').toBe(true);
  }
 });
+test('BPS 21-section topology rejects duplicated otherwise-approved historical patient reports',()=>{
+ // A retired field may be appended to its approved section, but it must not
+ // appear twice and falsely count as two independently reported answers.
+ const answers=Object.fromEntries([...retiredMentalHealthFields,...retiredContextFields].map(([key])=>
+  [key,'FICTIONAL_HISTORICAL_PATIENT_REPORT']));
+ const report=mapIntakeToBps({...answers,legal_packet_version:'2026-11-02-directory-1'});
+ expect(validBpsQuestionnaireTopology(report.sections,'2026-11-02-directory-1')).toBe(true);
+ const index=report.sections.findIndex(section=>section.fields.some(field=>field.type==='historical-patient-report'));
+ expect(index).toBeGreaterThanOrEqual(0);
+ const repeated=report.sections.map(section=>({...section,fields:[...section.fields]}));
+ const retired=repeated[index].fields.find(field=>field.type==='historical-patient-report')!;
+ repeated[index].fields.push({...retired});
+ expect(validBpsQuestionnaireTopology(repeated,'2026-11-02-directory-1')).toBe(false);
+});
 test('patient answers are mapped to original question labels without implying clinical verification',()=>{
  const report=mapIntakeToBps({counseling_reason:'Patient says low mood',suicidal_thoughts_current:'Yes',guardian_relationship:'Parent',
   trauma_history_checklist:'{"test":true}',roi_authorize:'Yes',private_extra:'unapproved'});

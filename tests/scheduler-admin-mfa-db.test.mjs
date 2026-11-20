@@ -39,15 +39,22 @@ await db.exec([
  'CREATE POLICY settings_admin ON public.appointment_settings FOR ALL TO authenticated USING(private.current_user_is_admin()) WITH CHECK(private.current_user_is_admin());',
  'CREATE POLICY rules_admin ON public.appointment_availability_rules FOR ALL TO authenticated USING(private.current_user_is_admin()) WITH CHECK(private.current_user_is_admin());',
  'CREATE POLICY blocks_admin ON public.appointment_blocks FOR ALL TO authenticated USING(private.current_user_is_admin()) WITH CHECK(private.current_user_is_admin());',
- 'CREATE POLICY appointments_admin ON public.appointments FOR ALL TO authenticated USING(private.current_user_is_admin()) WITH CHECK(private.current_user_is_admin());',
- 'CREATE POLICY appointments_patient_own ON public.appointments FOR SELECT TO authenticated USING(patient_id=auth.uid());',
- 'CREATE POLICY appointments_patient_edit ON public.appointments FOR UPDATE TO authenticated USING(patient_id=auth.uid()) WITH CHECK(patient_id=auth.uid());',
+ // Mirror current production's command-specific grants: no permissive DELETE
+ // policy exists, even though the authenticated role has table DELETE privilege.
+ // A synthetic FOR ALL admin policy would mask an unintended direct-delete path.
+ 'CREATE POLICY appointments_admin_insert ON public.appointments FOR INSERT TO authenticated WITH CHECK(private.current_user_is_admin());',
+ "CREATE POLICY appointments_patient_insert ON public.appointments FOR INSERT TO authenticated WITH CHECK(patient_id=auth.uid() AND EXISTS(SELECT 1 FROM public.profiles WHERE id=auth.uid() AND account_type IN ('patient','admin')));",
+ 'CREATE POLICY appointments_patient_own ON public.appointments FOR SELECT TO authenticated USING(patient_id=auth.uid() OR private.current_user_is_admin());',
+ 'CREATE POLICY appointments_patient_edit ON public.appointments FOR UPDATE TO authenticated USING(patient_id=auth.uid() OR private.current_user_is_admin()) WITH CHECK(patient_id=auth.uid() OR private.current_user_is_admin());',
  // Reproduce the legacy permissive ALL policy which could once override the
  // patient-ownership SELECT/UPDATE policy through PostgreSQL OR composition.
  'CREATE POLICY appointments_patient_security ON public.appointments FOR ALL TO authenticated USING(private.current_user_is_admin() OR private.patient_secure_session()) WITH CHECK(private.current_user_is_admin() OR private.patient_secure_session());',
  'GRANT USAGE ON SCHEMA public,private,auth TO authenticated;',
  'GRANT SELECT ON public.profiles TO authenticated;',
  'GRANT SELECT,UPDATE,INSERT ON public.appointment_settings,public.appointment_availability_rules,public.appointment_blocks,public.appointments TO authenticated;',
+ // PostgreSQL table privilege is not authorization: RLS must still deny
+ // direct DELETE of every appointment, even for an MFA-authenticated admin.
+ 'GRANT DELETE ON public.appointments TO authenticated;',
  'GRANT EXECUTE ON FUNCTION private.current_user_is_admin(),private.patient_secure_session() TO authenticated;'
 ].join('\n'));
 
@@ -143,5 +150,16 @@ await test('legacy unlinked recurring occurrence remains admin-visible but patie
   await db.query('DELETE FROM public.appointments WHERE id=$1',[legacy]);
  }
  assert.equal((await db.query('SELECT count(*)::int n FROM public.appointments')).rows[0].n,2);
+});
+await test('direct DELETE stays denied for patient and administrator despite authenticated table-level DELETE privilege',async()=>{
+ const before=await db.query('SELECT id,patient_id,starts_at FROM public.appointments ORDER BY id');
+ for(const [identity,assurance] of [[patient,'aal1'],[patient,'aal2'],[unrelated,'aal1'],[admin,'aal1'],[admin,'aal2']]){
+  await session(identity,assurance);
+  // The scheduler must cancel through its audited workflow instead of
+  // physically removing appointments or historical recurring occurrences.
+  assert.equal((await db.query('DELETE FROM public.appointments RETURNING id')).rows.length,0);
+ }
+ await db.exec('RESET ROLE');
+ assert.deepEqual((await db.query('SELECT id,patient_id,starts_at FROM public.appointments ORDER BY id')).rows,before.rows);
 });
 await db.close();

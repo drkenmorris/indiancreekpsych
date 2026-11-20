@@ -109,6 +109,9 @@ function validOriginalBpsTimestamp(value) {
  // Date.parse accepts impossible values like -14:00 and +23:59.
  const offset=/([+-])(\d{2}):(\d{2})$/.exec(value);
  if(offset){
+  // RFC3339 -00:00 signifies UNKNOWN local offset, not verified UTC.
+  // The original BPS must not silently reclassify it as an exact timestamp.
+  if(offset[1]==='-'&&offset[2]==='00'&&offset[3]==='00')return false;
   const limit=offset[1]==='-'?12:14;
   const hours=Number(offset[2]),minutes=Number(offset[3]);
   if(hours>limit||(hours===limit&&minutes!==0))return false;

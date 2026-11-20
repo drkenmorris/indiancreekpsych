@@ -35,7 +35,9 @@ export const bpsSectionClassification:Record<string,SectionClassification>={
 export function validBpsTimestamp(value:unknown):value is string {
  if(typeof value!=='string')return false;
  const match=/^(\d{4})-(\d{2})-(\d{2})T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d{1,9})?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/.exec(value);
- if(!match||!Number.isFinite(Date.parse(value)))return false;
+ // PostgreSQL timestamps do not have calendar year zero. JavaScript does,
+ // so accepting 0000 would certify a provenance receipt the clinical DB cannot store.
+ if(!match||match[1]==='0000'||!Number.isFinite(Date.parse(value)))return false;
  // Date.parse accepts offsets such as +23:59 and -14:00. Those are
  // outside the current civil offset range of UTC-12:00 through UTC+14:00.
  // Validate the SIGN as well as the hour, including minutes at each edge.

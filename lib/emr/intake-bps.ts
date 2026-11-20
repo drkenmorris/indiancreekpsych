@@ -203,7 +203,11 @@ export function validBpsQuestionnaireTopology(
 ):boolean{
  if(!recognizedBpsQuestionnaireVersion(version))return false;
  const expected=intakeSectionsForVersion(typeof version==='string'?version:'');
- if(!Array.isArray(sections)||sections.length!==expected.length)return false;
+ if(!Array.isArray(sections)||sections.length!==expected.length||
+  // A repeated retired patient report can pass the per-section allowlist yet
+  // falsely inflate the 21-section source inventory. Check all identities here
+  // as well as at each API/UI call site before any clinician attestation.
+  !distinctBpsQuestionIdentities(sections))return false;
  return expected.every((original,index)=>{
   const actual=sections[index];
   if(!actual||actual.title!==original.title||!Array.isArray(actual.fields)||

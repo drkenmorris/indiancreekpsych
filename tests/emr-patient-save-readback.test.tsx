@@ -63,9 +63,13 @@ test.each([
  if(scenario==='verified same chart'){
   await screen.findByText(/Central patient demographics saved and independently reopened in the correct chart/);
   expect((screen.getByLabelText('City') as HTMLInputElement).value).toBe('Updated fictional city');
+  expect(save.disabled).toBe(false);
  }else{
   await screen.findByText(/Save may have committed; DO NOT blindly resubmit/);
   expect(screen.queryByText(/Central patient demographics saved and independently reopened/)).toBeNull();
+  expect(save.disabled).toBe(true);
+  expect(document.body.textContent).toContain('Another save is locked');
+  fireEvent.click(save); // No second clinical write when the first may already have committed.
   if(scenario==='wrong detail identity')expect(document.body.textContent).toContain('exact chart could not be reopened');
   if(scenario==='wrong chart receipt')expect(document.body.textContent).toContain('receipt did not match');
  }

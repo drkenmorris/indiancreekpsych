@@ -42,4 +42,4 @@ begin
       using errcode = '22023';
   end if;
   return new;
-end $;
+end $$;

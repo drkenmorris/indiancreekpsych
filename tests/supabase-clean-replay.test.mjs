@@ -115,7 +115,8 @@ test('clinic migrations replay in order on an empty application database', async
       source_status:source.status,source_updated_at:new Date(source.updated_at).toISOString(),
       // Full canonical JSONB answer set must survive API-to-RPC source locking.
       source_answers:answers,
-      reviewed:true,clinician_notes:{presenting:'Independent fictional clinician review; unsigned'},
+      reviewed:true,clinician_notes:{presenting:'Independent fictional clinician review; unsigned',
+        treatment:'',medical:'',safety:'',family:'',goals:'',limitations:''},
     };
     async function as(id,aal='aal2'){
       await db.exec('reset role');

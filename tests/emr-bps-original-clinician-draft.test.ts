@@ -291,6 +291,21 @@ test('unmapped patient intake fields block draft placement even when the submitt
  }finally{h.dom.window.close();}
 });
 
+test('original BPS withholds a year-zero patient source the clinical database cannot attest',async()=>{
+ const malformed=packet();
+ malformed.source.updatedAt='0000-02-29T00:00:00Z';
+ malformed.source.submittedAt='0000-02-29T00:00:00Z';
+ const h=harness(async()=>Response.json(malformed));
+ try{
+  await vi.waitFor(()=>expect(h.dom.window.document.querySelector('[role="alert"]')?.textContent)
+   .toContain('Linked intake source identity, status, version or timestamp could not be verified'));
+  expect(h.button()).toBeUndefined();
+  expect(h.note.value).toBe('');
+  expect(h.dom.window.document.body.textContent).not.toContain('FICTIONAL FRIEND SUPPORT');
+  expect(h.requests).toEqual([{url:'/api/emr/bps-intake?patient='+patient,method:'GET'}]);
+ }finally{h.dom.window.close();}
+});
+
 test('unrecognized questionnaire layout is withheld before any original-form source is displayed',async()=>{
  const h=harness(async()=>Response.json({...packet(),source:{
   ...packet().source,questionnairePacketVersion:'unsupported-version'

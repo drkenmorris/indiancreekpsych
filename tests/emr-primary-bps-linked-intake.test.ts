@@ -34,7 +34,7 @@ function harness(fetchResponse:(url:string,options:any)=>Promise<Response>,id=fi
  const dom=new JSDOM('<main id="content"></main>',{url:'https://www.indiancreekpsych.com/emr/workspace?module=assessment&section=assessment%3Abiopsychosocial&bps_page='+encodeURIComponent(page)});
  const ctx:any={
   window:dom.window,document:dom.window.document,location:dom.window.location,
-  patientId:id,view:'assessment',URLSearchParams,encodeURIComponent,fetch:fetchResponse,
+  patientId:id,activeSection:null,view:'assessment',URLSearchParams,encodeURIComponent,fetch:fetchResponse,
   settingsSection:()=>'',message:()=>{},configCard:()=>'',console,
   render:()=>{dom.window.document.querySelector('#content')!.innerHTML=
    '<p id="clinical-form">Original BPS clinical form remains available</p>'+

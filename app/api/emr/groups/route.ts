@@ -31,21 +31,30 @@ function payload(value:unknown){
   });
   return {group_name,facilitators,shared_topic,shared_content,duration_minutes,scheduled_start:new Date(scheduled_start).toISOString(),reviewed:true,participants};
 }
-export async function GET(){
+export async function GET(request?:Request){
   const ctx=await emrAccess();
   if(!ctx)return reply({error:'Administrator sign-in and MFA required.'},403);
+  const params=new URL(request?.url??'https://clinic.invalid/api/emr/groups').searchParams;
+  const history=params.get('history')==='1',before=params.get('before'),beforeId=params.get('before_id'),session=params.get('session');
+  if(session&&(!uuid(session)||history||before||beforeId))return reply({error:'Invalid group session reference.'},400);
+  if((before||beforeId)&&(!history||!before||!beforeId||!uuid(beforeId)||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$/.test(before)||!Number.isFinite(Date.parse(before))))return reply({error:'Invalid group history cursor.'},400);
   const {data:settings,error:settingsError}=await ctx.supabase.from('appointment_settings').select('timezone').eq('id',true).maybeSingle();
   if(settingsError||typeof settings?.timezone!=='string'||!settings.timezone)return reply({error:'Clinic timezone is unavailable; group documentation cannot be dated safely.'},503);
-  const {data:sessions,error}=await ctx.supabase.from('emr_group_sessions')
+  let query=ctx.supabase.from('emr_group_sessions')
     .select('id,group_name,facilitators,scheduled_start,duration_minutes,shared_topic,shared_content,created_at')
-    .order('scheduled_start',{ascending:false}).limit(100);
+    .order('scheduled_start',{ascending:false});
+  if(session)query=query.eq('id',session);
+  if(history){query=query.order('id',{ascending:false});if(before&&beforeId)query=query.or('scheduled_start.lt.'+before+',and(scheduled_start.eq.'+before+',id.lt.'+beforeId+')');}
+  const {data:loaded,error}=await query.limit(session?1:history?51:100);
   if(error)return reply({error:'Group session repository unavailable.'},503);
-  const ids=(sessions??[]).map(row=>row.id);
-  if(!ids.length)return reply({timezone:settings.timezone,sessions:[]});
+  const sessions=history?(loaded??[]).slice(0,50):(loaded??[]);
+  const last=sessions.at(-1);const nextCursor=history&&loaded&&loaded.length>50&&last?{start:last.scheduled_start,id:last.id}:null;
+  const ids=sessions.map(row=>row.id);
+  if(!ids.length)return reply({timezone:settings.timezone,sessions:[],...(history?{nextCursor}:{})});
   const result=await ctx.supabase.from('emr_group_participation')
     .select('session_id,patient_id,attendance').in('session_id',ids);
   if(result.error)return reply({error:'Group attendance unavailable.'},503);
-  return reply({timezone:settings.timezone,sessions:(sessions??[]).map(row=>({...row,participants:(result.data??[]).filter(x=>x.session_id===row.id).map(x=>({patient_id:x.patient_id,attendance:x.attendance}))}))});
+  return reply({timezone:settings.timezone,...(history?{nextCursor}:{}),sessions:(sessions??[]).map(row=>({...row,participants:(result.data??[]).filter(x=>x.session_id===row.id).map(x=>({patient_id:x.patient_id,attendance:x.attendance}))}))});
 }
 export async function POST(request:Request){
   const ctx=await emrAccess();

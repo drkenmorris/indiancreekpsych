@@ -14,7 +14,7 @@ test('reviewed group session saves central patient attendance and retains chart 
   const payload=init?.body?JSON.parse(String(init.body)):undefined;
   calls.push({url,method,body:payload});
   if(url==='/api/emr/patients')return {ok:true,json:async()=>({patients})};
-  if(url==='/api/emr/groups'&&method==='GET')return {ok:true,json:async()=>({timezone:'America/Chicago',sessions:stored?[session]:[]})};
+  if(url.startsWith('/api/emr/groups')&&method==='GET')return {ok:true,json:async()=>({timezone:'America/Chicago',sessions:stored?[session]:[]})};
   if(url==='/api/emr/groups'&&method==='POST'){stored=true;return {ok:true,json:async()=>({saved:true,id:session.id})};}
   throw Error('Unexpected fetch '+url);
  }));

@@ -1392,3 +1392,37 @@ test('mixed-case UUID requests preserve exact linked-chart scope on GET and clin
  expect(JSON.stringify(await wrongChart.json())).not.toContain('Reports sadness');
  expect(m.rpc).toHaveBeenCalledTimes(1);
 });
+
+
+test('historical BPS snapshot source cannot echo invalid Unicode through protected chart GET',async()=>{
+ const historicalReview={
+  id:'00000000-0000-0000-0000-000000000699',
+  patient_id:patient,source_account_id:account,
+  source_version:2,source_status:'submitted',source_updated_at:stamp,created_at:stamp,
+  reviewed:true,clinician_notes:{
+   presenting:'Independent fictional observation',treatment:'',medical:'',
+   safety:'',family:'',goals:'',limitations:''
+  }
+ };
+ for(const malformed of ['FICTIONAL_NUL\u0000X','FICTIONAL_HIGH\uD800X','FICTIONAL_LOW\uDC00X']){
+  reviewRows=[{...historicalReview,clinical_answers:{
+   counseling_reason:malformed,suicidal_thoughts_current:'Yes'
+  }}];
+  const response=await GET(request());
+  expect(response.status).toBe(200);
+  expect(response.headers.get('Cache-Control')).toContain('no-store');
+  const readback=await response.json();
+  expect(readback.reviews[0].excluded_clinical_fields).toBe(1);
+  expect(readback.reviews[0].clinical_answers).toEqual({suicidal_thoughts_current:'Yes'});
+  expect(readback.reviews[0].current_source_snapshot_verified).toBe(false);
+  expect(JSON.stringify(readback)).not.toContain('FICTIONAL_');
+  const summary=await GET(request() /* historical attestation remains unverified */);
+  expect(summary.status).toBe(200);
+ }
+ // Correct Unicode remains byte-for-byte available to the authorized clinician.
+ const valid='Fictional source 🤝 日本語';
+ reviewRows=[{...historicalReview,clinical_answers:{counseling_reason:valid}}];
+ const intact=await (await GET(request())).json();
+ expect(intact.reviews[0].clinical_answers.counseling_reason).toBe(valid);
+ expect(intact.reviews[0].excluded_clinical_fields).toBe(0);
+});

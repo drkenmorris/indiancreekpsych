@@ -245,6 +245,14 @@ export async function GET(request:Request){
     // Match the full clinician review's note allowlist and substantive-text gate
     // so all seven original BPS pages cannot display a false reviewed status.
     review.reviewed===true&&
+    // Legacy/pre-validation rows can carry only one recognized note domain.
+    // A legible presenting observation is not proof that the seven-domain
+    // clinician review payload was saved in its required complete shape.
+    // Exact cardinality plus the sanitizer's zero-exclusion requirement below
+    // rejects omitted, malformed and additional note keys fail-closed.
+    review.clinician_notes!==null&&typeof review.clinician_notes==='object'&&
+    !Array.isArray(review.clinician_notes)&&
+    Object.keys(review.clinician_notes).length===Object.keys(bpsNoteDomains).length&&
     // A partially withheld historical clinician note is not independently
     // verifiable as a complete clinical review, even if another note is legible.
     sanitizeBpsClinicianNotes(review.clinician_notes).excludedCount===0&&

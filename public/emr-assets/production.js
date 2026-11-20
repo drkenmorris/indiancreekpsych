@@ -645,7 +645,7 @@ function showOriginalBpsIntake(){
 
 const originalProductionRender=render;
 render=function(){
- if(activeSection?.module==='group'){const query=new URLSearchParams({section:activeSection.key});if(patientId)query.set('patient',patientId);location.assign('/emr/groups?'+query.toString());return;}
+ if(typeof activeSection!=='undefined'&&activeSection?.module==='group'){const query=new URLSearchParams({section:activeSection.key});if(patientId)query.set('patient',patientId);location.assign('/emr/groups?'+query.toString());return;}
  if(view==='groups'){location.assign('/emr/groups');return;}
  if(view==='schedule'){location.assign('/appointments');return;}
  const result=originalProductionRender();

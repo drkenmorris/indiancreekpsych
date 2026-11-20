@@ -8,7 +8,10 @@ const stamp='2026-11-10T09:00:00Z';
 const request=()=>new Request('https://www.indiancreekpsych.com/api/emr/bps-intake?patient='+patient);
 const submit=(details:Record<string,unknown>)=>new Request('https://www.indiancreekpsych.com/api/emr/bps-intake',{method:'POST',headers:{Origin:'https://www.indiancreekpsych.com'},
  body:JSON.stringify(details)});
-const payload={patientId:patient,sourceAccountId:account,sourceVersion:2,sourceStatus:'submitted',sourceUpdatedAt:stamp,sourceSubmittedAt:stamp,reviewed:true,notes:{presenting:'Reported changes'}};
+const fullNotes=(change:Record<string,unknown>={})=>({
+ presenting:'Reported changes',treatment:'',medical:'',safety:'',family:'',goals:'',limitations:'',...change
+});
+const payload={patientId:patient,sourceAccountId:account,sourceVersion:2,sourceStatus:'submitted',sourceUpdatedAt:stamp,sourceSubmittedAt:stamp,reviewed:true,notes:fullNotes()};
 let linked:string|null;
 let directoryDeletedAt:string|null;
 let returnedPatientId:string;
@@ -54,17 +57,37 @@ beforeEach(()=>{
  });
  m.access.mockResolvedValue({supabase:{from:m.from,rpc:m.rpc}});
 });
+test('partial clinician-note submissions cannot masquerade as a completed seven-domain BPS review',async()=>{
+ const domains=Object.keys(payload.notes);
+ for(const omitted of domains){
+  const notes=fullNotes();
+  delete notes[omitted];
+  const refused=await POST(submit({...payload,notes}));
+  expect(refused.status).toBe(400);
+  expect(refused.headers.get('Cache-Control')).toContain('no-store');
+ }
+ const sparse=await POST(submit({...payload,notes:{presenting:'FICTIONAL_PARTIAL_REVIEW'}}));
+ expect(sparse.status).toBe(400);
+ expect(m.rpc).not.toHaveBeenCalled();
+ const explicit=await POST(submit(payload));
+ expect(explicit.status).toBe(201);
+ expect(m.rpc).toHaveBeenCalledTimes(1);
+ const posted=m.rpc.mock.calls[0][1].p_payload.clinician_notes;
+ expect(Object.keys(posted).sort()).toEqual(domains.sort());
+ expect(posted.treatment).toBe('');
+});
+
 test('blank or whitespace-only clinician notes cannot falsely attest a completed BPS review',async()=>{
  for(const notes of [{},{presenting:''},{presenting:'   ',safety:'\n\t'},{goals:'\u2003'},{presenting:'\u200B\u2060\u200E'},{limitations:'\u202E\u2066\u2069'},
   {presenting:' \u00AD\u034F\u061C\u180E\uFEFF\n'},{goals:'\u{E0100}\u{E01EF} \n'},
   {presenting:'\u0001\u001F\u007F'},{goals:'\u0085\u009F\u0002'}]){
-  const result=await POST(submit({...payload,notes}));
+  const result=await POST(submit({...payload,notes:fullNotes({presenting:'',...notes})}));
   expect(result.status).toBe(400);
   expect(result.headers.get('Cache-Control')).toContain('no-store');
   expect(JSON.stringify(await result.json())).not.toContain('source_account_id');
  }
  expect(m.rpc).not.toHaveBeenCalled();
- const observed=await POST(submit({...payload,notes:{limitations:'Reviewed context; requires fictional follow-up.'}}));
+ const observed=await POST(submit({...payload,notes:fullNotes({presenting:'',limitations:'Reviewed context; requires fictional follow-up.'})}));
  expect(observed.status).toBe(201);
  expect(m.rpc).toHaveBeenCalledTimes(1);
  expect(m.rpc.mock.calls[0][1].p_payload.clinician_notes.limitations).toBe('Reviewed context; requires fictional follow-up.');
@@ -424,12 +447,12 @@ test('malformed persisted clinician-note Unicode is withheld and cannot certify 
   expect(result.reviews[0].clinician_notes.presenting).toBe('');
   expect(result.reviews[0].clinician_notes.safety).toBe('Independent fictional safety observation');
   expect(JSON.stringify(result)).not.toContain('FICTIONAL_PRIVATE_CORRUPT_NOTE');
-  const post=await POST(submit({...payload,notes:{presenting:corrupted}}));
+  const post=await POST(submit({...payload,notes:fullNotes({presenting:corrupted})}));
   expect(post.status).toBe(400);
   expect(m.rpc).not.toHaveBeenCalled();
  }
  // Well-formed supplementary characters remain valid clinical text.
- const allowed=await POST(submit({...payload,notes:{presenting:'Fictional clinician review 🩺'}}));
+ const allowed=await POST(submit({...payload,notes:fullNotes({presenting:'Fictional clinician review 🩺'})}));
  expect(allowed.status).toBe(201);
  expect(m.rpc).toHaveBeenCalledTimes(1);
 });
@@ -692,15 +715,15 @@ test('BPS clinical save requires the exact patient submission receipt, including
 test('invalid identity, review, timestamps, source version or arbitrary note keys cannot reach save RPC',async()=>{
  for(const bad of [{...payload,reviewed:false},{...payload,patientId:'wrong'},{...payload,sourceAccountId:null},{...payload,sourceVersion:-1},{...payload,sourceVersion:Number.MAX_SAFE_INTEGER+1},
   {...payload,sourceUpdatedAt:'invalid'}, {...payload,sourceUpdatedAt:'2026-02-30T09:00:00Z'},
-   {...payload,sourceUpdatedAt:'2026-11-10'}, {...payload,sourceUpdatedAt:'1'}, {...payload,notes:{diagnosis:'fabricated'}},
-  {...payload,notes:{safety:'x'.repeat(4001)}}, {...payload,notes:null}]){
+   {...payload,sourceUpdatedAt:'2026-11-10'}, {...payload,sourceUpdatedAt:'1'}, {...payload,notes:fullNotes({diagnosis:'fabricated'})},
+  {...payload,notes:fullNotes({safety:'x'.repeat(4001)})}, {...payload,notes:null}]){
   expect((await POST(submit(bad))).status).toBe(400);
  }expect(m.rpc).not.toHaveBeenCalled();
 });
 test('BPS review rejects NUL and unpaired UTF-16 surrogates without invoking clinical save',async()=>{
  const invalidNotes=['Fictional\u0000NUL', 'Fictional\uD800high-surrogate', 'Fictional\uDC00low-surrogate'];
  for(const note of invalidNotes){
-  const response=await POST(submit({...payload,notes:{presenting:note}}));
+  const response=await POST(submit({...payload,notes:fullNotes({presenting:note})}));
   expect(response.status).toBe(400);
   expect(response.headers.get('Cache-Control')).toContain('no-store');
   expect(JSON.stringify(await response.json())).not.toContain(note);
@@ -708,21 +731,21 @@ test('BPS review rejects NUL and unpaired UTF-16 surrogates without invoking cli
  expect(m.rpc).not.toHaveBeenCalled();
  // A real surrogate pair, combining accent and multilingual text are valid.
  const faithful='Fictional observation 🤝 cafe\u0301 日本語';
- const response=await POST(submit({...payload,notes:{presenting:faithful}}));
+ const response=await POST(submit({...payload,notes:fullNotes({presenting:faithful})}));
  expect(response.status).toBe(201);
  expect(m.rpc).toHaveBeenCalledTimes(1);
  expect(m.rpc.mock.calls[0][1].p_payload.clinician_notes.presenting).toBe(faithful);
 });
 test('clinician BPS notes preserve exact whitespace and reject explicitly null domains',async()=>{
  const original='  Fictional clinical observation 🧪\\n  exact second line  ' .replace('\\n','\n');
- const saved=await POST(submit({...payload,notes:{presenting:original}}));
+ const saved=await POST(submit({...payload,notes:fullNotes({presenting:original})}));
  expect(saved.status).toBe(201);
  expect(m.rpc).toHaveBeenCalledTimes(1);
  expect(m.rpc.mock.calls[0][1].p_payload.clinician_notes.presenting).toBe(original);
- // An omitted optional note is an intentional empty field, not a null data loss.
+ // Optional domains must be explicitly acknowledged as empty strings rather than padded by the server.
  expect(m.rpc.mock.calls[0][1].p_payload.clinician_notes.safety).toBe('');
  m.rpc.mockClear();
- const rejected=await POST(submit({...payload,notes:{presenting:original,safety:null}}));
+ const rejected=await POST(submit({...payload,notes:fullNotes({presenting:original,safety:null})}));
  expect(rejected.status).toBe(400);
  expect(rejected.headers.get('Cache-Control')).toContain('no-store');
  expect(m.rpc).not.toHaveBeenCalled();

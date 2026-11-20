@@ -379,10 +379,18 @@ export function sanitizeBpsSnapshotAnswers(raw:unknown):{answers:Record<string,s
  * could not survive a clinical save without mutation (NUL or lone surrogate).
  * Leave its immutable database record intact and surface an exclusion count.
  */
-export function validBpsClinicalNoteText(value:unknown):value is string{
- if(typeof value!=='string'||value.length>4000||value.includes('\u0000'))return false;
+/** Patient answer JSON must not be displayed or attested if an upstream adapter
+ * supplied invalid Unicode. JSON serializers can replace isolated surrogates,
+ * silently changing the patient statement while claiming source fidelity.
+ * No clinician-note length limit is imposed on patient intake source fields.
+ */
+export function validBpsSourceAnswerText(value:unknown):value is string{
+ if(typeof value!=='string'||value.includes('\u0000'))return false;
  return !Array.from(value).some(character=>character.length===1&&
   character.charCodeAt(0)>=0xD800&&character.charCodeAt(0)<=0xDFFF);
+}
+export function validBpsClinicalNoteText(value:unknown):value is string{
+ return validBpsSourceAnswerText(value)&&value.length<=4000;
 }
 export function sanitizeBpsClinicianNotes(raw:unknown):{notes:BpsNotes;excludedCount:number}{
  const notes=emptyBpsNotes();

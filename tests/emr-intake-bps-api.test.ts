@@ -295,7 +295,7 @@ test('BPS summary records current reviewed attestation only for the same patient
  reviewRows=[{id:'00000000-0000-0000-0000-000000000609',patient_id:patient,source_account_id:account,
   source_version:2,source_status:'submitted',source_updated_at:stamp,created_at:stamp,
   reviewed:true,clinical_answers:{counseling_reason:'Reports sadness',suicidal_thoughts_current:'Yes'},
-  clinician_notes:{presenting:'PRIVATE_FICTIONAL_CLINICIAN_790'}}];
+  clinician_notes:{presenting:'PRIVATE_FICTIONAL_CLINICIAN_790',treatment:'',medical:'',safety:'',family:'',goals:'',limitations:''}}];
  const url=new Request(request().url+'&summary=1');
  let response=await GET(url);
  expect(response.status).toBe(200);
@@ -331,6 +331,41 @@ test('BPS summary records current reviewed attestation only for the same patient
  expect(draft.source.status).toBe('draft');
  expect(draft.source.submittedAt).toBeNull();
  expect(draft.currentVersionReviewed).toBe(false);
+});
+
+test('original seven-page BPS cannot claim a complete review from partial historical clinician-note domains',async()=>{
+ const fullNotes={
+  presenting:'Fictional independent clinician observation',
+  treatment:'',medical:'',safety:'',family:'',goals:'',limitations:''
+ };
+ const baseline={
+  id:'00000000-0000-0000-0000-000000000692',
+  patient_id:patient,source_account_id:account,source_version:2,
+  source_status:'submitted',source_updated_at:stamp,created_at:stamp,
+  reviewed:true,clinical_answers:{counseling_reason:'Reports sadness',suicidal_thoughts_current:'Yes'},
+  clinician_notes:fullNotes
+ };
+ const url=new Request(request().url+'&summary=1');
+ reviewRows=[baseline];
+ expect((await (await GET(url)).json()).currentVersionReviewed).toBe(true);
+ // Historically saved one-domain notes remain legible in history but cannot
+ // certify that the seven-domain source review was completely documented.
+ for(const omitted of Object.keys(fullNotes)){
+  const incomplete=Object.fromEntries(Object.entries(fullNotes).filter(([key])=>key!==omitted));
+  reviewRows=[{...baseline,clinician_notes:incomplete}];
+  const summary=await GET(url);
+  expect(summary.status,omitted).toBe(200);
+  expect((await summary.json()).currentVersionReviewed,omitted).toBe(false);
+ }
+ // An extra nonclinical key also invalidates review completeness; it is never
+ // transmitted through the summary or full history.
+ reviewRows=[{...baseline,clinician_notes:{...fullNotes,insurance_member:'PRIVATE_FICTIONAL_POLICY'}}];
+ const extra=await GET(url);
+ expect(extra.status).toBe(200);
+ expect((await extra.json()).currentVersionReviewed).toBe(false);
+ expect(JSON.stringify(await (await GET(url)).json())).not.toContain('PRIVATE_FICTIONAL_POLICY');
+ reviewRows=[baseline];
+ expect((await (await GET(url)).json()).currentVersionReviewed).toBe(true);
 });
 
 test('malformed persisted clinician-note Unicode is withheld and cannot certify the original seven-page BPS',async()=>{
@@ -406,7 +441,7 @@ test('original BPS reviewed badge rejects altered, omitted and protected history
   source_status:'submitted',source_updated_at:stamp,created_at:stamp,
   reviewed:true,
   clinical_answers:{counseling_reason:'Reports sadness',suicidal_thoughts_current:'Yes'},
-  clinician_notes:{presenting:'Fictional independently documented clinical context'}
+  clinician_notes:{presenting:'Fictional independently documented clinical context',treatment:'',medical:'',safety:'',family:'',goals:'',limitations:''}
  };
  const url=new Request(request().url+'&summary=1');
  reviewRows=[baseline];

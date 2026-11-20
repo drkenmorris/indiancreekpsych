@@ -15,13 +15,15 @@ const patient=(revision:number,id=chart)=>({
  demographics:{first_name:'Fictional',last_name:'Patient',city:'Original'},
  profiles:null
 });
-type Scenario='stale revision'|'missing directory row'|'wrong chart receipt'|'wrong detail identity'|'verified same chart';
+type Scenario='stale revision'|'missing directory row'|'wrong chart receipt'|'wrong detail identity'|'wrong detail revision'|'wrong detail field'|'changed linked account'|'wrong persisted values'|'verified same chart';
 test.each([
  'stale revision','missing directory row','wrong chart receipt',
- 'wrong detail identity','verified same chart'
+ 'wrong detail identity','wrong detail revision','wrong detail field',
+ 'changed linked account','wrong persisted values','verified same chart'
 ] as Scenario[])('a demographics POST receipt cannot claim independently verified chart persistence: %s',async scenario=>{
  let posts=0;
  const requests:string[]=[];
+ const latest={...patient(3),demographics:{...patient(3).demographics,city:'Updated fictional city'}};
  vi.stubGlobal('fetch',vi.fn(async (url:string,init?:RequestInit)=>{
   const method=init?.method??'GET';
   requests.push(method+' '+url);
@@ -34,12 +36,16 @@ test.each([
   if(url==='/api/emr/patients'){
    const rows=posts===0?[patient(2)]:
     scenario==='missing directory row'?[]:
-    scenario==='stale revision'?[patient(2)]:[patient(3)];
+    scenario==='stale revision'?[patient(2)]:
+    scenario==='wrong persisted values'?[patient(3)]:
+    scenario==='changed linked account'?[{...latest,account_id:wrongChart}]:[latest];
    return Response.json({patients:rows});
   }
   if(url.startsWith('/api/emr/patients?id=')){
-   const row=posts>0&&scenario==='wrong detail identity'?patient(3,wrongChart):
-    patient(posts>0?3:2);
+   const row=posts>0&&scenario==='wrong detail identity'?{...latest,id:wrongChart}:
+    posts>0&&scenario==='wrong detail revision'?{...latest,revision:2}:
+    posts>0&&scenario==='wrong detail field'?patient(3):
+    posts>0?latest:patient(2);
    return Response.json({patients:[row],intake:null});
   }
   if(url.startsWith('/api/emr/dsm-records?'))return Response.json({records:[]});
@@ -52,10 +58,11 @@ test.each([
  await screen.findByText(/Central patient ID:/);
  const save=screen.getByRole('button',{name:'Save central demographics'}) as HTMLButtonElement;
  await waitFor(()=>expect(save.disabled).toBe(false));
+ fireEvent.change(screen.getByLabelText('City'),{target:{value:'Updated fictional city'}});
  fireEvent.click(save);
  if(scenario==='verified same chart'){
   await screen.findByText(/Central patient demographics saved and independently reopened in the correct chart/);
-  expect((screen.getByLabelText('City') as HTMLInputElement).value).toBe('Original');
+  expect((screen.getByLabelText('City') as HTMLInputElement).value).toBe('Updated fictional city');
  }else{
   await screen.findByText(/Save may have committed; DO NOT blindly resubmit/);
   expect(screen.queryByText(/Central patient demographics saved and independently reopened/)).toBeNull();

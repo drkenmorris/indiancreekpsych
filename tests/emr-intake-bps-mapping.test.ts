@@ -283,6 +283,20 @@ test('BPS attestation comparisons preserve microseconds and normalize timezone o
  expect(validBpsSubmissionChronology('revoked',receipt,null)).toBe(false);
 });
 
+test('BPS refuses RFC3339 unknown local offset receipts despite Date.parse accepting them',()=>{
+ const unknown='2026-11-20T12:00:00-00:00';
+ // Negative zero denotes an unknown local timezone, not verified UTC.
+ expect(Number.isFinite(Date.parse(unknown))).toBe(true);
+ expect(validBpsTimestamp(unknown)).toBe(false);
+ expect(equalBpsTimestampInstants(unknown,'2026-11-20T12:00:00Z')).toBe(false);
+ expect(validBpsSubmissionChronology('submitted',unknown,unknown)).toBe(false);
+ expect(validBpsHistoricalSourceBoundary(1,'submitted',unknown,1,'submitted',unknown)).toBe(false);
+ for(const known of ['2026-11-20T12:00:00+00:00','2026-11-20T12:00:00Z']){
+  expect(validBpsTimestamp(known)).toBe(true);
+  expect(equalBpsTimestampInstants(known,'2026-11-20T12:00:00Z')).toBe(true);
+ }
+});
+
 test('BPS provenance rejects impossible UTC offsets even when Date.parse accepts them',()=>{
  // Distorted source timestamps could otherwise pass a chronology check while
  // representing a civil offset unavailable to clinical/database systems.

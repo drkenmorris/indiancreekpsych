@@ -288,7 +288,9 @@ export async function GET(request:Request){
     // This is informational integrity evidence, NOT a clinician signature.
     current_source_snapshot_verified:review.source_version===source.intake.version?
      currentSourceSnapshotVerified(review):null,
-    excluded_clinical_fields:clean.excludedCount,excluded_clinician_notes:safeNotes.excludedCount
+    excluded_clinical_fields:clean.excludedCount,
+     withheld_protected_fields:clean.withheldProtectedCount,
+     excluded_clinician_notes:safeNotes.excludedCount
    };
   });
   return reply({patientId:id,linked:true,source:{accountId:source.patient.account_id,status:source.intake.status,version:source.intake.version,

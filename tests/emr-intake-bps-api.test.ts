@@ -778,6 +778,7 @@ test('saved BPS history cannot follow a relinked patient account or cross into a
  const safe=(await filtered.json()).reviews[0];
  expect(safe.clinical_answers).toEqual({counseling_reason:'Patient-reported history'});
  expect(safe.excluded_clinical_fields).toBe(5);
+ expect(safe.withheld_protected_fields).toBe(1);
  expect(JSON.stringify(safe)).not.toContain('Do not disclose');
  const reviewQuery=m.from.mock.results.find((r:any)=>r.value?.range)?.value;
  expect(reviewQuery?.eq).toHaveBeenCalledWith('patient_id',patient);
@@ -1284,7 +1285,7 @@ test('clinician BPS history API withholds unexpected database columns even when 
  const review=body.reviews[0];
  expect(Object.keys(review).sort()).toEqual([
   'id','source_version','source_status','source_updated_at','created_at','reviewed',
-  'clinical_answers','clinician_notes','current_source_snapshot_verified','excluded_clinical_fields','excluded_clinician_notes','clinician_note_domains_complete'
+  'clinical_answers','clinician_notes','current_source_snapshot_verified','excluded_clinical_fields','withheld_protected_fields','excluded_clinician_notes','clinician_note_domains_complete'
  ].sort());
  expect(review.clinical_answers.counseling_reason).toBe('Fictional approved patient report');
  expect(review.clinician_notes.presenting).toBe('Independent fictional review');
@@ -1436,6 +1437,7 @@ test('historical BPS snapshot source cannot echo invalid Unicode through protect
   expect(response.headers.get('Cache-Control')).toContain('no-store');
   const readback=await response.json();
   expect(readback.reviews[0].excluded_clinical_fields).toBe(1);
+  expect(readback.reviews[0].withheld_protected_fields).toBe(0);
   expect(readback.reviews[0].clinical_answers).toEqual({suicidal_thoughts_current:'Yes'});
   expect(readback.reviews[0].current_source_snapshot_verified).toBe(false);
   expect(JSON.stringify(readback)).not.toContain('FICTIONAL_');

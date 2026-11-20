@@ -3,7 +3,7 @@ import {useEffect,useRef,useState,type FormEvent} from 'react';
 import {bpsSectionClassification,approvedBpsQuestionSection,validBpsQuestionnaireTopology,bpsNoteDomains,emptyBpsNotes,mapSavedBpsReportedFields,bpsVisibleSourceKeys,sanitizeBpsClinicianNotes,validBpsTimestamp,bpsTimestampInstantNanoseconds,equalBpsTimestampInstants,validBpsSubmissionChronology,validBpsReviewChronology,validBpsHistoricalSourceBoundary,hasIndependentBpsReviewNote,type BpsNotes} from '@/lib/emr/intake-bps';
 type Field={key:string;label:string;type:string;value:string;sourceOnly?:boolean;reported?:boolean};
 type Section={title:string;domain:string;disposition:'clinical'|'separate-review'|'reference';fields:Field[];answered:number};
-type Review={id:string;reviewed:boolean;source_version:number;source_status:string;source_updated_at:string;created_at:string;clinical_answers:Record<string,string>;clinician_notes:BpsNotes;excluded_clinical_fields?:number;excluded_clinician_notes?:number;current_source_snapshot_verified?:boolean|null;clinician_note_domains_complete?:boolean};
+type Review={id:string;reviewed:boolean;source_version:number;source_status:string;source_updated_at:string;created_at:string;clinical_answers:Record<string,string>;clinician_notes:BpsNotes;excluded_clinical_fields?:number;withheld_protected_fields?:number;excluded_clinician_notes?:number;current_source_snapshot_verified?:boolean|null;clinician_note_domains_complete?:boolean};
 type ResponseData={patientId:string;source:{accountId:string;status:string;version:number;updatedAt:string;submittedAt?:string|null;questionnairePacketVersion?:string|null};sections:Section[];unmappedKeys:string[];reviews:Review[]};
 const focusedReviewLinks:Record<string,{label:string;anchor:string}[]>={
  'Mental health treatment history':[
@@ -240,6 +240,9 @@ export default function PatientBpsIntakeReview({patientId:requestedPatientId}:{p
     // suppress the warning that historical PHI was withheld from this view.
     (review.excluded_clinical_fields===undefined||
      (Number.isSafeInteger(review.excluded_clinical_fields)&&review.excluded_clinical_fields>=0))&&
+    (review.withheld_protected_fields===undefined||
+     (Number.isSafeInteger(review.withheld_protected_fields)&&review.withheld_protected_fields>=0&&
+      review.withheld_protected_fields<=(review.excluded_clinical_fields??0)))&&
     (review.excluded_clinician_notes===undefined||
      (Number.isSafeInteger(review.excluded_clinician_notes)&&review.excluded_clinician_notes>=0));
   });
@@ -390,12 +393,15 @@ export default function PatientBpsIntakeReview({patientId:requestedPatientId}:{p
      const safeNotes=sanitizeBpsClinicianNotes(review.clinician_notes);
      const omittedNotes=safeNotes.excludedCount+(typeof review.excluded_clinician_notes==='number'&&review.excluded_clinician_notes>0?review.excluded_clinician_notes:0);
      const count=frozen.sections.reduce((sum,section)=>sum+section.fields.length,0);
+      const policyWithheld=review.withheld_protected_fields??0;
+      const anomalousWithheld=(review.excluded_clinical_fields??0)-policyWithheld;
      return <section key={review.id}>
       <h3>{new Date(review.created_at).toLocaleString()} — source v{review.source_version} ({review.source_status})</h3>
       {review.source_status==='draft'&&<p role="status">This historical clinician review documents a patient DRAFT intake version, not an attested final patient submission. Reconcile the subsequently submitted intake independently; this draft snapshot must not be represented as a patient-submitted final report.</p>}
       {!documentedClinicianReview(review)&&<p role="alert">This historical row lacks confirmed clinician-review attestation or independently documented clinical observations. A current-source snapshot mismatch also invalidates verification. Its stored reviewed flag, if present, is not sufficient evidence of a documented BPS review. Investigate chart provenance before clinical use.</p>}
       <p>Linked intake source last updated {new Date(review.source_updated_at).toLocaleString()}. This is an immutable historical snapshot of patient-reported information, not a new import, verified clinical finding, diagnosis or signature.</p>
-      {!!review.excluded_clinical_fields&&<p role="alert">{review.excluded_clinical_fields} unapproved or malformed historical field(s) were withheld by the protected server. Review source provenance before clinical use.</p>}
+      {policyWithheld>0&&<p role="status">{policyWithheld} protected trauma narrative field(s) were intentionally withheld from general BPS history. Consult the dedicated protected trauma reconciliation workflow; this does not itself indicate corrupt source data.</p>}
+       {anomalousWithheld>0&&<p role="alert">{anomalousWithheld} unapproved or malformed historical field(s) were withheld by the protected server. Review source provenance before clinical use.</p>}
       {omittedNotes>0&&<p role="alert">{omittedNotes} unapproved or malformed historical clinician-note field(s) were withheld from this BPS view. Investigate provenance before clinical use.</p>}
       <details><summary>View saved patient-reported BPS history ({count} clinical fields)</summary>
        {count===0&&<p>No eligible patient-reported clinical history fields were saved in this review. Blank is not a negative clinical finding.</p>}

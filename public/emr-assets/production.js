@@ -274,6 +274,10 @@ function originalBpsInstantNanoseconds(value){
       Array.isArray(review.clinician_notes)||
       (review.excluded_clinical_fields!==undefined&&
        (!Number.isSafeInteger(review.excluded_clinical_fields)||review.excluded_clinical_fields<0))||
+      (review.withheld_protected_fields!==undefined&&
+       (!Number.isSafeInteger(review.withheld_protected_fields)||
+        review.withheld_protected_fields<0||
+        review.withheld_protected_fields>(review.excluded_clinical_fields??0)))||
       (review.excluded_clinician_notes!==undefined&&
        (!Number.isSafeInteger(review.excluded_clinician_notes)||review.excluded_clinician_notes<0)))return false;
    const reviewId=review.id.toLowerCase();
@@ -352,7 +356,14 @@ function originalBpsInstantNanoseconds(value){
     list.append(item);
    }
    history.append(list);
-   if(reviews.some(review=>review.reviewed===true&&!originalBpsDocumentedReview(review,source.version))){
+    // Protected trauma withholding is expected; do not call it corrupt history.
+    const protectedWithheld=reviews.reduce((sum,review)=>sum+(review.withheld_protected_fields??0),0);
+    if(protectedWithheld>0){
+     const boundary=document.createElement('p');boundary.setAttribute('role','status');
+     boundary.textContent=protectedWithheld+' protected trauma narrative field(s) intentionally withheld from general BPS history. Consult dedicated protected trauma reconciliation.';
+     history.append(boundary);
+    }
+    if(reviews.some(review=>review.reviewed===true&&!originalBpsDocumentedReview(review,source.version))){
     const warning=document.createElement('p');warning.setAttribute('role','alert');
     warning.textContent='A historical BPS row has a reviewed checkbox but its independent clinical documentation or source-snapshot integrity could not be verified. It is NOT a verified clinical review. Investigate its provenance in the protected chart.';
     history.append(warning);

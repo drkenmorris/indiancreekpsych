@@ -323,6 +323,7 @@ test('free-text trauma narrative remains protected from BPS source rendering reg
  const sanitized=sanitizeBpsSnapshotAnswers({trauma_history:confidential,counseling_reason:'Fictional concern'});
  expect(sanitized.answers).toEqual({counseling_reason:'Fictional concern'});
  expect(sanitized.excludedCount).toBe(1);
+ expect(sanitized.withheldProtectedCount).toBe(1);
  expect(JSON.stringify(sanitized)).not.toContain(confidential);
 });
 
@@ -381,6 +382,7 @@ test('invalid historical snapshot Unicode is withheld without rewriting the orig
   });
   expect(snapshot.answers).toEqual({suicidal_thoughts_current:'Yes'});
   expect(snapshot.excludedCount).toBe(1);
+  expect(snapshot.withheldProtectedCount).toBe(0);
   expect(JSON.stringify(snapshot)).not.toContain('FICTIONAL_');
  }
  const valid=sanitizeBpsSnapshotAnswers({counseling_reason:clean});

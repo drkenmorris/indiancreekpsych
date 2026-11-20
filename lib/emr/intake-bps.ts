@@ -359,18 +359,25 @@ export const bpsVisibleSourceKeys = new Set<string>([
 // an ordinary BPS chart-history API may disclose. Trauma narrative content is
 // reconciled in its dedicated protected clinical workflow, never in this API.
 const bpsHistoryReadbackKeys=new Set([...bpsSnapshotClinicalKeys].filter(key=>key!=='trauma_history'));
-export function sanitizeBpsSnapshotAnswers(raw:unknown):{answers:Record<string,string>;excludedCount:number}{
+export function sanitizeBpsSnapshotAnswers(raw:unknown):{
+ answers:Record<string,string>;excludedCount:number;withheldProtectedCount:number
+}{
  const answers:Record<string,string>={};
- if(!raw||typeof raw!=='object'||Array.isArray(raw))return {answers,excludedCount:1};
- let excludedCount=0;
+ if(!raw||typeof raw!=='object'||Array.isArray(raw))
+  return {answers,excludedCount:1,withheldProtectedCount:0};
+ let excludedCount=0,withheldProtectedCount=0;
  for(const [key,value] of Object.entries(raw)){
-  // Historical DB rows may predate current source validation. Never let
-  // JSON serialization silently replace a lone surrogate in patient testimony,
-  // or return an invalid NUL-bearing clinical snapshot as a readable history.
+  // Preserve historical source text while withholding malformed fields.
   if(bpsHistoryReadbackKeys.has(key)&&validBpsSourceAnswerText(value)&&value.trim())answers[key]=value;
-  else excludedCount++;
+  else{
+   excludedCount++;
+   // Well-formed trauma narratives belong in dedicated protected reconciliation.
+   // Distinguish intentional privacy withholding from malformed/unknown history.
+   if(key==='trauma_history'&&validBpsSourceAnswerText(value)&&value.trim())
+    withheldProtectedCount++;
+  }
  }
- return {answers,excludedCount};
+ return {answers,excludedCount,withheldProtectedCount};
 }
 
 /** Fail-closed historical clinician-note readback. A malformed or pre-validation

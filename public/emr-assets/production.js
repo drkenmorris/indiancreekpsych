@@ -131,6 +131,11 @@ function originalBpsInstantNanoseconds(value){
    review.source_version<currentVersion&&review.current_source_snapshot_verified==null)&&
   (review.excluded_clinician_notes??0)===0&&review.clinician_notes&&
   typeof review.clinician_notes==='object'&&!Array.isArray(review.clinician_notes)&&
+  // Sanitized history can pad missing note domains with blanks. A sparse
+  // historical review must not count as completed on ANY original BPS page.
+  // Verify the protected API's stored-shape receipt and all seven keys here.
+  review.clinician_note_domains_complete===true&&
+  Object.keys(review.clinician_notes).length===originalBpsNoteKeys.size&&
   Object.entries(review.clinician_notes).every(([key,value])=>
    originalBpsNoteKeys.has(key)&&typeof value==='string'&&value.length<=4000)&&
   Object.values(review.clinician_notes).some(value=>

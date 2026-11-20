@@ -268,6 +268,28 @@
         "Patient Forms",
         "module-section"
       ]
+    ],
+    "group": [
+      [
+        "administration",
+        "Group Administration",
+        "module-section"
+      ],
+      [
+        "planner",
+        "Group Treatment Planner",
+        "module-section"
+      ],
+      [
+        "notes",
+        "Group Progress Notes",
+        "module-section"
+      ],
+      [
+        "history",
+        "Group Progress Notes History",
+        "module-section"
+      ]
     ]
   },
   "extra": {
@@ -305,6 +327,10 @@
     "notes": [
       "Progress",
       "notes"
+    ],
+    "group": [
+      "Groups",
+      "module-section"
     ],
     "prognosis": [
       "Prognosis/Utilization Review",

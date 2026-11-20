@@ -13,7 +13,7 @@ type Session={
 };
 const patientName=(p:Patient)=>[p.demographics.first_name,p.demographics.last_name].filter(Boolean).join(' ')||'Patient ID '+p.id.slice(0,8);
 const fresh=()=>({group_name:'',facilitators:'',scheduled_start:'',duration_minutes:60,shared_topic:'',shared_content:'',reviewed:false});
-export default function GroupSessions(){
+export default function GroupSessions({mode='legacy',patientId}:{mode?:'legacy'|'administration'|'notes';patientId?:string}){
  const [patients,setPatients]=useState<Patient[]>([]);
  const [timezone,setTimezone]=useState('');
  const [sessions,setSessions]=useState<Session[]>([]);
@@ -28,9 +28,11 @@ export default function GroupSessions(){
    const [p,g]=await Promise.all([pr.json(),gr.json()]);
    if(!pr.ok||!gr.ok)throw Error(p.error||g.error||'Group records unavailable.');
    if(typeof g.timezone!=='string'||!g.timezone)throw Error('Clinic timezone is unavailable; group documentation cannot be dated safely.');
-   setPatients(p.patients??[]);setSessions(g.sessions??[]);setTimezone(g.timezone);
+   setPatients(p.patients??[]);setSessions(g.sessions??[]);setTimezone(g.timezone);return g.sessions??[];
  },[]);
  useEffect(()=>{load().catch(e=>setMessage(e instanceof Error?e.message:'Group records unavailable.')).finally(()=>setLoading(false));},[load]);
+ const dirty=JSON.stringify(form)!==JSON.stringify(fresh())||Object.values(attendance).some(Boolean);
+ useEffect(()=>{const warn=(event:BeforeUnloadEvent)=>{if(dirty)event.preventDefault();};window.addEventListener('beforeunload',warn);return()=>window.removeEventListener('beforeunload',warn);},[dirty]);
  const participants=Object.entries(attendance).filter(([,status])=>status!=='').map(([patient_id,status])=>({patient_id,attendance:status as Attendance}));
  async function save(e:FormEvent<HTMLFormElement>){
    e.preventDefault();setSaving(true);setMessage('');
@@ -39,13 +41,14 @@ export default function GroupSessions(){
      const r=await fetch('/api/emr/groups',{method:'POST',headers:{'Content-Type':'application/json'},
        body:JSON.stringify({...form,scheduled_start:groupSessionStartUtc(form.scheduled_start,timezone),participants})});
      const data=await r.json();if(!r.ok)throw Error(data.error||'Save failed.');
+     const readback=await fetch('/api/emr/groups?session='+encodeURIComponent(data.id),{cache:'no-store'});const confirmed=await readback.json();if(!readback.ok||!Array.isArray(confirmed.sessions)||!confirmed.sessions.some((row:Session)=>row.id===data.id))throw Error('Save acknowledged but the group note could not be reloaded. Your draft is retained; refresh before retrying.');
      setForm(fresh());setAttendance({});setMessage('Shared group session saved centrally as an immutable reviewed record. Individual clinical notes must be entered in each patient chart.');
-     await load();
+     try{await load();}catch{setMessage('Group note saved and verified. The session list could not be refreshed; open Group Progress Notes History to reload it.');}
    }catch(error){setMessage(error instanceof Error?error.message:'Group save was not confirmed.');}
    finally{setSaving(false);}
  }
- return <div className="centralEmr"><header><h1>Group therapy — shared session record</h1><p>Clinic-protected group documentation linked to existing central patient IDs. Store only shared session material here; keep each person's clinical assessment and observations in that individual's chart.</p>
- <nav><Link href="/emr">Central EMR</Link><Link href="/appointments">Clinic scheduling</Link><Link href="/account">Account</Link></nav></header>
+ return <div className="centralEmr" data-group-dirty={dirty?'true':'false'}><header><h1>{mode==='notes'?'Group Progress Notes':mode==='administration'?'Group Administration':'Group therapy — shared session record'}</h1><p>Clinic-protected group documentation linked to existing central patient IDs. Store only shared session material here; keep each person's clinical assessment and observations in that individual's chart.</p>
+ <nav><a href={'/emr/groups?section=history'+(patientId?'&patient='+encodeURIComponent(patientId):'')}>Group Progress Notes History</a><Link href="/emr">Central EMR</Link><Link href="/appointments">Clinic scheduling</Link><Link href="/account">Account</Link></nav></header>
  <p role="status">{loading?'Loading authorized group records…':message}</p>
  <article className="centralCard"><h2>Document a group session</h2><p>Records are immutable after saving. Review all content and attendance before submission. This form is not a signature or billing claim.</p>
  <form onSubmit={save}>
@@ -62,12 +65,12 @@ export default function GroupSessions(){
   <label><input type="checkbox" checked={form.reviewed} onChange={e=>setForm({...form,reviewed:e.target.checked})}/> I reviewed the shared note and attendance, and confirm that participant-specific clinical details are excluded.</label>
   <button disabled={saving||loading||!timezone||participants.length<2||!form.reviewed}>Save reviewed group session</button>
  </form></article>
- <article className="centralCard"><h2>Saved group sessions ({sessions.length})</h2>
+ {mode!=='notes'&&<article className="centralCard"><h2>Saved group sessions ({sessions.length})</h2>
   <button type="button" onClick={()=>setShowList(!showList)}>{showList?'Hide':'Show'} saved sessions</button>
   {showList&&(!sessions.length?<p>No group sessions have been saved through this central workflow.</p>:<ol>{sessions.map(s=><li key={s.id}><h3>{s.group_name} — {new Date(s.scheduled_start).toLocaleString('en-US',{timeZone:timezone})}</h3>
   <p>Facilitator(s): {s.facilitators} · {s.duration_minutes} minutes</p><p><strong>Topic:</strong> {s.shared_topic}</p><p>{s.shared_content}</p>
   <p>Attendance and individual chart links:</p><ul>{s.participants.map(p=><li key={p.patient_id}><Link href={'/emr/patients?patient='+encodeURIComponent(p.patient_id)}>{names.get(p.patient_id)||'Central patient '+p.patient_id.slice(0,8)}</Link> — {p.attendance}. Record person-specific clinical notes in this patient's protected chart.</li>)}</ul>
   <small>Saved: {new Date(s.created_at).toLocaleString()} · Immutable group record</small>
   </li>)}</ol>)}
- </article></div>;
+ </article>}</div>;
 }

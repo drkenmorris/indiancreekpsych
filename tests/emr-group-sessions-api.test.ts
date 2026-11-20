@@ -40,3 +40,19 @@ test('GET refuses unauthenticated callers and reads protected group tables',asyn
  expect(mocks.from).toHaveBeenCalledWith('emr_group_sessions');
  expect(mocks.from).toHaveBeenCalledWith('appointment_settings');
 });
+
+test('history uses stable date-and-ID pagination with full timestamp precision and only visible attendance',async()=>{
+ const calls:any[]=[];const rows=Array.from({length:51},(_,i)=>({id:'00000000-0000-4000-8000-'+String(1000-i).padStart(12,'0'),group_name:'Fictional group',scheduled_start:'2026-11-19T17:00:00.123456+00:00',facilitators:'Fictional',duration_minutes:60,shared_topic:'Fictional',shared_content:'Fictional shared note',created_at:'2026-11-19T18:00:00Z'}));
+ mocks.from.mockImplementation((table:string)=>{const q:any={select:()=>q,eq:()=>q,order:(...args:any[])=>{calls.push(['order',...args]);return q;},or:(filter:string)=>{calls.push(['or',filter]);return q;},maybeSingle:async()=>({data:{timezone:'America/Chicago'},error:null}),limit:async(n:number)=>{calls.push(['limit',n]);return {data:rows,error:null};},in:async(_key:string,ids:string[])=>{calls.push(['attendance',ids]);return {data:[{session_id:rows[0].id,patient_id:p1,attendance:'Present'}],error:null};}};return q;});
+ const result=await GET(new Request('https://clinic.test/api/emr/groups?history=1'));expect(result.headers.get('cache-control')).toContain('no-store');const first=await result.json();expect(first.sessions).toHaveLength(50);expect(first.nextCursor).toEqual({start:rows[49].scheduled_start,id:rows[49].id});expect(first.sessions[0].participants).toEqual([{patient_id:p1,attendance:'Present'}]);expect(calls).toContainEqual(['limit',51]);expect(calls.find(c=>c[0]==='attendance')[1]).not.toContain(rows[50].id);
+ const query=new URLSearchParams({history:'1',before:first.nextCursor.start,before_id:first.nextCursor.id});expect((await GET(new Request('https://clinic.test/api/emr/groups?'+query))).status).toBe(200);expect(calls).toContainEqual(['or','scheduled_start.lt.'+rows[49].scheduled_start+',and(scheduled_start.eq.'+rows[49].scheduled_start+',id.lt.'+rows[49].id+')']);expect(calls).toContainEqual(['order','id',{ascending:false}]);
+});
+test('bad history cursors fail before a data query and repository failures are explicit',async()=>{
+ for(const query of ['history=1&before=invalid&before_id='+p1,'history=1&before=2026-11-19T17%3A00%3A00Z','before=2026-11-19T17%3A00%3A00Z&before_id='+p1,'history=1&before=2026-11-19T17%3A00%3A00Z&before_id=bad'])expect((await GET(new Request('https://clinic.test/api/emr/groups?'+query))).status).toBe(400);expect(mocks.from).not.toHaveBeenCalled();
+ const q:any={select:()=>q,eq:()=>q,order:()=>q,maybeSingle:async()=>({data:{timezone:'America/Chicago'},error:null}),limit:async()=>({data:null,error:{message:'offline'}})};mocks.from.mockReturnValue(q);expect((await GET(new Request('https://clinic.test/api/emr/groups?history=1'))).status).toBe(503);
+});
+
+test('exact session readback is protected and independent of the first history page',async()=>{
+ const calls:any[]=[];const q:any={select:()=>q,eq:(...args:any[])=>{calls.push(args);return q;},order:()=>q,maybeSingle:async()=>({data:{timezone:'America/Chicago'},error:null}),limit:async(n:number)=>{calls.push(['limit',n]);return {data:[],error:null};}};mocks.from.mockReturnValue(q);
+ expect((await GET(new Request('https://clinic.test/api/emr/groups?session='+p1))).status).toBe(200);expect(calls).toContainEqual(['id',p1]);expect(calls).toContainEqual(['limit',1]);expect((await GET(new Request('https://clinic.test/api/emr/groups?session=bad'))).status).toBe(400);
+});

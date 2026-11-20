@@ -101,7 +101,9 @@ const originalBpsSectionRules=Object.freeze({
 function validOriginalBpsTimestamp(value) {
  if(typeof value!=='string')return false;
  const match=/^(\d{4})-(\d{2})-(\d{2})T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d{1,9})?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/.exec(value);
- if(!match||!Number.isFinite(Date.parse(value)))return false;
+ // The original clinical form must agree with PostgreSQL: there is no year zero.
+ // Date.parse accepts 0000 even though clinical provenance cannot persist it.
+ if(!match||match[1]==='0000'||!Number.isFinite(Date.parse(value)))return false;
  // Original seven-page BPS source attestation must enforce the same civil
  // offset boundary as the protected API and the React clinician workflow.
  // Date.parse accepts impossible values like -14:00 and +23:59.

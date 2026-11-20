@@ -5,7 +5,7 @@ export type EmrSettings = {
  custom_fields:{id:string;label:string;type:'text'|'number'|'date'}[];
 };
 export const defaultEmrSettings:EmrSettings={preferences:{density:'comfortable',large_text:false,contrast:false},defaults:{note_template:'DAP',country:'USA',modality:'Individual'},shortcuts:['personal','schedule','reports'],custom_fields:[]};
-const modules=['personal','assessment','plan','notes','prognosis_details','prognosis','discharge','schedule','reports','settings','administration'];
+const modules=['personal','assessment','plan','notes','group','prognosis_details','prognosis','discharge','schedule','reports','settings','administration'];
 const keys=(value:unknown,names:string[])=>!!value&&typeof value==='object'&&!Array.isArray(value)&&Object.keys(value).length===names.length&&names.every(name=>Object.hasOwn(value,name));
 export function validEmrSettings(value:unknown):value is EmrSettings {
  if(!keys(value,['preferences','defaults','shortcuts','custom_fields']))return false;

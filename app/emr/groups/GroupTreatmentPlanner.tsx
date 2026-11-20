@@ -1,0 +1,2 @@
+import '../central-emr.css';
+export default function GroupTreatmentPlanner(){return <div className="centralEmr"><header><h1>Group Treatment Planner</h1><p>Treatment planning for the group as a whole.</p></header><section className="centralCard"><h2>Group treatment plan</h2><p>The group treatment-plan fields will be configured in the next planning step. Individual patient treatment plans remain available in each patient’s chart.</p></section></div>;}

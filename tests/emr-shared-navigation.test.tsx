@@ -36,3 +36,17 @@ test('choosing a patient from the Personal Data directory opens that patient dem
 test('Progress options contain only the requested items and renamed individual group entry',()=>{
  location.path='/emr/soap-notes';render(<EmrNavigationShell providerName="Fictional provider"><main>Fictional page</main></EmrNavigationShell>);fireEvent.click(within(screen.getByRole('navigation',{name:'Main EMR modules'})).getByRole('button',{name:/^Progress$/}));const options=screen.getByRole('navigation',{name:'Current module options'});expect(within(options).getAllByRole('link').map(link=>link.textContent)).toEqual(['Session Details','Individual Progress Notes Planner','SOAP/DAP Notes','Individual Group Session Notes','Session Records/Amendments']);
 });
+
+test('Groups has four ordered destinations with patient context in both menu definitions',()=>{
+ location.path='/emr/groups';location.query='section=history&patient=00000000-0000-4000-8000-000000000103';render(<EmrNavigationShell providerName="Fictional provider"><main>History</main></EmrNavigationShell>);
+ const options=screen.getByRole('navigation',{name:'Current module options'});expect(within(options).getAllByRole('link').map(a=>a.textContent)).toEqual(['Group Administration','Group Treatment Planner','Group Progress Notes','Group Progress Notes History']);
+ for(const [key] of menus.sections.group){const url=new URL(workspaceLink('group',key,'00000000-0000-4000-8000-000000000103'),'https://clinic.test');expect(url.pathname).toBe('/emr/groups');expect(url.searchParams.get('section')).toBe(key);expect(url.searchParams.get('patient')).toBe('00000000-0000-4000-8000-000000000103');expect(routeSection(url.pathname,key)).toEqual(['group',key]);}
+ expect(within(options).getByRole('link',{name:'Group Progress Notes History'}).getAttribute('aria-current')).toBe('page');expect(within(screen.getByRole('navigation',{name:'Main EMR modules'})).getByRole('button',{name:'Groups'})).toBeTruthy();
+ expect(workspaceLink('group','unknown')).toBe('/emr/groups?section=administration');expect(readFileSync('public/emr-assets/production.js','utf8')).toContain("activeSection?.module==='group'");
+});
+
+test('original workspace Groups options navigate to the four direct pages without a patient requirement',()=>{
+ for(const patient of ['', '00000000-0000-4000-8000-000000000103'])for(const [key] of menus.sections.group){
+  const assign=vi.fn(),original=vi.fn();const ctx:any={window:{addEventListener:()=>{}},message:()=>{},render:original,settingsSection:()=>'',activeSection:{module:'group',key},patientId:patient,view:'module-section',location:{assign},URLSearchParams};runInNewContext(readFileSync('public/emr-assets/production.js','utf8'),ctx);ctx.render();expect(original).not.toHaveBeenCalled();const url=new URL(assign.mock.calls[0][0],'https://clinic.test');expect(url.pathname).toBe('/emr/groups');expect(url.searchParams.get('section')).toBe(key);expect(url.searchParams.get('patient')).toBe(patient||null);
+ }
+});

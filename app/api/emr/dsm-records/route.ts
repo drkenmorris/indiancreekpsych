@@ -55,7 +55,7 @@ export async function POST(request:Request){const ctx=await emrAccess();if(!ctx)
  if(body.action!=='save'||!uuid(body.id)||!Number.isInteger(body.expectedRevision)||body.expectedRevision<0)return NextResponse.json({error:'Invalid revision request.'},{status:400,headers:privateHeaders});
  let snapshot;try{snapshot=buildDsmSnapshot(body.state);}catch(e){return NextResponse.json({error:e instanceof Error?e.message:'Invalid assessment state.'},{status:400,headers:privateHeaders});}
  const {data:target,error:targetError}=await ctx.supabase.from('dsm_records').select('patient_id').eq('id',body.id).eq('owner_id',ctx.user.id).maybeSingle();
- if(targetError||!target)return NextResponse.json({error:'Record unavailable.'},{status:404,headers:privateHeaders});
+ if(targetError||!target||!uuid(target.patient_id))return NextResponse.json({error:'Record unavailable or patient binding could not be verified.'},{status:404,headers:privateHeaders});
  const {data:patient,error:patientError}=await ctx.supabase.from('clinical_patients').select('demographics,account_id').eq('id',target.patient_id).single();
  if(patientError)return NextResponse.json({error:'Patient binding cannot be verified.'},{status:503,headers:privateHeaders});
  let dob=patient?.demographics?.dob;

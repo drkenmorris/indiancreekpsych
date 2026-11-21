@@ -32,7 +32,7 @@ test('a pending BPS save cannot reopen or message the wrong patient chart',async
  expect(reads).toEqual([a,b]);
 });
 
-test('clinician reconciliation independently withholds separate, structured, reference and unmarked patient source values',async()=>{
+test('clinician reconciliation retains visible clinical history while withholding separate medication, legal, insurance and structured source values',async()=>{
  const id='00000000-0000-4000-8000-000000000801';
  const reported:Record<string,string>={
   counseling_reason:'SAFE PATIENT REPORTED CONCERN',
@@ -40,24 +40,47 @@ test('clinician reconciliation independently withholds separate, structured, ref
   roi_authorize:'DO_NOT_LEAK_SPOOFED_LEGAL',
   prior_psychiatric_medications:'DO_NOT_LEAK_RETIRED_MEDICATION',
   legal_history:'DO_NOT_LEAK_RETIRED_LEGAL',
-  medication_entries:'DO_NOT_LEAK_STRUCTURED',
-  counseling_goals:'DO_NOT_LEAK_FALSE_REPORTED',
-  prior_mental_health_treatment:'DO_NOT_LEAK_MISSING_REPORTED'
+  medication_entries:'DO_NOT_LEAK_STRUCTURED'
  };
  const sections=mapIntakeToBps(reported).sections;
- // An upstream API may mislabel source privacy; a known section/key is not permission to show raw data.
- for(const section of sections)for(const field of section.fields){
-  if(field.key==='counseling_goals'){field.reported=false;section.answered--;}
-  // A patient report without an explicit BPS-readability marker remains
-  // withheld; this is a valid but source-only legacy mapping fixture.
-  if(field.key==='prior_mental_health_treatment')field.sourceOnly=undefined as unknown as boolean;
- }
  vi.stubGlobal('fetch',vi.fn(async()=>Response.json({patientId:id,source:{accountId:id,status:'submitted',version:2,updatedAt:'2026-11-11T12:00:00Z',submittedAt:'2026-11-11T12:00:00Z'},sections,unmappedKeys:[],reviews:[]})));
  render(<PatientBpsIntakeReview patientId={id}/>);
  await screen.findByText(/Version 2/);
  expect(screen.getByText('SAFE PATIENT REPORTED CONCERN')).toBeTruthy();
- for(const secret of ['DO_NOT_LEAK_STRUCTURED','DO_NOT_LEAK_UNMARKED','DO_NOT_LEAK_LEGAL','DO_NOT_LEAK_INSURANCE','DO_NOT_LEAK_SPOOFED_INSURANCE','DO_NOT_LEAK_SPOOFED_LEGAL','DO_NOT_LEAK_RETIRED_MEDICATION','DO_NOT_LEAK_RETIRED_LEGAL','DO_NOT_LEAK_FALSE_REPORTED','DO_NOT_LEAK_MISSING_REPORTED'])
-  expect(screen.queryByText(secret)).toBeNull();
+ for(const secret of ['DO_NOT_LEAK_STRUCTURED','DO_NOT_LEAK_SPOOFED_INSURANCE','DO_NOT_LEAK_SPOOFED_LEGAL','DO_NOT_LEAK_RETIRED_MEDICATION','DO_NOT_LEAK_RETIRED_LEGAL'])
+  expect(document.body.textContent).not.toContain(secret);
+});
+
+test('clinician reconciliation fails closed instead of partially displaying a contradictory source answer receipt',async()=>{
+ const id='00000000-0000-4000-8000-000000000801';
+ const sections=mapIntakeToBps({
+  counseling_reason:'SAFE_BUT_MUST_WITHHOLD_WITH_MALFORMED_PACKET',
+  counseling_goals:'PRIVATE_FALSE_REPORTED_FLAG',
+  prior_mental_health_treatment:'PRIVATE_MISSING_BPS_VISIBILITY_FLAG',
+  insurance_member:'PRIVATE_INSURANCE_SOURCE'
+ }).sections;
+ // Previously this fixture asserted partial rendering after falsifying the
+ // patient-reported flag and dropping a source visibility receipt. Both are
+ // now provenance contradictions: the entire 21-section packet must be withheld.
+ let altered=0;
+ for(const section of sections)for(const field of section.fields){
+  if(field.key==='counseling_goals'){field.reported=false;section.answered--;altered++;}
+  if(field.key==='prior_mental_health_treatment'){field.sourceOnly=undefined as unknown as boolean;altered++;}
+ }
+ expect(altered).toBe(2);
+ let posts=0;
+ vi.stubGlobal('fetch',vi.fn(async(_url:string,options?:RequestInit)=>{
+  if(options?.method==='POST')posts++;
+  return Response.json({patientId:id,source:{accountId:id,status:'submitted',version:2,updatedAt:'2026-11-11T12:00:00Z',submittedAt:'2026-11-11T12:00:00Z'},sections,unmappedKeys:[],reviews:[]});
+ }));
+ render(<PatientBpsIntakeReview patientId={id}/>);
+ const alert=await screen.findByRole('alert');
+ expect(alert.textContent).toContain('21-section intake mapping is malformed');
+ for(const secret of ['SAFE_BUT_MUST_WITHHOLD_WITH_MALFORMED_PACKET','PRIVATE_FALSE_REPORTED_FLAG','PRIVATE_MISSING_BPS_VISIBILITY_FLAG','PRIVATE_INSURANCE_SOURCE'])
+  expect(document.body.textContent).not.toContain(secret);
+ expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
+ expect(screen.queryByRole('button',{name:/Save reviewed BPS history snapshot/i})).toBeNull();
+ expect(posts).toBe(0);
 });
 
 test.each([

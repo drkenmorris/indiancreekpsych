@@ -65,3 +65,75 @@ test.each([
  expect(screen.getByRole('heading',{name:'New central patient record'})).toBeTruthy();
  expect(writes).toBe(0);
 });
+
+
+test.each([
+ ['edited reported answers at the identical timestamp', (source:typeof intake)=>({
+  ...source,answers:{...source.answers,medication_allergy_notes:'CHANGED_PRIVATE_ALLERGY'}
+ })],
+ ['new source revision at the identical timestamp', (source:typeof intake)=>({
+  ...source,version:3
+ })],
+ ['changed submission state', (source:typeof intake)=>({
+  ...source,status:'draft',submitted_at:null
+ })],
+ ['removed intake linkage', (_source:typeof intake)=>null],
+] as const)('background source refresh unmounts confidential reconciliation drafts for %s',async(_reason,change)=>{
+ let detailReads=0,writes=0;
+ const initial={...intake,version:2,submitted_at:'2026-11-20T16:00:00Z'};
+ const changed=change(initial);
+ vi.stubGlobal('fetch',vi.fn(async (url:string,init?:RequestInit)=>{
+  if((init?.method==='POST'||init?.method==='PATCH')&&
+    (url==='/api/emr/patients'||url==='/api/emr/bps-intake'))writes++;
+  if(url==='/api/emr/patients')return Response.json({patients:[baseline]});
+  if(url==='/api/emr/patients?id='+chart){
+   detailReads++;
+   return Response.json({patients:[baseline],intake:detailReads===1?initial:changed});
+  }
+  if(url.startsWith('/api/emr/dsm-records?'))return Response.json({records:[]});
+  if(url.startsWith('/api/emr/bps-intake'))
+   return Response.json({error:'No fictional intake BPS review'},{status:404});
+  if(url==='/api/emr/workflow')return Response.json({value:{records:[]},revision:1});
+  return Response.json({records:[]});
+ }));
+ render(<PatientRepository/>);
+ fireEvent.click(await screen.findByRole('button',{name:/Fictional Patient.*Linked patient account/i}));
+ await screen.findByText(/Central patient ID:/);
+ expect(document.body.textContent).toContain('FICTIONAL_PRIVATE_ALLERGY');
+ await act(async()=>{window.dispatchEvent(new Event('focus'));});
+ await screen.findByText(/All patient-specific clinical panels were closed/);
+ expect(detailReads).toBe(2);
+ expect(screen.queryByText(/Central patient ID:/)).toBeNull();
+ expect(screen.queryByRole('heading',{name:'Patient intake source'})).toBeNull();
+ expect(document.body.textContent).not.toContain('FICTIONAL_PRIVATE_ALLERGY');
+ expect(document.body.textContent).not.toContain('CHANGED_PRIVATE_ALLERGY');
+ expect(writes).toBe(0);
+});
+
+test('unchanged linked intake remains open after protected background verification',async()=>{
+ let detailReads=0,writes=0;
+ const initial={...intake,version:2,submitted_at:'2026-11-20T16:00:00Z'};
+ vi.stubGlobal('fetch',vi.fn(async(url:string,init?:RequestInit)=>{
+  if((init?.method==='POST'||init?.method==='PATCH')&&
+    (url==='/api/emr/patients'||url==='/api/emr/bps-intake'))writes++;
+  if(url==='/api/emr/patients')return Response.json({patients:[baseline]});
+  if(url==='/api/emr/patients?id='+chart){
+   detailReads++;
+   return Response.json({patients:[baseline],intake:{...initial,answers:{...initial.answers}}});
+  }
+  if(url.startsWith('/api/emr/dsm-records?'))return Response.json({records:[]});
+  if(url.startsWith('/api/emr/bps-intake'))
+   return Response.json({error:'No fictional BPS review'},{status:404});
+  if(url==='/api/emr/workflow')return Response.json({value:{records:[]},revision:1});
+  return Response.json({records:[]});
+ }));
+ render(<PatientRepository/>);
+ fireEvent.click(await screen.findByRole('button',{name:/Fictional Patient.*Linked patient account/i}));
+ await screen.findByText(/Central patient ID:/);
+ await act(async()=>{window.dispatchEvent(new Event('focus'));});
+ expect(detailReads).toBe(2);
+ expect(screen.getByRole('heading',{name:'Patient intake source'})).toBeTruthy();
+ expect(document.body.textContent).toContain('FICTIONAL_PRIVATE_ALLERGY');
+ expect(screen.queryByText(/All patient-specific clinical panels were closed/)).toBeNull();
+ expect(writes).toBe(0);
+});

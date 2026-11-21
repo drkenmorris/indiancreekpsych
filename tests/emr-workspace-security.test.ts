@@ -87,6 +87,34 @@ test('matching authorized central UUID serves original BPS UI with private CSP h
  expect(m.patientAccess).toHaveBeenCalledWith(true,'/emr/workspace?'+query);
 });
 
+test('mixed-case chart UUID redirects to canonical protected original BPS without losing MFA, patient, or clinical subpage',async()=>{
+ const canonical='abcdefab-0000-4000-8000-000000000101';
+ const mixed='ABCDEFAB-0000-4000-8000-000000000101';
+ const query='patient='+mixed+'&module=assessment&section=assessment%3Abiopsychosocial&bps_page=trauma_history';
+ lookup.mockResolvedValue({data:{id:canonical,directory_deleted_at:null},error:null});
+ const initial=await GET(new Request('https://www.indiancreekpsych.com/emr/workspace?'+query));
+ expect(initial.status).toBe(307);
+ const redirected=new URL(initial.headers.get('location')!);
+ expect(redirected.pathname).toBe('/emr/workspace');
+ expect(redirected.searchParams.get('patient')).toBe(canonical);
+ expect(redirected.searchParams.get('module')).toBe('assessment');
+ expect(redirected.searchParams.get('section')).toBe('assessment:biopsychosocial');
+ expect(redirected.searchParams.get('bps_page')).toBe('trauma_history');
+ expect(m.patientAccess).toHaveBeenCalledWith(true,'/emr/workspace?'+redirected.searchParams.toString());
+ expect(m.from.mock.results[0].value.eq).toHaveBeenCalledWith('id',canonical);
+ expect(m.readFile).not.toHaveBeenCalled();
+ const authorized=await GET(new Request(redirected));
+ expect(authorized.status).toBe(200);
+ expect(m.readFile).toHaveBeenCalledOnce();
+ // Without completed administrator MFA the same mixed-case deep link must
+ // still go to security verification, not bypass it via canonicalization.
+ m.emrAccess.mockResolvedValueOnce(null);
+ const denied=await GET(new Request('https://www.indiancreekpsych.com/emr/workspace?'+query));
+ expect(denied.status).toBe(307);
+ const next=new URL(denied.headers.get('location')!).searchParams.get('next');
+ expect(next).toBe('/emr/workspace?'+redirected.searchParams.toString());
+});
+
 test('serverless tracing includes the exact original clinical HTML and all linked prototype controllers',()=>{
  const config=readFileSync('next.config.mjs','utf8');
  const route=readFileSync('app/emr/workspace/route.ts','utf8');

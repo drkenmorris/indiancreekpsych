@@ -62,5 +62,34 @@ export async function POST(request:Request){const ctx=await emrAccess();if(!ctx)
  if(!dob&&patient?.account_id){const {data:intake,error}=await ctx.supabase.from('patient_intakes').select('answers').eq('patient_id',patient.account_id).maybeSingle();if(error)return NextResponse.json({error:'Patient age source is unavailable.'},{status:503,headers:privateHeaders});dob=intake?.answers?.date_of_birth;}
  const report=snapshot.report as {respondent?:{version:string}};
  if(dob&&report.respondent){const error=validateDsmVersion(report.respondent.version,dob,true);if(error)return NextResponse.json({error:'Patient age and selected questionnaire version do not agree. '+error},{status:409,headers:privateHeaders});}
- const {data,error}=await ctx.supabase.rpc('save_dsm_record',{p_id:body.id,p_expected_revision:body.expectedRevision,p_state:snapshot.state,p_report:snapshot.report,p_provenance:snapshot.provenance,p_hash:snapshot.contentHash});
- if(error)return NextResponse.json({code:error.code==='40001'?'revision_conflict':'save_unconfirmed',error:error.code==='40001'?'Another session saved a newer revision. Your local answers are retained; reopen the record to review before saving.':'Record save was not confirmed.'},{status:error.code==='40001'?409:503,headers:privateHeaders});return NextResponse.json({saved:true,revision:data,contentHash:snapshot.contentHash},{headers:privateHeaders});}
+ // The mutation may have committed even if its network response was lost.
+ // Do not claim success from a lone RPC integer or encourage an unsafe retry.
+ const uncertain='Assessment save outcome is unverified. Keep your answers, reopen the existing record and contact the office before retrying.';
+ let receipt;
+ try{
+  receipt=await ctx.supabase.rpc('save_dsm_record',{p_id:body.id,p_expected_revision:body.expectedRevision,p_state:snapshot.state,p_report:snapshot.report,p_provenance:snapshot.provenance,p_hash:snapshot.contentHash});
+ }catch{return NextResponse.json({code:'save_unconfirmed',error:uncertain},{status:503,headers:privateHeaders});}
+ const {data,error}=receipt??{};
+ if(error)return NextResponse.json({code:error.code==='40001'?'revision_conflict':'save_unconfirmed',error:error.code==='40001'?'Another session saved a newer revision. Your local answers are retained; reopen the record to review before saving.':uncertain},{status:error.code==='40001'?409:503,headers:privateHeaders});
+ if(!Number.isSafeInteger(data)||data!==body.expectedRevision+1)
+  return NextResponse.json({code:'save_unconfirmed',error:uncertain},{status:503,headers:privateHeaders});
+ // Independently read durable record AND version identities through the same
+ // clinician-scoped RLS client. A filtered query alone is not a DB receipt.
+ // Never expose a cross-chart, cross-owner, wrong-revision or wrong-hash result.
+ let readRecord,readVersion;
+ try{
+  [readRecord,readVersion]=await Promise.all([
+   ctx.supabase.from('dsm_records').select('id,patient_id,owner_id,revision').eq('id',body.id).eq('owner_id',ctx.user.id).maybeSingle(),
+   ctx.supabase.from('dsm_record_versions').select('record_id,owner_id,revision,content_hash').eq('record_id',body.id).eq('revision',data).maybeSingle()
+  ]);
+ }catch{return NextResponse.json({code:'save_unconfirmed',error:uncertain},{status:503,headers:privateHeaders});}
+ const persisted=readRecord?.data,version=readVersion?.data;
+ if(readRecord?.error||readVersion?.error||!persisted||!version||
+   !uuid(persisted.id)||persisted.id.toLowerCase()!==body.id.toLowerCase()||
+   !uuid(persisted.patient_id)||persisted.patient_id.toLowerCase()!==target.patient_id.toLowerCase()||
+   persisted.owner_id!==ctx.user.id||persisted.revision!==data||
+   !uuid(version.record_id)||version.record_id.toLowerCase()!==body.id.toLowerCase()||
+   version.owner_id!==ctx.user.id||version.revision!==data||
+   version.content_hash!==snapshot.contentHash)
+  return NextResponse.json({code:'save_unconfirmed',error:uncertain},{status:503,headers:privateHeaders});
+ return NextResponse.json({saved:true,revision:data,contentHash:snapshot.contentHash},{headers:privateHeaders});}

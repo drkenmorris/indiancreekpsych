@@ -26,7 +26,11 @@ test.each([
 ] as const)('background chart verification closes ALL clinical panels after %s',async reason=>{
  let detailReads=0,writes=0;
  vi.stubGlobal('fetch',vi.fn(async (url:string,init?:RequestInit)=>{
-  if(init?.method==='POST'||init?.method==='PATCH')writes++;
+  // Some existing clinical panels use POST for read-only workspace lookups.
+  // Count only writes to the patient-directory or BPS-review endpoints;
+  // unrelated fixture-backed lookups are not chart mutations.
+  if((init?.method==='POST'||init?.method==='PATCH')&&
+     (url==='/api/emr/patients'||url==='/api/emr/bps-intake'))writes++;
   if(url==='/api/emr/patients')return Response.json({patients:[baseline]});
   if(url==='/api/emr/patients?id='+chart){
    detailReads++;

@@ -18,6 +18,10 @@ export async function GET(request:Request){
   const value=requested.searchParams.get(key);
   if(value&&value.length<=160)params.set(key,value);
  }
+ // Canonical central chart identity must survive clinic login and MFA. PostgreSQL
+ // normalizes UUIDs; preserve that same identity in the original BPS URL.
+ const requestedPatient=requested.searchParams.get('patient');
+ if(requestedPatient&&uuid(requestedPatient))params.set('patient',requestedPatient.toLowerCase());
  if(requested.searchParams.get('directory')==='1')params.set('directory','1');
  const returnTo='/emr/workspace'+(params.size?'?'+params.toString():'');
  await patientAccess(true,returnTo);
@@ -26,14 +30,18 @@ export async function GET(request:Request){
  const id=requested.searchParams.get('patient');
  if(id&&!uuid(id))return NextResponse.json({error:'Invalid patient ID.'},{status:400,headers:privateHeaders});
  if(id){
+ const canonicalId=id.toLowerCase();
  // The original seven-page workspace must enforce the same active-chart
  // identity boundary as the linked intake and clinician BPS review. An
  // archived chart or a mis-scoped adapter result must never serve clinical UI.
  const {data,error}=await ctx.supabase.from('clinical_patients')
-  .select('id,directory_deleted_at').eq('id',id).is('directory_deleted_at',null).maybeSingle();
+  .select('id,directory_deleted_at').eq('id',canonicalId).is('directory_deleted_at',null).maybeSingle();
  if(error)return NextResponse.json({error:'Patient authorization could not be verified.'},{status:503,headers:privateHeaders});
- if(!data||data.id!==id||data.directory_deleted_at!==null)
+ if(!data||!uuid(data.id)||data.id.toLowerCase()!==canonicalId||data.directory_deleted_at!==null)
   return NextResponse.json({error:'Patient unavailable.'},{status:404,headers:privateHeaders});
+ // A valid mixed-case UUID must not be refused as a different chart or leave
+ // an uppercase browser chart scope that disagrees with canonical API IDs.
+ if(id!==canonicalId)return NextResponse.redirect(new URL('/emr/workspace?'+params.toString(),request.url),307);
  }
  // Legacy direct workspace links omitted both module and section, silently opening
  // Demographics instead of the owner's primary original biopsychosocial interface.

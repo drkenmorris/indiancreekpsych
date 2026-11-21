@@ -5,7 +5,27 @@ import {uuid} from '@/lib/emr/demographics';
 import {buildDsmSnapshot,snapshotHash,snapshotProvenance,stableJson} from '@/lib/emr/dsm-snapshot';
 export const runtime='nodejs';export const dynamic='force-dynamic';
 export async function GET(request:Request){const ctx=await emrAccess();if(!ctx)return NextResponse.json({error:'Administrator sign-in and MFA required.'},{status:403,headers:privateHeaders});const params=new URL(request.url).searchParams,id=params.get('id'),patient=params.get('patient'),requestedRevision=params.get('revision');if(id&&!uuid(id)||patient&&!uuid(patient)||requestedRevision&&(!/^[1-9][0-9]*$/.test(requestedRevision)||Number(requestedRevision)>2147483647))return NextResponse.json({error:'Invalid record or patient ID.'},{status:400,headers:privateHeaders});
- let query=ctx.supabase.from('dsm_records').select('id,patient_id,label,revision,created_at,updated_at').eq('owner_id',ctx.user.id).order('updated_at',{ascending:false}).limit(100);if(id)query=query.eq('id',id);if(patient)query=query.eq('patient_id',patient);const {data,error}=await query;if(error)return NextResponse.json({error:'Record repository unavailable.'},{status:503,headers:privateHeaders});if(!id)return NextResponse.json({records:data??[]},{headers:privateHeaders});let record=data?.[0];if(!record)return NextResponse.json({error:'Record unavailable.'},{status:404,headers:privateHeaders});const {data:person,error:personError}=await ctx.supabase.from('clinical_patients').select('demographics,profiles!clinical_patients_account_id_fkey(full_name)').eq('id',record.patient_id).single();if(personError)return NextResponse.json({error:'Patient identity cannot be displayed.'},{status:503,headers:privateHeaders});const names=[person?.demographics?.first_name,person?.demographics?.last_name].filter(Boolean).join(' ');const profile=Array.isArray(person?.profiles)?person.profiles[0]:person?.profiles;record=Object.assign({},record,{patient_name:names||profile?.full_name||'Patient demographics pending',patient_dob:person?.demographics?.dob??''});if(!record.revision)return NextResponse.json({record,snapshot:null,history:[]},{headers:privateHeaders});
+ let query=ctx.supabase.from('dsm_records').select('id,patient_id,owner_id,label,revision,created_at,updated_at').eq('owner_id',ctx.user.id).order('updated_at',{ascending:false}).limit(100);if(id)query=query.eq('id',id);if(patient)query=query.eq('patient_id',patient);const {data,error}=await query;if(error||!Array.isArray(data))return NextResponse.json({error:'Record repository unavailable.'},{status:503,headers:privateHeaders});
+ // RLS and SQL filters must not be the sole patient-isolation evidence.
+ // Check every returned row against the authenticated clinician, requested
+ // chart and requested record before any clinical assessment metadata leaves
+ // this route. Fail the entire response on an unexpected or duplicate row.
+ const seenIds=new Set<string>();
+ const expectedPatient=patient?.toLowerCase(),expectedId=id?.toLowerCase();
+ const validRows=data.every(row=>{
+  const recordId=typeof row?.id==='string'?row.id.toLowerCase():'';
+  const chartId=typeof row?.patient_id==='string'?row.patient_id.toLowerCase():'';
+  if(!uuid(recordId)||!uuid(chartId)||row.owner_id!==ctx.user.id||
+     (expectedPatient&&chartId!==expectedPatient)||
+     (expectedId&&recordId!==expectedId)||seenIds.has(recordId))return false;
+  seenIds.add(recordId);
+  return true;
+ });
+ if(!validRows)return NextResponse.json({error:'Assessment record ownership or patient scope could not be verified.'},{status:409,headers:privateHeaders});
+ // owner_id is used only as a server-side authorization receipt.
+ const records=data.map(row=>({id:row.id,patient_id:row.patient_id,label:row.label,
+  revision:row.revision,created_at:row.created_at,updated_at:row.updated_at}));
+ if(!id)return NextResponse.json({records},{headers:privateHeaders});let record=records[0];if(!record)return NextResponse.json({error:'Record unavailable.'},{status:404,headers:privateHeaders});const {data:person,error:personError}=await ctx.supabase.from('clinical_patients').select('id,demographics,profiles!clinical_patients_account_id_fkey(full_name)').eq('id',record.patient_id).single();if(personError||!person||person.id!==record.patient_id)return NextResponse.json({error:'Assessment patient identity could not be verified.'},{status:409,headers:privateHeaders});const names=[person?.demographics?.first_name,person?.demographics?.last_name].filter(Boolean).join(' ');const profile=Array.isArray(person?.profiles)?person.profiles[0]:person?.profiles;record=Object.assign({},record,{patient_name:names||profile?.full_name||'Patient demographics pending',patient_dob:person?.demographics?.dob??''});if(!record.revision)return NextResponse.json({record,snapshot:null,history:[]},{headers:privateHeaders});
  const [{data:history,error:hError},{data:snapshot,error:sError}]=await Promise.all([ctx.supabase.from('dsm_record_versions').select('id,revision,created_at,content_hash').eq('record_id',id).order('revision',{ascending:false}).limit(50),ctx.supabase.from('dsm_record_versions').select('state,report,provenance,content_hash,revision').eq('record_id',id).eq('revision',requestedRevision?Number(requestedRevision):record.revision).single()]);
  if(hError||sError||!snapshot)return NextResponse.json({error:'Record history unavailable.'},{status:503,headers:privateHeaders});if(snapshotHash({state:snapshot.state,report:snapshot.report,provenance:snapshot.provenance})!==snapshot.content_hash)return NextResponse.json({error:'Snapshot integrity check failed. No state restored.'},{status:409,headers:privateHeaders});
  const compatible=stableJson(snapshot.provenance)===stableJson(snapshotProvenance);

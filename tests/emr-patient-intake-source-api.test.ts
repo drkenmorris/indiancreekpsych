@@ -400,3 +400,60 @@ test('new patient creation requires a valid returned central ID and no archived 
   expect(chain.insert).toHaveBeenCalledOnce();
   expect(chain.select).toHaveBeenCalledWith('id,directory_deleted_at');
 });
+
+
+test.each([
+  ['archived insert receipt', {id:patientId,directory_deleted_at:'2026-11-21T00:00:00Z'}],
+  ['missing active-status receipt', {id:patientId}],
+])('new clinical chart creation does not acknowledge an %s',async(_reason,receipt)=>{
+  const chain={
+    insert:vi.fn(()=>chain),select:vi.fn(()=>chain),
+    single:vi.fn(async()=>({data:receipt,error:null})),
+  };
+  mocks.from.mockReturnValue(chain);
+  const response=await POST(demographicsSave());
+  expect(response.status).toBe(409);
+  expect(response.headers.get('Cache-Control')).toContain('no-store');
+  expect(await response.json()).not.toHaveProperty('saved',true);
+  expect(chain.insert).toHaveBeenCalledOnce();
+});
+
+test.each([
+  ['different central chart', {id:'00000000-0000-0000-0000-000000000499'}],
+  ['malformed directory receipt', {id:'not-a-chart'}],
+  ['missing directory receipt', null],
+])('directory mutation cannot claim a completed patient change from %s',async(_reason,receipt)=>{
+  // Fictional mocked mutation receipt. Never issue a live delete/restore.
+  const chain={
+    update:vi.fn(()=>chain),eq:vi.fn(()=>chain),
+    is:vi.fn(()=>chain),not:vi.fn(()=>chain),
+    select:vi.fn(()=>chain),
+    maybeSingle:vi.fn(async()=>({data:receipt,error:null})),
+  };
+  mocks.from.mockReturnValue(chain);
+  const response=await PATCH(change());
+  expect(response.status).toBe(409);
+  const body=await response.json();
+  expect(body).not.toHaveProperty('status','deleted');
+  expect(body).not.toHaveProperty('status','restored');
+  expect(chain.update).toHaveBeenCalledOnce();
+});
+
+test('case-variant central-chart UUID is canonicalized for a verified directory mutation',async()=>{
+  const canonical='abcdef01-1234-4000-8000-abcdef012345';
+  const chain={
+    update:vi.fn(()=>chain),eq:vi.fn(()=>chain),
+    is:vi.fn(()=>chain),not:vi.fn(()=>chain),
+    select:vi.fn(()=>chain),
+    maybeSingle:vi.fn(async()=>({data:{id:canonical},error:null})),
+  };
+  mocks.from.mockReturnValue(chain);
+  const request=new Request('https://www.indiancreekpsych.com/api/emr/patients',{
+    method:'PATCH',
+    body:JSON.stringify({id:canonical.toUpperCase(),action:'restore',expectedRevision:3}),
+  });
+  const response=await PATCH(request);
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual({id:canonical,status:'restored'});
+  expect(chain.eq).toHaveBeenCalledWith('id',canonical);
+});

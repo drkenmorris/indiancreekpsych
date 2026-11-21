@@ -105,3 +105,62 @@ test('a directory selection does not mount patient clinical panels before verifi
  expect(screen.getByRole('heading',{name:'New central patient record'})).toBeTruthy();
  expect(requestLog.filter(url=>url==='/api/emr/patients?id='+chart)).toHaveLength(1);
 });
+
+
+test.each([
+ 'connection lost after sending POST',
+ 'malformed success receipt',
+ 'HTTP 503 without a reliable save receipt'
+] as const)('an uncertain demographics POST cannot be retried from the opened chart: %s',async scenario=>{
+ let posts=0;
+ vi.stubGlobal('fetch',vi.fn(async (url:string,init?:RequestInit)=>{
+  if(url==='/api/emr/patients'&&init?.method==='POST'){
+   posts++;
+   if(scenario==='connection lost after sending POST')throw Error('Fictional network interruption');
+   if(scenario==='malformed success receipt')return new Response('not valid JSON',{status:200});
+   return Response.json({error:'Fictional unavailable receipt'},{status:503});
+  }
+  if(url==='/api/emr/patients')return Response.json({patients:[patient(2)]});
+  if(url==='/api/emr/patients?id='+chart)return Response.json({patients:[patient(2)],intake:null});
+  if(url.startsWith('/api/emr/dsm-records?'))return Response.json({records:[]});
+  if(url.startsWith('/api/emr/bps-intake'))return Response.json({error:'No fictional intake'},{status:404});
+  if(url==='/api/emr/workflow')return Response.json({value:{records:[]},revision:1});
+  return Response.json({records:[]});
+ }));
+ render(<PatientRepository/>);
+ fireEvent.click(await screen.findByRole('button',{name:/Fictional Patient.*Linked patient account/i}));
+ await screen.findByText(/Central patient ID:/);
+ const save=screen.getByRole('button',{name:'Save central demographics'}) as HTMLButtonElement;
+ fireEvent.change(screen.getByLabelText('City'),{target:{value:'Fictional changed city'}});
+ fireEvent.click(save);
+ await screen.findByText(/Save may have committed; DO NOT blindly resubmit/);
+ expect(save.disabled).toBe(true);
+ expect(document.body.textContent).toContain('Another save is locked');
+ expect(screen.queryByText(/saved and independently reopened in the correct chart/)).toBeNull();
+ fireEvent.click(save);
+ expect(posts).toBe(1);
+});
+
+test('an interrupted new-patient POST locks a second creation until directory verification',async()=>{
+ let posts=0;
+ vi.stubGlobal('fetch',vi.fn(async (url:string,init?:RequestInit)=>{
+  if(url==='/api/emr/patients'&&init?.method==='POST'){
+   posts++;
+   // The database may have committed before the client lost this response.
+   throw Error('Fictional connection interruption after create');
+  }
+  if(url==='/api/emr/patients')return Response.json({patients:[]});
+  return Response.json({records:[]});
+ }));
+ render(<PatientRepository/>);
+ await screen.findByRole('heading',{name:'New central patient record'});
+ fireEvent.change(screen.getByLabelText('First name'),{target:{value:'Fictional'}});
+ fireEvent.change(screen.getByLabelText('Last name'),{target:{value:'Unverified'}});
+ const save=screen.getByRole('button',{name:'Save central demographics'}) as HTMLButtonElement;
+ fireEvent.click(save);
+ await screen.findByText(/Save may have committed; DO NOT blindly resubmit/);
+ expect(document.body.textContent).toContain('check the patient directory and exact patient chart');
+ expect(save.disabled).toBe(true);
+ fireEvent.click(save);
+ expect(posts).toBe(1);
+});

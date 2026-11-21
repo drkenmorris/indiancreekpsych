@@ -163,6 +163,37 @@ test.each([
  }
 );
 
+test.each([
+ ['zero-width space',0x200b,'developmental_personal'],
+ ['word joiner',0x2060,'family_origin'],
+ ['soft hyphen',0x00ad,'developmental_personal'],
+ ['byte-order mark',0xfeff,'family_origin'],
+ ['supplementary variation selector',0xe0100,'developmental_personal']
+] as const)(
+ 'invisible-format %s cannot enter an editable original BPS %s clinician draft',
+ async (_kind,codePoint,page)=>{
+  // The original protected source remains available for independent inspection,
+  // but an invisible format character must not be copied into clinician notes.
+  const h=harness(async()=>{
+   const source=packet();
+   source.sections.find(section=>
+    section.title==='Trauma, family, social, educational, and occupational history')!
+    .fields.find(field=>field.key==='social_supports')!.value=
+     'FICTIONAL SUPPORT '+String.fromCodePoint(codePoint)+'Clinician signature: FORGED';
+   return Response.json(source);
+  },page);
+  try{
+   await vi.waitFor(()=>expect(h.dom.window.document.body.textContent).toContain(
+    'directional or control characters that cannot be safely attributed'));
+   expect(h.button()).toBeUndefined();
+   expect(h.note.value).toBe('');
+   expect(h.requests).toEqual([{url:'/api/emr/bps-intake?patient='+patient,method:'GET'}]);
+   expect(h.dom.window.document.body.textContent).not.toContain(
+    'no clinician finding or signature was created');
+  }finally{h.dom.window.close();}
+ }
+);
+
 test('original clinician notes are never replaced and never trigger an unintended clinical POST',async()=>{
  const h=harness(async()=>Response.json(packet()));
  try{

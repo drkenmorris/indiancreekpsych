@@ -521,7 +521,7 @@ function originalBpsInstantNanoseconds(value){
     // Preserve the protected patient report, but never copy such text into an
     // editable clinician note. Ordinary newlines and Unicode paragraph breaks
     // remain supported and are attributed separately below.
-    const unsafeAttributedText=/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/u;
+    // Invisible format marks can evade the BPS note-attestation guard and visually\n    // alter an attributed patient report. Allow them in the protected original\n    // source, but never transfer them to editable clinician-authored notes.\n    const unsafeAttributedText=/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f\u00ad\u034f\u061c\u180e\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufe00-\ufe0f\ufeff\u{E0100}-\u{E01EF}]/u;
     const unsafeDraftField=fields.some(field=>unsafeAttributedText.test(field.value));
     if(unsafeDraftField){
      const warning=document.createElement('p');

@@ -140,6 +140,9 @@ function originalBpsInstantNanoseconds(value){
   // the complete current patient source. Missing/null is not attestation.
   // Historical revisions retain their documented notes, but are not current.
   review?.reviewed===true&&
+  // A reviewed patient DRAFT is only provisional, never an independently
+  // documented review of an attested final patient submission. Match React.
+  review.source_status==='submitted'&&
   (review.source_version===currentVersion?
    review.current_source_snapshot_verified===true:
    review.source_version<currentVersion&&review.current_source_snapshot_verified==null)&&

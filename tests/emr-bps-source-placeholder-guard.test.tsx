@@ -87,3 +87,37 @@ test('unmapped fictional reported fields remain an investigation warning and nev
  expect(screen.queryByRole('button',{name:/Save reviewed BPS history snapshot/i})).toBeNull();
  expect(countWrites()).toBe(0);
 });
+
+test.each([
+ ['allowed clinical answer hidden under a false reported flag','counseling_reason'],
+ ['insurance answer hidden under a false reported flag','insurance_member'],
+] as const)('clinician source rejects %s even when section answer counts are forged to agree',async(_case,key)=>{
+ const source=fixture();
+ const section=source.sections.find(section=>section.fields.some(field=>field.key===key));
+ if(!section)throw Error('Fictional source fixture missing '+key);
+ tamper(source,key,field=>{
+  field.reported=false;
+  field.sourceOnly=false;
+  field.value='PRIVATE_FICTIONAL_CONCEALED_PATIENT_RESPONSE';
+ });
+ section.answered-=1; // Attack also falsifies the aggregate count to match its flags.
+ const countWrites=serve(source);
+ render(<PatientBpsIntakeReview patientId={patient}/>);
+ const alert=await screen.findByRole('alert');
+ expect(alert.textContent).toContain('21-section intake mapping is malformed');
+ expect(document.body.textContent).not.toContain('PRIVATE_FICTIONAL_CONCEALED_PATIENT_RESPONSE');
+ expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
+ expect(countWrites()).toBe(0);
+});
+
+test('clinician source rejects a declared patient response lacking an explicit protected-source routing receipt',async()=>{
+ const source=fixture();
+ tamper(source,'counseling_reason',field=>{delete field.sourceOnly;});
+ const countWrites=serve(source);
+ render(<PatientBpsIntakeReview patientId={patient}/>);
+ const alert=await screen.findByRole('alert');
+ expect(alert.textContent).toContain('21-section intake mapping is malformed');
+ expect(document.body.textContent).not.toContain('SAFE_FICTIONAL_PRESENTING_CONCERN');
+ expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
+ expect(countWrites()).toBe(0);
+});

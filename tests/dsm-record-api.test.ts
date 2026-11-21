@@ -115,3 +115,67 @@ test('DSM save receipt: malformed pre-save chart binding stops before RPC',async
  expect(rpc).not.toHaveBeenCalled();
  expect(from).toHaveBeenCalledTimes(1);
 });
+
+/** Fictional protected readbacks: database filters are not ownership receipts. */
+async function dsmReadFixture(
+ snapshotOverride:Record<string,unknown>={},
+ historyOverride:Record<string,unknown>={},
+ extraHistory:Record<string,unknown>[]=[]
+){
+ const {buildDsmSnapshot}=await import('@/lib/emr/dsm-snapshot');
+ const generated=buildDsmSnapshot({});
+ const versionId='00000000-0000-0000-0000-000000000006';
+ const historyRow={id:versionId,record_id:record,owner_id:owner,revision:1,
+  created_at:'2026-11-21T18:00:00Z',content_hash:generated.contentHash,...historyOverride};
+ const snapshot={record_id:record,owner_id:owner,revision:1,state:generated.state,
+  report:generated.report,provenance:generated.provenance,content_hash:generated.contentHash,...snapshotOverride};
+ const from=vi.fn()
+  .mockReturnValueOnce(table([{id:record,patient_id:patient,owner_id:owner,label:'Fictional DSM assessment',
+   revision:1,created_at:'2026-11-21T17:00:00Z',updated_at:'2026-11-21T18:00:00Z'}]))
+  .mockReturnValueOnce(table({id:patient,demographics:{first_name:'Fictional',last_name:'Patient',dob:'1980-01-01'},profiles:null}))
+  .mockReturnValueOnce(table([historyRow,...extraHistory]))
+  .mockReturnValueOnce(table(snapshot));
+ auth.value={user:{id:owner},supabase:{from}};
+ return {from};
+}
+
+test('DSM historical GET returns exact-chart verified snapshot without disclosing ownership receipts',async()=>{
+ const {from}=await dsmReadFixture();
+ const response=await GET(new Request('https://clinic.test/api/emr/dsm-records?id='+record));
+ expect(response.status).toBe(200);
+ const body=await response.json();
+ expect(body.record.id).toBe(record);
+ expect(body.snapshot.revision).toBe(1);
+ expect(body.history).toHaveLength(1);
+ expect(body.snapshot.owner_id).toBeUndefined();
+ expect(body.snapshot.record_id).toBeUndefined();
+ expect(body.history[0].owner_id).toBeUndefined();
+ expect(body.history[0].record_id).toBeUndefined();
+ expect(from).toHaveBeenCalledTimes(4);
+});
+
+test.each([
+ ['different assessment record',{record_id:'00000000-0000-0000-0000-000000000007'},{}],
+ ['different clinician',{owner_id:'00000000-0000-0000-0000-000000000008'},{}],
+ ['unverifiable owner',{owner_id:undefined},{}],
+ ['contradictory revision',{revision:2},{}],
+ ['foreign history record',{}, {record_id:'00000000-0000-0000-0000-000000000007'}],
+ ['foreign history owner',{}, {owner_id:'00000000-0000-0000-0000-000000000008'}],
+ ['malformed history identity',{}, {id:'invalid'}],
+] as const)('DSM historical GET rejects %s even when a filtered database query succeeds',async(_name,snapshotOverride,historyOverride)=>{
+ await dsmReadFixture(snapshotOverride,historyOverride);
+ const response=await GET(new Request('https://clinic.test/api/emr/dsm-records?id='+record));
+ expect(response.status).toBe(409);
+ const body=await response.json();
+ expect(body.snapshot).toBeUndefined();
+ expect(body.history).toBeUndefined();
+ expect(JSON.stringify(body)).not.toContain('Fictional DSM assessment');
+});
+
+test('DSM historical GET refuses a duplicate or out-of-order version history',async()=>{
+ await dsmReadFixture({}, {},[{id:'00000000-0000-0000-0000-000000000009',
+  record_id:record,owner_id:owner,revision:1,created_at:'2026-11-21T17:00:00Z',content_hash:'fictional'}]);
+ const response=await GET(new Request('https://clinic.test/api/emr/dsm-records?id='+record));
+ expect(response.status).toBe(409);
+ expect((await response.json()).history).toBeUndefined();
+});

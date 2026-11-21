@@ -68,20 +68,20 @@ test.each([
 
 
 test.each([
- ['edited reported answers at the identical timestamp', (source:typeof intake)=>({
-  ...source,answers:{...source.answers,medication_allergy_notes:'CHANGED_PRIVATE_ALLERGY'}
- })],
- ['new source revision at the identical timestamp', (source:typeof intake)=>({
-  ...source,version:3
- })],
- ['changed submission state', (source:typeof intake)=>({
-  ...source,status:'draft',submitted_at:null
- })],
- ['removed intake linkage', (_source:typeof intake)=>null],
-] as const)('background source refresh unmounts confidential reconciliation drafts for %s',async(_reason,change)=>{
+ 'edited reported answers at the identical timestamp',
+ 'new source revision at the identical timestamp',
+ 'changed submission state',
+ 'removed intake linkage'
+] as const)('background source refresh unmounts confidential reconciliation drafts for %s',async(reason)=>{
  let detailReads=0,writes=0;
  const initial={...intake,version:2,submitted_at:'2026-11-20T16:00:00Z'};
- const changed=change(initial);
+ const changed=reason==='edited reported answers at the identical timestamp'
+  ?{...initial,answers:{...initial.answers,medication_allergy_notes:'CHANGED_PRIVATE_ALLERGY'}}
+  :reason==='new source revision at the identical timestamp'
+   ?{...initial,version:3}
+   :reason==='changed submission state'
+    ?{...initial,status:'draft',submitted_at:null}
+    :null;
  vi.stubGlobal('fetch',vi.fn(async (url:string,init?:RequestInit)=>{
   if((init?.method==='POST'||init?.method==='PATCH')&&
     (url==='/api/emr/patients'||url==='/api/emr/bps-intake'))writes++;

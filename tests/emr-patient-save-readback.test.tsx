@@ -164,3 +164,71 @@ test('an interrupted new-patient POST locks a second creation until directory ve
  fireEvent.click(save);
  expect(posts).toBe(1);
 });
+
+
+test('an uncertain existing patient write stays locked if a DIFFERENT chart is reopened',async()=>{
+ const other=patient(2,wrongChart);
+ let posts=0;
+ vi.stubGlobal('fetch',vi.fn(async(url:string,init?:RequestInit)=>{
+  if(url==='/api/emr/patients'&&init?.method==='POST'){
+   posts++;
+   return Response.json({error:'Fictional uncertain database receipt'},{status:503});
+  }
+  if(url==='/api/emr/patients')return Response.json({patients:[patient(2),other]});
+  if(url.startsWith('/api/emr/patients?id=')){
+   return Response.json({patients:[url.endsWith(wrongChart)?other:patient(2)],intake:null});
+  }
+  if(url.startsWith('/api/emr/dsm-records?'))return Response.json({records:[]});
+  if(url.startsWith('/api/emr/bps-intake'))return Response.json({error:'No fictional intake'},{status:404});
+  if(url==='/api/emr/workflow')return Response.json({value:{records:[]},revision:1});
+  return Response.json({records:[]});
+ }));
+ render(<PatientRepository/>);
+ const buttons=await screen.findAllByRole('button',{name:/Fictional Patient.*Linked patient account/i});
+ expect(buttons).toHaveLength(2);
+ fireEvent.click(buttons[0]);
+ await waitFor(()=>expect(document.body.textContent).toContain('Central patient ID: '+chart));
+ const save=screen.getByRole('button',{name:'Save central demographics'}) as HTMLButtonElement;
+ fireEvent.change(screen.getByLabelText('City'),{target:{value:'Fictional changed city'}});
+ fireEvent.click(save);
+ await screen.findByText(/Save may have committed; DO NOT blindly resubmit/);
+ expect(save.disabled).toBe(true);
+ fireEvent.click(buttons[1]);
+ await waitFor(()=>expect(document.body.textContent).toContain('Central patient ID: '+wrongChart));
+ expect(save.disabled).toBe(true);
+ expect(document.body.textContent).toContain('Opening a different patient chart does not clear the interlock');
+ // Only the verified, originally affected chart can clear the uncertain write.
+ fireEvent.click(buttons[0]);
+ await waitFor(()=>expect(document.body.textContent).toContain('Central patient ID: '+chart));
+ await waitFor(()=>expect(save.disabled).toBe(false));
+ expect(posts).toBe(1);
+});
+
+test('two direct form submit events cannot transmit two patient writes before React renders busy state',async()=>{
+ let posts=0;
+ let resolvePost:((response:Response)=>void)|undefined;
+ vi.stubGlobal('fetch',vi.fn(async(url:string,init?:RequestInit)=>{
+  if(url==='/api/emr/patients'&&init?.method==='POST'){
+   posts++;
+   return new Promise<Response>(resolve=>{resolvePost=resolve;});
+  }
+  if(url==='/api/emr/patients')return Response.json({patients:[patient(2)]});
+  if(url==='/api/emr/patients?id='+chart)return Response.json({patients:[patient(2)],intake:null});
+  if(url.startsWith('/api/emr/dsm-records?'))return Response.json({records:[]});
+  if(url.startsWith('/api/emr/bps-intake'))return Response.json({error:'No fictional intake'},{status:404});
+  if(url==='/api/emr/workflow')return Response.json({value:{records:[]},revision:1});
+  return Response.json({records:[]});
+ }));
+ render(<PatientRepository/>);
+ fireEvent.click(await screen.findByRole('button',{name:/Fictional Patient.*Linked patient account/i}));
+ await screen.findByText(/Central patient ID:/);
+ const form=screen.getByRole('button',{name:'Save central demographics'}).closest('form');
+ expect(form).not.toBeNull();
+ fireEvent.submit(form!);
+ fireEvent.submit(form!);
+ expect(posts).toBe(1);
+ expect(resolvePost).toBeTypeOf('function');
+ resolvePost?.(Response.json({error:'Fictional uncertain receipt'},{status:503}));
+ await screen.findByText(/Save may have committed; DO NOT blindly resubmit/);
+ expect(posts).toBe(1);
+});

@@ -38,6 +38,11 @@ export default function PatientRepository(){const [emailEditing,setEmailEditing]
   // Snapshot the verified chart receipt before entering asynchronous refresh.
   // A React state narrowing does not persist across the nested async function.
   const openedAccountId=selected.account_id,openedRevision=selected.revision;
+  // Freeze the entire verified source receipt when this chart is opened.
+  // Reconciliation children hold clinician drafts keyed by patient ID; simply
+  // changing their intake props can leave an old draft mounted under a newer
+  // same-patient source. Close the chart rather than silently rebasing it.
+  const openedIntakeReceipt=JSON.stringify(intake??null);
   const generation=requestGeneration.current;
   let active=true,pending=false;
   async function refreshIntake(){
@@ -63,10 +68,11 @@ export default function PatientRepository(){const [emailEditing,setEmailEditing]
        current?.directory_deleted_at!=null)
      throw Error('Central chart identity, revision or linked account changed; reopen the protected chart.');
     // Submission timestamps alone are not a change token. A same-timestamp
-    // correction to answers, status, packet version or source revision must
-    // invalidate the earlier patient-reported display and reconciliation input.
-    setIntake(previous=>JSON.stringify(previous)===JSON.stringify(value.intake??null)
-     ?previous:value.intake??null);
+    // edit to answers, status, source version or questionnaire packet must
+    // invalidate the old source AND every open reconciliation draft. These
+    // child forms have persistent local state, so updating props is unsafe.
+    if(JSON.stringify(value.intake??null)!==openedIntakeReceipt)
+     throw Error('Linked intake source changed; reopen the protected chart.');
    }catch{
     if(active&&generation===requestGeneration.current){
      // A failed authenticated read or a changed account/revision invalidates

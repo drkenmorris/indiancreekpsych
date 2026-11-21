@@ -7,7 +7,7 @@ create function private.current_user_is_admin() returns boolean language sql sta
 create function private.patient_secure_session() returns boolean language sql stable as $$select current_setting('test.aal')='aal2'$$;
 grant usage on schema public,auth,private to authenticated;`);
 for(const [i,id] of ids.entries())await db.query('insert into profiles values($1,$2)',[id,i===2?'patient':'admin']);
-await db.exec(readFileSync('supabase/migrations/20261117204947_emr_account_settings.sql','utf8'));
+await db.exec(readFileSync('supabase/migrations/20261117205945_emr_account_settings.sql','utf8'));
 const settings={preferences:{density:'compact',large_text:true,contrast:true},defaults:{note_template:'SOAP',country:'Fictional country',modality:'Group'},shortcuts:['personal','plan'],custom_fields:[{id:'custom_00000000-0000-4000-8000-000000000009',label:'Fictional date',type:'date'}]};
 async function as(id,aal='aal2'){await db.exec('reset role');await db.query("select set_config('test.user',$1,false),set_config('test.aal',$2,false)",[id,aal]);await db.exec('set role authenticated');}
 await test('all account settings persist and revision checks reject stale writes',async()=>{await as(ids[0]);await db.query('insert into emr_account_settings(account_id,revision,settings) values($1,1,$2)',[ids[0],settings]);assert.deepEqual((await db.query('select settings from emr_account_settings')).rows[0].settings,settings);await db.query('update emr_account_settings set settings=$1,revision=2',[{...settings,shortcuts:[]}]);await assert.rejects(db.exec('update emr_account_settings set revision=2'),/revision conflict/);});

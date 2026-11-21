@@ -1,6 +1,6 @@
 import {afterEach,beforeEach,expect,test,vi} from 'vitest';
-const mocks=vi.hoisted(()=>({getUser:vi.fn(),getClaims:vi.fn(),single:vi.fn(),insert:vi.fn(),from:vi.fn(),read:vi.fn(),delivery:vi.fn()}));
-vi.mock('@/lib/supabase/server',()=>({createClient:async()=>({auth:{getUser:mocks.getUser,getClaims:mocks.getClaims},from:mocks.from})}));
+const mocks=vi.hoisted(()=>({getUser:vi.fn(),getClaims:vi.fn(),single:vi.fn(),mfa:vi.fn(),insert:vi.fn(),from:vi.fn(),read:vi.fn(),delivery:vi.fn()}));
+vi.mock('@/lib/supabase/server',()=>({createClient:async()=>({auth:{getUser:mocks.getUser,getClaims:mocks.getClaims,mfa:{getAuthenticatorAssuranceLevel:mocks.mfa}},from:mocks.from})}));
 vi.mock('next/server',async original=>({...await original<any>(),after:(fn:()=>Promise<unknown>)=>{void fn();}}));
 import {POST} from '../app/api/scheduling/office-hours/route';
 import {POST as CHECK} from '../app/api/scheduling/office-hours/protection-check/route';
@@ -10,13 +10,20 @@ beforeEach(()=>{
  vi.stubEnv('OMNICORE_OFFICE_HOURS_FIREWALL_ENABLED','false');
  mocks.getClaims.mockResolvedValue({data:{claims:{sub:'admin',exp:Math.floor(Date.now()/1000)+60}},error:null});
  mocks.delivery.mockResolvedValue(new Response('{}',{status:202}));vi.stubGlobal('fetch',mocks.delivery);
- vi.clearAllMocks();mocks.getUser.mockResolvedValue({data:{user:{id:'admin'}},error:null});mocks.single.mockResolvedValue({data:{account_type:'admin'},error:null});
+ vi.clearAllMocks();mocks.mfa.mockResolvedValue({data:{currentLevel:'aal2'},error:null});mocks.getUser.mockResolvedValue({data:{user:{id:'admin'}},error:null});mocks.single.mockResolvedValue({data:{account_type:'admin'},error:null});
  mocks.insert.mockReturnValue({abortSignal:async()=>({error:null})});
  mocks.read.mockResolvedValue({data:[{id:'sat',weekday:6,start_time:'09:00:00',end_time:'17:00:00',enabled:true}],error:null});
  mocks.from.mockImplementation((table:string)=>table==='profiles'?{select:()=>({eq:()=>({single:mocks.single})})}:{insert:mocks.insert,select:()=>({order:()=>({order:()=>({abortSignal:mocks.read})})})});
 });
 afterEach(()=>{vi.unstubAllEnvs();vi.unstubAllGlobals();});
 test('Saturday hours save and return the refreshed list',async()=>{const r=await POST(request({weekday:6,start_time:'09:00',end_time:'17:00'}));expect(r.status).toBe(200);expect(mocks.insert).toHaveBeenCalledWith({weekday:6,start_time:'09:00',end_time:'17:00',anchor_time:null});expect((await r.json()).rules[0].weekday).toBe(6);});
+test('administrator without completed MFA cannot change office hours',async()=>{
+ mocks.mfa.mockResolvedValueOnce({data:{currentLevel:'aal1'},error:null});
+ const denied=await POST(request({weekday:6,start_time:'09:00',end_time:'17:00'}));
+ expect(denied.status).toBe(403);
+ expect((await denied.json()).error).toContain('MFA');
+ expect(mocks.insert).not.toHaveBeenCalled();
+});
 test('end before start is rejected without a write',async()=>{const r=await POST(request({weekday:6,start_time:'17:00',end_time:'09:00'}));expect(r.status).toBe(400);expect(mocks.insert).not.toHaveBeenCalled();});
 test('signed-out, non-admin, and cross-origin requests cannot save',async()=>{
  expect((await POST(request({},'https://other.test'))).status).toBe(403);

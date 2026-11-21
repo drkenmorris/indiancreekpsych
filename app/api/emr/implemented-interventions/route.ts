@@ -3,24 +3,31 @@ import {emrAccess,privateHeaders,sameOrigin} from '@/lib/emr/access';
 import {uuid} from '@/lib/emr/demographics';
 import {validImplementedInput} from '@/lib/emr/implemented-interventions';
 export const dynamic='force-dynamic';
-const columns='id,plan_version_id,library_revision,session_date,selection_ids,snapshot,created_at';
+const columns='id,patient_id,owner_id,plan_version_id,library_revision,session_date,selection_ids,snapshot,created_at';
 const reply=(body:unknown,status=200)=>NextResponse.json(body,{status,headers:privateHeaders});
 export async function GET(request:Request){
  const ctx=await emrAccess();if(!ctx)return reply({error:'Clinic sign-in and MFA required.'},403);
  const patientId=new URL(request.url).searchParams.get('patient');if(!uuid(patientId))return reply({error:'Select a patient.'},400);
  const [person,plans,library,history]=await Promise.all([
-  ctx.supabase.from('clinical_patients').select('id,demographics').eq('id',patientId).is('directory_deleted_at',null).maybeSingle(),
-  ctx.supabase.from('emr_treatment_plans').select('id').eq('patient_id',patientId).eq('owner_id',ctx.user.id).order('updated_at',{ascending:false}).limit(1),
+  ctx.supabase.from('clinical_patients').select('id,demographics,directory_deleted_at').eq('id',patientId).is('directory_deleted_at',null).maybeSingle(),
+  ctx.supabase.from('emr_treatment_plans').select('id,patient_id,owner_id').eq('patient_id',patientId).eq('owner_id',ctx.user.id).order('updated_at',{ascending:false}).limit(1),
   ctx.supabase.from('emr_treatment_library').select('revision').eq('id','clinic').single(),
   ctx.supabase.from('emr_implemented_intervention_entries').select(columns).eq('patient_id',patientId).eq('owner_id',ctx.user.id).order('session_date',{ascending:false}).order('created_at',{ascending:false}).limit(50),
  ]);
- if(person.error||!person.data||person.data.demographics?.active===false)return reply({error:'Patient unavailable.'},404);
+ if(person.error||!person.data||person.data.id!==patientId||person.data.directory_deleted_at!==null||person.data.demographics?.active===false)return reply({error:'Patient unavailable.'},404);
  if(plans.error||library.error||history.error)return reply({error:'Saved plan, intervention choices or session history could not be loaded.'},503);
+ // Query filters and RLS are necessary but are not independent proof that an
+ // asynchronous clinical response belongs to this chart and signed-in owner.
+ if((plans.data??[]).some(plan=>plan.patient_id!==patientId||plan.owner_id!==ctx.user.id)||
+   (history.data??[]).some(entry=>entry.patient_id!==patientId||entry.owner_id!==ctx.user.id))
+  return reply({error:'Patient-specific clinical source could not be verified.'},403);
  const [choices,version]=await Promise.all([
   ctx.supabase.from('emr_treatment_library_versions').select('nodes').eq('revision',library.data.revision).single(),
   plans.data?.length?ctx.supabase.from('emr_treatment_plan_versions').select('id,plan_id,revision,snapshot,created_at').eq('plan_id',plans.data[0].id).order('revision',{ascending:false}).limit(1):Promise.resolve({data:[],error:null}),
  ]);
  if(choices.error||version.error)return reply({error:'Saved plan or intervention library version is unavailable.'},503);
+ if((version.data??[]).some(row=>!plans.data?.length||row.plan_id!==plans.data[0].id))
+  return reply({error:'Saved plan version did not match the selected patient.'},403);
  return reply({patient:{id:patientId,name:[person.data.demographics?.first_name,person.data.demographics?.last_name].filter(Boolean).join(' ')},versions:version.data??[],nodes:choices.data.nodes,libraryRevision:library.data.revision,entries:history.data??[]});
 }
 export async function POST(request:Request){

@@ -18,6 +18,13 @@ export default async function AppointmentsPage() {
 
   const accountType = (profile?.account_type ?? "guest") as "guest" | "patient" | "admin";
 
+  // The scheduler is an administrative clinical operation. Even a valid admin
+  // login must complete TOTP before calendars, booked patients or writes load.
+  if(accountType==='admin'){
+    const {data:aal,error:aalError}=await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    if(aalError||aal?.currentLevel!=='aal2')redirect('/account/security?next=/appointments');
+  }
+
   if(accountType==='patient'){
     const {data:ready,error:securityError}=await supabase.rpc('patient_security_ready');
     if(securityError||!ready)redirect('/account/security?next=/appointments');

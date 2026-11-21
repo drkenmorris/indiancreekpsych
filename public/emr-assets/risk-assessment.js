@@ -17,15 +17,21 @@ function bindRiskAssessment(panel,id){
    const response=await fetch('/api/emr/risk-assessment?patient='+encodeURIComponent(id),{cache:'no-store',credentials:'same-origin'});
    const data=await response.json();
    if(!current()||edited)return;
-   if(!response.ok||data.patientId!==id||data.fields?.length!==7)throw Error(data.error||'Risk assessment unavailable.');
+   if(!response.ok)throw Error(data.error||'Risk assessment unavailable.');
+   if(data.patientId!==id)throw Error('Risk assessment source did not match the selected patient chart.');
+   if(data.fields?.length!==7)throw Error('Risk assessment source questions are incomplete.');
    const snapshot=JSON.stringify(data);
    if(snapshot===sourceSnapshot)return;
    sourceSnapshot=snapshot;
    draw(data);
-  }catch(error){if(current()&&!edited){sourceSnapshot='';panel.textContent=error.message;}}
+  }catch(error){if(current()&&!edited){
+   sourceSnapshot='';panel.setAttribute('role','alert');
+   panel.textContent=error instanceof Error?error.message:'Risk assessment source unavailable.';
+  }}
   finally{pending=false;}
  }
  function draw(data){
+  panel.removeAttribute('role');
   const saved=latestSection('risk_assessment')?.fields??{};
   const form=document.createElement('form');
   const clinician={...saved};
@@ -44,7 +50,7 @@ function bindRiskAssessment(panel,id){
    legend.textContent=field.label;
    group.append(legend);
    const original=document.createElement('p');
-   original.textContent='Patient report: '+(field.value||'No answer recorded');
+   original.textContent='Original patient response: '+(field.value||'No answer recorded');
    group.append(original);
    const value=saved[field.key]??field.value;
    const edit=next=>{clinician[field.key]=next;edited=true;dirty=true;};

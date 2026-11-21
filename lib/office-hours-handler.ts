@@ -14,6 +14,8 @@ async function saveOfficeHours(request: Request) {
     if (authError || !auth.user) return NextResponse.json({ error: "Please sign in again before saving hours." }, { status: 401 });
     const { data: profile, error: profileError } = await supabase.from("profiles").select("account_type").eq("id", auth.user.id).single();
     if (profileError || profile?.account_type !== "admin") return NextResponse.json({ error: "Administrator access required." }, { status: 403 });
+    const {data:aal,error:aalError}=await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    if(aalError||aal?.currentLevel!=="aal2")return NextResponse.json({error:"Administrator MFA verification required."},{status:403});
     const rule = await request.json();
     const time = /^([01]\d|2[0-3]):[0-5]\d$/;
     if ((rule.id && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rule.id)) || !Number.isInteger(rule.weekday) || rule.weekday < 0 || rule.weekday > 6 ||

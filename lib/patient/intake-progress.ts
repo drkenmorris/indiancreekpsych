@@ -20,6 +20,9 @@ export function requiredIntakePage(page:number,routing:string){
  return !!form&&(answers?.[form.id]==='Yes'||(page===17&&answers?.minor==='Yes'));
 }
 export function narrativeMayBeSkipped(key:string,answers:IntakeAnswers){
+ // Presenting concerns and treatment goals are mandatory clinical narratives.
+ // A Not Applicable checkbox must not satisfy either required answer.
+ if(key==='counseling_reason'||key==='counseling_goals')return false;
  if(key==='medication_allergy_notes')return answers.medication_allergy_status!=='Medication allergies reported';
  if(key==='violence_risk_details')return !['suicidal_thoughts_current','suicidal_plan_current','homicidal_thoughts_current','abuse_neglect_current','weapons_access'].some(field=>answers[field]==='Yes');
  if(key==='representative_authority')return answers.representative_signer!=='Parent/guardian/authorized representative';

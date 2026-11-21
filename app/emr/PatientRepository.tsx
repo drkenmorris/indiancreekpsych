@@ -1,7 +1,7 @@
 'use client';
 import {useCallback,useEffect,useRef,useState} from 'react';import Link from 'next/link';import './central-emr.css';
 import {demographicFields} from '@/lib/emr/demographics';
-import {intakeContactPrefill} from '@/lib/emr/intake-contact-prefill';
+import {intakeContactPrefill,visibleIntakeContactEntries} from '@/lib/emr/intake-contact-prefill';
 import IntakeMedications from '@/app/components/IntakeMedications';
 import IntakeTreatmentHistory from '@/app/components/IntakeTreatmentHistory';
 import IntakeMedicalSubstance from '@/app/components/IntakeMedicalSubstance';
@@ -23,14 +23,21 @@ const displayCode=(p:Patient)=>p.demographics.first_name&&p.demographics.last_na
 const label=(key:string)=>({dob:'Birth date',address1:'Street address 1',address2:'Street address 2',postal_code:'Postal code'}[key]??key.replaceAll('_',' ').replace(/^./,s=>s.toUpperCase()));
 const clinicianReviewAnchors=new Set(['emr-intake-medication-review','emr-intake-allergy-review',
  'emr-intake-medical-review','emr-intake-trauma-review','emr-intake-treatment-history-review']);
-export default function PatientRepository(){const [emailEditing,setEmailEditing]=useState(false);
+export default function PatientRepository(){const [emailEditing,setEmailEditing]=useState(false);const [unverifiedSave,setUnverifiedSave]=useState(false);
  const [patients,setPatients]=useState<Patient[]>([]),[selected,setSelected]=useState<Patient|null>(null),[draft,setDraft]=useState<Record<string,string>>({}),[filter,setFilter]=useState(''),[records,setRecords]=useState<RecordRow[]>([]),[message,setMessage]=useState(''),[busy,setBusy]=useState(false),[recordLabel,setRecordLabel]=useState('DSM assessment'),[intake,setIntake]=useState<{status:string;updated_at:string;answers?:Record<string,string>}|null>(null);
  const requestGeneration=useRef(0);
  const load=useCallback(async()=>{const r=await fetch('/api/emr/patients',{cache:'no-store'}),data=await r.json();if(!r.ok)throw Error(data.error);setPatients(data.patients);return data.patients as Patient[];},[]);useEffect(()=>{load().then(rows=>{const id=new URLSearchParams(window.location.search).get('patient');const p=rows.find(p=>p.id===id);if(p)void open(p);}).catch(e=>setMessage(e.message));},[load]);
- async function open(p:Patient){const generation=++requestGeneration.current;setBusy(true);setSelected(p);setEmailEditing(false);setDraft(p.demographics);setRecords([]);setIntake(null);setMessage('');try{const [r,i]=await Promise.all([fetch('/api/emr/dsm-records?patient='+p.id,{cache:'no-store'}),fetch('/api/emr/patients?id='+p.id,{cache:'no-store'})]);const rd=await r.json(),id=await i.json();if(!r.ok||!i.ok)throw Error(rd.error||id.error);if(generation!==requestGeneration.current)return;setSelected(id.patients[0]);setDraft(id.patients[0].demographics);setRecords(rd.records);setIntake(id.intake);}catch(e){if(generation===requestGeneration.current)setMessage(e instanceof Error?e.message:'Record unavailable.');}finally{if(generation===requestGeneration.current)setBusy(false);}}
+ async function open(p:Patient):Promise<boolean>{const generation=++requestGeneration.current;setBusy(true);
+  // Directory list data is not an authenticated per-chart readback. Do not
+  // mount confidential patient panels, reconciliation forms or edit controls
+  // until the exact chart, revision, linkage and records have been verified.
+  setSelected(null);setEmailEditing(false);setDraft({});setRecords([]);setIntake(null);setMessage('');try{const [r,i]=await Promise.all([fetch('/api/emr/dsm-records?patient='+p.id,{cache:'no-store'}),fetch('/api/emr/patients?id='+p.id,{cache:'no-store'})]);const rd=await r.json(),id=await i.json();if(!r.ok||!i.ok)throw Error(rd.error||id.error);if(!Array.isArray(id.patients)||id.patients.length!==1||id.patients[0]?.id!==p.id||id.patients[0]?.account_id!==p.account_id||!Number.isSafeInteger(id.patients[0]?.revision)||id.patients[0].revision!==p.revision||!id.patients[0]?.demographics||typeof id.patients[0].demographics!=='object'||Array.isArray(id.patients[0].demographics)||Object.entries(p.demographics).some(([key,value])=>id.patients[0].demographics[key]!==value)||!Array.isArray(rd.records))throw Error('Central chart readback identity or revision was not verified.');if(generation!==requestGeneration.current)return false;setSelected(id.patients[0]);setDraft(id.patients[0].demographics);setRecords(rd.records);setIntake(id.intake);setUnverifiedSave(false);return true;}catch(e){if(generation===requestGeneration.current)setMessage(e instanceof Error?e.message:'Record unavailable.');return false;}finally{if(generation===requestGeneration.current)setBusy(false);}}
  useEffect(()=>{
   if(!selected||busy)return;
   const id=selected.id;
+  // Snapshot the verified chart receipt before entering asynchronous refresh.
+  // A React state narrowing does not persist across the nested async function.
+  const openedAccountId=selected.account_id,openedRevision=selected.revision;
   const generation=requestGeneration.current;
   let active=true,pending=false;
   async function refreshIntake(){
@@ -39,13 +46,38 @@ export default function PatientRepository(){const [emailEditing,setEmailEditing]
    try{
     const response=await fetch('/api/emr/patients?id='+encodeURIComponent(id),{cache:'no-store'});
     if(!active||generation!==requestGeneration.current)return;
-    if(response.status===401||response.status===403){setIntake(null);return;}
-    if(!response.ok)return;
+    // A stale source is protected PHI, not a cache to keep showing after
+    // an authorization, identity, revision or source-provenance failure.
+    if(!response.ok)throw Error('Linked patient intake refresh was not verified.');
     const value=await response.json();
-    if(active&&generation===requestGeneration.current&&value.patients?.[0]?.id===id)
-     setIntake(previous=>previous?.updated_at===value.intake?.updated_at?previous:value.intake);
-   }catch{/* The next refresh retries transient failures. */}
-   finally{pending=false;}
+    if(!active||generation!==requestGeneration.current)return;
+    // This is a live, per-chart PHI boundary, not just a refresh of intake text.
+    // Another clinician can archive the chart, edit its revision, or relink it to
+    // a different website account while these protected clinical panels are open.
+    // A correct chart UUID alone must not keep the former patient's review,
+    // medication, trauma or legal panels mounted under changed provenance.
+    const current=value.patients?.[0];
+    if(value.patients?.length!==1||current?.id!==id||
+       current?.account_id!==openedAccountId||
+       current?.revision!==openedRevision||
+       current?.directory_deleted_at!=null)
+     throw Error('Central chart identity, revision or linked account changed; reopen the protected chart.');
+    // Submission timestamps alone are not a change token. A same-timestamp
+    // correction to answers, status, packet version or source revision must
+    // invalidate the earlier patient-reported display and reconciliation input.
+    setIntake(previous=>JSON.stringify(previous)===JSON.stringify(value.intake??null)
+     ?previous:value.intake??null);
+   }catch{
+    if(active&&generation===requestGeneration.current){
+     // A failed authenticated read or a changed account/revision invalidates
+     // the ENTIRE opened chart, not only the intake panel. Unmount every
+     // confidential chart child and discard editable drafts immediately.
+     requestGeneration.current++;
+     setSelected(null);setDraft({});setRecords([]);setEmailEditing(false);
+     setIntake(null);
+     setMessage('Central patient chart or linked intake could not be verified during refresh. All patient-specific clinical panels were closed; reopen the protected chart before continuing.');
+    }
+   }finally{pending=false;}
   }
   const timer=window.setInterval(refreshIntake,5000);
   window.addEventListener('focus',refreshIntake);
@@ -63,9 +95,19 @@ export default function PatientRepository(){const [emailEditing,setEmailEditing]
   document.getElementById(target)?.scrollIntoView?.({block:'start'});
  },[selected?.id,busy]);
  function prefillIntakeContact(){if(!selected||!intake?.answers)return;const result=intakeContactPrefill(draft,intake.answers);if(!result.fields.length){setMessage('No blank supported contact fields are available to fill.');return;}setDraft(result.draft);setMessage('Copied '+result.fields.length+' patient-reported contact field(s) into this UNSAVED draft. Review each field before selecting Save central demographics. Existing chart values were preserved.');}
- async function save(){setBusy(true);try{const r=await fetch('/api/emr/patients',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:selected?.id,expectedRevision:selected?.revision,demographics:draft})}),data=await r.json();if(!r.ok)throw Error(data.error);const rows=await load(),p=rows.find(p=>p.id===data.id);if(p)await open(p);setMessage('Central patient demographics saved.');}catch(e){setMessage(e instanceof Error?e.message:'Save was not confirmed.');}finally{setBusy(false);}}
+ async function save(){setBusy(true);const original=selected;let acknowledged=false;try{const r=await fetch('/api/emr/patients',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:original?.id,expectedRevision:original?.revision,demographics:draft})}),data=await r.json();if(!r.ok)throw Error(data.error);acknowledged=true;
+  // A successful write receipt is not independently verified chart persistence.
+  // Never claim success when the patient directory or chart readback is stale,
+  // missing, belongs to another chart, or silently fails during reopen.
+  if(typeof data.id!=='string'||(original&&data.id!==original.id))throw Error('Central demographics save receipt did not match the selected patient.');
+  const rows=await load(),p=rows.find(row=>row.id===data.id);
+  if(!p||!p.demographics||typeof p.demographics!=='object'||Array.isArray(p.demographics)||Object.entries(draft).some(([key,value])=>typeof value!=='string'||p.demographics[key]!==value.trim())||(original&&(!Number.isSafeInteger(p.revision)||p.revision<=original.revision||p.account_id!==original.account_id)))
+   throw Error('Central demographics save was acknowledged but the updated patient revision, account link and entered demographic fields could not be verified.');
+  if(!await open(p))throw Error('Central demographics save was acknowledged but the exact chart could not be reopened and verified.');
+  setMessage('Central patient demographics saved and independently reopened in the correct chart.');
+ }catch(e){if(acknowledged)setUnverifiedSave(true);setMessage((acknowledged?'Save may have committed; DO NOT blindly resubmit. Reopen and check this patient chart. ':'')+(e instanceof Error?e.message:'Save was not confirmed.'));}finally{setBusy(false);}}
  async function createAssessment(){if(!selected)return;setBusy(true);try{const r=await fetch('/api/emr/dsm-records',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'create',patientId:selected.id,label:recordLabel})}),data=await r.json();if(!r.ok)throw Error(data.error);window.location.assign('/clinical-tests/dev/level1?record='+data.record.id);}catch(e){setMessage(e instanceof Error?e.message:'Record creation failed.');setBusy(false);}}
- return <><header><p>Indian Creek Psychological Services</p><h1>EMR — Central patient records</h1><p>Website patient accounts and this EMR use the same patient repository and account security. Clinical assessments remain working records requiring clinician review.</p><nav><Link href="/emr/treatment-planners">Manage Treatment Planner</Link><Link href="/emr/groups">Group sessions and attendance</Link><Link href="/emr/descriptor-library">Manage shared Strengths / Challenges table</Link><Link href="/account">Account</Link><Link href="/clinical-tests">Assessment library</Link><Link href="/admin/intakes">Patient intake records</Link><Link href="/admin/assign-test">Assign assessments</Link></nav></header><p role="status">{message}</p><div className="centralGrid"><section className="centralCard"><h2>Find or add patient</h2><label>Search patient names<input value={filter} onChange={e=>setFilter(e.target.value)}/></label><button disabled={busy} onClick={()=>{requestGeneration.current++;setSelected(null);setEmailEditing(false);setDraft({});setRecords([]);setIntake(null);}}>Add patient</button><ul className="centralPatients">{patients.filter(p=>name(p).toLowerCase().includes(filter.toLowerCase())).sort((a,b)=>(a.demographics.last_name||name(a)).localeCompare(b.demographics.last_name||name(b))).map(p=><li key={p.id}><button disabled={busy} aria-pressed={p.id===selected?.id} onClick={()=>open(p)}>{name(p)}<br/><small>{p.account_id?'Linked patient account':'No patient account linked'}</small></button></li>)}</ul></section><section><article className="centralCard"><h2>{selected?name(selected):'New central patient record'}</h2>{selected&&<p>Patient display ID: {displayCode(selected)}<br/>Central patient ID: {selected.id}<br/>{selected.account_id?'Linked to the website patient account.':'Patient account not linked; no name/email matching is performed.'}</p>}<form autoComplete="off" onSubmit={e=>{e.preventDefault();save();}}><div className="centralFields">{demographicFields.map(key=><label key={key}>{label(key)}<input type={key==='dob'?'date':key==='email'?'email':'text'} autoComplete="off" readOnly={key==='email'&&!emailEditing} maxLength={300} required={key==='first_name'||key==='last_name'} value={draft[key]??''} onChange={e=>{if(key!=='email'||emailEditing)setDraft({...draft,[key]:e.target.value});}}/>{key==='email'&&!emailEditing&&<button type="button" onClick={()=>setEmailEditing(true)}>Edit patient email</button>}</label>)}</div><button disabled={busy}>Save central demographics</button></form></article>{selected&&<><article className="centralCard"><h2>Patient intake source</h2><p>{intake?`A ${intake.status} intake is stored against this patient's linked website account.`:'No linked intake is available.'}</p><p>Patient-reported source information is retained separately from clinician-reviewed demographics.</p>{intake?.answers&&<div><button type="button" disabled={busy||!intakeContactPrefill(draft,intake.answers).fields.length} onClick={prefillIntakeContact}>Fill blank contact fields in unsaved demographics form</button><p>Only blank address and email fields are eligible. This does not automatically save, overwrite an existing value, transfer names or birth dates, or assume a phone number is mobile or home. Check the source and every draft field before saving.</p></div>}{intake?.answers&&<dl>{Object.entries(intake.answers).filter(([key,value])=>value&&!['medication_entries','medical_substance_history','medication_allergy_status','medication_allergy_notes','treatment_history_entries'].includes(key)).map(([key,value])=><div key={key}><dt>{label(key)}</dt><dd>{value}</dd></div>)}</dl>}
+ return <><header><p>Indian Creek Psychological Services</p><h1>EMR — Central patient records</h1><p>Website patient accounts and this EMR use the same patient repository and account security. Clinical assessments remain working records requiring clinician review.</p><nav><Link href="/emr/treatment-planners">Manage Treatment Planner</Link><Link href="/emr/groups">Group sessions and attendance</Link><Link href="/emr/descriptor-library">Manage shared Strengths / Challenges table</Link><Link href="/account">Account</Link><Link href="/clinical-tests">Assessment library</Link><Link href="/admin/intakes">Patient intake records</Link><Link href="/admin/assign-test">Assign assessments</Link></nav></header><p role="status">{message}</p>{unverifiedSave&&<p role="alert">A demographics save may have committed. Another save is locked until a current patient chart has been successfully reopened and verified. Do not blindly resubmit an uncertain write.</p>}<div className="centralGrid"><section className="centralCard"><h2>Find or add patient</h2><label>Search patient names<input value={filter} onChange={e=>setFilter(e.target.value)}/></label><button disabled={busy} onClick={()=>{requestGeneration.current++;setSelected(null);setEmailEditing(false);setDraft({});setRecords([]);setIntake(null);}}>Add patient</button><ul className="centralPatients">{patients.filter(p=>name(p).toLowerCase().includes(filter.toLowerCase())).sort((a,b)=>(a.demographics.last_name||name(a)).localeCompare(b.demographics.last_name||name(b))).map(p=><li key={p.id}><button disabled={busy} aria-pressed={p.id===selected?.id} onClick={()=>open(p)}>{name(p)}<br/><small>{p.account_id?'Linked patient account':'No patient account linked'}</small></button></li>)}</ul></section><section><article className="centralCard"><h2>{selected?name(selected):'New central patient record'}</h2>{selected&&<p>Patient display ID: {displayCode(selected)}<br/>Central patient ID: {selected.id}<br/>{selected.account_id?'Linked to the website patient account.':'Patient account not linked; no name/email matching is performed.'}</p>}<form autoComplete="off" onSubmit={e=>{e.preventDefault();save();}}><div className="centralFields">{demographicFields.map(key=><label key={key}>{label(key)}<input type={key==='dob'?'date':key==='email'?'email':'text'} autoComplete="off" readOnly={key==='email'&&!emailEditing} maxLength={300} required={key==='first_name'||key==='last_name'} value={draft[key]??''} onChange={e=>{if(key!=='email'||emailEditing)setDraft({...draft,[key]:e.target.value});}}/>{key==='email'&&!emailEditing&&<button type="button" onClick={()=>setEmailEditing(true)}>Edit patient email</button>}</label>)}</div><button disabled={busy||unverifiedSave}>Save central demographics</button></form></article>{selected&&<><article className="centralCard"><h2>Patient intake source</h2><p>{intake?`A ${intake.status} intake is stored against this patient's linked website account.`:'No linked intake is available.'}</p><p>Patient-reported source information is retained separately from clinician-reviewed demographics.</p>{intake?.answers&&<div><button type="button" disabled={busy||!intakeContactPrefill(draft,intake.answers).fields.length} onClick={prefillIntakeContact}>Fill blank contact fields in unsaved demographics form</button><p>Only blank address and email fields are eligible. This does not automatically save, overwrite an existing value, transfer names or birth dates, or assume a phone number is mobile or home. Check the source and every draft field before saving.</p></div>}{intake?.answers&&<div><h3>Unverified patient-reported contact details</h3><dl>{visibleIntakeContactEntries(intake.answers).map(([key,value])=><div key={key}><dt>{label(key)}</dt><dd>{value}</dd></div>)}</dl></div>}
 {intake?.answers&&[MEDICATION_ENTRIES_KEY,MEDICAL_SUBSTANCE_KEY,'medication_allergy_status','medication_allergy_notes'].some(key=>intake.answers?.[key]?.trim())&&
  <details><summary>Patient-reported medication, allergy, and medical/substance history — read-only</summary>
  <p>This information comes from the linked website intake, including drafts. It has not been independently verified, reconciled with clinical chart records, or added to the clinical record. Review the source with the patient before any clinical use. Opening this section never saves or changes the EMR.</p>

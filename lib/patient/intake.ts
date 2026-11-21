@@ -197,6 +197,9 @@ export function validateIntake(answers:IntakeAnswers,submit:boolean){
   const value=answers[f[0]]??'';
   if(f[0]!==TRAUMA_CHECKLIST_KEY&&f[0]!==TREATMENT_HISTORY_KEY&&f[0]!==MEDICATION_ENTRIES_KEY&&f[0]!==MEDICAL_SUBSTANCE_KEY&&value.length>8000)return `${f[1]} is too long.`;
   if(submit&&f[3]&&!(f[0]===LEGAL_ROUTING_KEY&&answers.legal_packet_version!=='2026-11-02-directory-1')&&!value.trim())return `Please complete: ${f[1]}.`;
+  // Required clinical narratives may not be replaced with the new UI's
+  // 'Not applicable' marker, including when saved through the API directly.
+  if(submit&&f[2]==='textarea'&&f[3]&&value.trim().toLowerCase()==='not applicable')return `Please describe: ${f[1]}.`;
  }
  const routingError=validateLegalRouting(answers[LEGAL_ROUTING_KEY]??'',submit&&answers.legal_packet_version==='2026-11-02-directory-1');if(routingError)return routingError;
  const traumaError=validateTraumaHistory(answers[TRAUMA_CHECKLIST_KEY]??'');if(traumaError)return traumaError;
@@ -243,6 +246,8 @@ export function validateIntake(answers:IntakeAnswers,submit:boolean){
   for(const [k,label] of [['sud_notes_discloser','SUD counseling-notes discloser'],['sud_notes_recipient','SUD counseling-notes recipient'],['sud_notes_scope','SUD counseling-notes scope'],['sud_notes_purpose','SUD counseling-notes purpose'],['sud_notes_expiration','SUD counseling-notes expiration'],['sud_notes_revocation_ack','SUD counseling-notes revocation acknowledgment'],['sud_notes_signature','SUD counseling-notes signature'],['sud_notes_signature_date','SUD counseling-notes date']] as const)
    if(!answers[k]?.trim())return `Please complete the ${label}.`;
  }
- if(submit&&(answers.suicidal_plan_current==='Yes'||answers.homicidal_thoughts_current==='Yes')&&!answers.violence_risk_details?.trim())return 'Please describe the current safety concern so the clinician can review it.';
+ if(submit&&['suicidal_thoughts_current','suicidal_plan_current','homicidal_thoughts_current','abuse_neglect_current','weapons_access'].some(key=>answers[key]==='Yes')&&
+  (!answers.violence_risk_details?.trim()||answers.violence_risk_details.trim().toLowerCase()==='not applicable'))
+  return 'Please describe the current safety concern so the clinician can review it.';
  return null;
 }

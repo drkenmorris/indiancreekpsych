@@ -99,3 +99,82 @@ test('linked intake medication and medical history are available for read-only c
   expect(await screen.findByRole('button',{name:'Prepare review draft'})).toBeTruthy();
   expect(calls.every(call=>call.startsWith('GET ')||call==='POST /api/emr/workflow')).toBe(true);
 });
+
+
+test('rendered general directory contact summary does not mix trauma, insurance or legal source content', async () => {
+  const patient = {
+    id: '00000000-0000-0000-0000-000000000321',
+    account_id: '00000000-0000-0000-0000-000000000322',
+    revision: 1,
+    demographics: {first_name: 'Boundary',last_name: 'Patient'},
+    profiles: null,
+  };
+  vi.stubGlobal('fetch', vi.fn(async (url: string) => ({
+    ok: true,
+    json: async () => url === '/api/emr/patients'
+      ? {patients: [patient]}
+      : url.startsWith('/api/emr/dsm-records?')
+        ? {records: []}
+        : {patients: [patient],intake:{
+            status:'submitted',updated_at:'2026-11-09T00:00:00Z',
+            answers:{
+              address:'Fictional reviewed-source street',
+              email:'fictional@example.invalid',
+              trauma_history:'SECRET TRAUMA NARRATIVE',
+              legal_history:'SECRET LEGAL HISTORY',
+              insurance_member_id:'SECRET INSURANCE ID',
+              unknown_future_clinical_field:'SECRET NEW CLINICAL DATA',
+            },
+          }},
+  })));
+  render(<PatientRepository/>);
+  fireEvent.click(await screen.findByRole('button',{name:/Boundary Patient.*Linked patient account/i}));
+  const heading = await screen.findByText('Unverified patient-reported contact details');
+  const displayedContact = heading.nextElementSibling;
+  expect(displayedContact?.tagName).toBe('DL');
+  expect(displayedContact?.textContent).toContain('Fictional reviewed-source street');
+  expect(displayedContact?.textContent).toContain('fictional@example.invalid');
+  expect(displayedContact?.textContent).not.toContain('SECRET');
+  expect(displayedContact?.querySelectorAll('dt')).toHaveLength(2);
+});
+
+test('rendered directory blocks visually spoofed patient-contact statements without a clinical write', async () => {
+  const patient = {
+    id: '00000000-0000-0000-0000-000000000325',
+    account_id: '00000000-0000-0000-0000-000000000326',
+    revision: 1,
+    demographics: {first_name: 'Boundary', last_name: 'Example'},
+    profiles: null,
+  };
+  const requests: string[] = [];
+  vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+    requests.push((init?.method ?? 'GET') + ' ' + url);
+    return {
+      ok: true,
+      json: async () => url === '/api/emr/patients'
+        ? {patients: [patient]}
+        : url.startsWith('/api/emr/dsm-records?')
+          ? {records: []}
+          : {patients: [patient], intake: {
+              status: 'submitted', updated_at: '2026-11-09T00:00:00Z',
+              answers: {
+                full_name: 'Fictional Example',
+                address: '100 Fictional Street\nPRIVATE_TRAUMA_DETAIL',
+                phone: '555-0100\u202EPRIVATE_MEDICATION',
+                email: ' patient@example.invalid ',
+              },
+            }},
+    };
+  }));
+  render(<PatientRepository/>);
+  fireEvent.click(await screen.findByRole('button', {name: /Boundary Example.*Linked patient account/i}));
+  const heading = await screen.findByText('Unverified patient-reported contact details');
+  const contact = heading.nextElementSibling;
+  expect(contact?.textContent).toContain('Fictional Example');
+  expect(contact?.textContent).toContain('patient@example.invalid');
+  expect(contact?.textContent).not.toContain('PRIVATE');
+  expect(contact?.textContent).not.toContain('100 Fictional Street');
+  expect(contact?.textContent).not.toContain('555-0100');
+  expect(contact?.querySelectorAll('dt')).toHaveLength(2);
+  expect(requests.every(request => request.startsWith('GET '))).toBe(true);
+});

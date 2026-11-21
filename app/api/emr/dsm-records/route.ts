@@ -33,7 +33,25 @@ export async function GET(request:Request){const ctx=await emrAccess();if(!ctx)r
  return NextResponse.json({record,snapshot,history,compatible},{headers:privateHeaders});}
 export async function POST(request:Request){const ctx=await emrAccess();if(!ctx)return NextResponse.json({error:'Administrator sign-in and MFA required.'},{status:403,headers:privateHeaders});if(!sameOrigin(request))return NextResponse.json({error:'Same-origin request required.'},{status:403,headers:privateHeaders});let body;
  try{const text=await request.text();if(Buffer.byteLength(text)>8000000)throw Error('Request too large.');body=JSON.parse(text);}catch{return NextResponse.json({error:'Invalid record request.'},{status:400,headers:privateHeaders});}
- if(body.action==='create'){if(!uuid(body.patientId)||typeof body.label!=='string'||!body.label.trim()||body.label.length>140)return NextResponse.json({error:'Choose a central patient and a record label.'},{status:400,headers:privateHeaders});const {data,error}=await ctx.supabase.from('dsm_records').insert({patient_id:body.patientId,label:body.label.trim()}).select('id,patient_id,label,revision').single();if(error)return NextResponse.json({error:'Record creation was not confirmed.'},{status:409,headers:privateHeaders});return NextResponse.json({record:data},{status:201,headers:privateHeaders});}
+ if(body.action==='create'){
+  if(!uuid(body.patientId)||typeof body.label!=='string'||!body.label.trim()||body.label.length>140)
+   return NextResponse.json({error:'Choose a central patient and a record label.'},{status:400,headers:privateHeaders});
+  const label=body.label.trim();
+  const {data,error}=await ctx.supabase.from('dsm_records')
+   .insert({patient_id:body.patientId,label})
+   .select('id,patient_id,owner_id,label,revision').single();
+  // A successful insert HTTP response is not proof that the created DSM record
+  // belongs to the selected central chart and signed-in clinician. Verify the
+  // DB-owned receipt before reporting success; never expose the owner receipt.
+  // A mismatched/unavailable receipt is an uncertain write, not proof the insert
+  // was rolled back. Clinicians must reconcile the record list before retrying.
+  if(error||!data||!uuid(data.id)||!uuid(data.patient_id)||
+    data.patient_id.toLowerCase()!==body.patientId.toLowerCase()||
+    data.owner_id!==ctx.user.id||data.label!==label||data.revision!==0)
+   return NextResponse.json({error:'Record creation receipt could not be verified. Check the existing record list before retrying.'},{status:409,headers:privateHeaders});
+  const record={id:data.id,patient_id:data.patient_id,label:data.label,revision:data.revision};
+  return NextResponse.json({record},{status:201,headers:privateHeaders});
+ }
  if(body.action!=='save'||!uuid(body.id)||!Number.isInteger(body.expectedRevision)||body.expectedRevision<0)return NextResponse.json({error:'Invalid revision request.'},{status:400,headers:privateHeaders});
  let snapshot;try{snapshot=buildDsmSnapshot(body.state);}catch(e){return NextResponse.json({error:e instanceof Error?e.message:'Invalid assessment state.'},{status:400,headers:privateHeaders});}
  const {data:target,error:targetError}=await ctx.supabase.from('dsm_records').select('patient_id').eq('id',body.id).eq('owner_id',ctx.user.id).maybeSingle();

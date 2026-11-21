@@ -194,6 +194,9 @@ test('exactly matching clinician-reviewed BPS source version, status and timesta
   'section[aria-label="Clinician-reviewed BPS intake snapshot history"]')!;
  expect(history.textContent).not.toContain('current intake version has changed');
  expect(history.textContent).not.toContain('not yet been saved');
+ expect(dom.window.document.querySelector(
+  'section[aria-label="Patient intake context in original biopsychosocial workspace"]')?.textContent)
+  .toContain('1 independently documented unsigned clinician review(s).');
  dom.window.close();
 });
 
@@ -213,6 +216,13 @@ test('original seven-page BPS withholds current reviewed clearance for a documen
    'section[aria-label="Clinician-reviewed BPS intake snapshot history"]');
   await vi.waitFor(()=>expect(history()?.textContent).toContain('draft intake version 6'));
   expect(history()?.textContent).toContain('has not yet been reviewed');
+  // A provisional draft remains in history but must not inflate the original
+  // seven-page BPS documented-review count beyond the protected React count.
+  const panel=dom.window.document.querySelector(
+   'section[aria-label="Patient intake context in original biopsychosocial workspace"]')!;
+  expect(panel.textContent).toContain('0 independently documented unsigned clinician review(s).');
+  expect(history()?.textContent).toContain('Unverified review attestation for draft intake version 6');
+  expect(history()?.textContent).not.toContain('Documented unsigned review of draft');
   expect(history()?.textContent).not.toContain('The current intake version has been reviewed');
   expect(dom.window.document.querySelector('#clinical-form')).not.toBeNull();
  }finally{dom.window.close();}

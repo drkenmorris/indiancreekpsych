@@ -35,6 +35,9 @@ export default function PatientRepository(){const [emailEditing,setEmailEditing]
  useEffect(()=>{
   if(!selected||busy)return;
   const id=selected.id;
+  // Snapshot the verified chart receipt before entering asynchronous refresh.
+  // A React state narrowing does not persist across the nested async function.
+  const openedAccountId=selected.account_id,openedRevision=selected.revision;
   const generation=requestGeneration.current;
   let active=true,pending=false;
   async function refreshIntake(){
@@ -55,8 +58,8 @@ export default function PatientRepository(){const [emailEditing,setEmailEditing]
     // medication, trauma or legal panels mounted under changed provenance.
     const current=value.patients?.[0];
     if(value.patients?.length!==1||current?.id!==id||
-       current?.account_id!==selected.account_id||
-       current?.revision!==selected.revision||
+       current?.account_id!==openedAccountId||
+       current?.revision!==openedRevision||
        current?.directory_deleted_at!=null)
      throw Error('Central chart identity, revision or linked account changed; reopen the protected chart.');
     // Submission timestamps alone are not a change token. A same-timestamp

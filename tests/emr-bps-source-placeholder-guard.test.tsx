@@ -112,7 +112,7 @@ test.each([
 
 test('clinician source rejects a declared patient response lacking an explicit protected-source routing receipt',async()=>{
  const source=fixture();
- tamper(source,'counseling_reason',field=>{delete field.sourceOnly;});
+ tamper(source,'counseling_reason',field=>{Reflect.deleteProperty(field,'sourceOnly');});
  const countWrites=serve(source);
  render(<PatientBpsIntakeReview patientId={patient}/>);
  const alert=await screen.findByRole('alert');

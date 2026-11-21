@@ -39,3 +39,79 @@ test.each([
 });
 test('save derives the patient from the authorized record and maps stale revisions to409',async()=>{const target=table({patient_id:patient}),person=table({demographics:{},account_id:null}),rpc=vi.fn(async(..._args:unknown[])=>({data:null,error:{code:'40001'}})),from=vi.fn().mockReturnValueOnce(target).mockReturnValueOnce(person);auth.value={user:{id:owner},supabase:{from,rpc}};const response=await POST(request({action:'save',id:record,patientId:'forged-patient',expectedRevision:1,state:{}}));expect(response.status).toBe(409);expect(target.eq).toHaveBeenCalledWith('owner_id',owner);expect(person.eq).toHaveBeenCalledWith('id',patient);expect((rpc.mock.calls[0][1] as Record<string,unknown>).p_expected_revision).toBe(1);expect((rpc.mock.calls[0][1] as Record<string,unknown>).p_report).toHaveProperty('status','Tier 1 in progress');});
 test('a known child birthdate cannot receive an adult response report',async()=>{const target=table({patient_id:patient}),person=table({demographics:{dob:'2020-01-01'},account_id:null}),rpc=vi.fn(),from=vi.fn().mockReturnValueOnce(target).mockReturnValueOnce(person);auth.value={user:{id:owner},supabase:{from,rpc}};const answers:Answers=Object.fromEntries([...D.safety,...D.domains.flatMap(d=>d.questions)].map(q=>[q.id,'No']));const response=await POST(request({action:'save',id:record,expectedRevision:0,state:{[HANDOFF_KEY]:JSON.stringify(createHandoff(answers,true))}}));expect(response.status).toBe(409);expect(rpc).not.toHaveBeenCalled();});
+
+
+/** Fictional adapter receipts only. Passing these tests is not clinical browser acceptance. */
+test('DSM save receipt: only verified durable owner, patient, revision and content hash may announce success',async()=>{
+ const hash=(await import('@/lib/emr/dsm-snapshot')).buildDsmSnapshot({}).contentHash;
+ const from=vi.fn()
+  .mockReturnValueOnce(table({patient_id:patient}))
+  .mockReturnValueOnce(table({demographics:{},account_id:null}))
+  .mockReturnValueOnce(table({id:record,patient_id:patient,owner_id:owner,revision:1}))
+  .mockReturnValueOnce(table({record_id:record,owner_id:owner,revision:1,content_hash:hash}));
+ const rpc=vi.fn(async()=>({data:1,error:null}));
+ auth.value={user:{id:owner},supabase:{from,rpc}};
+ const response=await POST(request({action:'save',id:record,expectedRevision:0,state:{}}));
+ expect(response.status).toBe(200);
+ const body=await response.json();
+ expect(body.saved).toBe(true);
+ expect(body.revision).toBe(1);
+ expect(body.contentHash).toBe(hash);
+ expect(from).toHaveBeenCalledTimes(4);
+});
+
+test.each([
+ ['wrong patient', {patient_id:'00000000-0000-0000-0000-000000000004'},{}],
+ ['wrong clinician', {owner_id:'00000000-0000-0000-0000-000000000005'},{}],
+ ['wrong current revision', {revision:3},{}],
+ ['wrong version record', {},{record_id:'00000000-0000-0000-0000-000000000004'}],
+ ['wrong version owner', {},{owner_id:'00000000-0000-0000-0000-000000000005'}],
+ ['wrong version hash', {},{content_hash:'incorrect'}],
+ ['wrong version revision', {},{revision:2}],
+] as const)('DSM save receipt: %s cannot claim committed verified clinical state',async(_description,recordChange,versionChange)=>{
+ const hash=(await import('@/lib/emr/dsm-snapshot')).buildDsmSnapshot({}).contentHash;
+ const from=vi.fn()
+  .mockReturnValueOnce(table({patient_id:patient}))
+  .mockReturnValueOnce(table({demographics:{},account_id:null}))
+  .mockReturnValueOnce(table({...{id:record,patient_id:patient,owner_id:owner,revision:1},...recordChange}))
+  .mockReturnValueOnce(table({...{record_id:record,owner_id:owner,revision:1,content_hash:hash},...versionChange}));
+ auth.value={user:{id:owner},supabase:{from,rpc:vi.fn(async()=>({data:1,error:null}))}};
+ const response=await POST(request({action:'save',id:record,expectedRevision:0,state:{}}));
+ expect(response.status).toBe(503);
+ const body=await response.json();
+ expect(body.saved).toBeUndefined();
+ expect(body.code).toBe('save_unconfirmed');
+ expect(body.error).toMatch(/reopen the existing record/);
+});
+
+test('DSM save receipt: contradictory RPC revision cannot claim success or query chart history',async()=>{
+ const from=vi.fn()
+  .mockReturnValueOnce(table({patient_id:patient}))
+  .mockReturnValueOnce(table({demographics:{},account_id:null}));
+ auth.value={user:{id:owner},supabase:{from,rpc:vi.fn(async()=>({data:7,error:null}))}};
+ const response=await POST(request({action:'save',id:record,expectedRevision:0,state:{}}));
+ expect(response.status).toBe(503);
+ expect((await response.json()).saved).toBeUndefined();
+ expect(from).toHaveBeenCalledTimes(2);
+});
+
+test('DSM save receipt: network loss after an RPC attempt never implies rollback',async()=>{
+ const from=vi.fn()
+  .mockReturnValueOnce(table({patient_id:patient}))
+  .mockReturnValueOnce(table({demographics:{},account_id:null}));
+ auth.value={user:{id:owner},supabase:{from,rpc:vi.fn(async()=>{throw Error('fictional network interruption');})}};
+ const response=await POST(request({action:'save',id:record,expectedRevision:0,state:{}}));
+ expect(response.status).toBe(503);
+ expect((await response.json()).error).toMatch(/before retrying/);
+ expect(from).toHaveBeenCalledTimes(2);
+});
+
+test('DSM save receipt: malformed pre-save chart binding stops before RPC',async()=>{
+ const from=vi.fn().mockReturnValueOnce(table({patient_id:'wrong-chart'}));
+ const rpc=vi.fn();
+ auth.value={user:{id:owner},supabase:{from,rpc}};
+ const response=await POST(request({action:'save',id:record,expectedRevision:0,state:{}}));
+ expect(response.status).toBe(404);
+ expect(rpc).not.toHaveBeenCalled();
+ expect(from).toHaveBeenCalledTimes(1);
+});

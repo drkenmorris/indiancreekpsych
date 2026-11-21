@@ -185,7 +185,17 @@ export default function PatientBpsIntakeReview({patientId:requestedPatientId}:{p
      // empty or whitespace. Fail closed rather than inflating intake completeness.
      tagged.length===entry.fields.length&&
      tagged.filter(field=>field.reported===true).length===entry.answered&&
-     tagged.every(field=>field.reported!==true||field.value.trim().length>0);
+     tagged.every(field=>{
+      // A stale adapter cannot claim an absent patient response while carrying
+      // nonblank text, or omit/reverse the exact protected-source routing flag.
+      // Otherwise the reviewed 21-section count could conceal source content
+      // and later attest an incomplete clinical interpretation.
+      const protectedAnswer=field.reported===true&&
+       (entry.disposition!=='clinical'||protectedSourceTypes.has(field.type)||
+        !bpsVisibleSourceKeys.has(field.key));
+      return field.sourceOnly===protectedAnswer&&
+       (field.reported===true?field.value.trim().length>0:field.value.trim().length===0);
+     });
   });
   if(!validSections||!accurateReportedCounts||
    !value.unmappedKeys.every((key:unknown)=>typeof key==='string'))

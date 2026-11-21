@@ -48,8 +48,17 @@ export default function PatientRepository(){const [emailEditing,setEmailEditing]
     if(!response.ok)throw Error('Linked patient intake refresh was not verified.');
     const value=await response.json();
     if(!active||generation!==requestGeneration.current)return;
-    if(value.patients?.length!==1||value.patients[0]?.id!==id)
-     throw Error('Central chart identity could not be verified.');
+    // This is a live, per-chart PHI boundary, not just a refresh of intake text.
+    // Another clinician can archive the chart, edit its revision, or relink it to
+    // a different website account while these protected clinical panels are open.
+    // A correct chart UUID alone must not keep the former patient's review,
+    // medication, trauma or legal panels mounted under changed provenance.
+    const current=value.patients?.[0];
+    if(value.patients?.length!==1||current?.id!==id||
+       current?.account_id!==selected.account_id||
+       current?.revision!==selected.revision||
+       current?.directory_deleted_at!=null)
+     throw Error('Central chart identity, revision or linked account changed; reopen the protected chart.');
     // Submission timestamps alone are not a change token. A same-timestamp
     // correction to answers, status, packet version or source revision must
     // invalidate the earlier patient-reported display and reconciliation input.
@@ -57,8 +66,13 @@ export default function PatientRepository(){const [emailEditing,setEmailEditing]
      ?previous:value.intake??null);
    }catch{
     if(active&&generation===requestGeneration.current){
+     // A failed authenticated read or a changed account/revision invalidates
+     // the ENTIRE opened chart, not only the intake panel. Unmount every
+     // confidential chart child and discard editable drafts immediately.
+     requestGeneration.current++;
+     setSelected(null);setDraft({});setRecords([]);setEmailEditing(false);
      setIntake(null);
-     setMessage('Linked patient intake could not be verified during refresh. Patient-reported source information is withheld; reopen the protected chart.');
+     setMessage('Central patient chart or linked intake could not be verified during refresh. All patient-specific clinical panels were closed; reopen the protected chart before continuing.');
     }
    }finally{pending=false;}
   }

@@ -191,6 +191,27 @@ test('directory withholds fetched intake when the rechecked chart identity is no
   expect(JSON.stringify(await response.json())).not.toContain('Fictional reaction');
 });
 
+test('uppercase UUID directory links resolve the same central BPS chart and protected intake',async()=>{
+  const canonical='abcdef01-1234-4000-8000-abcdef012345';
+  returnedPatientId=canonical;
+  verifiedPatientId=canonical;
+  const response=await GET(makeRequest(canonical.toUpperCase()));
+  expect(response.status).toBe(200);
+  const json=await response.json();
+  expect(json.patients[0].id).toBe(canonical);
+  expect(json.intake.answers.medication_allergy_notes).toBe('Fictional reaction');
+  expect(intakeReads).toBe(2);
+});
+
+test('uppercase central chart link still fails closed when database returns another patient',async()=>{
+  const canonical='abcdef01-1234-4000-8000-abcdef012345';
+  returnedPatientId='abcdef01-1234-4000-8000-abcdef012346';
+  const response=await GET(makeRequest(canonical.toUpperCase()));
+  expect(response.status).toBe(409);
+  expect((await response.json()).intake).toBeUndefined();
+  expect(mocks.from).not.toHaveBeenCalledWith('patient_intakes');
+});
+
 test('unlinked clinical patients cannot receive intake information by matching names',async()=>{
   account_id=null;
   const result=await GET(makeRequest());

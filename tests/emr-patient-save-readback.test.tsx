@@ -78,3 +78,30 @@ test.each([
  // The UI must never silently reissue a clinical chart write after a
  // possible-commit acknowledgment or a mismatched directory/readback.
 });
+
+test('a directory selection does not mount patient clinical panels before verified chart readback, and fails closed on wrong identity',async()=>{
+ let resolveDetail:((response:Response)=>void)|undefined;
+ const requestLog:string[]=[];
+ vi.stubGlobal('fetch',vi.fn(async (url:string)=>{
+  requestLog.push(url);
+  if(url==='/api/emr/patients')return Response.json({patients:[patient(2)]});
+  if(url==='/api/emr/dsm-records?patient='+chart)return Response.json({records:[]});
+  if(url==='/api/emr/patients?id='+chart)
+   return new Promise<Response>(resolve=>{resolveDetail=resolve;});
+  return Response.json({records:[]});
+ }));
+ render(<PatientRepository/>);
+ fireEvent.click(await screen.findByRole('button',{name:/Fictional Patient.*Linked patient account/i}));
+ await waitFor(()=>expect(resolveDetail).toBeTypeOf('function'));
+ // The directory list is not proof of identity. No protected chart UI,
+ // BPS review, reconciliation or progress notes may mount while it is pending.
+ expect(screen.queryByText(/Central patient ID:/)).toBeNull();
+ expect(screen.queryByRole('heading',{name:'Patient intake source'})).toBeNull();
+ expect(screen.queryByText(/Clinician-reviewed BPS/i)).toBeNull();
+ resolveDetail?.(Response.json({patients:[patient(2,wrongChart)],intake:null}));
+ await screen.findByText(/Central chart readback identity or revision was not verified/);
+ expect(screen.queryByText(/Central patient ID:/)).toBeNull();
+ expect(screen.queryByRole('heading',{name:'Patient intake source'})).toBeNull();
+ expect(screen.getByRole('heading',{name:'New central patient record'})).toBeTruthy();
+ expect(requestLog.filter(url=>url==='/api/emr/patients?id='+chart)).toHaveLength(1);
+});

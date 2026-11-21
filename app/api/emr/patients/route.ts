@@ -20,8 +20,12 @@ export async function GET(request:Request){
   const ctx=await emrAccess();
   if(!ctx)return directoryReply({error:'Administrator sign-in and MFA required.'},403);
   const params=new URL(request.url).searchParams;
-  const id=params.get('id');
-  if(id&&!uuid(id))return directoryReply({error:'Invalid patient ID.'},400);
+  const requestedId=params.get('id');
+  if(requestedId&&!uuid(requestedId))return directoryReply({error:'Invalid patient ID.'},400);
+  // PostgreSQL UUID comparisons are case-insensitive, but the database returns
+  // canonical lowercase IDs. Keep the API's identity receipt consistent with
+  // the protected BPS source route before comparing chart or reread identity.
+  const id=requestedId?requestedId.toLowerCase():null;
   let query=ctx.supabase.from('clinical_patients')
     .select('id,account_id,demographics,revision,created_at,updated_at,directory_deleted_at,profiles!clinical_patients_account_id_fkey(full_name)')
     .order('updated_at',{ascending:false}).limit(200);

@@ -126,8 +126,10 @@ export async function POST(request:Request){
     // Database acknowledgments can be stale or incorrectly scoped. A successful
     // transport/zero-error result is not evidence that this chart was saved.
     // Never return saved:true unless an actual UUID receipt matches the chart.
-    if(error||!data||!uuid(data.id)||
-       (editing&&(data.id.toLowerCase()!==body.id.toLowerCase()||data.directory_deleted_at!==null)))
+    // A new chart must be live too. A stale insert receipt for an archived
+    // patient is not a verified creation or safe BPS chart destination.
+    if(error||!data||!uuid(data.id)||data.directory_deleted_at!==null||
+       (editing&&data.id.toLowerCase()!==body.id.toLowerCase()))
       return directoryReply({error:'Patient save identity was not verified. Reopen the chart before retrying.'},409);
     return directoryReply({id:data.id,saved:true});
   }catch(e){
@@ -153,13 +155,18 @@ export async function PATCH(request: Request) {
   }
 
   const deleting = input.action === 'delete';
+  // PostgreSQL UUID identity is case-insensitive, and the returned row must
+  // still match the intended chart. A successful RPC alone is not proof that
+  // a directory status change affected the selected patient.
+  const id = input.id.toLowerCase();
   const query = ctx.supabase.from('clinical_patients')
     .update({ directory_deleted_at: deleting ? new Date().toISOString() : null })
-    .eq('id', input.id).eq('revision', input.expectedRevision);
+    .eq('id', id).eq('revision', input.expectedRevision);
   const { data, error } = await (deleting
     ? query.is('directory_deleted_at', null)
     : query.not('directory_deleted_at', 'is', null)).select('id').maybeSingle();
   if (error) return reply({ error: 'Patient directory change was not confirmed.' }, 503);
-  if (!data) return reply({ error: 'The patient changed. Reopen the directory and try again.' }, 409);
+  if (!data || !uuid(data.id) || data.id.toLowerCase() !== id)
+    return reply({ error: 'Directory change identity could not be verified. Reopen the chart before retrying.' }, 409);
   return reply({ id: data.id, status: deleting ? 'deleted' : 'restored' });
 }

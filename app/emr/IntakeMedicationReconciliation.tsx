@@ -28,6 +28,8 @@ export default function IntakeMedicationReconciliation({patientId,intakeJson,int
  const [draft,setDraft]=useState<MedicationEntry>(emptyMedication);
  const [reviewed,setReviewed]=useState(false);
  const [busy,setBusy]=useState(false);
+ // After an attempted chart write, do not permit a second submit until durable readback confirms it.
+ const [verificationPending,setVerificationPending]=useState(false);
  const [loading,setLoading]=useState(true);
  const [error,setError]=useState('');
  const [message,setMessage]=useState('');
@@ -40,7 +42,7 @@ export default function IntakeMedicationReconciliation({patientId,intakeJson,int
   }catch{return {entries:[] as MedicationEntry[],problem:'The patient-reported medication source is malformed or incomplete. Do not transfer it; review the original intake.'};}
  },[intakeJson]);
  useEffect(()=>{
-  let active=true;setCurrent([]);setSelectedIndex(null);setReviewed(false);setError('');setLoading(true);
+  let active=true;setCurrent([]);setSelectedIndex(null);setReviewed(false);setError('');setLoading(true);setVerificationPending(false);
   chartFor(patientId).then(data=>{
    if(active)setCurrent(data.value.records.filter(item=>item.kind==='biopsychosocial_medication'));
   }).catch(e=>{if(active)setError(e instanceof Error?e.message:'Central medication history is unavailable.');})
@@ -50,7 +52,7 @@ export default function IntakeMedicationReconciliation({patientId,intakeJson,int
  function edit(field:keyof MedicationEntry,value:string){setDraft(prev=>({...prev,[field]:value}));setReviewed(false);setMessage('');}
  async function save(event:FormEvent<HTMLFormElement>){
   event.preventDefault();
-  if(selectedIndex===null||!reviewed||source.problem||busy||loading||error)return;
+  if(verificationPending||selectedIndex===null||!reviewed||source.problem||busy||loading||error)return;
   setBusy(true);setMessage('');
   try{
    const problem=validateMedications(JSON.stringify([draft]),true);
@@ -69,6 +71,9 @@ export default function IntakeMedicationReconciliation({patientId,intakeJson,int
    const latestMeds=latest.value.records.filter(item=>item.kind==='biopsychosocial_medication');
    if(latestMeds.some(r=>sameMedication(r,draft)))throw Error('The central chart already contains this medication/status. Reopen the chart to reconcile it.');
    // No browser demo storage and no replacement of existing clinical entries.
+   // The write may commit even if the response or follow-up chart read fails.
+   // Lock retries until verified persistence or a fresh chart reopen.
+   setVerificationPending(true);
    const response=await fetch('/api/emr/workflow',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({patientId,path:'/api/save',method:'POST',expectedRevision:latest.revision,
       body:{patient_id:patientId,action:'biopsychosocial_medication',data:{...draft,prior_id:''}}})});
@@ -86,6 +91,7 @@ export default function IntakeMedicationReconciliation({patientId,intakeJson,int
       keys.every(key=>item[key]===draft[key].trim())&&
       item.benefit===draft.benefit&&(item.duration||'')===(draft.duration||'')))
     throw Error('Medication-history save was acknowledged, but the exact reviewed entry was not verified on chart readback. Reopen the chart before retrying.');
+   setVerificationPending(false);
    setCurrent(confirmed);
    setSelectedIndex(null);setReviewed(false);setDraft(emptyMedication());
    setMessage('A new medication-history entry was saved to the protected central chart. Review the chart before using it clinically; this is not a prescription, signed attestation or verified medication list.');
@@ -124,9 +130,10 @@ export default function IntakeMedicationReconciliation({patientId,intakeJson,int
    <label><input type="checkbox" checked={reviewed} onChange={e=>setReviewed(e.target.checked)}/>
     I reviewed and corrected this patient's reported medication history for documentation. I understand this is not prescribing, a signature or a verified current-medication attestation.
    </label>
-   <button type="submit" disabled={busy||!reviewed}>Save reviewed medication-history entry</button>
+   <button type="submit" disabled={busy||!reviewed||verificationPending}>Save reviewed medication-history entry</button>
    <button type="button" disabled={busy} onClick={()=>{setSelectedIndex(null);setReviewed(false);}}>Cancel draft</button>
   </form>}
+  {verificationPending&&<p role="alert">The prior save outcome is not independently verified. Reopen the protected chart and inspect history before another attempt; do not submit a duplicate clinical entry.</p>}
   {message&&<p role="status">{message}</p>}
  </section>;
 }

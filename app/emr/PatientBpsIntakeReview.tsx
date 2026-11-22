@@ -4,7 +4,7 @@ import {bpsSectionClassification,approvedBpsQuestionSection,validBpsQuestionnair
 type Field={key:string;label:string;type:string;value:string;sourceOnly?:boolean;reported?:boolean};
 type Section={title:string;domain:string;disposition:'clinical'|'separate-review'|'reference';fields:Field[];answered:number};
 type Review={id:string;reviewed:boolean;source_version:number;source_status:string;source_updated_at:string;created_at:string;clinical_answers:Record<string,string>;clinician_notes:BpsNotes;excluded_clinical_fields?:number;withheld_protected_fields?:number;excluded_clinician_notes?:number;current_source_snapshot_verified?:boolean|null;clinician_note_domains_complete?:boolean};
-type ResponseData={patientId:string;source:{accountId:string;status:string;version:number;updatedAt:string;submittedAt?:string|null;questionnairePacketVersion?:string|null};sections:Section[];unmappedKeys:string[];reviews:Review[]};
+type ResponseData={patientId:string;source:{accountId:string;status:string;version:number;updatedAt:string;submittedAt?:string|null;questionnairePacketVersion?:string|null;answerFingerprint?:string};sections:Section[];unmappedKeys:string[];reviews:Review[]};
 const focusedReviewLinks:Record<string,{label:string;anchor:string}[]>={
  'Mental health treatment history':[
   {label:'Review reported counseling and psychiatric treatment history in the central chart',anchor:'emr-intake-treatment-history-review'}],
@@ -299,7 +299,8 @@ export default function PatientBpsIntakeReview({patientId:requestedPatientId}:{p
   try{
    const result=await json(await fetch('/api/emr/bps-intake',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({patientId,sourceAccountId:data.source.accountId,sourceVersion:data.source.version,sourceStatus:data.source.status,
-     sourceUpdatedAt:data.source.updatedAt,sourceSubmittedAt:data.source.submittedAt??null,notes:submittedNotes,reviewed:true})}));
+     sourceUpdatedAt:data.source.updatedAt,sourceSubmittedAt:data.source.submittedAt??null,
+     sourceAnswerFingerprint:data.source.answerFingerprint,notes:submittedNotes,reviewed:true})}));
    if(!stillOnChart())return;
    if(result?.saved!==true||typeof result.id!=='string'||
     !/^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(result.id))
@@ -324,6 +325,7 @@ export default function PatientBpsIntakeReview({patientId:requestedPatientId}:{p
       // A packet-layout switch without a source revision increment must never
       // independently verify the earlier clinician's questionnaire review.
       next.source.questionnairePacketVersion===data.source.questionnairePacketVersion&&
+      next.source.answerFingerprint===data.source.answerFingerprint&&
       equalBpsTimestampInstants(next.source.updatedAt,data.source.updatedAt)&&
       // The patient's actual submission attestation is part of the immutable
       // source receipt. A changed receipt must not verify an earlier clinician

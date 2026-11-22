@@ -75,9 +75,14 @@ export default function IntakeMedicationReconciliation({patientId,intakeJson,int
    await readJson(response);
    const updated=await chartFor(patientId);
    const confirmed=updated.value.records.filter(item=>item.kind==='biopsychosocial_medication');
-   // A successful HTTP receipt is not proof of a persisted medication entry.
-   // Verify all documented fields, not just name/status used for deduplication.
-   if(!confirmed.some(item=>sameMedication(item,draft)&&
+   // A matching older row (or an unversioned/replayed chart response) is not
+   // proof that THIS reviewed save created a new immutable history entry.
+   // Require a newly identified row and an advancing chart revision as well
+   // as exact field-by-field readback before announcing persistence.
+   const earlierIds=new Set(latestMeds.map(item=>item.id));
+   if(updated.revision<=latest.revision||!confirmed.some(item=>
+      typeof item.id==='string'&&item.id.trim().length>0&&!earlierIds.has(item.id)&&
+      sameMedication(item,draft)&&
       keys.every(key=>item[key]===draft[key].trim())&&
       item.benefit===draft.benefit&&(item.duration||'')===(draft.duration||'')))
     throw Error('Medication-history save was acknowledged, but the exact reviewed entry was not verified on chart readback. Reopen the chart before retrying.');

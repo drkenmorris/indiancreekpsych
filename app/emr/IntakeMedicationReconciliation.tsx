@@ -72,7 +72,14 @@ export default function IntakeMedicationReconciliation({patientId,intakeJson,int
       body:{patient_id:patientId,action:'biopsychosocial_medication',data:{...draft,prior_id:''}}})});
    await readJson(response);
    const updated=await chartFor(patientId);
-   setCurrent(updated.value.records.filter(item=>item.kind==='biopsychosocial_medication'));
+   const confirmed=updated.value.records.filter(item=>item.kind==='biopsychosocial_medication');
+   // A successful HTTP receipt is not proof of a persisted medication entry.
+   // Verify all documented fields, not just name/status used for deduplication.
+   if(!confirmed.some(item=>sameMedication(item,draft)&&
+      keys.every(key=>item[key]===draft[key].trim())&&
+      item.benefit===draft.benefit&&(item.duration||'')===(draft.duration||'')))
+    throw Error('Medication-history save was acknowledged, but the exact reviewed entry was not verified on chart readback. Reopen the chart before retrying.');
+   setCurrent(confirmed);
    setSelectedIndex(null);setReviewed(false);setDraft(emptyMedication());
    setMessage('A new medication-history entry was saved to the protected central chart. Review the chart before using it clinically; this is not a prescription, signed attestation or verified medication list.');
   }catch(e){setMessage(e instanceof Error?e.message:'Medication-history save was not confirmed.');}

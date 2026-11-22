@@ -76,6 +76,8 @@ export default function IntakeTraumaHistoryReconciliation({patientId,sourceJson,
     body:JSON.stringify({patientId,path:'/api/save',method:'POST',expectedRevision:current.revision,
      body:{patient_id:patientId,action:'biopsychosocial_trauma_history',data:{selections:parsed.selections,notes}}})}));
    const updated=await chart(patientId);
+   if(!updated.records.some(row=>matches(row,draft,notes)))
+    throw Error('Trauma-history save was acknowledged, but the exact reviewed history was not verified on chart readback. Reopen the chart before retrying.');
    setRecords(updated.records);setDraft(null);setNotes(emptyNotes());setReviewed(false);
    setMessage('The reviewed trauma-history snapshot was saved in the protected patient chart. It is not a diagnosis, signed assessment or emergency safety evaluation.');
   }catch(e){setMessage(e instanceof Error?e.message:'The trauma-history save could not be confirmed.');}

@@ -69,6 +69,8 @@ export default function IntakeMedicalSubstanceReconciliation({patientId,sourceJs
      body:{patient_id:patientId,action:'biopsychosocial_medical_substance',data:{selections:parsed.selections,notes:parsed.notes}}})});
    await json(write);
    const updated=await chart(patientId);
+   if(!updated.records.some(row=>same(row,parsed)))
+    throw Error('Medical/substance save was acknowledged, but the exact reviewed history was not verified on chart readback. Reopen the chart before retrying.');
    setRecords(updated.records);setDraftJson('');setReviewed(false);
    setMessage('A new medical/substance history snapshot was recorded in the protected central chart. This does not establish a diagnosis, clinician signature or final treatment decision.');
   }catch(e){setMessage(e instanceof Error?e.message:'Clinical history save was not confirmed.');}

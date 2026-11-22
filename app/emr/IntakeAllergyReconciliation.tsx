@@ -59,6 +59,8 @@ export default function IntakeAllergyReconciliation({patientId,sourceStatus,sour
      body:{patient_id:patientId,action:'medication_allergies',data:{allergy_status:status,allergy_notes:notes.trim()}}})});
    await read(write);
    const refreshed=await chart(patientId);
+   if(!refreshed.allergies.some(row=>matches(row,status,notes)))
+    throw Error('Allergy-history save was acknowledged, but the exact reviewed entry was not verified on chart readback. Reopen the chart before retrying.');
    setRecords(refreshed.allergies);setEditing(false);setReviewed(false);setStatus('');setNotes('');
    setMessage('A reviewed medication-allergy history entry was saved in the protected central chart. It is a documentation snapshot, not a signed allergy attestation or medication order.');
   }catch(e){setMessage(e instanceof Error?e.message:'Allergy history save was not confirmed.');}

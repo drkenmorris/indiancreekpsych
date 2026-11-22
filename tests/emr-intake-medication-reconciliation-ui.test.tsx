@@ -7,14 +7,19 @@ const id='00000000-0000-0000-0000-000000000123',updated='2026-11-09T14:00:00Z';
 const entry={medication:'Fictional Medicine',status:'Past',dosage:'5 mg',frequency:'Daily',start_date:'2025-01-01',end_date:'2025-05-01',prescribing_physician:'Example provider',benefit:'Beneficial'};
 const intakeJson=JSON.stringify([entry]);
 afterEach(()=>{cleanup();vi.unstubAllGlobals();});
-function mockApi({stale=false,records=[] as unknown[]}={}){
+function mockApi({stale=false,omitReadback=false,mismatchReadback=false,records=[] as unknown[]}={}){
+ let persisted:unknown=null;
  const calls:Array<{url:string;body:unknown}>=[];
  vi.stubGlobal('fetch',vi.fn(async (url:string,init?:RequestInit)=>{
   const body=init?.body?JSON.parse(String(init.body)):null;
   calls.push({url,body});
   if(url.startsWith('/api/emr/patients'))return {ok:true,json:async()=>({patients:[{id}],intake:{updated_at:stale?'newer':updated,answers:{medication_entries:intakeJson}}})};
-  if(body?.path==='/api/save')return {ok:true,json:async()=>({value:{saved:true},revision:2})};
-  return {ok:true,json:async()=>({value:{records},revision:1})};
+  if(body?.path==='/api/save'){
+   if(!omitReadback)persisted={kind:'biopsychosocial_medication',id:'fictional-history-record',...body.body.data,
+    ...(mismatchReadback?{dosage:'WRONG DOSE'}:{})};
+   return {ok:true,json:async()=>({value:{saved:true},revision:2})};
+  }
+  return {ok:true,json:async()=>({value:{records:persisted?[...records,persisted]:records},revision:persisted?2:1})};
  }));
  return calls;
 }
@@ -37,6 +42,20 @@ test('source is read without saving; saving requires explicit review, uses prote
  expect(p.body.patient_id).toBe(id);expect(p.body.action).toBe('biopsychosocial_medication');
  expect(p.body.data).toMatchObject({medication:'Fictional Medicine',prior_id:''});
  expect(calls.some(c=>c.url.startsWith('/api/emr/patients?id='))).toBe(true);
+});
+test.each([
+ ['missing chart entry',{omitReadback:true}],
+ ['changed dose in readback',{mismatchReadback:true}]
+])('medication write receipt without exact %s never announces saved clinical history',async(_variant,options)=>{
+ const calls=mockApi(options);
+ render(<IntakeMedicationReconciliation patientId={id} intakeJson={intakeJson} intakeUpdatedAt={updated}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Prepare review draft'}));
+ fireEvent.click(screen.getByRole('checkbox'));
+ fireEvent.click(screen.getByRole('button',{name:'Save reviewed medication-history entry'}));
+ expect(await screen.findByText(/exact reviewed entry was not verified on chart readback/)).toBeTruthy();
+ expect(screen.queryByText(/A new medication-history entry was saved/)).toBeNull();
+ expect(screen.getByRole('button',{name:'Save reviewed medication-history entry'})).toBeTruthy();
+ expect(calls.filter(c=>(c.body as {path?:string})?.path==='/api/save')).toHaveLength(1);
 });
 test('changed intake blocks write rather than transferring stale medication values',async()=>{
  const calls=mockApi({stale:true});

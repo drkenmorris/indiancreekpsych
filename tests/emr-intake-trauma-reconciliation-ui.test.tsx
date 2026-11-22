@@ -11,7 +11,8 @@ selections.experiences=['Physical assault or abuse'];
 const source=JSON.stringify({definition_version:definition.version,selections});
 const props={patientId,sourceJson:source,sourceUpdatedAt:stamp,sourceStatus:'submitted'};
 afterEach(()=>{cleanup();vi.unstubAllGlobals();});
-function fixture({stale=false,unlinked=false,records=[] as unknown[],status='submitted'}={}){
+function fixture({stale=false,unlinked=false,omitReadback=false,records=[] as unknown[],status='submitted'}={}){
+ let persisted:unknown=null;
  const calls:Array<{url:string;payload:any}>=[];
  vi.stubGlobal('fetch',vi.fn(async(url:string,init?:RequestInit)=>{
   const payload=init?.body?JSON.parse(String(init.body)):null;
@@ -20,8 +21,11 @@ function fixture({stale=false,unlinked=false,records=[] as unknown[],status='sub
    patients:unlinked?[]:[{id:patientId}],
    intake:{updated_at:stale?'later':stamp,status,answers:{trauma_history_checklist:source}}
   })};
-  if(payload?.path==='/api/save')return {ok:true,json:async()=>({revision:2,value:{saved:true}})};
-  return {ok:true,json:async()=>({revision:1,value:{records}})};
+  if(payload?.path==='/api/save'){
+   if(!omitReadback)persisted={kind:'biopsychosocial_trauma_history',...payload.body.data,definition:{version:definition.version}};
+   return {ok:true,json:async()=>({revision:2,value:{saved:true}})};
+  }
+  return {ok:true,json:async()=>({revision:persisted?2:1,value:{records:persisted?[...records,persisted]:records}})};
  }));
  return calls;
 }
@@ -46,6 +50,17 @@ test('structured trauma history stays read-only until clinician intentionally pr
  expect(write.body.action).toBe('biopsychosocial_trauma_history');
  expect(write.body.data.selections).toEqual(selections);
  expect(write.body.data.notes).toEqual({context_notes:'',followup_notes:'',source_notes:''});
+});
+test('200 OK without persisted trauma history does not confirm clinician save',async()=>{
+ const calls=fixture({omitReadback:true});
+ render(<IntakeTraumaHistoryReconciliation {...props}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Prepare clinician trauma-history draft'}));
+ fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed these reported details/}));
+ fireEvent.click(screen.getByRole('button',{name:'Save reviewed trauma-history snapshot'}));
+ expect(await screen.findByText(/exact reviewed history was not verified on chart readback/)).toBeTruthy();
+ expect(screen.queryByText(/reviewed trauma-history snapshot was saved/)).toBeNull();
+ expect(screen.getByRole('button',{name:'Save reviewed trauma-history snapshot'})).toBeTruthy();
+ expect(saves(calls)).toHaveLength(1);
 });
 test('stale or unlinked intake cannot be imported into a patient chart',async()=>{
  for(const variant of [{stale:true},{unlinked:true}]){

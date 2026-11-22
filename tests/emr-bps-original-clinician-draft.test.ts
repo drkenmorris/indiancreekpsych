@@ -25,7 +25,7 @@ function packet(version=7){
  });
  return {patientId:patient,source:{
   accountId:'00000000-0000-4000-8000-000000000903',status:'submitted',
-  version,updatedAt:stamp,submittedAt:stamp
+  version,updatedAt:stamp,submittedAt:stamp,answerFingerprint:'a'.repeat(64)
  },sections,reviews:[],unmappedKeys:[]};
 }
 function harness(reply:(call:number)=>Promise<Response>,bpsPage:'symptoms'|'treatment_history'|'medications'|'family_origin'|'medical_substance'|'developmental_personal'|'trauma_history'='developmental_personal',selectedPatient:string=patient){
@@ -259,6 +259,40 @@ test('questionnaire packet version changes cannot accompany original-form draft 
   expect(h.requests).toHaveLength(2);
  }finally{h.dom.window.close();}
 });
+test('a change to opaque protected patient answers blocks original-form draft placement even when all 21 visible sections and timestamps are unchanged',async()=>{
+ const h=harness(async call=>{
+  const source=packet();
+  // An out-of-band medication/trauma/legal edit changes the full answer hash,
+  // but the protected BPS adapter deliberately returns identical placeholders.
+  if(call===2)source.source.answerFingerprint='b'.repeat(64);
+  return Response.json(source);
+ });
+ try{
+  await vi.waitFor(()=>expect(h.button()).toBeTruthy());
+  h.button().click();
+  await vi.waitFor(()=>expect(h.dom.window.document.body.textContent).toContain(
+   'The linked intake changed or could not be reverified'));
+  expect(h.note.value).toBe('');
+  expect(h.requests).toHaveLength(2);
+  expect(h.requests.every(request=>request.method==='GET')).toBe(true);
+ }finally{h.dom.window.close();}
+});
+
+test.each([
+ ['missing',undefined],['malformed','not-a-sha256-receipt']
+] as const)('%s full-answer fingerprint disables patient-source placement into original BPS notes',async(_name,receipt)=>{
+ const source=packet();
+ const altered={...source,source:{...source.source,answerFingerprint:receipt}};
+ const h=harness(async()=>Response.json(altered));
+ try{
+  await vi.waitFor(()=>expect(h.dom.window.document.body.textContent).toContain(
+   'The complete patient-answer integrity receipt is missing or invalid'));
+  expect(h.button()).toBeUndefined();
+  expect(h.requests).toHaveLength(1);
+  expect(h.note.value).toBe('');
+ }finally{h.dom.window.close();}
+});
+
 test('changed unmapped-field audit blocks original-form draft placement',async()=>{
  const h=harness(async call=>{
   const source=packet();

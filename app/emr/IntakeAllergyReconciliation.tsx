@@ -48,6 +48,8 @@ export default function IntakeAllergyReconciliation({patientId,sourceStatus,sour
    if(duplicate)throw Error('This allergy status and narrative already exist in the chart. Review existing history instead.');
    const result=await fetch('/api/emr/patients?id='+encodeURIComponent(patientId),{cache:'no-store'});
    const source=await read(result);
+   if(source.intake?.status!=='submitted')
+    throw Error('Linked intake has not been submitted; medication-allergy history cannot be reconciled from a draft.');
    if(source.patients?.[0]?.id!==patientId||source.intake?.updated_at!==sourceUpdatedAt||
       (source.intake?.answers?.medication_allergy_status||'')!==sourceStatus||
       (source.intake?.answers?.medication_allergy_notes||'')!==sourceNotes)

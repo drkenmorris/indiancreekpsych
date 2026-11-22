@@ -16,8 +16,10 @@ async function chart(patientId:string):Promise<{revision:number;allergies:Allerg
  return {revision:value.revision,allergies:value.value.records.filter((row:Allergy)=>row.kind==='medication_allergies')};
 }
 /** Explicit source review; never quietly asserts absence of allergies or overwrites prior clinical data. */
-export default function IntakeAllergyReconciliation({patientId,sourceStatus,sourceNotes,sourceUpdatedAt}:
+export default function IntakeAllergyReconciliation({patientId:requestedPatientId,sourceStatus,sourceNotes,sourceUpdatedAt}:
  {patientId:string;sourceStatus:string;sourceNotes:string;sourceUpdatedAt:string}){
+ // Canonicalize chart identity to the UUID representation used by protected patient-source receipts.
+ const patientId=requestedPatientId.toLowerCase();
  const [records,setRecords]=useState<Allergy[]>([]);
  const [loading,setLoading]=useState(true);
  const [busy,setBusy]=useState(false);

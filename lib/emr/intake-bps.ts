@@ -323,10 +323,13 @@ export function mapSavedBpsReportedFields(answers:Record<string,string>){
  };
 }
 
-/** Mirrors the DB-owned BPS snapshot allowlist in migration 20261110103000.
+/** Mirrors the CURRENT DB-owned BPS snapshot allowlist in migration 20261122220500.
  * Fail closed on legacy or unexpected review payload fields before data leave
  * the protected server. Sensitive legal, medication, and structured-trauma
  * records remain in their dedicated clinician reconciliation workflows.
+ * This set also governs current-source integrity verification: including a field
+ * removed by the DB migration would cause legitimate saves with patient trauma
+ * reports to be falsely labeled unverified after chart readback.
  */
 export const bpsSnapshotClinicalKeys = new Set<string>([
  "guardian_relationship",
@@ -357,8 +360,7 @@ export const bpsSnapshotClinicalKeys = new Set<string>([
  "violence_risk_details",
  "abuse_neglect_current",
  "weapons_access",
- "protective_factors",
- "trauma_history"
+ "protective_factors"
 ]);
 /** A second presentation-layer allowlist. Only specifically approved clinical
  * answers and known retired contextual reports can appear in BPS read-only
@@ -373,9 +375,9 @@ export const bpsVisibleSourceKeys = new Set<string>([
  ...[...bpsSnapshotClinicalKeys].filter(key=>key!=='trauma_history'),
  ...Object.keys(historicalBpsDomain).filter(key=>!protectedHistoricalKeys.has(key))
 ]);
-// The database's immutable historical snapshot allowlist is broader than what
-// an ordinary BPS chart-history API may disclose. Trauma narrative content is
-// reconciled in its dedicated protected clinical workflow, never in this API.
+// Older immutable history may still contain the previously permitted raw
+// trauma_history field. Withhold it from clinician BPS history even though
+// the current DB RPC no longer stores it. Preserve historical rows unchanged.
 const bpsHistoryReadbackKeys=new Set([...bpsSnapshotClinicalKeys].filter(key=>key!=='trauma_history'));
 export function sanitizeBpsSnapshotAnswers(raw:unknown):{
  answers:Record<string,string>;excludedCount:number;withheldProtectedCount:number

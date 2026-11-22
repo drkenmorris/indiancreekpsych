@@ -1,6 +1,6 @@
 import React from 'react';
 import {afterEach,expect,test,vi} from 'vitest';
-import {cleanup,fireEvent,render,screen} from '@testing-library/react';
+import {act,cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
 import IntakeMedicalSubstanceReconciliation from '@/app/emr/IntakeMedicalSubstanceReconciliation';
 import {emptyMedicalSubstance,medicalSubstanceDefinition} from '@/lib/patient/medical-substance';
 const id='00000000-0000-0000-0000-000000000123',stamp='2026-11-09T12:00:00Z';
@@ -107,4 +107,25 @@ test('ambiguous medical history save locks any retry until protected chart is re
  expect((save as HTMLButtonElement).disabled).toBe(true);
  fireEvent.submit(save.closest('form')!);
  expect(calls.filter(c=>(c.payload as {path?:string})?.path==='/api/save')).toHaveLength(1);
+});
+
+test('medical/substance history cannot transfer from pending source request after patient switch',async()=>{
+ const next='00000000-0000-0000-0000-000000000124';
+ let done:(v:any)=>void=()=>{};
+ const pending=new Promise<any>(resolve=>{done=resolve;});
+ const requests:Array<{url:string;payload:any}>=[];
+ vi.stubGlobal('fetch',vi.fn(async(url:string,init?:RequestInit)=>{
+  const payload=init?.body?JSON.parse(String(init.body)):null;
+  requests.push({url,payload});
+  if(url.startsWith('/api/emr/patients?id='+id))return pending;
+  return {ok:true,json:async()=>({revision:1,value:{records:[]}})};
+ }));
+ const view=render(<IntakeMedicalSubstanceReconciliation patientId={id} sourceJson={sourceJson} sourceUpdatedAt={stamp}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Prepare clinician draft from intake'}));
+ fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed and corrected these patient-reported historical details/}));
+ fireEvent.click(screen.getByRole('button',{name:'Save clinician-reviewed history snapshot'}));
+ await waitFor(()=>expect(requests.filter(r=>r.url.startsWith('/api/emr/patients?id='+id))).toHaveLength(1));
+ view.rerender(<IntakeMedicalSubstanceReconciliation patientId={next} sourceJson={sourceJson} sourceUpdatedAt={stamp}/>);
+ await act(async()=>done({ok:true,json:async()=>({patients:[{id}],intake:{status:'submitted',updated_at:stamp,answers:{medical_substance_history:sourceJson}}})}));
+ expect(requests.filter(r=>r.payload?.path==='/api/save')).toHaveLength(0);
 });

@@ -31,13 +31,15 @@ export default function IntakeMedicalSubstanceReconciliation({patientId,sourceJs
  const [records,setRecords]=useState<MedicalRecord[]>([]);
  const [loading,setLoading]=useState(true);
  const [busy,setBusy]=useState(false);
+ // After an attempted chart write, do not permit a second submit until durable readback confirms it.
+ const [verificationPending,setVerificationPending]=useState(false);
  const [error,setError]=useState('');
  const [message,setMessage]=useState('');
  const [draftJson,setDraftJson]=useState('');
  const [reviewed,setReviewed]=useState(false);
  useEffect(()=>{
   let active=true;
-  setDraftJson('');setReviewed(false);setError('');setRecords([]);setLoading(true);
+  setDraftJson('');setReviewed(false);setError('');setRecords([]);setLoading(true);setVerificationPending(false);
   chart(patientId).then(value=>{if(active)setRecords(value.records);})
    .catch(e=>{if(active)setError(e instanceof Error?e.message:'Central history unavailable.');})
    .finally(()=>{if(active)setLoading(false);});
@@ -49,7 +51,7 @@ export default function IntakeMedicalSubstanceReconciliation({patientId,sourceJs
  },[draftJson,records]);
  async function save(e:FormEvent<HTMLFormElement>){
   e.preventDefault();
-  if(!reviewed||!draftJson||source.error||loading||busy||error)return;
+  if(verificationPending||!reviewed||!draftJson||source.error||loading||busy||error)return;
   setBusy(true);setMessage('');
   try{
    const problem=validateMedicalSubstance(draftJson);
@@ -66,6 +68,9 @@ export default function IntakeMedicalSubstanceReconciliation({patientId,sourceJs
       throw Error('The linked intake history changed. Reopen this patient and review the latest source before saving.');
    const latest=await chart(patientId);
    if(latest.records.some(r=>same(r,parsed)))throw Error('This same history was saved in another session. Reopen the chart to review its latest version.');
+   // The write may commit even if the response or follow-up chart read fails.
+   // Lock retries until verified persistence or a fresh chart reopen.
+   setVerificationPending(true);
    const write=await fetch('/api/emr/workflow',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({patientId,path:'/api/save',method:'POST',expectedRevision:latest.revision,
      body:{patient_id:patientId,action:'biopsychosocial_medical_substance',data:{selections:parsed.selections,notes:parsed.notes}}})});
@@ -76,6 +81,7 @@ export default function IntakeMedicalSubstanceReconciliation({patientId,sourceJs
    if(updated.revision<=latest.revision||!updated.records.some(row=>
      typeof row.id==='string'&&row.id.trim().length>0&&!priorIds.has(row.id)&&same(row,parsed)))
     throw Error('Medical/substance save was acknowledged, but the exact reviewed history was not verified on chart readback. Reopen the chart before retrying.');
+   setVerificationPending(false);
    setRecords(updated.records);setDraftJson('');setReviewed(false);
    setMessage('A new medical/substance history snapshot was recorded in the protected central chart. This does not establish a diagnosis, clinician signature or final treatment decision.');
   }catch(e){setMessage(e instanceof Error?e.message:'Clinical history save was not confirmed.');}
@@ -93,10 +99,11 @@ export default function IntakeMedicalSubstanceReconciliation({patientId,sourceJs
        I reviewed and corrected these patient-reported historical details. I understand saving creates a new documentation snapshot, not a clinical diagnosis, prescribing order or signature.
       </label>
       {isExactCopy&&<p role="alert">An identical history already exists in the chart; do not duplicate it.</p>}
-      <button type="submit" disabled={busy||!reviewed||isExactCopy}>Save clinician-reviewed history snapshot</button>
+      <button type="submit" disabled={busy||!reviewed||isExactCopy||verificationPending}>Save clinician-reviewed history snapshot</button>
       <button type="button" disabled={busy} onClick={()=>{setDraftJson('');setReviewed(false);}}>Discard unsaved draft</button>
      </form>}
    </>}
+  {verificationPending&&<p role="alert">The prior save outcome is not independently verified. Reopen the protected chart and inspect history before another attempt; do not submit a duplicate clinical entry.</p>}
   {message&&<p role="status">{message}</p>}
  </section>;
 }

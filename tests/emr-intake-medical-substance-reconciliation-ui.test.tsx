@@ -129,3 +129,25 @@ test('medical/substance history cannot transfer from pending source request afte
  await act(async()=>done({ok:true,json:async()=>({patients:[{id}],intake:{status:'submitted',updated_at:stamp,answers:{medical_substance_history:sourceJson}}})}));
  expect(requests.filter(r=>r.payload?.path==='/api/save')).toHaveLength(0);
 });
+
+test('delayed medical-history write acknowledgement is discarded after the original chart is left',async()=>{
+ const next='00000000-0000-0000-0000-000000000124';
+ let acknowledge:(value:any)=>void=()=>{};
+ const waiting=new Promise<any>(resolve=>{acknowledge=resolve;});
+ const writes:Array<any>=[];
+ vi.stubGlobal('fetch',vi.fn(async(url:string,init?:RequestInit)=>{
+  const payload=init?.body?JSON.parse(String(init.body)):null;
+  if(url.startsWith('/api/emr/patients'))return {ok:true,json:async()=>({patients:[{id}],intake:{status:'submitted',updated_at:stamp,answers:{medical_substance_history:sourceJson}}})};
+  if(payload?.path==='/api/save'){writes.push(payload);return waiting;}
+  return {ok:true,json:async()=>({revision:1,value:{records:[]}})};
+ }));
+ const view=render(<IntakeMedicalSubstanceReconciliation patientId={id} sourceJson={sourceJson} sourceUpdatedAt={stamp}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Prepare clinician draft from intake'}));
+ fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed and corrected these patient-reported historical details/}));
+ fireEvent.click(screen.getByRole('button',{name:'Save clinician-reviewed history snapshot'}));
+ await waitFor(()=>expect(writes).toHaveLength(1));
+ view.rerender(<IntakeMedicalSubstanceReconciliation patientId={next} sourceJson={sourceJson} sourceUpdatedAt={stamp}/>);
+ await act(async()=>acknowledge({ok:true,json:async()=>({revision:2,value:{saved:true}})}));
+ expect(writes).toHaveLength(1);
+ expect(screen.queryByText(/A new medical\/substance history snapshot was recorded/)).toBeNull();
+});

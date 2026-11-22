@@ -1,5 +1,5 @@
 'use client';
-import {useEffect,useState,type FormEvent} from 'react';
+import {useEffect,useRef,useState,type FormEvent} from 'react';
 import {validateMedicationAllergies} from '@/lib/patient/medications';
 
 type Allergy={id:string;kind:string;allergy_status:string;allergy_notes:string};
@@ -29,19 +29,32 @@ export default function IntakeAllergyReconciliation({patientId,sourceStatus,sour
  const [status,setStatus]=useState('');
  const [notes,setNotes]=useState('');
  const [reviewed,setReviewed]=useState(false);
+ // In-flight requests are tied to the exact patient and intake revision, even across A→B→A navigation.
+ const scope=useRef({patientId,sourceStatus,sourceNotes,sourceUpdatedAt,generation:0});
+ if(scope.current.patientId!==patientId||scope.current.sourceStatus!==sourceStatus||
+    scope.current.sourceNotes!==sourceNotes||scope.current.sourceUpdatedAt!==sourceUpdatedAt)
+  scope.current={patientId,sourceStatus,sourceNotes,sourceUpdatedAt,generation:scope.current.generation+1};
+ const preparedGeneration=useRef<number|null>(null);
+ const savingGeneration=useRef<number|null>(null);
  useEffect(()=>{
-  let active=true;setRecords([]);setLoading(true);setError('');setEditing(false);setReviewed(false);setVerificationPending(false);
+  let active=true;setRecords([]);setLoading(true);setError('');setMessage('');setEditing(false);setReviewed(false);setBusy(false);setStatus('');setNotes('');setVerificationPending(false);
   chart(patientId).then(value=>{if(active)setRecords(value.allergies);})
    .catch(e=>{if(active)setError(e instanceof Error?e.message:'Central medication allergy history unavailable.');})
    .finally(()=>{if(active)setLoading(false);});
   return ()=>{active=false;};
- },[patientId]);
+ },[patientId,sourceStatus,sourceNotes,sourceUpdatedAt]);
  const sourceError=validateMedicationAllergies(sourceStatus,sourceNotes);
  const eligible=!sourceError&&statuses.includes(sourceStatus as typeof statuses[number]);
  const duplicate=records.some(item=>matches(item,status,notes));
  async function save(event:FormEvent<HTMLFormElement>){
   event.preventDefault();
-  if(verificationPending||!reviewed||!editing||busy||loading||error)return;
+  const generation=scope.current.generation;
+  const onOriginalScope=()=>scope.current.generation===generation&&scope.current.patientId===patientId&&
+   scope.current.sourceStatus===sourceStatus&&scope.current.sourceNotes===sourceNotes&&
+   scope.current.sourceUpdatedAt===sourceUpdatedAt;
+  if(savingGeneration.current===generation||preparedGeneration.current!==generation||
+     verificationPending||!reviewed||!editing||busy||loading||error)return;
+  savingGeneration.current=generation;
   setBusy(true);setMessage('');
   try{
    const reason=validateMedicationAllergies(status,notes);
@@ -50,6 +63,7 @@ export default function IntakeAllergyReconciliation({patientId,sourceStatus,sour
    if(duplicate)throw Error('This allergy status and narrative already exist in the chart. Review existing history instead.');
    const result=await fetch('/api/emr/patients?id='+encodeURIComponent(patientId),{cache:'no-store'});
    const source=await read(result);
+   if(!onOriginalScope())return;
    if(source.intake?.status!=='submitted')
     throw Error('Linked intake has not been submitted; medication-allergy history cannot be reconciled from a draft.');
    if(source.patients?.[0]?.id!==patientId||source.intake?.updated_at!==sourceUpdatedAt||
@@ -57,15 +71,19 @@ export default function IntakeAllergyReconciliation({patientId,sourceStatus,sour
       (source.intake?.answers?.medication_allergy_notes||'')!==sourceNotes)
       throw Error('The linked allergy intake changed. Reopen this patient and review the latest source before saving.');
    const latest=await chart(patientId);
+   if(!onOriginalScope())return;
    if(latest.allergies.some(row=>matches(row,status,notes)))throw Error('An identical allergy history snapshot was already saved.');
    // The write may commit even if the response or follow-up chart read fails.
    // Lock retries until verified persistence or a fresh chart reopen.
+   if(!onOriginalScope())return;
    setVerificationPending(true);
    const write=await fetch('/api/emr/workflow',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({patientId,path:'/api/save',method:'POST',expectedRevision:latest.revision,
      body:{patient_id:patientId,action:'medication_allergies',data:{allergy_status:status,allergy_notes:notes.trim()}}})});
    await read(write);
+   if(!onOriginalScope())return;
    const refreshed=await chart(patientId);
+   if(!onOriginalScope())return;
    const priorIds=new Set(latest.allergies.map(row=>row.id));
    // A matching historical entry or unchanged chart revision is not proof this write persisted.
    if(refreshed.revision<=latest.revision||!refreshed.allergies.some(row=>
@@ -74,8 +92,9 @@ export default function IntakeAllergyReconciliation({patientId,sourceStatus,sour
    setVerificationPending(false);
    setRecords(refreshed.allergies);setEditing(false);setReviewed(false);setStatus('');setNotes('');
    setMessage('A reviewed medication-allergy history entry was saved in the protected central chart. It is a documentation snapshot, not a signed allergy attestation or medication order.');
-  }catch(e){setMessage(e instanceof Error?e.message:'Allergy history save was not confirmed.');}
-  finally{setBusy(false);}
+  }catch(e){if(onOriginalScope())setMessage(e instanceof Error?e.message:'Allergy history save was not confirmed.');}
+  finally{if(savingGeneration.current===generation)savingGeneration.current=null;
+   if(onOriginalScope())setBusy(false);}
  }
  return <section className="centralCard" aria-label="Medication allergy history reconciliation">
   <h3>Review reported medication allergies into central history</h3>
@@ -83,7 +102,7 @@ export default function IntakeAllergyReconciliation({patientId,sourceStatus,sour
   {loading?<p role="status">Checking central allergy history…</p>:error?<p role="alert">{error}</p>:
    !eligible?<p>{sourceError||'The intake does not have a reviewable allergy status. Confirm allergies directly with the patient.'}</p>:
    <><p>Existing central allergy history snapshots: {records.length}. Previously saved records are preserved.</p>
-    {!editing?<button type="button" disabled={busy} onClick={()=>{setStatus(sourceStatus);setNotes(sourceNotes);setReviewed(false);setMessage('');setEditing(true);}}>Prepare medication-allergy review</button>:
+    {!editing?<button type="button" disabled={busy} onClick={()=>{preparedGeneration.current=scope.current.generation;setStatus(sourceStatus);setNotes(sourceNotes);setReviewed(false);setMessage('');setEditing(true);}}>Prepare medication-allergy review</button>:
      <form onSubmit={save}>
       <label>Clinician-reviewed allergy status<select value={status} onChange={e=>{setStatus(e.target.value);if(e.target.value==='No known medication allergies')setNotes('');setReviewed(false);}}>
        <option value="">Select one</option>{statuses.map(s=><option key={s} value={s}>{s}</option>)}

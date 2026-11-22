@@ -1,4 +1,5 @@
 import {NextResponse} from 'next/server';
+import {createHash} from 'node:crypto';
 import {emrAccess,privateHeaders,sameOrigin} from '@/lib/emr/access';
 import {uuid} from '@/lib/emr/demographics';
 import {bpsNoteDomains,mapIntakeToBps,sanitizeBpsClinicianNotes,sanitizeBpsSnapshotAnswers,bpsSnapshotClinicalKeys,validBpsTimestamp,validBpsSubmissionChronology,validBpsReviewChronology,validBpsHistoricalSourceBoundary,recognizedBpsQuestionnaireVersion,bpsTimestampInstantNanoseconds,equalBpsTimestampInstants,hasIndependentBpsReviewNote,validBpsClinicalNoteText,validBpsSourceAnswerText} from '@/lib/emr/intake-bps';
@@ -6,6 +7,11 @@ export const dynamic='force-dynamic';
 const reply=(data:unknown,status=200)=>NextResponse.json(data,{status,headers:privateHeaders});
 const sourceFields='patient_id,answers,status,version,updated_at,submitted_at';
 const maxBpsReviewBytes=35_000;
+// A clinician must attest to the exact answers viewed, not merely to source
+// version/status/timestamps: out-of-band answer edits may leave those unchanged.
+// Sort keys so JSONB object order cannot change the source receipt.
+export const bpsSourceAnswerFingerprint=(answers:Record<string,string>):string=>
+ createHash('sha256').update(JSON.stringify(Object.entries(answers).sort(([a],[b])=>a<b?-1:a>b?1:0))).digest('hex');
 /** A chart's seven original BPS pages must not call a review fully verified
  * merely because its clinician note and source-version receipt are intact.
  * An immutable DB-owned clinical snapshot also has to equal the complete,
@@ -297,7 +303,8 @@ export async function GET(request:Request){
     updatedAt:source.intake.updated_at,submittedAt:source.intake.submitted_at??null,
     // Patient questionnaire layout version is distinct from the editable source revision.
     // A missing historical marker must remain unrecorded rather than be inferred.
-    questionnairePacketVersion:originalAnswers.legal_packet_version||null},...report,reviews:safeReviews});
+    questionnairePacketVersion:originalAnswers.legal_packet_version||null,
+    answerFingerprint:bpsSourceAnswerFingerprint(originalAnswers)},...report,reviews:safeReviews});
  // Never echo database/provider exception messages: they may include patient identifiers, clinical JSON or internal SQL details.
  }catch{return reply({error:'Protected BPS intake unavailable; reopen the chart and try again.'},503);}
 }
@@ -313,6 +320,7 @@ export async function POST(request:Request){
   try{body=JSON.parse(raw) as Record<string,unknown>;}
   catch{return reply({error:'Invalid BPS review JSON payload.'},400);}
   if(!body||!uuid(body.patientId)||!uuid(body.sourceAccountId)||body.reviewed!==true||!Number.isSafeInteger(body.sourceVersion)||
+    typeof body.sourceAnswerFingerprint!=='string'||!/^[a-f0-9]{64}$/.test(body.sourceAnswerFingerprint)||
     typeof body.sourceVersion!=='number'||body.sourceVersion<1||
     (body.sourceStatus!=='draft'&&body.sourceStatus!=='submitted')||
     !validBpsTimestamp(body.sourceUpdatedAt)||
@@ -364,6 +372,11 @@ export async function POST(request:Request){
     !equalBpsTimestampInstants(live.intake.submitted_at,body.sourceSubmittedAt):
     live.intake.submitted_at!==null))
    return reply({error:'Linked BPS source changed; reopen the patient chart before clinical review.'},409);
+  // The source fingerprint accompanies the clinician-opened protected GET. If
+  // patient answers change without bumping revision or timestamps, reject the
+  // attestation BEFORE the privileged clinical write.
+  if(bpsSourceAnswerFingerprint(live.intake.answers as Record<string,string>)!==body.sourceAnswerFingerprint)
+   return reply({error:'Linked patient answers changed since clinician review; reopen the protected intake before saving.'},409);
   if(mapIntakeToBps(live.intake.answers as Record<string,string>).unmappedKeys.length>0)
    return reply({error:'Linked intake includes unrecognized reported fields; reconcile the protected original intake before clinician BPS review.'},409);
   const {data,error}=await ctx.supabase.rpc('save_emr_bps_intake_review',{p_payload:{

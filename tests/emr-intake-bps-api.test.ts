@@ -548,15 +548,26 @@ test('original BPS reviewed badge rejects altered, omitted and protected history
   expect((await response.json()).currentVersionReviewed).toBe(false);
   expect(JSON.stringify(await (await GET(url)).json())).not.toContain('PRIVATE_FICTIONAL_MEDICATION_NOT_FOR_BPS');
  }
- // Stored free-text trauma is allowed in the immutable protected snapshot,
- // but is checked without being disclosed by the metadata-only summary.
+ // The updated DB RPC excludes structured trauma from general BPS snapshots.
+ // The source still contains this patient report, but a complete NON-trauma
+ // clinical snapshot must verify successfully after the clinician saves it.
  data.trauma_history='PRIVATE_FICTIONAL_STRUCTURED_TRAUMA_WORKFLOW';
+ reviewRows=[baseline];
+ const separatedTrauma=await GET(url);
+ expect(separatedTrauma.status).toBe(200);
+ expect((await separatedTrauma.json()).currentVersionReviewed).toBe(true);
+ const separatedHistory=await GET(request());
+ expect(separatedHistory.status).toBe(200);
+ expect((await separatedHistory.json()).reviews[0].current_source_snapshot_verified).toBe(true);
+ expect(JSON.stringify(await (await GET(request())).json())).not.toContain('PRIVATE_FICTIONAL_STRUCTURED_TRAUMA_WORKFLOW');
+ // Historical immutable rows that contain the formerly copied trauma text
+ // remain stored but must not be called current-source-verified or disclosed.
  reviewRows=[{...baseline,clinical_answers:{...baseline.clinical_answers,
   trauma_history:'PRIVATE_FICTIONAL_STRUCTURED_TRAUMA_WORKFLOW'}}];
- const withTrauma=await GET(url);
- expect(withTrauma.status).toBe(200);
- expect((await withTrauma.json()).currentVersionReviewed).toBe(true);
- expect(JSON.stringify(await (await GET(url)).json())).not.toContain('PRIVATE_FICTIONAL_STRUCTURED_TRAUMA_WORKFLOW');
+ const legacyTrauma=await GET(url);
+ expect(legacyTrauma.status).toBe(200);
+ expect((await legacyTrauma.json()).currentVersionReviewed).toBe(false);
+ expect(JSON.stringify(await (await GET(request())).json())).not.toContain('PRIVATE_FICTIONAL_STRUCTURED_TRAUMA_WORKFLOW');
 });
 
 test('current clinician history verifies the complete clinical source, not merely the reviewed flag',async()=>{

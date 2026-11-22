@@ -94,3 +94,17 @@ test.each([
  expect(screen.queryByText(/A new medical\/substance history snapshot was recorded/)).toBeNull();
  expect(calls.filter(c=>(c.payload as {path?:string})?.path==='/api/save')).toHaveLength(1);
 });
+
+test('ambiguous medical history save locks any retry until protected chart is reopened',async()=>{
+ const calls=fixture({omitReadback:true});
+ render(<IntakeMedicalSubstanceReconciliation patientId={id} sourceJson={sourceJson} sourceUpdatedAt={stamp}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Prepare clinician draft from intake'}));
+ fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed and corrected these patient-reported historical details/}));
+ const save=screen.getByRole('button',{name:'Save clinician-reviewed history snapshot'});
+ fireEvent.click(save);
+ expect(await screen.findByText(/exact reviewed history was not verified on chart readback/)).toBeTruthy();
+ expect(await screen.findByText(/Reopen the protected chart and inspect history before another attempt/)).toBeTruthy();
+ expect((save as HTMLButtonElement).disabled).toBe(true);
+ fireEvent.submit(save.closest('form')!);
+ expect(calls.filter(c=>(c.payload as {path?:string})?.path==='/api/save')).toHaveLength(1);
+});

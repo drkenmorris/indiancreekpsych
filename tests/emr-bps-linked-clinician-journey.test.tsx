@@ -32,6 +32,7 @@ test.each([['lowercase receipt',false,false],['uppercase receipt',true,false],['
  sourceAnswers.counseling_reason='FICTIONAL_PATIENT_PRESENTING_CONCERN';
  sourceAnswers.medication_entries='PRIVATE_FICTIONAL_MEDICATION';
  sourceAnswers.medication_allergy_notes='PRIVATE_FICTIONAL_ALLERGY';
+ sourceAnswers.trauma_history='PRIVATE_FICTIONAL_TRAUMA_NARRATIVE';
  sourceAnswers.trauma_history_checklist='PRIVATE_FICTIONAL_TRAUMA';
  sourceAnswers.insurance_member='PRIVATE_FICTIONAL_INSURANCE';
  sourceAnswers.roi_authorize='PRIVATE_FICTIONAL_LEGAL_AUTHORIZATION';
@@ -154,6 +155,10 @@ test.each([['lowercase receipt',false,false],['uppercase receipt',true,false],['
  expect(historyData.reviews[0].clinical_answers.counseling_reason).toBe(
   'FICTIONAL_PATIENT_PRESENTING_CONCERN'
  );
+ expect(historyData.reviews[0].current_source_snapshot_verified).toBe(true);
+ expect((reviews[0].clinical_answers as Record<string,string>).trauma_history).toBeUndefined();
+ expect(historyData.reviews[0].clinical_answers.trauma_history).toBeUndefined();
+ expect(JSON.stringify(historyData)).not.toContain('PRIVATE_FICTIONAL_TRAUMA_NARRATIVE');
  expect(historyData.reviews[0].clinical_answers.medication_entries).toBeUndefined();
  expect(historyData.reviews[0].clinical_answers.roi_authorize).toBeUndefined();
  expect(queries.some(q=>q.table==='emr_bps_intake_reviews'&&

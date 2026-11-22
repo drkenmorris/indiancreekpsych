@@ -88,3 +88,17 @@ test.each([
  expect(screen.queryByText(/A reviewed medication-allergy history entry was saved/)).toBeNull();
  expect(calls.filter(c=>(c.payload as {path?:string})?.path==='/api/save')).toHaveLength(1);
 });
+
+test('ambiguous allergy-history save locks duplicate attempts until chart is reopened',async()=>{
+ const calls=fixtures({omitReadback:true});
+ render(<IntakeAllergyReconciliation {...props}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Prepare medication-allergy review'}));
+ fireEvent.click(screen.getByRole('checkbox'));
+ const save=screen.getByRole('button',{name:'Save reviewed allergy-history entry'});
+ fireEvent.click(save);
+ expect(await screen.findByText(/exact reviewed entry was not verified on chart readback/)).toBeTruthy();
+ expect(await screen.findByText(/Reopen the protected chart and inspect history before another attempt/)).toBeTruthy();
+ expect((save as HTMLButtonElement).disabled).toBe(true);
+ fireEvent.submit(save.closest('form')!);
+ expect(calls.filter(c=>(c.payload as {path?:string})?.path==='/api/save')).toHaveLength(1);
+});

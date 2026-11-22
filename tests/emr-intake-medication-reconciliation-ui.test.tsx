@@ -7,13 +7,13 @@ const id='00000000-0000-0000-0000-000000000123',updated='2026-11-09T14:00:00Z';
 const entry={medication:'Fictional Medicine',status:'Past',dosage:'5 mg',frequency:'Daily',start_date:'2025-01-01',end_date:'2025-05-01',prescribing_physician:'Example provider',benefit:'Beneficial'};
 const intakeJson=JSON.stringify([entry]);
 afterEach(()=>{cleanup();vi.unstubAllGlobals();});
-function mockApi({stale=false,omitReadback=false,mismatchReadback=false,records=[] as unknown[]}={}){
+function mockApi({stale=false,omitReadback=false,mismatchReadback=false,status='submitted',records=[] as unknown[]}={}){
  let persisted:unknown=null;
  const calls:Array<{url:string;body:unknown}>=[];
  vi.stubGlobal('fetch',vi.fn(async (url:string,init?:RequestInit)=>{
   const body=init?.body?JSON.parse(String(init.body)):null;
   calls.push({url,body});
-  if(url.startsWith('/api/emr/patients'))return {ok:true,json:async()=>({patients:[{id}],intake:{updated_at:stale?'newer':updated,answers:{medication_entries:intakeJson}}})};
+  if(url.startsWith('/api/emr/patients'))return {ok:true,json:async()=>({patients:[{id}],intake:{status,updated_at:stale?'newer':updated,answers:{medication_entries:intakeJson}}})};
   if(body?.path==='/api/save'){
    if(!omitReadback)persisted={kind:'biopsychosocial_medication',id:'fictional-history-record',...body.body.data,
     ...(mismatchReadback?{dosage:'WRONG DOSE'}:{})};
@@ -73,4 +73,14 @@ test('existing chart medication is not duplicated and malformed intake cannot be
  expect(calls.filter(c=>(c.body as {path?:string})?.path==='/api/save')).toHaveLength(0);
  view.rerender(<IntakeMedicationReconciliation patientId={id} intakeJson="not-json" intakeUpdatedAt={updated}/>);
  expect(await screen.findByRole('alert')).toHaveProperty('textContent',expect.stringContaining('malformed or incomplete'));
+});
+
+test('an unsubmitted linked intake cannot be converted into chart medication history despite explicit review',async()=>{
+ const calls=mockApi({status:'draft'});
+ render(<IntakeMedicationReconciliation patientId={id} intakeJson={intakeJson} intakeUpdatedAt={updated}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Prepare review draft'}));
+ fireEvent.click(screen.getByRole('checkbox'));
+ fireEvent.click(screen.getByRole('button',{name:'Save reviewed medication-history entry'}));
+ expect(await screen.findByText(/Linked intake has not been submitted/)).toBeTruthy();
+ expect(calls.filter(c=>(c.body as {path?:string})?.path==='/api/save')).toHaveLength(0);
 });

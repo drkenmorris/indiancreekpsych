@@ -58,6 +58,26 @@ await db.exec([
  'GRANT EXECUTE ON FUNCTION private.current_user_is_admin(),private.patient_secure_session() TO authenticated;'
 ].join('\n'));
 
+// Negative-control acceptance: prove that the inherited, still-unmigrated
+// PERMISSIVE FOR ALL policy actually leaks an unrelated fictional appointment
+// to an ordinary AAL1 patient. The fix tests below must then prove the same
+// row is withheld AFTER the real pending migrations are applied. This is an
+// isolated PGlite fixture; NEVER query or alter real patient bookings here.
+await test('pre-migration negative control exposes the inherited cross-patient scheduler policy',async()=>{
+ await db.query("SELECT set_config('request.user',$1,false),set_config('request.jwt.claims',$2,false)",[
+  patient,JSON.stringify({aal:'aal1'})
+ ]);
+ await db.exec('SET ROLE authenticated');
+ try{
+  const own=await db.query('SELECT id FROM public.appointments WHERE patient_id=$1',[patient]);
+  const forbidden=await db.query('SELECT id FROM public.appointments WHERE patient_id=$1',[unrelated]);
+  assert.equal(own.rows.length,1,'fixture must contain a visible own-row control');
+  assert.equal(forbidden.rows.length,1,'inherited permissive policy must reproduce the real privacy weakness before migration');
+ }finally{
+  await db.exec('RESET ROLE');
+ }
+});
+
 // Apply BOTH pending protections to the same isolated database. Testing only
 // their separate fixtures misses policy interactions in the real scheduler.
 await db.exec(readFileSync(new URL('../supabase/migrations/20261115120000_restrict_appointment_patient_row_scope.sql',import.meta.url),'utf8'));

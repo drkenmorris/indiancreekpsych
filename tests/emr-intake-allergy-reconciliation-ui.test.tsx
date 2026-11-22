@@ -1,6 +1,6 @@
 import React from 'react';
 import {afterEach,expect,test,vi} from 'vitest';
-import {cleanup,fireEvent,render,screen} from '@testing-library/react';
+import {act,cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
 import IntakeAllergyReconciliation from '@/app/emr/IntakeAllergyReconciliation';
 const patient='00000000-0000-0000-0000-000000000123',sourceUpdatedAt='2026-11-09T00:00:00Z';
 afterEach(()=>{cleanup();vi.unstubAllGlobals();});
@@ -101,4 +101,25 @@ test('ambiguous allergy-history save locks duplicate attempts until chart is reo
  expect((save as HTMLButtonElement).disabled).toBe(true);
  fireEvent.submit(save.closest('form')!);
  expect(calls.filter(c=>(c.payload as {path?:string})?.path==='/api/save')).toHaveLength(1);
+});
+
+test('changing the patient during delayed allergy lookup does not write an old draft',async()=>{
+ const next='00000000-0000-0000-0000-000000000124';
+ let done:(v:any)=>void=()=>{};
+ const pending=new Promise<any>(resolve=>{done=resolve;});
+ const requests:Array<{url:string;payload:any}>=[];
+ vi.stubGlobal('fetch',vi.fn(async(url:string,init?:RequestInit)=>{
+  const payload=init?.body?JSON.parse(String(init.body)):null;
+  requests.push({url,payload});
+  if(url.startsWith('/api/emr/patients?id='+patient))return pending;
+  return {ok:true,json:async()=>({revision:1,value:{records:[]}})};
+ }));
+ const view=render(<IntakeAllergyReconciliation {...props}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Prepare medication-allergy review'}));
+ fireEvent.click(screen.getByRole('checkbox'));
+ fireEvent.click(screen.getByRole('button',{name:'Save reviewed allergy-history entry'}));
+ await waitFor(()=>expect(requests.filter(r=>r.url.startsWith('/api/emr/patients?id='+patient))).toHaveLength(1));
+ view.rerender(<IntakeAllergyReconciliation {...props} patientId={next}/>);
+ await act(async()=>done({ok:true,json:async()=>({patients:[{id:patient}],intake:{status:'submitted',updated_at:sourceUpdatedAt,answers:{medication_allergy_status:props.sourceStatus,medication_allergy_notes:props.sourceNotes}}})}));
+ expect(requests.filter(r=>r.payload?.path==='/api/save')).toHaveLength(0);
 });

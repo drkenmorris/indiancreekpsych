@@ -280,8 +280,9 @@ test('clinic migrations replay in order on an empty application database', async
     assert.equal(review.source_status,'draft');
     assert.equal(review.reviewed,true);
     assert.equal(review.clinical_answers.counseling_reason,'Fictional reported concern');
-    assert.equal(review.clinical_answers.trauma_history,'Fictional reported history');
-    for(const key of ['insurance_member','roi_authorize','medication_allergy_status','medication_allergy_notes']){
+    // Structured trauma is retained in its dedicated protected source, never
+    // duplicated into a generally readable BPS clinician-history snapshot.
+    for(const key of ['trauma_history','insurance_member','roi_authorize','medication_allergy_status','medication_allergy_notes']){
       assert.equal(review.clinical_answers[key],undefined,key+' must never be imported into BPS');
     }
     await assert.rejects(db.query('select public.save_emr_bps_intake_review($1) as id',[payload]),

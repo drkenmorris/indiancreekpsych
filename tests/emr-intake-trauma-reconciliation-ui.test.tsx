@@ -11,7 +11,7 @@ selections.experiences=['Physical assault or abuse'];
 const source=JSON.stringify({definition_version:definition.version,selections});
 const props={patientId,sourceJson:source,sourceUpdatedAt:stamp,sourceStatus:'submitted'};
 afterEach(()=>{cleanup();vi.unstubAllGlobals();});
-function fixture({stale=false,unlinked=false,omitReadback=false,records=[] as unknown[],status='submitted'}={}){
+function fixture({stale=false,unlinked=false,omitReadback=false,sameRevision=false,missingRecordId=false,records=[] as unknown[],status='submitted'}={}){
  let persisted:unknown=null;
  const calls:Array<{url:string;payload:any}>=[];
  vi.stubGlobal('fetch',vi.fn(async(url:string,init?:RequestInit)=>{
@@ -22,10 +22,10 @@ function fixture({stale=false,unlinked=false,omitReadback=false,records=[] as un
    intake:{updated_at:stale?'later':stamp,status,answers:{trauma_history_checklist:source}}
   })};
   if(payload?.path==='/api/save'){
-   if(!omitReadback)persisted={kind:'biopsychosocial_trauma_history',...payload.body.data,definition:{version:definition.version}};
+   if(!omitReadback)persisted={id:missingRecordId?'':'fictional-new-history-record',kind:'biopsychosocial_trauma_history',...payload.body.data,definition:{version:definition.version}};
    return {ok:true,json:async()=>({revision:2,value:{saved:true}})};
   }
-  return {ok:true,json:async()=>({revision:persisted?2:1,value:{records:persisted?[...records,persisted]:records}})};
+  return {ok:true,json:async()=>({revision:persisted&&!sameRevision?2:1,value:{records:persisted?[...records,persisted]:records}})};
  }));
  return calls;
 }
@@ -108,4 +108,18 @@ test('the trauma snapshot cannot be saved while the linked website intake is sti
  fireEvent.click(screen.getByRole('button',{name:'Save reviewed trauma-history snapshot'}));
  expect(await screen.findByText(/Linked intake has not been submitted/)).toBeTruthy();
  expect(saves(calls)).toHaveLength(0);
+});
+
+test.each([
+ ['unchanged chart revision',{sameRevision:true}],
+ ['unidentified chart-history entry',{missingRecordId:true}]
+])('trauma-history write acknowledgment with %s cannot claim confirmed clinical persistence',async(_scenario,options)=>{
+ const calls=fixture(options);
+ render(<IntakeTraumaHistoryReconciliation {...props}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Prepare clinician trauma-history draft'}));
+ fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed these reported details/}));
+ fireEvent.click(screen.getByRole('button',{name:'Save reviewed trauma-history snapshot'}));
+ expect(await screen.findByText(/exact reviewed history was not verified on chart readback/)).toBeTruthy();
+ expect(screen.queryByText(/reviewed trauma-history snapshot was saved/)).toBeNull();
+ expect(calls.filter(c=>c.payload?.path==='/api/save')).toHaveLength(1);
 });

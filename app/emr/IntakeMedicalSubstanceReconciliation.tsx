@@ -3,7 +3,7 @@ import {useEffect,useMemo,useState,type FormEvent} from 'react';
 import IntakeMedicalSubstance from '@/app/components/IntakeMedicalSubstance';
 import {parseMedicalSubstance,validateMedicalSubstance,type MedicalSubstanceAnswers} from '@/lib/patient/medical-substance';
 
-type MedicalRecord={kind:string;created:string;selections:Record<string,string[]>;notes:Record<string,string>};
+type MedicalRecord={id:string;kind:string;created:string;selections:Record<string,string[]>;notes:Record<string,string>};
 const content=(a:MedicalSubstanceAnswers)=>JSON.stringify({selections:a.selections,notes:a.notes});
 const same=(a:MedicalRecord,b:MedicalSubstanceAnswers)=>content(b)===JSON.stringify({selections:a.selections,notes:a.notes});
 async function json(response:Response){
@@ -71,7 +71,10 @@ export default function IntakeMedicalSubstanceReconciliation({patientId,sourceJs
      body:{patient_id:patientId,action:'biopsychosocial_medical_substance',data:{selections:parsed.selections,notes:parsed.notes}}})});
    await json(write);
    const updated=await chart(patientId);
-   if(!updated.records.some(row=>same(row,parsed)))
+   const priorIds=new Set(latest.records.map(row=>row.id));
+   // A pre-existing copy or an unadvanced revision cannot confirm this reviewed write.
+   if(updated.revision<=latest.revision||!updated.records.some(row=>
+     typeof row.id==='string'&&row.id.trim().length>0&&!priorIds.has(row.id)&&same(row,parsed)))
     throw Error('Medical/substance save was acknowledged, but the exact reviewed history was not verified on chart readback. Reopen the chart before retrying.');
    setRecords(updated.records);setDraftJson('');setReviewed(false);
    setMessage('A new medical/substance history snapshot was recorded in the protected central chart. This does not establish a diagnosis, clinician signature or final treatment decision.');

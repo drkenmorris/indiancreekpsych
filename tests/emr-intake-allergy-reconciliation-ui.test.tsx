@@ -4,7 +4,7 @@ import {cleanup,fireEvent,render,screen} from '@testing-library/react';
 import IntakeAllergyReconciliation from '@/app/emr/IntakeAllergyReconciliation';
 const patient='00000000-0000-0000-0000-000000000123',sourceUpdatedAt='2026-11-09T00:00:00Z';
 afterEach(()=>{cleanup();vi.unstubAllGlobals();});
-function fixtures({stale=false,omitReadback=false,status='submitted',records=[] as unknown[]}={}){
+function fixtures({stale=false,omitReadback=false,sameRevision=false,missingRecordId=false,status='submitted',records=[] as unknown[]}={}){
  let persisted:unknown=null;
  const calls:Array<{url:string;payload:unknown}>=[];
  vi.stubGlobal('fetch',vi.fn(async(url:string,init?:RequestInit)=>{
@@ -12,10 +12,10 @@ function fixtures({stale=false,omitReadback=false,status='submitted',records=[] 
   if(url.startsWith('/api/emr/patients'))return {ok:true,json:async()=>({patients:[{id:patient}],intake:{status,updated_at:stale?'new source':sourceUpdatedAt,
    answers:{medication_allergy_status:'Medication allergies reported',medication_allergy_notes:'Fictional reported reaction'}}})};
   if(payload?.path==='/api/save'){
-   if(!omitReadback)persisted={kind:'medication_allergies',...payload.body.data};
+   if(!omitReadback)persisted={id:missingRecordId?'':'fictional-new-history-record',kind:'medication_allergies',...payload.body.data};
    return {ok:true,json:async()=>({value:{saved:true},revision:2})};
   }
-  return {ok:true,json:async()=>({value:{records:persisted?[...records,persisted]:records},revision:persisted?2:1})};
+  return {ok:true,json:async()=>({value:{records:persisted?[...records,persisted]:records},revision:persisted&&!sameRevision?2:1})};
  }));
  return calls;
 }
@@ -73,4 +73,18 @@ test('unsubmitted linked allergy intake does not produce clinical chart history'
  fireEvent.click(screen.getByRole('button',{name:'Save reviewed allergy-history entry'}));
  expect(await screen.findByText(/Linked intake has not been submitted/)).toBeTruthy();
  expect(calls.filter(c=>(c.payload as {path?:string})?.path==='/api/save')).toHaveLength(0);
+});
+
+test.each([
+ ['unchanged chart revision',{sameRevision:true}],
+ ['unidentified chart-history entry',{missingRecordId:true}]
+])('allergy-history write acknowledgment with %s cannot claim confirmed clinical persistence',async(_scenario,options)=>{
+ const calls=fixtures(options);
+ render(<IntakeAllergyReconciliation {...props}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Prepare medication-allergy review'}));
+ fireEvent.click(screen.getByRole('checkbox'));
+ fireEvent.click(screen.getByRole('button',{name:'Save reviewed allergy-history entry'}));
+ expect(await screen.findByText(/exact reviewed entry was not verified on chart readback/)).toBeTruthy();
+ expect(screen.queryByText(/A reviewed medication-allergy history entry was saved/)).toBeNull();
+ expect(calls.filter(c=>(c.payload as {path?:string})?.path==='/api/save')).toHaveLength(1);
 });

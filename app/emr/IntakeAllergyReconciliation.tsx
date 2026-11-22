@@ -2,7 +2,7 @@
 import {useEffect,useState,type FormEvent} from 'react';
 import {validateMedicationAllergies} from '@/lib/patient/medications';
 
-type Allergy={kind:string;allergy_status:string;allergy_notes:string};
+type Allergy={id:string;kind:string;allergy_status:string;allergy_notes:string};
 const statuses=['No known medication allergies','Medication allergies reported'] as const;
 const matches=(a:Allergy,status:string,notes:string)=>a.allergy_status===status&&a.allergy_notes===notes.trim();
 async function read(response:Response){
@@ -61,7 +61,10 @@ export default function IntakeAllergyReconciliation({patientId,sourceStatus,sour
      body:{patient_id:patientId,action:'medication_allergies',data:{allergy_status:status,allergy_notes:notes.trim()}}})});
    await read(write);
    const refreshed=await chart(patientId);
-   if(!refreshed.allergies.some(row=>matches(row,status,notes)))
+   const priorIds=new Set(latest.allergies.map(row=>row.id));
+   // A matching historical entry or unchanged chart revision is not proof this write persisted.
+   if(refreshed.revision<=latest.revision||!refreshed.allergies.some(row=>
+     typeof row.id==='string'&&row.id.trim().length>0&&!priorIds.has(row.id)&&matches(row,status,notes)))
     throw Error('Allergy-history save was acknowledged, but the exact reviewed entry was not verified on chart readback. Reopen the chart before retrying.');
    setRecords(refreshed.allergies);setEditing(false);setReviewed(false);setStatus('');setNotes('');
    setMessage('A reviewed medication-allergy history entry was saved in the protected central chart. It is a documentation snapshot, not a signed allergy attestation or medication order.');

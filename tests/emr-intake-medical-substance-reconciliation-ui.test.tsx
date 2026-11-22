@@ -8,7 +8,7 @@ const original=emptyMedicalSubstance();
 original.selections[medicalSubstanceDefinition.groups[0].key]=[medicalSubstanceDefinition.groups[0].choices[0]];
 const sourceJson=JSON.stringify(original);
 afterEach(()=>{cleanup();vi.unstubAllGlobals();});
-function fixture({stale=false,omitReadback=false,status='submitted',records=[] as unknown[]}={}){
+function fixture({stale=false,omitReadback=false,sameRevision=false,missingRecordId=false,status='submitted',records=[] as unknown[]}={}){
  let persisted:unknown=null;
  const calls:Array<{url:string;payload:unknown}>=[];
  vi.stubGlobal('fetch',vi.fn(async(url:string,init?:RequestInit)=>{
@@ -16,10 +16,10 @@ function fixture({stale=false,omitReadback=false,status='submitted',records=[] a
   calls.push({url,payload});
   if(url.startsWith('/api/emr/patients'))return {ok:true,json:async()=>({patients:[{id}],intake:{status,updated_at:stale?'changed':stamp,answers:{medical_substance_history:sourceJson}}})};
   if(payload?.path==='/api/save'){
-   if(!omitReadback)persisted={kind:'biopsychosocial_medical_substance',...payload.body.data};
+   if(!omitReadback)persisted={id:missingRecordId?'':'fictional-new-history-record',kind:'biopsychosocial_medical_substance',...payload.body.data};
    return {ok:true,json:async()=>({value:{saved:true},revision:2})};
   }
-  return {ok:true,json:async()=>({value:{records:persisted?[...records,persisted]:records},revision:persisted?2:1})};
+  return {ok:true,json:async()=>({value:{records:persisted?[...records,persisted]:records},revision:persisted&&!sameRevision?2:1})};
  }));
  return calls;
 }
@@ -79,4 +79,18 @@ test('a draft website intake cannot be imported as clinician-reviewed medical/su
  fireEvent.click(screen.getByRole('button',{name:'Save clinician-reviewed history snapshot'}));
  expect(await screen.findByText(/Linked intake has not been submitted/)).toBeTruthy();
  expect(calls.filter(c=>(c.payload as {path?:string})?.path==='/api/save')).toHaveLength(0);
+});
+
+test.each([
+ ['unchanged chart revision',{sameRevision:true}],
+ ['unidentified chart-history entry',{missingRecordId:true}]
+])('medical/substance history write acknowledgment with %s cannot claim confirmed clinical persistence',async(_scenario,options)=>{
+ const calls=fixture(options);
+ render(<IntakeMedicalSubstanceReconciliation patientId={id} sourceJson={sourceJson} sourceUpdatedAt={stamp}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Prepare clinician draft from intake'}));
+ fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed and corrected these patient-reported historical details/}));
+ fireEvent.click(screen.getByRole('button',{name:'Save clinician-reviewed history snapshot'}));
+ expect(await screen.findByText(/exact reviewed history was not verified on chart readback/)).toBeTruthy();
+ expect(screen.queryByText(/A new medical\/substance history snapshot was recorded/)).toBeNull();
+ expect(calls.filter(c=>(c.payload as {path?:string})?.path==='/api/save')).toHaveLength(1);
 });

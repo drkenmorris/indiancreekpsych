@@ -3,7 +3,7 @@ import {useEffect,useMemo,useState,type FormEvent} from 'react';
 import IntakeTraumaHistory from '@/app/components/IntakeTraumaHistory';
 import {parseTraumaHistory,traumaHistoryDefinition,validateTraumaHistory} from '@/lib/patient/trauma-history';
 
-type TraumaRecord={kind:string;selections:Record<string,string[]>;notes?:Record<string,string>;definition?:{version?:string}};
+type TraumaRecord={id:string;kind:string;selections:Record<string,string[]>;notes?:Record<string,string>;definition?:{version?:string}};
 type Notes={context_notes:string;followup_notes:string;source_notes:string};
 const emptyNotes=():Notes=>({context_notes:'',followup_notes:'',source_notes:''});
 const noteFields=[['context_notes','Clinical context / approximate timing'],['followup_notes','Follow-up and patient preferences'],['source_notes','Source limitations and review details']] as const;
@@ -78,7 +78,10 @@ export default function IntakeTraumaHistoryReconciliation({patientId,sourceJson,
     body:JSON.stringify({patientId,path:'/api/save',method:'POST',expectedRevision:current.revision,
      body:{patient_id:patientId,action:'biopsychosocial_trauma_history',data:{selections:parsed.selections,notes}}})}));
    const updated=await chart(patientId);
-   if(!updated.records.some(row=>matches(row,draft,notes)))
+   const priorIds=new Set(current.records.map(row=>row.id));
+   // Neither a stale revision nor a previously identified row verifies this write.
+   if(updated.revision<=current.revision||!updated.records.some(row=>
+     typeof row.id==='string'&&row.id.trim().length>0&&!priorIds.has(row.id)&&matches(row,draft,notes)))
     throw Error('Trauma-history save was acknowledged, but the exact reviewed history was not verified on chart readback. Reopen the chart before retrying.');
    setRecords(updated.records);setDraft(null);setNotes(emptyNotes());setReviewed(false);
    setMessage('The reviewed trauma-history snapshot was saved in the protected patient chart. It is not a diagnosis, signed assessment or emergency safety evaluation.');

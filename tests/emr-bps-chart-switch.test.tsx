@@ -51,6 +51,35 @@ test('clinician reconciliation retains visible clinical history while withholdin
   expect(document.body.textContent).not.toContain(secret);
 });
 
+test('a forged source with all reported flags removed cannot hide a nonblank patient statement behind a zero answer count',async()=>{
+ const patientId='00000000-0000-4000-8000-000000000801';
+ const hidden='PRIVATE_FICTIONAL_UNTAGGED_CLINICAL_RESPONSE';
+ const sections=mapIntakeToBps({counseling_reason:hidden}).sections;
+ const affected=sections.find(section=>section.fields.some(field=>field.key==='counseling_reason'));
+ if(!affected)throw Error('Expected presenting-concern questionnaire section');
+ // A stale source adapter hides the patient report by dropping EVERY tag in
+ // its section, not just one. The old all-untagged fallback checked only a
+ // positive count and would accept this corrupted zero-count response.
+ affected.answered=0;
+ for(const field of affected.fields)field.reported=undefined as unknown as boolean;
+ let writes=0;
+ vi.stubGlobal('fetch',vi.fn(async(_url:string,options?:RequestInit)=>{
+  if(options?.method==='POST')writes++;
+  return Response.json({
+   patientId,source:{accountId:patientId,status:'submitted',version:2,
+    updatedAt:'2026-11-11T12:00:00Z',submittedAt:'2026-11-11T12:00:00Z'},
+   sections,unmappedKeys:[],reviews:[]
+  });
+ }));
+ render(<PatientBpsIntakeReview patientId={patientId}/>);
+ const alert=await screen.findByRole('alert');
+ expect(alert.textContent).toContain('21-section intake mapping is malformed');
+ expect(document.body.textContent).not.toContain(hidden);
+ expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
+ expect(screen.queryByRole('button',{name:/Save reviewed BPS history snapshot/i})).toBeNull();
+ expect(writes).toBe(0);
+});
+
 test('clinician reconciliation fails closed instead of partially displaying a contradictory source answer receipt',async()=>{
  const id='00000000-0000-4000-8000-000000000801';
  const sections=mapIntakeToBps({

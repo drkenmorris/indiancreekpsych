@@ -121,3 +121,23 @@ test('clinician source rejects a declared patient response lacking an explicit p
  expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
  expect(countWrites()).toBe(0);
 });
+
+// A stale or corrupted protected API may return a valid-looking 21-section
+// questionnaire with an invalid source-answer receipt. Its source text must
+// be withheld before a clinician can view, prepare, or submit a review.
+test.each([
+ ['short receipt','abc'],
+ ['uppercase receipt','A'.repeat(64)],
+ ['wrong-type receipt',null]
+] as const)('clinician BPS fails closed for %s rather than displaying patient statements',async(_case,receipt)=>{
+ const original=fixture();
+ const source={...original,source:{...original.source,answerFingerprint:receipt}};
+ const countWrites=serve(source);
+ render(<PatientBpsIntakeReview patientId={patient}/>);
+ const alert=await screen.findByRole('alert');
+ expect(alert.textContent).toContain('Linked patient intake provenance or clinical review history could not be verified');
+ expect(document.body.textContent).not.toContain(patientAnswers.counseling_reason);
+ expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
+ expect(screen.queryByRole('button',{name:/Save reviewed BPS history snapshot/i})).toBeNull();
+ expect(countWrites()).toBe(0);
+});

@@ -134,7 +134,7 @@ function originalBpsInstantNanoseconds(value){
  // and database attestation. A control-only note, unknown note key, or partially
  // withheld history must not show as an independently documented review on the
  // original seven-page BPS interface.
- const originalBpsInvisibleNoteCharacters=/[\u00ad\u034f\u061c\u180e\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufe00-\ufe0f\ufeff\u{E0100}-\u{E01EF}]/gu;
+ // Bare combining marks do not constitute independently readable clinician\n // observations. Align this original-form indicator with the protected API\n // note gate and the append-only database attestation trigger.\n const originalBpsInvisibleNoteCharacters=/[\u00ad\u034f\u061c\u180e\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufe00-\ufe0f\ufeff\u{E0100}-\u{E01EF}\u0300-\u036F\u0483-\u0489\u1AB0-\u1AFF\u1DC0-\u1DFF\u20D0-\u20FF\uFE20-\uFE2F]/gu;
  const originalBpsDocumentedReview=(review,currentVersion)=>
   // A current clinician review requires affirmative DB-owned verification of
   // the complete current patient source. Missing/null is not attestation.

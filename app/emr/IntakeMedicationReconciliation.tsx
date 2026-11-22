@@ -22,8 +22,10 @@ async function chartFor(patientId:string):Promise<WorkflowResponse>{
 /** Explicit clinician-mediated source transfer into the already-protected central EMR workspace.
  * A saved medication is an append-only history entry, not a prescription, signed order or medication-list attestation.
  */
-export default function IntakeMedicationReconciliation({patientId,intakeJson,intakeUpdatedAt}:
+export default function IntakeMedicationReconciliation({patientId:requestedPatientId,intakeJson,intakeUpdatedAt}:
  {patientId:string;intakeJson:string;intakeUpdatedAt:string}){
+ // Protected patient APIs return canonical lowercase UUIDs; use the same chart identity for provenance and writes.
+ const patientId=requestedPatientId.toLowerCase();
  const [selectedIndex,setSelectedIndex]=useState<number|null>(null);
  const [draft,setDraft]=useState<MedicationEntry>(emptyMedication);
  const [reviewed,setReviewed]=useState(false);

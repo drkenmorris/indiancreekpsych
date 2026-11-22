@@ -3,6 +3,7 @@ import {asqRecipientAccess,asqPrivateHeaders as headers} from '@/lib/clinical-te
 import {checkedSource} from '@/lib/clinical-tests/connected/source';
 import {isConnectedKey,validateSave} from '@/lib/clinical-tests/connected/definition';
 import {uuid} from '@/lib/emr/demographics';
+import {validBpsTimestamp} from '@/lib/emr/intake-bps';
 import {sameOrigin} from '@/lib/emr/access';
 export const dynamic='force-dynamic';
 // A recipient may send chunked or dishonest Content-Length requests. Bound
@@ -36,7 +37,10 @@ async function readConnectedSaveBody(r:Request):Promise<{text?:string;tooLarge?:
 async function access(id:string){const ctx=await asqRecipientAccess();if(!ctx)return null;const {data:a,error}=await ctx.supabase.from('psych_test_assignments').select('id,test_key,recipient_first_name,recipient_last_name,recipient_email,status,expires_at,patient_id,connected_source,connected_source_hash').eq('id',id).maybeSingle();// A filtered lookup is not proof of identity: reject mis-scoped rows, invalid
 // central-chart links, and missing/malformed expiry timestamps before exposing
 // an assigned instrument or permitting its save RPC.
-if(error||!a||a.id!==id||!isConnectedKey(a.test_key)||!uuid(a.patient_id)||a.status!=='sent'||typeof a.expires_at!=='string'||!Number.isFinite(Date.parse(a.expires_at))||Date.parse(a.expires_at)<=Date.now()||a.recipient_email!==ctx.user.email?.toLowerCase())return null;return {...ctx,a};}
+// Date.parse accepts dates like "2099", normalized February 31 and unknown
+// -00:00 timezone offsets. None can certify the recipient authorization window;
+// require a fully specified civil timestamp before serving or saving PHI.
+ if(error||!a||a.id!==id||!isConnectedKey(a.test_key)||!uuid(a.patient_id)||a.status!=='sent'||!validBpsTimestamp(a.expires_at)||Date.parse(a.expires_at)<=Date.now()||a.recipient_email!==ctx.user.email?.toLowerCase())return null;return {...ctx,a};}
 export async function GET(r:Request){const id=new URL(r.url).searchParams.get('id');if(!uuid(id))return NextResponse.json({error:'Invalid assignment.'},{status:400,headers});const ctx=await access(id);if(!ctx)return NextResponse.json({error:'Assignment unavailable. Use the invited verified email, complete security verification, or contact the office if the invitation expired.'},{status:403,headers});try{const definition=checkedSource(ctx.a.connected_source,ctx.a.connected_source_hash);if(definition.testKey!==ctx.a.test_key)throw Error('Assignment and questionnaire key mismatch.');const {data,error}=await ctx.supabase.from('connected_assignment_responses').select('assignment_id,respondent_id,answers,page,revision,status,identity_confirmed').eq('assignment_id',id).eq('respondent_id',ctx.user.id).maybeSingle();if(error)throw Error('Saved answers could not be loaded.');
 // Do not rely on a filtered PostgREST lookup alone to certify recipient
 // provenance. A stale/mis-scoped adapter must never show another person's answers.

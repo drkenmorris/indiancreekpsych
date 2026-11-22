@@ -158,3 +158,25 @@ test('changing patients during a pending trauma source lookup never sends an old
  await act(async()=>done({ok:true,json:async()=>({patients:[{id:patientId}],intake:{status:'submitted',updated_at:stamp,answers:{trauma_history_checklist:source}}})}));
  expect(requests.filter(r=>r.payload?.path==='/api/save')).toHaveLength(0);
 });
+
+test('delayed trauma-history write acknowledgement cannot confirm success on another patient chart',async()=>{
+ const next='00000000-0000-0000-0000-000000000124';
+ let acknowledge:(value:any)=>void=()=>{};
+ const waiting=new Promise<any>(resolve=>{acknowledge=resolve;});
+ const writes:Array<any>=[];
+ vi.stubGlobal('fetch',vi.fn(async(url:string,init?:RequestInit)=>{
+  const payload=init?.body?JSON.parse(String(init.body)):null;
+  if(url.startsWith('/api/emr/patients'))return {ok:true,json:async()=>({patients:[{id:patientId}],intake:{status:'submitted',updated_at:stamp,answers:{trauma_history_checklist:source}}})};
+  if(payload?.path==='/api/save'){writes.push(payload);return waiting;}
+  return {ok:true,json:async()=>({revision:1,value:{records:[]}})};
+ }));
+ const view=render(<IntakeTraumaHistoryReconciliation {...props}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Prepare clinician trauma-history draft'}));
+ fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed these reported details/}));
+ fireEvent.click(screen.getByRole('button',{name:'Save reviewed trauma-history snapshot'}));
+ await waitFor(()=>expect(writes).toHaveLength(1));
+ view.rerender(<IntakeTraumaHistoryReconciliation {...props} patientId={next}/>);
+ await act(async()=>acknowledge({ok:true,json:async()=>({revision:2,value:{saved:true}})}));
+ expect(writes).toHaveLength(1);
+ expect(screen.queryByText(/reviewed trauma-history snapshot was saved/)).toBeNull();
+});

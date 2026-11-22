@@ -123,3 +123,17 @@ test.each([
  expect(screen.queryByText(/reviewed trauma-history snapshot was saved/)).toBeNull();
  expect(calls.filter(c=>c.payload?.path==='/api/save')).toHaveLength(1);
 });
+
+test('ambiguous trauma-history save prevents duplicate clinical history on repeat submit',async()=>{
+ const calls=fixture({omitReadback:true});
+ render(<IntakeTraumaHistoryReconciliation {...props}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Prepare clinician trauma-history draft'}));
+ fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed these reported details/}));
+ const save=screen.getByRole('button',{name:'Save reviewed trauma-history snapshot'});
+ fireEvent.click(save);
+ expect(await screen.findByText(/exact reviewed history was not verified on chart readback/)).toBeTruthy();
+ expect(await screen.findByText(/Reopen the protected chart and inspect history before another attempt/)).toBeTruthy();
+ expect((save as HTMLButtonElement).disabled).toBe(true);
+ fireEvent.submit(save.closest('form')!);
+ expect(saves(calls)).toHaveLength(1);
+});

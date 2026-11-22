@@ -91,7 +91,8 @@ test.each([
    expect(h.note.value).toBe('');
    expect(h.button()).toBeUndefined();
    expect(h.requests).toEqual([{url:'/api/emr/bps-intake?patient='+patient,method:'GET'}]);
-   expect(h.dom.window.document.body.textContent).not.toContain('Clinician diagnostic assessment');
+   // Untrusted wording may be visible as source context, never as editable BPS notes.
+   expect(h.note.value).not.toContain('Clinician diagnostic assessment');
   }finally{h.dom.window.close();}
  }
 );

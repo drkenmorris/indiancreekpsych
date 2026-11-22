@@ -506,6 +506,18 @@ function originalBpsInstantNanoseconds(value){
    // allergy, trauma, insurance, legal, or risk-screening responses. This is
    // clinician-initiated source attribution, not a finding or an automatic save.
    const draftDestination=bpsPage==='developmental_personal'?{form:'biopsychosocial_developmental_personal',note:'source_notes',label:'developmental-history',keys:['family_household','social_supports','education_history','employment_history','military_history','cultural_spiritual_factors','strengths_interests']}:bpsPage==='family_origin'?{form:'biopsychosocial_family_origin',note:'other_notes',label:'family-of-origin',keys:['family_household','social_supports']}:null;
+   // Protected fields are deliberately opaque in the 21-section clinical preview.
+   // A change to medication, legal or trauma answers can leave that preview
+   // byte-identical. Require the full server-issued SHA-256 source receipt
+   // before even offering clinician-initiated source attribution.
+   const sourceReceiptValid=typeof source.answerFingerprint==='string'&&
+    /^[a-f0-9]{64}$/.test(source.answerFingerprint);
+   if(draftDestination&&source.status==='submitted'&&!sourceReceiptValid){
+    const missing=document.createElement('p');
+    missing.setAttribute('role','alert');
+    missing.textContent='The complete patient-answer integrity receipt is missing or invalid. No original BPS draft can be populated; reopen the protected source.';
+    pageContext.append(missing);
+   }
    if(draftDestination&&source.status==='submitted'&&result.unmappedKeys.length>0){
     // The intake may contain an unanswered or newly introduced field whose
     // clinical destination has not been approved. Its source can remain
@@ -517,7 +529,7 @@ function originalBpsInstantNanoseconds(value){
     unresolved.textContent='Unmapped intake fields require manual reconciliation before patient-reported source references can be placed into this original BPS draft. Existing clinician notes remain unchanged.';
     pageContext.append(unresolved);
    }
-   if(draftDestination&&source.status==='submitted'&&result.unmappedKeys.length===0){
+   if(draftDestination&&source.status==='submitted'&&result.unmappedKeys.length===0&&sourceReceiptValid){
     const allowedDraftKeys=new Set(draftDestination.keys);
     const getDraftFields=sections=>{
      const section=Array.isArray(sections)?sections.find(entry=>
@@ -594,6 +606,11 @@ function originalBpsInstantNanoseconds(value){
         originalBpsInstantNanoseconds(fresh.source?.updatedAt)!==editedInstant||
         originalBpsInstantNanoseconds(fresh.source?.submittedAt)!==submittedInstant||
         fresh.source?.questionnairePacketVersion!==source.questionnairePacketVersion||
+        // Opaque protected answers can change without changing any of the
+        // 21 displayed placeholder fields or source revision timestamps.
+        // Compare the digest of the COMPLETE protected answer set, not just
+        // the visible clinical projection, before filling editable notes.
+        fresh.source?.answerFingerprint!==source.answerFingerprint||
         // Full 21-section source parity must hold during draft placement;
         // matching only the selected social fields could miss a concurrently
         // altered risk, medication, legal or other patient-reported answer.

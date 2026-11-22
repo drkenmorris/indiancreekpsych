@@ -1,5 +1,5 @@
 'use client';
-import {useEffect,useMemo,useState,type FormEvent} from 'react';
+import {useEffect,useMemo,useRef,useState,type FormEvent} from 'react';
 import IntakeTraumaHistory from '@/app/components/IntakeTraumaHistory';
 import {parseTraumaHistory,traumaHistoryDefinition,validateTraumaHistory} from '@/lib/patient/trauma-history';
 
@@ -42,20 +42,32 @@ export default function IntakeTraumaHistoryReconciliation({patientId,sourceJson,
  const [verificationPending,setVerificationPending]=useState(false);
  const [error,setError]=useState('');
  const [message,setMessage]=useState('');
+ const scope=useRef({patientId,sourceJson,sourceUpdatedAt,sourceStatus,generation:0});
+ if(scope.current.patientId!==patientId||scope.current.sourceJson!==sourceJson||
+    scope.current.sourceUpdatedAt!==sourceUpdatedAt||scope.current.sourceStatus!==sourceStatus)
+  scope.current={patientId,sourceJson,sourceUpdatedAt,sourceStatus,generation:scope.current.generation+1};
+ const preparedGeneration=useRef<number|null>(null);
+ const savingGeneration=useRef<number|null>(null);
  useEffect(()=>{
-  let active=true;setLoading(true);setRecords([]);setDraft(null);setNotes(emptyNotes());setReviewed(false);setError('');setMessage('');setVerificationPending(false);
+  let active=true;setLoading(true);setRecords([]);setDraft(null);setNotes(emptyNotes());setReviewed(false);setError('');setMessage('');setBusy(false);setVerificationPending(false);
   chart(patientId).then(data=>{if(active)setRecords(data.records);})
    .catch(e=>{if(active)setError(e instanceof Error?e.message:'Central history unavailable.');})
    .finally(()=>{if(active)setLoading(false);});
   return ()=>{active=false;};
- },[patientId]);
+ },[patientId,sourceJson,sourceUpdatedAt,sourceStatus]);
  const duplicate=useMemo(()=>{
   if(draft===null)return false;
   try{return records.some(r=>matches(r,draft,notes));}catch{return false;}
  },[records,draft,notes]);
  async function save(event:FormEvent<HTMLFormElement>){
   event.preventDefault();
-  if(verificationPending||draft===null||busy||loading||error||source.error||!reviewed)return;
+  const generation=scope.current.generation;
+  const onOriginalScope=()=>scope.current.generation===generation&&scope.current.patientId===patientId&&
+   scope.current.sourceJson===sourceJson&&scope.current.sourceUpdatedAt===sourceUpdatedAt&&
+   scope.current.sourceStatus===sourceStatus;
+  if(savingGeneration.current===generation||preparedGeneration.current!==generation||
+     verificationPending||draft===null||busy||loading||error||source.error||!reviewed)return;
+  savingGeneration.current=generation;
   setBusy(true);setMessage('');
   try{
    const problem=validateTraumaHistory(draft);
@@ -67,6 +79,7 @@ export default function IntakeTraumaHistoryReconciliation({patientId,sourceJson,
    if(duplicate)throw Error('An identical trauma history snapshot is already saved. No duplicate was added.');
    // Re-read the linked account through the existing admin + MFA gate. Never join on a name.
    const sourceNow=await requireJson(await fetch('/api/emr/patients?id='+encodeURIComponent(patientId),{cache:'no-store'}));
+   if(!onOriginalScope())return;
    if(sourceStatus!=='submitted'||sourceNow.intake?.status!=='submitted')
     throw Error('Linked intake has not been submitted; trauma history cannot be reconciled from a draft.');
    if(sourceNow.patients?.[0]?.id!==patientId||
@@ -75,14 +88,18 @@ export default function IntakeTraumaHistoryReconciliation({patientId,sourceJson,
       sourceNow.intake?.answers?.trauma_history_checklist!==sourceJson)
     throw Error('Linked intake trauma history changed or was unlinked. Reopen the patient and review the latest source.');
    const current=await chart(patientId);
+   if(!onOriginalScope())return;
    if(current.records.some(r=>matches(r,draft,notes)))throw Error('An identical history was saved by another session. Refresh the chart.');
    // The write may commit even if the response or follow-up chart read fails.
    // Lock retries until verified persistence or a fresh chart reopen.
+   if(!onOriginalScope())return;
    setVerificationPending(true);
    await requireJson(await fetch('/api/emr/workflow',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({patientId,path:'/api/save',method:'POST',expectedRevision:current.revision,
      body:{patient_id:patientId,action:'biopsychosocial_trauma_history',data:{selections:parsed.selections,notes}}})}));
+   if(!onOriginalScope())return;
    const updated=await chart(patientId);
+   if(!onOriginalScope())return;
    const priorIds=new Set(current.records.map(row=>row.id));
    // Neither a stale revision nor a previously identified row verifies this write.
    if(updated.revision<=current.revision||!updated.records.some(row=>
@@ -91,8 +108,9 @@ export default function IntakeTraumaHistoryReconciliation({patientId,sourceJson,
    setVerificationPending(false);
    setRecords(updated.records);setDraft(null);setNotes(emptyNotes());setReviewed(false);
    setMessage('The reviewed trauma-history snapshot was saved in the protected patient chart. It is not a diagnosis, signed assessment or emergency safety evaluation.');
-  }catch(e){setMessage(e instanceof Error?e.message:'The trauma-history save could not be confirmed.');}
-  finally{setBusy(false);}
+  }catch(e){if(onOriginalScope())setMessage(e instanceof Error?e.message:'The trauma-history save could not be confirmed.');}
+  finally{if(savingGeneration.current===generation)savingGeneration.current=null;
+   if(onOriginalScope())setBusy(false);}
  }
  return <section className="centralCard" aria-label="Trauma history reconciliation">
   <h3>Review intake trauma history into biopsychosocial chart</h3>
@@ -100,7 +118,7 @@ export default function IntakeTraumaHistoryReconciliation({patientId,sourceJson,
   {source.error?<p role="alert">{source.error}</p>:loading?<p role="status">Checking protected trauma history…</p>:error?<p role="alert">{error}</p>:!source.hasSelections?<p>No selected trauma-history items are available in the linked intake. No transfer is offered.</p>:
    <><p>Saved biopsychosocial trauma-history snapshots: {records.length}.</p>
     {draft===null?<><details><summary>Review original intake checklist</summary><IntakeTraumaHistory value={sourceJson} readOnly/></details>
-      <button type="button" disabled={busy} onClick={()=>{setDraft(sourceJson);setNotes(emptyNotes());setReviewed(false);setMessage('');}}>Prepare clinician trauma-history draft</button></>:
+      <button type="button" disabled={busy} onClick={()=>{preparedGeneration.current=scope.current.generation;setDraft(sourceJson);setNotes(emptyNotes());setReviewed(false);setMessage('');}}>Prepare clinician trauma-history draft</button></>:
      <form onSubmit={save} autoComplete="off">
       <h4>Editable clinical history draft</h4>
       <IntakeTraumaHistory value={draft} onChange={value=>{setDraft(value);setReviewed(false);}} disabled={busy}/>

@@ -99,3 +99,13 @@ test('malformed or unsupported questionnaire never permits a transfer',async()=>
  expect(screen.queryByRole('button',{name:'Prepare clinician trauma-history draft'})).toBeNull();
  expect(saves(calls)).toHaveLength(0);
 });
+
+test('the trauma snapshot cannot be saved while the linked website intake is still draft',async()=>{
+ const calls=fixture({status:'draft'});
+ render(<IntakeTraumaHistoryReconciliation {...props}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Prepare clinician trauma-history draft'}));
+ fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed these reported details/}));
+ fireEvent.click(screen.getByRole('button',{name:'Save reviewed trauma-history snapshot'}));
+ expect(await screen.findByText(/Linked intake has not been submitted/)).toBeTruthy();
+ expect(saves(calls)).toHaveLength(0);
+});

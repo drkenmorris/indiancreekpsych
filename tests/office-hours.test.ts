@@ -121,7 +121,12 @@ test('fixed fixture endpoint denies anonymous, non-admin, cross-origin and unava
  expect(firewallEvents()).toHaveLength(0);expect(mocks.insert).not.toHaveBeenCalled();
 });
 test('ordinary route cannot acquire trusted provenance from user-supplied flags',async()=>{
- enableIdentity();const req=checkRequest();expect((await POST(req)).status).toBe(200);
+ enableIdentity();
+ // The untrusted input intentionally uses weekday 1; keep its independently
+ // fetched schedule receipt consistent with that weekday. Mismatched readback
+ // must be rejected by the production handler, not this provenance test.
+ mocks.read.mockResolvedValueOnce({data:[{id:savedRuleId,weekday:1,start_time:'09:00:00',end_time:'17:00:00',anchor_time:null,enabled:true}],error:null});
+ const req=checkRequest();expect((await POST(req)).status).toBe(200);
  expect(firewallEvents().every(e=>e.testProvenance===undefined)).toBe(true);
 });
 

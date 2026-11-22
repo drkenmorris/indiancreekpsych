@@ -370,8 +370,9 @@ test('free-text trauma narrative remains protected from BPS source rendering reg
  expect(JSON.stringify(mapped)).not.toContain(confidential);
  const history=mapSavedBpsReportedFields({trauma_history:confidential});
  expect(JSON.stringify(history)).not.toContain(confidential);
- // Historical clinical snapshot storage itself is not rewritten.
- expect(bpsSnapshotClinicalKeys.has('trauma_history')).toBe(true);
+ // Existing historical records are not rewritten; the current clinical snapshot
+ // allowlist must exclude trauma narratives from any NEW general BPS saves.
+ expect(bpsSnapshotClinicalKeys.has('trauma_history')).toBe(false);
  const sanitized=sanitizeBpsSnapshotAnswers({trauma_history:confidential,counseling_reason:'Fictional concern'});
  expect(sanitized.answers).toEqual({counseling_reason:'Fictional concern'});
  expect(sanitized.excludedCount).toBe(1);

@@ -770,3 +770,50 @@ test('original BPS still shows allowed safety answers in their actual questionna
   expect(dom.window.document.querySelector('#clinical-form')).not.toBeNull();
  }finally{dom.window.close();}
 });
+
+test.each([
+ ['fully untagged nonblank report, falsified zero answer count',(source:any)=>{
+  const section=source.sections[0];
+  section.answered=0;
+  delete section.fields[0].reported;
+  delete section.fields[0].sourceOnly;
+ }],
+ ['explicitly false reported flag concealing nonblank patient text',(source:any)=>{
+  const section=source.sections[0];
+  section.answered=0;
+  section.fields[0].reported=false;
+ }],
+ ['true reported answer without source-routing receipt',(source:any)=>{
+  delete source.sections[0].fields[0].sourceOnly;
+ }],
+ ['untagged blank answer claiming a completed patient response',(source:any)=>{
+  const section=source.sections[0];
+  section.fields[0].value='';
+  delete section.fields[0].reported;
+  delete section.fields[0].sourceOnly;
+ }]
+])('concealed source replies in original BPS fail closed: %s',async(_name,corrupt)=>{
+ // Clinician review already rejects this contradictory packet. The ORIGINAL
+ // seven-page workspace must enforce the same boundary independently, or an
+ // altered source can appear clinically complete while hiding patient answers.
+ const source:any=report(firstPatient);
+ const requests:string[]=[];
+ corrupt(source);
+ const {ctx,dom}=harness(async url=>{
+  requests.push(url);
+  return Response.json(source);
+ });
+ try{
+  ctx.render();
+  const panel=()=>dom.window.document.querySelector(
+   'section[aria-label="Patient intake context in original biopsychosocial workspace"]')!;
+  await vi.waitFor(()=>expect(panel()?.querySelector('[role="alert"]')?.textContent)
+   .toContain('21-section intake mapping is malformed'));
+  expect(panel().textContent).not.toContain('Fictional patient-reported concern');
+  expect(panel().textContent).not.toContain('attested clinician review(s)');
+  expect(panel().textContent).toContain('no intake data were imported');
+  expect(dom.window.document.querySelector('#clinical-form')?.textContent)
+   .toContain('Original BPS clinical form remains available');
+  expect(requests).toEqual(['/api/emr/bps-intake?patient='+firstPatient]);
+ }finally{dom.window.close();}
+});

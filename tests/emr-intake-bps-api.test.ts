@@ -1494,3 +1494,20 @@ test('BPS summary refuses a same-version patient answer change during history re
  expect(wire).not.toContain(changedAnswer);
  expect(wire).not.toContain('currentVersionReviewed');
 });
+
+test('standalone combining diacritic marks cannot attest a clinician review; actual wording with marks remains valid',async()=>{
+ // A bare accent or combining overlay must not count as a clinician observation.
+ // The same marks inside real clinical wording are retained unmodified.
+ for(const mark of ['\u0301','\u0483','\u1AB0','\u1DC0','\u20D0','\uFE20']){
+  const response=await POST(submit({...payload,notes:fullNotes({presenting:mark})}));
+  expect(response.status).toBe(400);
+  expect(response.headers.get('Cache-Control')).toContain('no-store');
+ }
+ expect(m.rpc).not.toHaveBeenCalled();
+ const note='Fictional clinical observation A\u0301';
+ const allowed=await POST(submit({...payload,notes:fullNotes({presenting:note})}));
+ expect(allowed.status).toBe(201);
+ expect(m.rpc).toHaveBeenCalledTimes(1);
+ expect(m.rpc.mock.calls[0][1].p_payload.clinician_notes.presenting).toBe(note);
+});
+

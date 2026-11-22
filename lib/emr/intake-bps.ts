@@ -141,8 +141,11 @@ export const emptyBpsNotes=():BpsNotes=>Object.fromEntries(Object.keys(bpsNoteDo
 // this predicate decides only whether an independent note was entered.
 // Include supplementary variation selectors U+E0100–U+E01EF as well as BMP
 // marks; otherwise a formatting-only note could be falsely attested.
+// Combining diacritic blocks without a base character are formatting-only,
+// not independently readable clinical observations. Preserve real words with
+// their combining marks; strip these only for the nonblank attestation test.
 // Keep this list aligned with the additive PostgreSQL review trigger.
-const invisibleOnlyBpsNoteCharacters=/[\u00ad\u034f\u061c\u180e\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufe00-\ufe0f\ufeff\u{E0100}-\u{E01EF}]/gu;
+const invisibleOnlyBpsNoteCharacters=/[\u00ad\u034f\u061c\u180e\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufe00-\ufe0f\ufeff\u{E0100}-\u{E01EF}\u0300-\u036F\u0483-\u0489\u1AB0-\u1AFF\u1DC0-\u1DFF\u20D0-\u20FF\uFE20-\uFE2F]/gu;
 export const hasIndependentBpsReviewNote=(notes:Record<string,string>):boolean=>
  Object.keys(bpsNoteDomains).some(key=>typeof notes[key]==='string'&&
   notes[key].replace(invisibleOnlyBpsNoteCharacters,'')

@@ -1,5 +1,5 @@
 'use client';
-import {useEffect,useMemo,useState,type FormEvent} from 'react';
+import {useEffect,useMemo,useRef,useState,type FormEvent} from 'react';
 import {emptyMedication,medicationDurations,hasMedication,parseMedications,validateMedications,type MedicationEntry} from '@/lib/patient/medications';
 
 type ChartMedication=MedicationEntry&{id:string;kind:string};
@@ -34,6 +34,13 @@ export default function IntakeMedicationReconciliation({patientId,intakeJson,int
  const [error,setError]=useState('');
  const [message,setMessage]=useState('');
  const [current,setCurrent]=useState<ChartMedication[]>([]);
+ // Chart and source provenance must remain the same throughout an asynchronous
+ // clinician save. A → B → A navigation also invalidates the older request.
+ const scope=useRef({patientId,intakeJson,intakeUpdatedAt,generation:0});
+ if(scope.current.patientId!==patientId||scope.current.intakeJson!==intakeJson||
+    scope.current.intakeUpdatedAt!==intakeUpdatedAt)
+  scope.current={patientId,intakeJson,intakeUpdatedAt,generation:scope.current.generation+1};
+ const savingGeneration=useRef<number|null>(null);
  const source=useMemo(()=>{
   try{
    const problem=validateMedications(intakeJson,true);
@@ -42,17 +49,23 @@ export default function IntakeMedicationReconciliation({patientId,intakeJson,int
   }catch{return {entries:[] as MedicationEntry[],problem:'The patient-reported medication source is malformed or incomplete. Do not transfer it; review the original intake.'};}
  },[intakeJson]);
  useEffect(()=>{
-  let active=true;setCurrent([]);setSelectedIndex(null);setReviewed(false);setError('');setLoading(true);setVerificationPending(false);
+  let active=true;setCurrent([]);setSelectedIndex(null);setReviewed(false);setDraft(emptyMedication());setError('');setMessage('');setBusy(false);setLoading(true);setVerificationPending(false);
   chartFor(patientId).then(data=>{
    if(active)setCurrent(data.value.records.filter(item=>item.kind==='biopsychosocial_medication'));
   }).catch(e=>{if(active)setError(e instanceof Error?e.message:'Central medication history is unavailable.');})
    .finally(()=>{if(active)setLoading(false);});
   return ()=>{active=false;};
- },[patientId]);
+ },[patientId,intakeJson,intakeUpdatedAt]);
  function edit(field:keyof MedicationEntry,value:string){setDraft(prev=>({...prev,[field]:value}));setReviewed(false);setMessage('');}
  async function save(event:FormEvent<HTMLFormElement>){
   event.preventDefault();
-  if(verificationPending||selectedIndex===null||!reviewed||source.problem||busy||loading||error)return;
+  const generation=scope.current.generation;
+  const onOriginalScope=()=>scope.current.generation===generation&&scope.current.patientId===patientId&&
+   scope.current.intakeJson===intakeJson&&scope.current.intakeUpdatedAt===intakeUpdatedAt;
+  // The busy state updates on the next React render; a direct duplicate
+  // form submit must not start a second clinical write in the same event turn.
+  if(savingGeneration.current===generation||verificationPending||selectedIndex===null||!reviewed||source.problem||busy||loading||error)return;
+  savingGeneration.current=generation;
   setBusy(true);setMessage('');
   try{
    const problem=validateMedications(JSON.stringify([draft]),true);
@@ -62,23 +75,28 @@ export default function IntakeMedicationReconciliation({patientId,intakeJson,int
    // Prevent an outdated intake tab from silently importing a newer or different source.
    const sourceResponse=await fetch('/api/emr/patients?id='+encodeURIComponent(patientId),{cache:'no-store'});
    const sourceNow=await readJson(sourceResponse);
+   if(!onOriginalScope())return;
    if(sourceNow.intake?.status!=='submitted')
     throw Error('Linked intake has not been submitted; medication history cannot be reconciled from a draft.');
    if(sourceNow.patients?.[0]?.id!==patientId||sourceNow.intake?.updated_at!==intakeUpdatedAt||
       sourceNow.intake?.answers?.medication_entries!==intakeJson)
       throw Error('Patient intake changed or is no longer linked. Reopen this patient before reconciling medication history.');
    const latest=await chartFor(patientId);
+   if(!onOriginalScope())return;
    const latestMeds=latest.value.records.filter(item=>item.kind==='biopsychosocial_medication');
    if(latestMeds.some(r=>sameMedication(r,draft)))throw Error('The central chart already contains this medication/status. Reopen the chart to reconcile it.');
    // No browser demo storage and no replacement of existing clinical entries.
    // The write may commit even if the response or follow-up chart read fails.
    // Lock retries until verified persistence or a fresh chart reopen.
+   if(!onOriginalScope())return;
    setVerificationPending(true);
    const response=await fetch('/api/emr/workflow',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({patientId,path:'/api/save',method:'POST',expectedRevision:latest.revision,
       body:{patient_id:patientId,action:'biopsychosocial_medication',data:{...draft,prior_id:''}}})});
    await readJson(response);
+   if(!onOriginalScope())return;
    const updated=await chartFor(patientId);
+   if(!onOriginalScope())return;
    const confirmed=updated.value.records.filter(item=>item.kind==='biopsychosocial_medication');
    // A matching older row (or an unversioned/replayed chart response) is not
    // proof that THIS reviewed save created a new immutable history entry.
@@ -95,8 +113,11 @@ export default function IntakeMedicationReconciliation({patientId,intakeJson,int
    setCurrent(confirmed);
    setSelectedIndex(null);setReviewed(false);setDraft(emptyMedication());
    setMessage('A new medication-history entry was saved to the protected central chart. Review the chart before using it clinically; this is not a prescription, signed attestation or verified medication list.');
-  }catch(e){setMessage(e instanceof Error?e.message:'Medication-history save was not confirmed.');}
-  finally{setBusy(false);}
+  }catch(e){if(onOriginalScope())setMessage(e instanceof Error?e.message:'Medication-history save was not confirmed.');}
+  finally{
+   if(savingGeneration.current===generation)savingGeneration.current=null;
+   if(onOriginalScope())setBusy(false);
+  }
  }
  if(source.problem)return <section aria-label="Intake medication reconciliation" className="centralCard"><h3>Medication-history reconciliation</h3><p role="alert">{source.problem}</p></section>;
  return <section aria-label="Intake medication reconciliation" className="centralCard">

@@ -505,6 +505,12 @@ function originalBpsInstantNanoseconds(value){
    // patient-reported social/developmental facts, never from medication,
    // allergy, trauma, insurance, legal, or risk-screening responses. This is
    // clinician-initiated source attribution, not a finding or an automatic save.
+   // The API's free-text label is patient-supplied context, not authority to
+   // name a clinician-note entry. Bind copied history to the immutable
+   // retired-question labels from lib/patient/intake.ts. A stale or relabeled
+   // payload may be displayed only in protected read-only review, never placed
+   // into an editable clinical draft.
+   const originalBpsDraftHistoricalLabels=Object.freeze({"family_household":"Historical patient report — Current household, family, and important relationships","social_supports":"Historical patient report — Friends, family, community, faith, or other supports","education_history":"Historical patient report — Education, learning difficulties, or school concerns","employment_history":"Historical patient report — Employment / occupation and current work concerns","military_history":"Historical patient report — Military service / veteran status, if applicable","cultural_spiritual_factors":"Historical patient report — Cultural, spiritual, religious, identity, or community factors important to your care","strengths_interests":"Historical patient report — Personal strengths, interests, and coping resources"});
    const draftDestination=bpsPage==='developmental_personal'?{form:'biopsychosocial_developmental_personal',note:'source_notes',label:'developmental-history',keys:['family_household','social_supports','education_history','employment_history','military_history','cultural_spiritual_factors','strengths_interests']}:bpsPage==='family_origin'?{form:'biopsychosocial_family_origin',note:'other_notes',label:'family-of-origin',keys:['family_household','social_supports']}:null;
    // Protected fields are deliberately opaque in the 21-section clinical preview.
    // A change to medication, legal or trauma answers can leave that preview
@@ -534,11 +540,21 @@ function originalBpsInstantNanoseconds(value){
     const getDraftFields=sections=>{
      const section=Array.isArray(sections)?sections.find(entry=>
       entry?.title==='Trauma, family, social, educational, and occupational history'):null;
-     return Array.isArray(section?.fields)?section.fields
-      .filter(field=>allowedDraftKeys.has(field?.key)&&approvedOriginalBpsAnswer(section,field))
-      .map(field=>({key:field.key,label:field.label,value:field.value})):[];
+     if(!Array.isArray(section?.fields))return null;
+     const reported=section.fields.filter(field=>allowedDraftKeys.has(field?.key)&&field?.reported===true);
+     // Never silently drop a relabeled selected response: that could produce
+     // an apparently complete but misleading clinician note. Fail closed.
+     if(reported.some(field=>field.type!=='historical-patient-report'||
+       field.label!==originalBpsDraftHistoricalLabels[field.key]||
+       !approvedOriginalBpsAnswer(section,field)))return null;
+     return reported.map(field=>({key:field.key,label:originalBpsDraftHistoricalLabels[field.key],value:field.value}));
     };
     const fields=getDraftFields(result.sections);
+    if(fields===null){
+     const warning=document.createElement('p');warning.setAttribute('role','alert');
+     warning.textContent='Original BPS patient-history labels or input types did not match the approved question inventory. No editable clinical draft source placement is authorized; reopen the protected intake.';
+     pageContext.append(warning);
+    }
     // Free-text patient reports may contain invisible control or bidirectional
     // formatting marks. These can visually reverse patient-source prefixes or
     // impersonate clinician-authored text even when every newline is labeled.
@@ -549,14 +565,14 @@ function originalBpsInstantNanoseconds(value){
     // alter an attributed patient report. Allow them in the protected original
     // source, but never transfer them to editable clinician-authored notes.
     const unsafeAttributedText=/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f\u00ad\u034f\u061c\u180e\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufe00-\ufe0f\ufeff\u{E0100}-\u{E01EF}]/u;
-    const unsafeDraftField=fields.some(field=>unsafeAttributedText.test(field.value));
+    const unsafeDraftField=Array.isArray(fields)&&fields.some(field=>unsafeAttributedText.test(field.value));
     if(unsafeDraftField){
      const warning=document.createElement('p');
      warning.setAttribute('role','alert');
      warning.textContent='Patient-reported source contains directional or control characters that cannot be safely attributed in editable BPS notes. Review the protected original intake; no source text was copied.';
      pageContext.append(warning);
     }
-    if(fields.length&&!unsafeDraftField){
+    if(Array.isArray(fields)&&fields.length&&!unsafeDraftField){
      // A patient may include newlines or Unicode paragraph separators in a
      // free-text answer. Attribute EACH physical line to the patient so a
      // continuation cannot visually impersonate a clinician-authored finding,

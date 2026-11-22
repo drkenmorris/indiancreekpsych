@@ -24,8 +24,10 @@ async function chart(patientId:string):Promise<{revision:number;records:TraumaRe
 }
 
 /** Only an explicit, reviewed, append-only transfer from the linked patient intake. */
-export default function IntakeTraumaHistoryReconciliation({patientId,sourceJson,sourceUpdatedAt,sourceStatus}:
+export default function IntakeTraumaHistoryReconciliation({patientId:requestedPatientId,sourceJson,sourceUpdatedAt,sourceStatus}:
  {patientId:string;sourceJson:string;sourceUpdatedAt:string;sourceStatus:string}){
+ // Use the same lowercase chart UUID as the protected patient-source and history APIs.
+ const patientId=requestedPatientId.toLowerCase();
  const source=useMemo(()=>{
   try{
    const parsed=parseTraumaHistory(sourceJson);

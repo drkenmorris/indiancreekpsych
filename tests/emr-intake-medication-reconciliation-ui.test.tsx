@@ -3,7 +3,7 @@ import {afterEach,expect,test,vi} from 'vitest';
 import {act,cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
 import IntakeMedicationReconciliation from '@/app/emr/IntakeMedicationReconciliation';
 
-const id='00000000-0000-0000-0000-000000000123',updated='2026-11-09T14:00:00Z';
+const id='abcdef00-0000-4000-8000-000000000123',updated='2026-11-09T14:00:00Z';
 const entry={medication:'Fictional Medicine',status:'Past',dosage:'5 mg',frequency:'Daily',start_date:'2025-01-01',end_date:'2025-05-01',prescribing_physician:'Example provider',benefit:'Beneficial'};
 const intakeJson=JSON.stringify([entry]);
 afterEach(()=>{cleanup();vi.unstubAllGlobals();});
@@ -156,4 +156,17 @@ test('a clinical write acknowledged after patient navigation must never claim su
  expect(screen.queryByText(/A new medication-history entry was saved/)).toBeNull();
  expect(screen.queryByText(/save was acknowledged, but the exact reviewed entry/)).toBeNull();
  expect(calls.filter(c=>c.body?.path==='/api/save')).toHaveLength(1);
+});
+
+test('mixed-case patient UUID is canonicalized before medication source verification and persistence',async()=>{
+ const calls=mockApi();
+ render(<IntakeMedicationReconciliation patientId={id.toUpperCase()} intakeJson={intakeJson} intakeUpdatedAt={updated}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Prepare review draft'}));
+ fireEvent.click(screen.getByRole('checkbox'));
+ fireEvent.click(screen.getByRole('button',{name:'Save reviewed medication-history entry'}));
+ expect(await screen.findByText(/A new medication-history entry was saved/)).toBeTruthy();
+ const writes=calls.filter(c=>(c.body as {path?:string})?.path==='/api/save');
+ expect(writes).toHaveLength(1);
+ expect((writes[0].body as {patientId:string}).patientId).toBe(id);
+ expect(calls.some(c=>c.url==='/api/emr/patients?id='+id)).toBe(true);
 });

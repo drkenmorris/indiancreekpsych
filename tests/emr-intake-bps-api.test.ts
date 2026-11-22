@@ -1,5 +1,5 @@
 import {beforeEach,expect,test,vi} from 'vitest';
-import {GET,POST} from '@/app/api/emr/bps-intake/route';
+import {GET,POST,bpsSourceAnswerFingerprint} from '@/app/api/emr/bps-intake/route';
 import {bpsSnapshotClinicalKeys} from '@/lib/emr/intake-bps';
 const m=vi.hoisted(()=>({access:vi.fn(),sameOrigin:vi.fn(),from:vi.fn(),rpc:vi.fn()}));
 vi.mock('@/lib/emr/access',()=>({emrAccess:m.access,sameOrigin:m.sameOrigin,privateHeaders:{'Cache-Control':'private, no-store'}}));
@@ -7,7 +7,7 @@ const patient='00000000-0000-0000-0000-000000000123',account='00000000-0000-0000
 const stamp='2026-11-10T09:00:00Z';
 const request=()=>new Request('https://www.indiancreekpsych.com/api/emr/bps-intake?patient='+patient);
 const submit=(details:Record<string,unknown>)=>new Request('https://www.indiancreekpsych.com/api/emr/bps-intake',{method:'POST',headers:{Origin:'https://www.indiancreekpsych.com'},
- body:JSON.stringify(details)});
+ body:JSON.stringify({sourceAnswerFingerprint:bpsSourceAnswerFingerprint(data),...details})});
 const fullNotes=(change:Record<string,unknown>={})=>({
  presenting:'Reported changes',treatment:'',medical:'',safety:'',family:'',goals:'',limitations:'',...change
 });
@@ -56,6 +56,31 @@ beforeEach(()=>{
   throw Error('Unexpected '+table);
  });
  m.access.mockResolvedValue({supabase:{from:m.from,rpc:m.rpc}});
+});
+
+test('a stale clinician GET answer fingerprint cannot attest silent same-version source edits',async()=>{
+ const viewed={...data};
+ const receipt=bpsSourceAnswerFingerprint(viewed);
+ expect(receipt).toMatch(/^[a-f0-9]{64}$/);
+ // This simulates an out-of-band edit that neglected to advance version,
+ // status, edit timestamp, or patient submission attestation.
+ data={...data,counseling_reason:'FICTIONAL_CHANGED_AFTER_CLINICIAN_VIEW'};
+ const refused=await POST(submit({...payload,sourceAnswerFingerprint:receipt}));
+ expect(refused.status).toBe(409);
+ expect((await refused.json()).error).toMatch(/answers changed since clinician review/i);
+ expect(m.rpc).not.toHaveBeenCalled();
+ // A new independently read source receipt may proceed to the separate DB guard.
+ const current=await POST(submit(payload));
+ expect(current.status).toBe(201);
+ expect(m.rpc).toHaveBeenCalledTimes(1);
+});
+
+test('missing or malformed clinician source-answer fingerprints cannot reach the clinical write',async()=>{
+ for(const sourceAnswerFingerprint of [undefined,'','0'.repeat(64),'not-a-fingerprint']){
+  const result=await POST(submit({...payload,sourceAnswerFingerprint}));
+  expect(result.status).toBe(sourceAnswerFingerprint==='0'.repeat(64)?409:400);
+ }
+ expect(m.rpc).not.toHaveBeenCalled();
 });
 test('partial clinician-note submissions cannot masquerade as a completed seven-domain BPS review',async()=>{
  const domains=Object.keys(payload.notes);

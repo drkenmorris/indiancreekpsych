@@ -58,11 +58,12 @@ await db.exec([
  'GRANT EXECUTE ON FUNCTION private.current_user_is_admin(),private.patient_secure_session() TO authenticated;'
 ].join('\n'));
 
-// Negative-control acceptance: prove that the inherited, still-unmigrated
-// PERMISSIVE FOR ALL policy actually leaks an unrelated fictional appointment
-// to an ordinary AAL1 patient. The fix tests below must then prove the same
-// row is withheld AFTER the real pending migrations are applied. This is an
-// isolated PGlite fixture; NEVER query or alter real patient bookings here.
+// Negative-control acceptance: the HISTORICAL permissive FOR ALL policy
+// model would disclose an unrelated fictional appointment to an AAL1 patient.
+// Test that insecure fixture first, then apply the pending restrictive migration
+// and verify isolation. This fixture is not a claim about CURRENT production:
+// production policy metadata must be inspected separately (it can already be
+// RESTRICTIVE). Never query or alter real patient bookings here.
 await test('pre-migration negative control exposes the inherited cross-patient scheduler policy',async()=>{
  await db.query("SELECT set_config('request.user',$1,false),set_config('request.jwt.claims',$2,false)",[
   patient,JSON.stringify({aal:'aal1'})
@@ -72,7 +73,7 @@ await test('pre-migration negative control exposes the inherited cross-patient s
   const own=await db.query('SELECT id FROM public.appointments WHERE patient_id=$1',[patient]);
   const forbidden=await db.query('SELECT id FROM public.appointments WHERE patient_id=$1',[unrelated]);
   assert.equal(own.rows.length,1,'fixture must contain a visible own-row control');
-  assert.equal(forbidden.rows.length,1,'inherited permissive policy must reproduce the real privacy weakness before migration');
+  assert.equal(forbidden.rows.length,1,'historical permissive fixture must demonstrate why restrictive policies are necessary');
  }finally{
   await db.exec('RESET ROLE');
  }

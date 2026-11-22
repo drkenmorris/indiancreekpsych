@@ -21,6 +21,8 @@ export default function IntakeAllergyReconciliation({patientId,sourceStatus,sour
  const [records,setRecords]=useState<Allergy[]>([]);
  const [loading,setLoading]=useState(true);
  const [busy,setBusy]=useState(false);
+ // After an attempted chart write, do not permit a second submit until durable readback confirms it.
+ const [verificationPending,setVerificationPending]=useState(false);
  const [error,setError]=useState('');
  const [message,setMessage]=useState('');
  const [editing,setEditing]=useState(false);
@@ -28,7 +30,7 @@ export default function IntakeAllergyReconciliation({patientId,sourceStatus,sour
  const [notes,setNotes]=useState('');
  const [reviewed,setReviewed]=useState(false);
  useEffect(()=>{
-  let active=true;setRecords([]);setLoading(true);setError('');setEditing(false);setReviewed(false);
+  let active=true;setRecords([]);setLoading(true);setError('');setEditing(false);setReviewed(false);setVerificationPending(false);
   chart(patientId).then(value=>{if(active)setRecords(value.allergies);})
    .catch(e=>{if(active)setError(e instanceof Error?e.message:'Central medication allergy history unavailable.');})
    .finally(()=>{if(active)setLoading(false);});
@@ -39,7 +41,7 @@ export default function IntakeAllergyReconciliation({patientId,sourceStatus,sour
  const duplicate=records.some(item=>matches(item,status,notes));
  async function save(event:FormEvent<HTMLFormElement>){
   event.preventDefault();
-  if(!reviewed||!editing||busy||loading||error)return;
+  if(verificationPending||!reviewed||!editing||busy||loading||error)return;
   setBusy(true);setMessage('');
   try{
    const reason=validateMedicationAllergies(status,notes);
@@ -56,6 +58,9 @@ export default function IntakeAllergyReconciliation({patientId,sourceStatus,sour
       throw Error('The linked allergy intake changed. Reopen this patient and review the latest source before saving.');
    const latest=await chart(patientId);
    if(latest.allergies.some(row=>matches(row,status,notes)))throw Error('An identical allergy history snapshot was already saved.');
+   // The write may commit even if the response or follow-up chart read fails.
+   // Lock retries until verified persistence or a fresh chart reopen.
+   setVerificationPending(true);
    const write=await fetch('/api/emr/workflow',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({patientId,path:'/api/save',method:'POST',expectedRevision:latest.revision,
      body:{patient_id:patientId,action:'medication_allergies',data:{allergy_status:status,allergy_notes:notes.trim()}}})});
@@ -66,6 +71,7 @@ export default function IntakeAllergyReconciliation({patientId,sourceStatus,sour
    if(refreshed.revision<=latest.revision||!refreshed.allergies.some(row=>
      typeof row.id==='string'&&row.id.trim().length>0&&!priorIds.has(row.id)&&matches(row,status,notes)))
     throw Error('Allergy-history save was acknowledged, but the exact reviewed entry was not verified on chart readback. Reopen the chart before retrying.');
+   setVerificationPending(false);
    setRecords(refreshed.allergies);setEditing(false);setReviewed(false);setStatus('');setNotes('');
    setMessage('A reviewed medication-allergy history entry was saved in the protected central chart. It is a documentation snapshot, not a signed allergy attestation or medication order.');
   }catch(e){setMessage(e instanceof Error?e.message:'Allergy history save was not confirmed.');}
@@ -88,10 +94,11 @@ export default function IntakeAllergyReconciliation({patientId,sourceStatus,sour
        I reviewed and corrected this patient's reported medication allergies for documentation. This does not create a prescription, signed attestation or automatic medication reconciliation.
       </label>
       {duplicate&&<p role="alert">An identical allergy status and narrative already exist in the chart.</p>}
-      <button type="submit" disabled={busy||!reviewed||duplicate}>Save reviewed allergy-history entry</button>
+      <button type="submit" disabled={busy||!reviewed||duplicate||verificationPending}>Save reviewed allergy-history entry</button>
       <button type="button" disabled={busy} onClick={()=>{setEditing(false);setReviewed(false);}}>Discard unsaved review</button>
      </form>}
    </>}
+  {verificationPending&&<p role="alert">The prior save outcome is not independently verified. Reopen the protected chart and inspect history before another attempt; do not submit a duplicate clinical entry.</p>}
   {message&&<p role="status">{message}</p>}
  </section>;
 }

@@ -62,7 +62,7 @@ test('no source status and already saved identical allergy histories do not crea
  fireEvent.click(screen.getByRole('checkbox'));
  expect((screen.getByRole('button',{name:'Save reviewed allergy-history entry'}) as HTMLButtonElement).disabled).toBe(true);
  view.rerender(<IntakeAllergyReconciliation {...props} sourceStatus="Not yet reviewed"/>);
- expect(screen.getByText(/does not have a reviewable allergy status/)).toBeTruthy();
+ expect(await screen.findByText(/does not have a reviewable allergy status/)).toBeTruthy();
 });
 
 test('unsubmitted linked allergy intake does not produce clinical chart history',async()=>{

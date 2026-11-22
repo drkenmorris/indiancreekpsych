@@ -3,7 +3,7 @@ import {afterEach,expect,test,vi} from 'vitest';
 import {act,cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
 import IntakeMedicalSubstanceReconciliation from '@/app/emr/IntakeMedicalSubstanceReconciliation';
 import {emptyMedicalSubstance,medicalSubstanceDefinition} from '@/lib/patient/medical-substance';
-const id='00000000-0000-0000-0000-000000000123',stamp='2026-11-09T12:00:00Z';
+const id='abcdef00-0000-4000-8000-000000000123',stamp='2026-11-09T12:00:00Z';
 const original=emptyMedicalSubstance();
 original.selections[medicalSubstanceDefinition.groups[0].key]=[medicalSubstanceDefinition.groups[0].choices[0]];
 const sourceJson=JSON.stringify(original);
@@ -150,4 +150,17 @@ test('delayed medical-history write acknowledgement is discarded after the origi
  await act(async()=>acknowledge({ok:true,json:async()=>({revision:2,value:{saved:true}})}));
  expect(writes).toHaveLength(1);
  expect(screen.queryByText(/A new medical\/substance history snapshot was recorded/)).toBeNull();
+});
+
+test('mixed-case patient UUID is normalized for medical/substance source and chart receipt',async()=>{
+ const calls=fixture();
+ render(<IntakeMedicalSubstanceReconciliation patientId={id.toUpperCase()} sourceJson={sourceJson} sourceUpdatedAt={stamp}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Prepare clinician draft from intake'}));
+ fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed and corrected these patient-reported historical details/}));
+ fireEvent.click(screen.getByRole('button',{name:'Save clinician-reviewed history snapshot'}));
+ expect(await screen.findByText(/A new medical\/substance history snapshot was recorded/)).toBeTruthy();
+ const writes=calls.filter(c=>(c.payload as {path?:string})?.path==='/api/save');
+ expect(writes).toHaveLength(1);
+ expect((writes[0].payload as {patientId:string}).patientId).toBe(id);
+ expect(calls.some(c=>c.url==='/api/emr/patients?id='+id)).toBe(true);
 });

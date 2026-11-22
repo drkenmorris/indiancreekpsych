@@ -98,6 +98,14 @@ export default function PatientBpsIntakeReview({patientId:requestedPatientId}:{p
    // the source revision and timestamps appear valid.
    (source.questionnairePacketVersion!=null&&source.questionnairePacketVersion!=='2026-10-11'&&
     source.questionnairePacketVersion!=='2026-11-02-directory-1')||
+   // A supplied answer fingerprint is a clinical source-integrity receipt.
+   // Never display a packet carrying a malformed or contradictory receipt,
+   // even when the 21 section titles and source revision otherwise look valid.
+   // Historical mock/legacy source reads may lack this newer receipt; the
+   // protected POST still requires the exact valid fingerprint before a write.
+   (source.answerFingerprint!==undefined&&
+    (typeof source.answerFingerprint!=='string'||
+     !/^[a-f0-9]{64}$/.test(source.answerFingerprint)))||
    !Array.isArray(value.reviews)||!Array.isArray(value.unmappedKeys))
    throw Error('Linked patient intake provenance or clinical review history could not be verified. Reopen the protected source.');
   // A correct patient ID does not make a malformed 21-section source safe to

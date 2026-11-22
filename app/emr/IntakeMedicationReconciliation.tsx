@@ -60,6 +60,8 @@ export default function IntakeMedicationReconciliation({patientId,intakeJson,int
    // Prevent an outdated intake tab from silently importing a newer or different source.
    const sourceResponse=await fetch('/api/emr/patients?id='+encodeURIComponent(patientId),{cache:'no-store'});
    const sourceNow=await readJson(sourceResponse);
+   if(sourceNow.intake?.status!=='submitted')
+    throw Error('Linked intake has not been submitted; medication history cannot be reconciled from a draft.');
    if(sourceNow.patients?.[0]?.id!==patientId||sourceNow.intake?.updated_at!==intakeUpdatedAt||
       sourceNow.intake?.answers?.medication_entries!==intakeJson)
       throw Error('Patient intake changed or is no longer linked. Reopen this patient before reconciling medication history.');

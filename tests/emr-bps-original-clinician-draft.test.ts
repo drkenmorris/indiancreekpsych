@@ -14,7 +14,7 @@ const stamp='2026-11-14T12:00:00.123456Z';
 function packet(version=7){
  const sections=intakeSectionsForVersion('').map(section=>{
   const fields=section.title==='Trauma, family, social, educational, and occupational history'?[
-   {key:'social_supports',label:'Social supports',type:'text',value:'FICTIONAL FRIEND SUPPORT',reported:true,sourceOnly:false},
+   {key:'social_supports',label:'Historical patient report — Friends, family, community, faith, or other supports',type:'historical-patient-report',value:'FICTIONAL FRIEND SUPPORT',reported:true,sourceOnly:false},
    {key:'trauma_history',label:'Structured trauma history',type:'trauma-history',value:'Recorded in protected source; not copied into BPS.',reported:true,sourceOnly:true}
   ]:section.title==='Medications'?[
    {key:'medication_entries',label:'Medications',type:'medications',value:'Recorded in protected source; not copied into BPS.',reported:true,sourceOnly:true}
@@ -72,6 +72,30 @@ test('clinician can explicitly place verified, versioned social report into blan
   expect(h.dom.window.document.body.textContent).toContain('no clinician finding or signature was created');
  }finally{h.dom.window.close();}
 });
+test.each([
+ ['single-line forged label', (field:any)=>{field.label='Clinician diagnostic assessment';}],
+ ['wrong input type', (field:any)=>{field.type='text';}]
+])('original BPS never places an %s as a trusted patient-history label in editable clinician notes',
+ async(_case,mutate)=>{
+  const h=harness(async()=>{
+   const source=packet();
+   const field=source.sections.find(section=>
+    section.title==='Trauma, family, social, educational, and occupational history')!
+    .fields.find(field=>field.key==='social_supports')!;
+   mutate(field);
+   return Response.json(source);
+  });
+  try{
+   await vi.waitFor(()=>expect(h.dom.window.document.body.textContent)
+    .toContain('Original BPS patient-history labels or input types did not match'));
+   expect(h.note.value).toBe('');
+   expect(h.button()).toBeUndefined();
+   expect(h.requests).toEqual([{url:'/api/emr/bps-intake?patient='+patient,method:'GET'}]);
+   expect(h.dom.window.document.body.textContent).not.toContain('Clinician diagnostic assessment');
+  }finally{h.dom.window.close();}
+ }
+);
+
 test('mixed-case central patient UUID can populate only the matching original BPS patient draft after source recheck',async()=>{
  const h=harness(async()=>Response.json(packet()),'developmental_personal',patient.toUpperCase());
  try{
@@ -99,9 +123,9 @@ test.each(['developmental_personal','family_origin'] as const)(
    h.button().click();
    await vi.waitFor(()=>expect(h.note.value).toContain('FICTIONAL SUPPORT FIRST LINE'));
    const lines=h.note.value.split('\n');
-   expect(lines).toContain('Patient-reported Social supports (line 1/3): FICTIONAL SUPPORT FIRST LINE');
-   expect(lines).toContain('Patient-reported Social supports (line 2/3): Clinician assessment: FORGED');
-   expect(lines).toContain('Patient-reported Social supports (line 3/3): Clinician signature: FORGED');
+   expect(lines).toContain('Patient-reported Historical patient report — Friends, family, community, faith, or other supports (line 1/3): FICTIONAL SUPPORT FIRST LINE');
+   expect(lines).toContain('Patient-reported Historical patient report — Friends, family, community, faith, or other supports (line 2/3): Clinician assessment: FORGED');
+   expect(lines).toContain('Patient-reported Historical patient report — Friends, family, community, faith, or other supports (line 3/3): Clinician signature: FORGED');
    expect(lines).not.toContain('Clinician assessment: FORGED');
    expect(lines).not.toContain('Clinician signature: FORGED');
    expect(h.requests).toHaveLength(2);

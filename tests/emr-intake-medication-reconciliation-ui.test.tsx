@@ -1,6 +1,6 @@
 import React from 'react';
 import {afterEach,expect,test,vi} from 'vitest';
-import {cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
+import {act,cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
 import IntakeMedicationReconciliation from '@/app/emr/IntakeMedicationReconciliation';
 
 const id='00000000-0000-0000-0000-000000000123',updated='2026-11-09T14:00:00Z';
@@ -99,4 +99,61 @@ test('ambiguous medication-history save cannot create a second chart write in th
  expect((save as HTMLButtonElement).disabled).toBe(true);
  fireEvent.submit(save.closest('form')!);
  expect(calls.filter(c=>(c.body as {path?:string})?.path==='/api/save')).toHaveLength(1);
+});
+
+test('switching central patients while the old intake lookup is pending cannot submit medication history to the departed chart',async()=>{
+ const nextPatient='00000000-0000-0000-0000-000000000124';
+ let resolveSource:(value:any)=>void=()=>{throw Error('Source request was not captured.');};
+ const pendingSource=new Promise<any>(resolve=>{resolveSource=resolve;});
+ const calls:Array<{url:string;body:any}>=[];
+ vi.stubGlobal('fetch',vi.fn(async(url:string,init?:RequestInit)=>{
+  const body=init?.body?JSON.parse(String(init.body)):null;
+  calls.push({url,body});
+  if(url.startsWith('/api/emr/patients?id='+id))return pendingSource;
+  if(body?.path==='/api/save')throw Error('Old-patient clinical write was incorrectly sent after chart switch.');
+  return {ok:true,json:async()=>({value:{records:[]},revision:1})};
+ }));
+ const view=render(<IntakeMedicationReconciliation patientId={id} intakeJson={intakeJson} intakeUpdatedAt={updated}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Prepare review draft'}));
+ fireEvent.click(screen.getByRole('checkbox'));
+ fireEvent.click(screen.getByRole('button',{name:'Save reviewed medication-history entry'}));
+ await waitFor(()=>expect(calls.some(c=>c.url.startsWith('/api/emr/patients?id='+id))).toBe(true));
+ view.rerender(<IntakeMedicationReconciliation patientId={nextPatient} intakeJson={intakeJson} intakeUpdatedAt={updated}/>);
+ await screen.findByRole('button',{name:'Prepare review draft'});
+ await act(async()=>{
+  resolveSource({ok:true,json:async()=>({
+   patients:[{id}],intake:{status:'submitted',updated_at:updated,answers:{medication_entries:intakeJson}}
+  })});
+  await Promise.resolve();
+ });
+ expect(calls.filter(c=>c.body?.path==='/api/save')).toHaveLength(0);
+ expect(screen.queryByText(/A new medication-history entry was saved/)).toBeNull();
+ expect(screen.queryByText(/Patient intake changed or is no longer linked/)).toBeNull();
+});
+
+test('a clinical write acknowledged after patient navigation must never claim success on the new chart',async()=>{
+ const nextPatient='00000000-0000-0000-0000-000000000125';
+ let resolveWrite:(value:any)=>void=()=>{throw Error('Write request was not captured.');};
+ const pendingWrite=new Promise<any>(resolve=>{resolveWrite=resolve;});
+ const calls:Array<{url:string;body:any}>=[];
+ vi.stubGlobal('fetch',vi.fn(async(url:string,init?:RequestInit)=>{
+  const body=init?.body?JSON.parse(String(init.body)):null;
+  calls.push({url,body});
+  if(url.startsWith('/api/emr/patients?id='+id))return {ok:true,json:async()=>({
+   patients:[{id}],intake:{status:'submitted',updated_at:updated,answers:{medication_entries:intakeJson}}
+  })};
+  if(body?.path==='/api/save')return pendingWrite;
+  return {ok:true,json:async()=>({value:{records:[]},revision:1})};
+ }));
+ const view=render(<IntakeMedicationReconciliation patientId={id} intakeJson={intakeJson} intakeUpdatedAt={updated}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Prepare review draft'}));
+ fireEvent.click(screen.getByRole('checkbox'));
+ fireEvent.click(screen.getByRole('button',{name:'Save reviewed medication-history entry'}));
+ await waitFor(()=>expect(calls.filter(c=>c.body?.path==='/api/save')).toHaveLength(1));
+ view.rerender(<IntakeMedicationReconciliation patientId={nextPatient} intakeJson={intakeJson} intakeUpdatedAt={updated}/>);
+ await screen.findByRole('button',{name:'Prepare review draft'});
+ await act(async()=>{resolveWrite({ok:true,json:async()=>({value:{saved:true},revision:2})});await Promise.resolve();});
+ expect(screen.queryByText(/A new medication-history entry was saved/)).toBeNull();
+ expect(screen.queryByText(/save was acknowledged, but the exact reviewed entry/)).toBeNull();
+ expect(calls.filter(c=>c.body?.path==='/api/save')).toHaveLength(1);
 });

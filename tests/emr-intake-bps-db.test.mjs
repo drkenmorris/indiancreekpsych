@@ -23,6 +23,7 @@ await db.query('insert into public.clinical_patients values($1,$2)',[patient,acc
 await db.query('insert into public.clinical_patients values($1,$2)',[unlinked,null]);
 await db.query('insert into public.patient_intakes values($1,$2,$3,$4,$5,$6)',[account,{
  counseling_reason:'Patient-reported sadness',suicidal_thoughts_current:'Yes',medication_entries:'structured original',
+ trauma_history:'PRIVATE FICTIONAL STRUCTURED TRAUMA',
  roi_authorize:'Yes',treatment_signature:'Patient Signature',insurance_member:'protected identifier'},'submitted',1,stamp,stamp]);
 await db.exec(readFileSync('supabase/migrations/20261110103000_emr_bps_intake_reviews.sql','utf8'));
 await db.exec(readFileSync('supabase/migrations/20261111101500_emr_bps_review_account_provenance.sql','utf8'));
@@ -41,7 +42,8 @@ for(const migration of [
  '20261119004500_bps_control_character_attestation_guard.sql',
  '20261119033000_emr_bps_source_answer_json_guard.sql',
  '20261120101500_bps_explicit_seven_domain_review_guard.sql',
- '20261122042000_bps_combining_diacritic_attestation_guard.sql'
+ '20261122042000_bps_combining_diacritic_attestation_guard.sql',
+ '20261122220500_bps_dedicated_trauma_storage_boundary.sql'
 ])await db.exec(readFileSync('supabase/migrations/'+migration,'utf8'));
 const q=(s,args=[])=>db.query(s,args);
 const as=async(id,aal='aal2')=>{await db.exec('reset role');await q("select set_config('request.user',$1,false),set_config('request.aal',$2,false)",[id,aal]);await db.exec('set role authenticated');};
@@ -51,6 +53,7 @@ const fullNotes=(changes={})=>({
 const payload={patient_id:patient,source_account_id:account,source_version:1,source_status:'submitted',source_updated_at:stamp,source_submitted_at:stamp,
  reviewed:true,source_answers:{
  counseling_reason:'Patient-reported sadness',suicidal_thoughts_current:'Yes',
+ trauma_history:'PRIVATE FICTIONAL STRUCTURED TRAUMA',
  medication_entries:'structured original',roi_authorize:'Yes',
  treatment_signature:'Patient Signature',insurance_member:'protected identifier'
 },clinician_notes:fullNotes({presenting:'Clinician reviewed patient account; not a diagnosis.'})};
@@ -166,7 +169,8 @@ await test('MFA clinician saves an append-only BPS review using DB-owned clinica
  assert.equal(row.patient_id,patient);assert.equal(row.source_account_id,account);assert.equal(row.source_version,1);
  assert.equal(row.clinical_answers.counseling_reason,'Patient-reported sadness');
  assert.equal(row.clinical_answers.suicidal_thoughts_current,'Yes');
- for(const key of ['roi_authorize','treatment_signature','insurance_member','medication_entries'])assert.equal(row.clinical_answers[key],undefined);
+ for(const key of ['roi_authorize','treatment_signature','insurance_member','medication_entries','trauma_history'])assert.equal(row.clinical_answers[key],undefined);
+ assert.ok((await q("select 1 from pg_constraint where conname='emr_bps_snapshots_exclude_structured_trauma'")).rows.length===1);
  assert.match(row.clinician_notes.presenting,/not a diagnosis/);
 });
 await test('no-MFA and other-admin cannot see chart review; direct writes denied',async()=>{

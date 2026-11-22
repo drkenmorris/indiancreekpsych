@@ -1,6 +1,6 @@
 import React from 'react';
 import {afterEach,expect,test,vi} from 'vitest';
-import {cleanup,fireEvent,render,screen} from '@testing-library/react';
+import {act,cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
 import IntakeTraumaHistoryReconciliation from '@/app/emr/IntakeTraumaHistoryReconciliation';
 import {traumaHistoryDefinition as definition} from '@/lib/patient/trauma-history';
 
@@ -136,4 +136,25 @@ test('ambiguous trauma-history save prevents duplicate clinical history on repea
  expect((save as HTMLButtonElement).disabled).toBe(true);
  fireEvent.submit(save.closest('form')!);
  expect(saves(calls)).toHaveLength(1);
+});
+
+test('changing patients during a pending trauma source lookup never sends an old history write',async()=>{
+ const next='00000000-0000-0000-0000-000000000124';
+ let done:(v:any)=>void=()=>{};
+ const pending=new Promise<any>(resolve=>{done=resolve;});
+ const requests:Array<{url:string;payload:any}>=[];
+ vi.stubGlobal('fetch',vi.fn(async(url:string,init?:RequestInit)=>{
+  const payload=init?.body?JSON.parse(String(init.body)):null;
+  requests.push({url,payload});
+  if(url.startsWith('/api/emr/patients?id='+patientId))return pending;
+  return {ok:true,json:async()=>({revision:1,value:{records:[]}})};
+ }));
+ const view=render(<IntakeTraumaHistoryReconciliation {...props}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Prepare clinician trauma-history draft'}));
+ fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed these reported details/}));
+ fireEvent.click(screen.getByRole('button',{name:'Save reviewed trauma-history snapshot'}));
+ await waitFor(()=>expect(requests.filter(r=>r.url.startsWith('/api/emr/patients?id='+patientId))).toHaveLength(1));
+ view.rerender(<IntakeTraumaHistoryReconciliation {...props} patientId={next}/>);
+ await act(async()=>done({ok:true,json:async()=>({patients:[{id:patientId}],intake:{status:'submitted',updated_at:stamp,answers:{trauma_history_checklist:source}}})}));
+ expect(requests.filter(r=>r.payload?.path==='/api/save')).toHaveLength(0);
 });

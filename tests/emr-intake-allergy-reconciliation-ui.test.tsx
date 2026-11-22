@@ -2,7 +2,7 @@ import React from 'react';
 import {afterEach,expect,test,vi} from 'vitest';
 import {act,cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
 import IntakeAllergyReconciliation from '@/app/emr/IntakeAllergyReconciliation';
-const patient='00000000-0000-0000-0000-000000000123',sourceUpdatedAt='2026-11-09T00:00:00Z';
+const patient='abcdef00-0000-4000-8000-000000000123',sourceUpdatedAt='2026-11-09T00:00:00Z';
 afterEach(()=>{cleanup();vi.unstubAllGlobals();});
 function fixtures({stale=false,omitReadback=false,sameRevision=false,missingRecordId=false,status='submitted',records=[] as unknown[]}={}){
  let persisted:unknown=null;
@@ -144,4 +144,17 @@ test('old allergy save acknowledgement cannot appear as success after switching 
  await act(async()=>acknowledge({ok:true,json:async()=>({revision:2,value:{saved:true}})}));
  expect(writes).toHaveLength(1);
  expect(screen.queryByText(/A reviewed medication-allergy history entry was saved/)).toBeNull();
+});
+
+test('mixed-case patient UUID matches canonical source receipt and saves only the selected allergy chart',async()=>{
+ const calls=fixtures();
+ render(<IntakeAllergyReconciliation {...props} patientId={patient.toUpperCase()}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Prepare medication-allergy review'}));
+ fireEvent.click(screen.getByRole('checkbox'));
+ fireEvent.click(screen.getByRole('button',{name:'Save reviewed allergy-history entry'}));
+ expect(await screen.findByText(/A reviewed medication-allergy history entry was saved/)).toBeTruthy();
+ const writes=calls.filter(c=>(c.payload as {path?:string})?.path==='/api/save');
+ expect(writes).toHaveLength(1);
+ expect((writes[0].payload as {patientId:string}).patientId).toBe(patient);
+ expect(calls.some(c=>c.url==='/api/emr/patients?id='+patient)).toBe(true);
 });

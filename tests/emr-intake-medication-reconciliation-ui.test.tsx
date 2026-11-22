@@ -86,3 +86,17 @@ test('an unsubmitted linked intake cannot be converted into chart medication his
  expect(await screen.findByText(/Linked intake has not been submitted/)).toBeTruthy();
  expect(calls.filter(c=>(c.body as {path?:string})?.path==='/api/save')).toHaveLength(0);
 });
+
+test('ambiguous medication-history save cannot create a second chart write in the same view',async()=>{
+ const calls=mockApi({omitReadback:true});
+ render(<IntakeMedicationReconciliation patientId={id} intakeJson={intakeJson} intakeUpdatedAt={updated}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Prepare review draft'}));
+ fireEvent.click(screen.getByRole('checkbox'));
+ const save=screen.getByRole('button',{name:'Save reviewed medication-history entry'});
+ fireEvent.click(save);
+ expect(await screen.findByText(/exact reviewed entry was not verified on chart readback/)).toBeTruthy();
+ expect(await screen.findByText(/Reopen the protected chart and inspect history before another attempt/)).toBeTruthy();
+ expect((save as HTMLButtonElement).disabled).toBe(true);
+ fireEvent.submit(save.closest('form')!);
+ expect(calls.filter(c=>(c.body as {path?:string})?.path==='/api/save')).toHaveLength(1);
+});

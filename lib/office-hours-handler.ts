@@ -24,12 +24,32 @@ async function saveOfficeHours(request: Request) {
     }
     const payload = { weekday: rule.weekday, start_time: rule.start_time, end_time: rule.end_time, anchor_time: rule.anchor_time || null };
     const table = supabase.from("appointment_availability_rules");
-    const { error } = rule.id
-      ? await table.update(payload).eq("id",rule.id).select("id").abortSignal(AbortSignal.timeout(10000)).single()
-      : await table.insert(payload).abortSignal(AbortSignal.timeout(10000));
-    if (error) return NextResponse.json({ error: "Hours could not be saved. Refresh your session and try again." }, { status: 400 });
+    // A 2xx PostgREST response does not prove that the intended availability
+    // rule was inserted/updated. Require an exact returned row AND an independent
+    // list readback before telling a clinician that practice hours were saved.
+    const fields = "id,weekday,start_time,end_time,anchor_time";
+    const { data: written, error } = rule.id
+      ? await table.update(payload).eq("id",rule.id).select(fields).abortSignal(AbortSignal.timeout(10000)).single()
+      : await table.insert(payload).select(fields).abortSignal(AbortSignal.timeout(10000)).single();
+    if (error) return NextResponse.json({ error: "Office-hours write was not confirmed. Refresh the schedule before retrying." }, { status: 502 });
+    const timeMatches = (received:unknown, expected:string|null) =>
+      expected === null ? received === null :
+      received === expected || received === expected + ":00";
+    const matches = (row:unknown): row is {id:string} => {
+      if (!row || typeof row !== "object") return false;
+      const value = row as Record<string,unknown>;
+      return typeof value.id === "string" && value.id.length > 0 &&
+        value.weekday === payload.weekday &&
+        timeMatches(value.start_time,payload.start_time) &&
+        timeMatches(value.end_time,payload.end_time) &&
+        timeMatches(value.anchor_time,payload.anchor_time);
+    };
+    if (!matches(written) || (rule.id && written.id !== rule.id))
+      return NextResponse.json({ error: "Office-hours write receipt was inconsistent. Refresh the schedule before retrying; the write may have completed." }, { status: 502 });
     const { data: rules, error: readError } = await supabase.from("appointment_availability_rules").select("id,weekday,start_time,end_time,enabled,anchor_time").order("weekday").order("start_time").abortSignal(AbortSignal.timeout(10000));
-    if (readError) return NextResponse.json({ error: "Hours were saved, but the list could not refresh. Reload the page before retrying." }, { status: 502 });
+    if (readError || !Array.isArray(rules) ||
+        rules.filter(row => matches(row) && row.id === written.id).length !== 1)
+      return NextResponse.json({ error: "Office-hours chart readback was not verified. Refresh the schedule before retrying; the write may have completed." }, { status: 502 });
     return NextResponse.json({ rules });
   } catch {
     return NextResponse.json({ error: "Save could not be confirmed. Reload the page before retrying." }, { status: 500 });

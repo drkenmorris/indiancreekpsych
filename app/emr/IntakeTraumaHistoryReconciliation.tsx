@@ -65,6 +65,8 @@ export default function IntakeTraumaHistoryReconciliation({patientId,sourceJson,
    if(duplicate)throw Error('An identical trauma history snapshot is already saved. No duplicate was added.');
    // Re-read the linked account through the existing admin + MFA gate. Never join on a name.
    const sourceNow=await requireJson(await fetch('/api/emr/patients?id='+encodeURIComponent(patientId),{cache:'no-store'}));
+   if(sourceStatus!=='submitted'||sourceNow.intake?.status!=='submitted')
+    throw Error('Linked intake has not been submitted; trauma history cannot be reconciled from a draft.');
    if(sourceNow.patients?.[0]?.id!==patientId||
       sourceNow.intake?.updated_at!==sourceUpdatedAt||
       sourceNow.intake?.status!==sourceStatus||

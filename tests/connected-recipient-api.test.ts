@@ -126,6 +126,37 @@ test('mis-scoped connected assessment rows, invalid chart links and malformed ex
  expect(rpc).not.toHaveBeenCalled();
 });
 
+test('connected recipient GET and POST reject ambiguous future expiration receipts without releasing PHI or saving',async()=>{
+ // JavaScript Date.parse accepts all these as future dates; none represents an
+ // exact, valid DB-owned invitation expiry suitable for clinical authorization.
+ const forbidden=[
+  '2099',
+  '2099-02-31T00:00:00Z',
+  '2099-01-01T00:00:00-00:00',
+  '2099-01-01 00:00:00Z',
+  '2099-01-01T00:00:00'
+ ];
+ const legitimate={...assignment};
+ const write={id,expectedRevision:0,page:1,submit:false,identityConfirmed:true,answers:answers()};
+ for(const expires_at of forbidden){
+  expect(Number.isFinite(Date.parse(expires_at))).toBe(true);
+  assignment={...legitimate,expires_at};
+  const read=await GET(new Request('https://www.indiancreekpsych.com/api/assigned-tests/connected?id='+id));
+  expect(read.status).toBe(403);
+  expect(read.headers.get('Cache-Control')).toContain('no-store');
+  const response=await read.json();
+  expect(response).not.toHaveProperty('definition');
+  expect(response).not.toHaveProperty('response');
+  const save=await POST(request(write));
+  expect(save.status).toBe(403);
+  expect((await save.json()).saved).toBeUndefined();
+ }
+ expect(rpc).not.toHaveBeenCalled();
+ // A valid explicit-offset receipt is still accepted by the same API.
+ assignment={...legitimate,expires_at:'2099-01-01T05:30:00+05:30'};
+ expect((await GET(new Request('https://www.indiancreekpsych.com/api/assigned-tests/connected?id='+id))).status).toBe(200);
+});
+
 test('GET refuses mis-scoped, malformed or forged recipient responses without disclosing saved answers',async()=>{
  const valid={answers:answers(),page:1,revision:3,status:'draft',identity_confirmed:true};
  const forbidden=[

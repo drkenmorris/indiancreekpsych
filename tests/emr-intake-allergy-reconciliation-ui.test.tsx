@@ -123,3 +123,25 @@ test('changing the patient during delayed allergy lookup does not write an old d
  await act(async()=>done({ok:true,json:async()=>({patients:[{id:patient}],intake:{status:'submitted',updated_at:sourceUpdatedAt,answers:{medication_allergy_status:props.sourceStatus,medication_allergy_notes:props.sourceNotes}}})}));
  expect(requests.filter(r=>r.payload?.path==='/api/save')).toHaveLength(0);
 });
+
+test('old allergy save acknowledgement cannot appear as success after switching patient charts',async()=>{
+ const next='00000000-0000-0000-0000-000000000124';
+ let acknowledge:(value:any)=>void=()=>{};
+ const waiting=new Promise<any>(resolve=>{acknowledge=resolve;});
+ const writes:Array<any>=[];
+ vi.stubGlobal('fetch',vi.fn(async(url:string,init?:RequestInit)=>{
+  const payload=init?.body?JSON.parse(String(init.body)):null;
+  if(url.startsWith('/api/emr/patients'))return {ok:true,json:async()=>({patients:[{id:patient}],intake:{status:'submitted',updated_at:sourceUpdatedAt,answers:{medication_allergy_status:props.sourceStatus,medication_allergy_notes:props.sourceNotes}}})};
+  if(payload?.path==='/api/save'){writes.push(payload);return waiting;}
+  return {ok:true,json:async()=>({revision:1,value:{records:[]}})};
+ }));
+ const view=render(<IntakeAllergyReconciliation {...props}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Prepare medication-allergy review'}));
+ fireEvent.click(screen.getByRole('checkbox'));
+ fireEvent.click(screen.getByRole('button',{name:'Save reviewed allergy-history entry'}));
+ await waitFor(()=>expect(writes).toHaveLength(1));
+ view.rerender(<IntakeAllergyReconciliation {...props} patientId={next}/>);
+ await act(async()=>acknowledge({ok:true,json:async()=>({revision:2,value:{saved:true}})}));
+ expect(writes).toHaveLength(1);
+ expect(screen.queryByText(/A reviewed medication-allergy history entry was saved/)).toBeNull();
+});

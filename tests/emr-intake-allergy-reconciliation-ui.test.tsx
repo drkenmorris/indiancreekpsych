@@ -4,12 +4,12 @@ import {cleanup,fireEvent,render,screen} from '@testing-library/react';
 import IntakeAllergyReconciliation from '@/app/emr/IntakeAllergyReconciliation';
 const patient='00000000-0000-0000-0000-000000000123',sourceUpdatedAt='2026-11-09T00:00:00Z';
 afterEach(()=>{cleanup();vi.unstubAllGlobals();});
-function fixtures({stale=false,omitReadback=false,records=[] as unknown[]}={}){
+function fixtures({stale=false,omitReadback=false,status='submitted',records=[] as unknown[]}={}){
  let persisted:unknown=null;
  const calls:Array<{url:string;payload:unknown}>=[];
  vi.stubGlobal('fetch',vi.fn(async(url:string,init?:RequestInit)=>{
   const payload=init?.body?JSON.parse(String(init.body)):null;calls.push({url,payload});
-  if(url.startsWith('/api/emr/patients'))return {ok:true,json:async()=>({patients:[{id:patient}],intake:{updated_at:stale?'new source':sourceUpdatedAt,
+  if(url.startsWith('/api/emr/patients'))return {ok:true,json:async()=>({patients:[{id:patient}],intake:{status,updated_at:stale?'new source':sourceUpdatedAt,
    answers:{medication_allergy_status:'Medication allergies reported',medication_allergy_notes:'Fictional reported reaction'}}})};
   if(payload?.path==='/api/save'){
    if(!omitReadback)persisted={kind:'medication_allergies',...payload.body.data};
@@ -63,4 +63,14 @@ test('no source status and already saved identical allergy histories do not crea
  expect((screen.getByRole('button',{name:'Save reviewed allergy-history entry'}) as HTMLButtonElement).disabled).toBe(true);
  view.rerender(<IntakeAllergyReconciliation {...props} sourceStatus="Not yet reviewed"/>);
  expect(screen.getByText(/does not have a reviewable allergy status/)).toBeTruthy();
+});
+
+test('unsubmitted linked allergy intake does not produce clinical chart history',async()=>{
+ const calls=fixtures({status:'draft'});
+ render(<IntakeAllergyReconciliation {...props}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Prepare medication-allergy review'}));
+ fireEvent.click(screen.getByRole('checkbox'));
+ fireEvent.click(screen.getByRole('button',{name:'Save reviewed allergy-history entry'}));
+ expect(await screen.findByText(/Linked intake has not been submitted/)).toBeTruthy();
+ expect(calls.filter(c=>(c.payload as {path?:string})?.path==='/api/save')).toHaveLength(0);
 });

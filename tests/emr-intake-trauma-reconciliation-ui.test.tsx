@@ -4,7 +4,7 @@ import {act,cleanup,fireEvent,render,screen,waitFor} from '@testing-library/reac
 import IntakeTraumaHistoryReconciliation from '@/app/emr/IntakeTraumaHistoryReconciliation';
 import {traumaHistoryDefinition as definition} from '@/lib/patient/trauma-history';
 
-const patientId='00000000-0000-0000-0000-000000000123';
+const patientId='abcdef00-0000-4000-8000-000000000123';
 const stamp='2026-11-10T08:30:00Z';
 const selections=Object.fromEntries(definition.groups.map(group=>[group.key,[] as string[]]));
 selections.experiences=['Physical assault or abuse'];
@@ -179,4 +179,17 @@ test('delayed trauma-history write acknowledgement cannot confirm success on ano
  await act(async()=>acknowledge({ok:true,json:async()=>({revision:2,value:{saved:true}})}));
  expect(writes).toHaveLength(1);
  expect(screen.queryByText(/reviewed trauma-history snapshot was saved/)).toBeNull();
+});
+
+test('mixed-case patient UUID is canonicalized through trauma source verification and protected chart write',async()=>{
+ const calls=fixture();
+ render(<IntakeTraumaHistoryReconciliation {...props} patientId={patientId.toUpperCase()}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Prepare clinician trauma-history draft'}));
+ fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed these reported details/}));
+ fireEvent.click(screen.getByRole('button',{name:'Save reviewed trauma-history snapshot'}));
+ expect(await screen.findByText(/reviewed trauma-history snapshot was saved/)).toBeTruthy();
+ const writes=saves(calls);
+ expect(writes).toHaveLength(1);
+ expect(writes[0].payload.patientId).toBe(patientId);
+ expect(calls.some(c=>c.url==='/api/emr/patients?id='+patientId)).toBe(true);
 });

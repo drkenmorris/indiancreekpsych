@@ -215,13 +215,15 @@ function originalBpsInstantNanoseconds(value){
       !Array.isArray(section.fields)||section.answered>section.fields.length)return false;
    seenSectionTitles.add(section.title);
    const tagged=section.fields.filter(field=>field&&field.reported!==undefined);
-   // A partially tagged source must not claim a different count of answered
-   // questions; otherwise it could conceal missing or conflicting reports.
+   // Match the protected clinician review: a 21-section response cannot
+   // silently erase reported flags, lower its count to zero, and retain
+   // nonempty patient words that the clinician then never sees.
    if(tagged.length&&(tagged.length!==section.fields.length||
       tagged.filter(field=>field.reported===true).length!==section.answered))return false;
-   // A partially legacy source with no reported flags cannot claim completed
-   // patient responses through sourceOnly:false hints alone.
-   if(!tagged.length&&section.answered>0&&section.fields.some(field=>field?.sourceOnly===false))return false;
+   // Untagged historical blanks are displayable, but NO untagged nonblank
+   // response or positive answer count is a verified patient report.
+   if(!tagged.length&&(section.answered!==0||section.fields.some(field=>
+       typeof field?.value!=='string'||field.value.trim().length!==0)))return false;
    return section.fields.every(field=>{
     if(!field||typeof field!=='object'||Array.isArray(field)||
        typeof field.key!=='string'||!field.key||seenFieldKeys.has(field.key)||
@@ -236,7 +238,11 @@ function originalBpsInstantNanoseconds(value){
        typeof field.value!=='string'||
        (field.reported!==undefined&&typeof field.reported!=='boolean')||
        (field.sourceOnly!==undefined&&typeof field.sourceOnly!=='boolean')||
-       (field.reported===true&&!field.value.trim()))return false;
+       // False patient-response flags cannot conceal an actual statement.
+       // True response flags must carry an explicit source-routing receipt.
+       (field.reported===false&&field.value.trim().length!==0)||
+       (field.reported===true&&
+        (!field.value.trim()||typeof field.sourceOnly!=='boolean')))return false;
     // The server must replace every separately protected patient answer with
     // this fixed opaque marker. Merely asserting sourceOnly:true does not make
     // raw trauma, medication, insurance or legal text safe for the original BPS

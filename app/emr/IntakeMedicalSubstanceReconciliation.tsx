@@ -19,8 +19,10 @@ async function chart(patientId:string):Promise<{revision:number;records:MedicalR
  return {revision:value.revision,records:value.value.records.filter((v:MedicalRecord)=>v.kind==='biopsychosocial_medical_substance')};
 }
 /** Clinician-mediated review of source history; always an append-only EMR record, never a synthetic demo import. */
-export default function IntakeMedicalSubstanceReconciliation({patientId,sourceJson,sourceUpdatedAt}:
+export default function IntakeMedicalSubstanceReconciliation({patientId:requestedPatientId,sourceJson,sourceUpdatedAt}:
  {patientId:string;sourceJson:string;sourceUpdatedAt:string}){
+ // Normalize mixed-case URL UUIDs to the canonical identity returned by the protected chart API.
+ const patientId=requestedPatientId.toLowerCase();
  const source=useMemo(()=>{
   try{
    const parsed=parseMedicalSubstance(sourceJson);

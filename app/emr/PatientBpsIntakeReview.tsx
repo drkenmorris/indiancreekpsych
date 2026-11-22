@@ -175,12 +175,13 @@ export default function PatientBpsIntakeReview({patientId:requestedPatientId}:{p
   // supplied, require them for every field and verify the exact count.
   const accurateReportedCounts=validSections&&value.sections.every((entry:Section)=>{
    const tagged=entry.fields.filter(field=>field.reported!==undefined);
-   // Older blank-source fixtures may omit reported flags, but a source that
-   // explicitly marks a field renderable cannot claim a patient answer without
-   // an equally explicit patient-reported flag. Do not show contradictory
-   // answered totals or permit clinician review of such a packet.
+   // Legacy blank-source fixtures may omit patient-reported flags, but
+   // missing flags can NEVER disguise a nonempty patient statement. Requiring
+   // both a zero count and zero source values prevents a forged 21-section
+   // response from erasing every reported flag and lowering its count to zero
+   // while leaving clinical text hidden from the reviewing clinician.
    return tagged.length===0?
-    !(entry.answered>0&&entry.fields.some(field=>field.sourceOnly===false)):
+    entry.answered===0&&entry.fields.every(field=>field.value.trim().length===0):
     // A field cannot count as patient-reported when its source value is
      // empty or whitespace. Fail closed rather than inflating intake completeness.
      tagged.length===entry.fields.length&&

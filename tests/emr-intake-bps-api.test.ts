@@ -344,7 +344,7 @@ test('21-section review distinguishes risk, legal references and structured reco
  const response=await GET(request());expect(response.status).toBe(200);
  expect(response.headers.get('Cache-Control')).toContain('no-store');
  const body=await response.json();expect(body.sections).toHaveLength(21);
- expect(body.source).toEqual({accountId:account,version:2,status:'submitted',updatedAt:stamp,submittedAt:stamp,questionnairePacketVersion:null});
+ expect(body.source).toEqual({accountId:account,version:2,status:'submitted',updatedAt:stamp,submittedAt:stamp,questionnairePacketVersion:null,answerFingerprint:bpsSourceAnswerFingerprint(data)});
  expect(body.sections.find((s:any)=>s.title==='Safety and risk screening').fields.find((f:any)=>f.key==='suicidal_thoughts_current').value).toBe('Yes');
  expect(body.sections.find((s:any)=>s.title==='Authorization to share health information').disposition).toBe('reference');
  expect(body.sections.find((s:any)=>s.title==='Medications').disposition).toBe('separate-review');
@@ -1165,7 +1165,7 @@ test('malformed UTF-8 cannot silently rewrite a fictional clinician note and ret
 
 test('valid split multibyte UTF-8 BPS clinical notes retain exact text and an authorized save receipt',async()=>{
  const text='Fictional café 🧪 follow-up note';
- const bytes=new TextEncoder().encode(JSON.stringify({...payload,notes:fullNotes({presenting:text})}));
+ const bytes=new TextEncoder().encode(JSON.stringify({...payload,sourceAnswerFingerprint:bpsSourceAnswerFingerprint(data),notes:fullNotes({presenting:text})}));
  const split=bytes.indexOf(0xc3);
  expect(split).toBeGreaterThan(0);
  const stream=new ReadableStream<Uint8Array>({

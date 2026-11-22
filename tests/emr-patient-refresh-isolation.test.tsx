@@ -1,6 +1,6 @@
 import React from 'react';
 import {afterEach,expect,test,vi} from 'vitest';
-import {act,cleanup,fireEvent,render,screen} from '@testing-library/react';
+import {act,cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
 import PatientRepository from '@/app/emr/PatientRepository';
 
 // Fictional API fixtures only. No production charts, credentials or schedules
@@ -54,6 +54,11 @@ test.each([
  expect(screen.getByRole('heading',{name:'Patient intake source'})).toBeTruthy();
  expect(document.body.textContent).toContain('FICTIONAL_PRIVATE_ALLERGY');
 
+ // The protected background refresh listener is installed only after the
+ // verified chart readback completes and the UI leaves its busy state.
+ // Never dispatch focus before that effect is active: otherwise the test
+ // accidentally exercises no refresh at all and can fail nondeterministically.
+ await waitFor(()=>expect(screen.getByRole('button',{name:/Fictional Patient.*Linked patient account/i}).hasAttribute('disabled')).toBe(false));
  await act(async()=>{window.dispatchEvent(new Event('focus'));});
  await screen.findByText(/All patient-specific clinical panels were closed/);
  expect(detailReads).toBe(2);
@@ -100,6 +105,11 @@ test.each([
  fireEvent.click(await screen.findByRole('button',{name:/Fictional Patient.*Linked patient account/i}));
  await screen.findByText(/Central patient ID:/);
  expect(document.body.textContent).toContain('FICTIONAL_PRIVATE_ALLERGY');
+ // The protected background refresh listener is installed only after the
+ // verified chart readback completes and the UI leaves its busy state.
+ // Never dispatch focus before that effect is active: otherwise the test
+ // accidentally exercises no refresh at all and can fail nondeterministically.
+ await waitFor(()=>expect(screen.getByRole('button',{name:/Fictional Patient.*Linked patient account/i}).hasAttribute('disabled')).toBe(false));
  await act(async()=>{window.dispatchEvent(new Event('focus'));});
  await screen.findByText(/All patient-specific clinical panels were closed/);
  expect(detailReads).toBe(2);
@@ -130,6 +140,11 @@ test('unchanged linked intake remains open after protected background verificati
  render(<PatientRepository/>);
  fireEvent.click(await screen.findByRole('button',{name:/Fictional Patient.*Linked patient account/i}));
  await screen.findByText(/Central patient ID:/);
+ // The protected background refresh listener is installed only after the
+ // verified chart readback completes and the UI leaves its busy state.
+ // Never dispatch focus before that effect is active: otherwise the test
+ // accidentally exercises no refresh at all and can fail nondeterministically.
+ await waitFor(()=>expect(screen.getByRole('button',{name:/Fictional Patient.*Linked patient account/i}).hasAttribute('disabled')).toBe(false));
  await act(async()=>{window.dispatchEvent(new Event('focus'));});
  expect(detailReads).toBe(2);
  expect(screen.getByRole('heading',{name:'Patient intake source'})).toBeTruthy();

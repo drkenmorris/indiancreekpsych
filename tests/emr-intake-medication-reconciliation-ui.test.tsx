@@ -7,7 +7,7 @@ const id='00000000-0000-0000-0000-000000000123',updated='2026-11-09T14:00:00Z';
 const entry={medication:'Fictional Medicine',status:'Past',dosage:'5 mg',frequency:'Daily',start_date:'2025-01-01',end_date:'2025-05-01',prescribing_physician:'Example provider',benefit:'Beneficial'};
 const intakeJson=JSON.stringify([entry]);
 afterEach(()=>{cleanup();vi.unstubAllGlobals();});
-function mockApi({stale=false,omitReadback=false,mismatchReadback=false,status='submitted',records=[] as unknown[]}={}){
+function mockApi({stale=false,omitReadback=false,mismatchReadback=false,missingRecordId=false,sameRevision=false,status='submitted',records=[] as unknown[]}={}){
  let persisted:unknown=null;
  const calls:Array<{url:string;body:unknown}>=[];
  vi.stubGlobal('fetch',vi.fn(async (url:string,init?:RequestInit)=>{
@@ -15,11 +15,11 @@ function mockApi({stale=false,omitReadback=false,mismatchReadback=false,status='
   calls.push({url,body});
   if(url.startsWith('/api/emr/patients'))return {ok:true,json:async()=>({patients:[{id}],intake:{status,updated_at:stale?'newer':updated,answers:{medication_entries:intakeJson}}})};
   if(body?.path==='/api/save'){
-   if(!omitReadback)persisted={kind:'biopsychosocial_medication',id:'fictional-history-record',...body.body.data,
+   if(!omitReadback)persisted={kind:'biopsychosocial_medication',id:missingRecordId?'':'fictional-history-record',...body.body.data,
     ...(mismatchReadback?{dosage:'WRONG DOSE'}:{})};
    return {ok:true,json:async()=>({value:{saved:true},revision:2})};
   }
-  return {ok:true,json:async()=>({value:{records:persisted?[...records,persisted]:records},revision:persisted?2:1})};
+  return {ok:true,json:async()=>({value:{records:persisted?[...records,persisted]:records},revision:persisted&&!sameRevision?2:1})};
  }));
  return calls;
 }
@@ -45,7 +45,9 @@ test('source is read without saving; saving requires explicit review, uses prote
 });
 test.each([
  ['missing chart entry',{omitReadback:true}],
- ['changed dose in readback',{mismatchReadback:true}]
+ ['changed dose in readback',{mismatchReadback:true}],
+ ['unidentified chart-history row',{missingRecordId:true}],
+ ['unchanged chart revision',{sameRevision:true}]
 ])('medication write receipt without exact %s never announces saved clinical history',async(_variant,options)=>{
  const calls=mockApi(options);
  render(<IntakeMedicationReconciliation patientId={id} intakeJson={intakeJson} intakeUpdatedAt={updated}/>);

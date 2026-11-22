@@ -59,6 +59,8 @@ export default function IntakeMedicalSubstanceReconciliation({patientId,sourceJs
    if(isExactCopy)throw Error('An identical history snapshot already exists. Review or revise it rather than saving a duplicate.');
    const result=await fetch('/api/emr/patients?id='+encodeURIComponent(patientId),{cache:'no-store'});
    const linked=await json(result);
+   if(linked.intake?.status!=='submitted')
+    throw Error('Linked intake has not been submitted; medical/substance history cannot be reconciled from a draft.');
    if(linked.patients?.[0]?.id!==patientId||linked.intake?.updated_at!==sourceUpdatedAt||
       linked.intake?.answers?.medical_substance_history!==sourceJson)
       throw Error('The linked intake history changed. Reopen this patient and review the latest source before saving.');

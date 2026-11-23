@@ -96,10 +96,35 @@ WITH
   FROM public.patient_intakes i
   LEFT JOIN active_chart_accounts a ON a.account_id=i.patient_id
  ),
+ -- A generic 'reviewed=true' row is NOT enough to prove that the seven-page
+ -- BPS review belongs to the correct current submitted website intake.
+ -- Check active chart, source account/version/status/timestamp and submission
+ -- receipt together; this still does NOT prove a clinician used the UI.
+ bps_review_sources AS (
+  SELECT r.reviewed,
+   (r.owner_id IS NOT NULL
+    AND c.id IS NOT NULL AND c.directory_deleted_at IS NULL
+    AND c.account_id = r.source_account_id
+    AND a.active_charts = 1
+    AND i.patient_id IS NOT NULL AND i.status='submitted'
+    AND i.submitted_at IS NOT NULL AND i.updated_at IS NOT NULL
+    AND i.updated_at<=i.submitted_at
+    AND r.source_status='submitted'
+    AND i.version IS NOT NULL AND r.source_version=i.version
+    AND r.source_updated_at=i.updated_at) AS current_source_provenance
+  FROM public.emr_bps_intake_reviews r
+  LEFT JOIN public.clinical_patients c ON c.id=r.patient_id
+  LEFT JOIN public.patient_intakes i ON i.patient_id=r.source_account_id
+  LEFT JOIN active_chart_accounts a ON a.account_id=r.source_account_id
+ ),
  bps_audit AS (
   SELECT COUNT(*)::integer AS saved_review_rows,
-   COUNT(*) FILTER (WHERE reviewed IS TRUE)::integer AS reviewed_flag_rows
-  FROM public.emr_bps_intake_reviews
+   COUNT(*) FILTER (WHERE reviewed IS TRUE)::integer AS reviewed_flag_rows,
+   COUNT(*) FILTER (WHERE reviewed IS TRUE AND current_source_provenance IS TRUE)::integer
+     AS reviewed_matching_current_intake,
+   COUNT(*) FILTER (WHERE reviewed IS TRUE AND current_source_provenance IS NOT TRUE)::integer
+     AS reviewed_unverified_or_mismatched_source
+  FROM bps_review_sources
  ),
  scheduler_audit AS (
   SELECT COUNT(*)::integer AS appointments,
@@ -144,6 +169,12 @@ SELECT jsonb_build_object(
    ELSE 'CHART_LINK_REVIEW_REQUIRED' END,
  'clinician_bps_review_rows',(SELECT saved_review_rows FROM bps_audit),
  'clinician_bps_reviewed_flags',(SELECT reviewed_flag_rows FROM bps_audit),
+ 'reviewed_bps_rows_matching_current_intake_provenance',(SELECT reviewed_matching_current_intake FROM bps_audit),
+ 'reviewed_bps_rows_unverified_or_mismatched_provenance',(SELECT reviewed_unverified_or_mismatched_source FROM bps_audit),
+ 'reviewed_bps_source_aggregate_status',CASE
+    WHEN (SELECT reviewed_unverified_or_mismatched_source FROM bps_audit)>0 THEN 'REVIEW_PROVENANCE_INVESTIGATION_REQUIRED'
+    WHEN (SELECT reviewed_matching_current_intake FROM bps_audit)=0 THEN 'NO_MATCHED_REVIEW_SNAPSHOT_NOT_E2E'
+    ELSE 'MATCHED_SOURCE_REVIEW_ROWS_NOT_AUTHENTICATED_E2E' END,
  'appointments',(SELECT appointments FROM scheduler_audit),
  'recurring_occurrences',(SELECT recurring_occurrences FROM scheduler_audit),
  'recurring_without_chart_id',(SELECT recurring_without_chart_id FROM scheduler_audit),

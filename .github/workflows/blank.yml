@@ -21,7 +21,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run typecheck
-      - run: node --test tests/supabase-clean-replay.test.mjs
+      - run: node --test tests/supabase-clean-replay.test.mjs tests/emr-release-readiness-audit.test.mjs
       - run: npm run test:intake
       - run: node --test tests/scheduling.test.mjs tests/scheduler-admin-mfa-db.test.mjs
       - run: npx vitest run tests/office-hours.test.ts tests/appointments-ui.test.tsx tests/appointments-blackout-timezone.test.ts tests/appointments-calendar-receipt.test.tsx tests/registered-toggle.test.ts

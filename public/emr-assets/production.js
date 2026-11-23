@@ -171,9 +171,11 @@ function originalBpsInstantNanoseconds(value){
  try{
   const response=await fetch('/api/emr/bps-intake?patient='+encodeURIComponent(id),
    {cache:'no-store',credentials:'same-origin'});
+  // A rejected protected API body can contain patient identifiers or clinical
+  // text in the database/gateway error. Never parse or display it here.
+  if(!response.ok)throw Error('Protected BPS source request was not verified.');
   const result=await response.json();
   if(!stillCurrent())return;
-  if(!response.ok)throw Error(result.error||'Linked intake is unavailable.');
   if(result.patientId!==id||!Array.isArray(result.sections)||result.sections.length!==21)
    throw Error('The linked intake did not match this patient or the expected 21 sections.');
   // A stale, malformed or cross-account response must never be presented as a
@@ -707,13 +709,13 @@ function originalBpsInstantNanoseconds(value){
    warning.textContent=result.unmappedKeys.length+' unmapped intake field(s) require manual review; none were automatically imported.';
    panel.append(warning);
   }
- }catch(error){
+ }catch{
   if(stillCurrent()){
    panel.replaceChildren();
    const notice=document.createElement('p');notice.setAttribute('role','alert');
-   notice.textContent='Linked intake cannot be reviewed in the original BPS workspace: '+
-    (error instanceof Error?error.message:'Protected source unavailable.')+
-    ' Existing clinical forms remain available; no intake data were imported.';
+   // Adapter, network and parse exceptions are untrusted clinical data. Never
+   // reflect their messages into the original seven-page BPS workspace.
+   notice.textContent='Linked intake cannot be reviewed in the original BPS workspace: protected clinical source or provenance could not be verified. Existing clinical forms remain available; no intake data were imported.';
    panel.append(notice);
   }
  }

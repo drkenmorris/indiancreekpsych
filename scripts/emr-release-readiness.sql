@@ -135,7 +135,25 @@ WITH
     AND i.updated_at<=i.submitted_at
     AND r.source_status='submitted'
     AND i.version IS NOT NULL AND r.source_version=i.version
-    AND r.source_updated_at=i.updated_at) AS current_source_provenance
+    AND r.source_updated_at=i.updated_at
+    -- No record created before the patient attested submission can prove a
+    -- later clinician review, regardless of an otherwise matching source.
+    AND r.created_at IS NOT NULL AND r.created_at>=i.submitted_at) AS current_source_provenance,
+   -- SQL-level candidate check: stored notes must contain the entire seven-
+   -- domain allowlist, only bounded JSON strings, and at least one legible
+   -- alphanumeric observation. Conservative aggregate; NOT clinical quality,
+   -- true clinician authentication, or seven-page browser acceptance.
+   CASE WHEN jsonb_typeof(r.clinician_notes)='object' THEN
+     (SELECT COUNT(*)=7
+       AND COUNT(*) FILTER (
+        WHERE n.key IN ('presenting','treatment','medical','safety','family','goals','limitations')
+         AND jsonb_typeof(n.value)='string'
+         AND length(n.value #>> '{}')<=4000)=7
+       AND COUNT(*) FILTER (
+        WHERE jsonb_typeof(n.value)='string'
+          AND (n.value #>> '{}') ~ '[[:alnum:]]')>0
+      FROM jsonb_each(r.clinician_notes) AS n(key,value))
+    ELSE false END AS seven_domain_notes_candidate
   FROM public.emr_bps_intake_reviews r
   LEFT JOIN public.clinical_patients c ON c.id=r.patient_id
   LEFT JOIN public.patient_intakes i ON i.patient_id=r.source_account_id
@@ -147,7 +165,11 @@ WITH
    COUNT(*) FILTER (WHERE reviewed IS TRUE AND current_source_provenance IS TRUE)::integer
      AS reviewed_matching_current_intake,
    COUNT(*) FILTER (WHERE reviewed IS TRUE AND current_source_provenance IS NOT TRUE)::integer
-     AS reviewed_unverified_or_mismatched_source
+     AS reviewed_unverified_or_mismatched_source,
+   COUNT(*) FILTER (WHERE reviewed IS TRUE AND current_source_provenance IS TRUE
+     AND seven_domain_notes_candidate IS TRUE)::integer AS candidate_documented_reviews,
+   COUNT(*) FILTER (WHERE reviewed IS TRUE AND current_source_provenance IS TRUE
+     AND seven_domain_notes_candidate IS NOT TRUE)::integer AS incomplete_review_notes
   FROM bps_review_sources
  ),
  scheduler_audit AS (
@@ -201,10 +223,13 @@ SELECT jsonb_build_object(
  'clinician_bps_reviewed_flags',(SELECT reviewed_flag_rows FROM bps_audit),
  'reviewed_bps_rows_matching_current_intake_provenance',(SELECT reviewed_matching_current_intake FROM bps_audit),
  'reviewed_bps_rows_unverified_or_mismatched_provenance',(SELECT reviewed_unverified_or_mismatched_source FROM bps_audit),
+ 'reviewed_bps_rows_with_source_and_seven_domain_documentation_candidate',(SELECT candidate_documented_reviews FROM bps_audit),
+ 'reviewed_bps_rows_with_source_but_incomplete_documentation',(SELECT incomplete_review_notes FROM bps_audit),
  'reviewed_bps_source_aggregate_status',CASE
     WHEN (SELECT reviewed_unverified_or_mismatched_source FROM bps_audit)>0 THEN 'REVIEW_PROVENANCE_INVESTIGATION_REQUIRED'
-    WHEN (SELECT reviewed_matching_current_intake FROM bps_audit)=0 THEN 'NO_MATCHED_REVIEW_SNAPSHOT_NOT_E2E'
-    ELSE 'MATCHED_SOURCE_REVIEW_ROWS_NOT_AUTHENTICATED_E2E' END,
+    WHEN (SELECT incomplete_review_notes FROM bps_audit)>0 THEN 'REVIEW_DOCUMENTATION_INVESTIGATION_REQUIRED'
+    WHEN (SELECT candidate_documented_reviews FROM bps_audit)=0 THEN 'NO_MATCHED_REVIEW_SNAPSHOT_NOT_E2E'
+    ELSE 'MATCHED_SOURCE_DOCUMENTATION_CANDIDATES_NOT_AUTHENTICATED_E2E' END,
  'appointments',(SELECT appointments FROM scheduler_audit),
  'recurring_occurrences',(SELECT recurring_occurrences FROM scheduler_audit),
  'recurring_without_chart_id',(SELECT recurring_without_chart_id FROM scheduler_audit),

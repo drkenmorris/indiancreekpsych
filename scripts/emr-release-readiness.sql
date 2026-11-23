@@ -101,6 +101,42 @@ WITH
      AS invalid_policy_structure
   FROM mfa_policy_metadata
  ),
+ -- Diagnose pre-migration direct-table admin authorization paths. Permissive
+ -- policies that use an admin helper without visible AAL2 may remain reachable
+ -- at AAL1 when no restrictive AAL2 gate covers the same table. The result is
+ -- a STATIC RISK CANDIDATE only; never treat it as authenticated JWT proof.
+ -- Public and patient availability reads are intentionally out of scope.
+ admin_mfa_unguarded_policy_candidates AS (
+  SELECT p.tablename,p.policyname
+  FROM pg_policies p
+  WHERE p.schemaname='public'
+   AND p.tablename IN ('appointments','appointment_settings',
+      'appointment_availability_rules','appointment_blocks')
+   AND p.permissive='PERMISSIVE'
+   AND 'authenticated'=ANY(p.roles)
+   AND (
+    (COALESCE(p.qual,'') ILIKE '%current_user_is_admin%'
+     AND COALESCE(p.qual,'') NOT ILIKE '%aal2%')
+    OR
+    (COALESCE(p.with_check,'') ILIKE '%current_user_is_admin%'
+     AND COALESCE(p.with_check,'') NOT ILIKE '%aal2%')
+   )
+   AND NOT EXISTS (
+    SELECT 1 FROM pg_policies g
+    WHERE g.schemaname=p.schemaname AND g.tablename=p.tablename
+     AND g.permissive='RESTRICTIVE' AND g.cmd='ALL'
+     AND 'authenticated'=ANY(g.roles)
+     AND COALESCE(g.qual,'') ILIKE '%aal2%'
+     AND COALESCE(g.with_check,'') ILIKE '%aal2%'
+   )
+ ),
+ admin_mfa_gap_audit AS (
+  SELECT COUNT(*)::integer AS candidate_policies,
+   COUNT(DISTINCT tablename)::integer AS candidate_tables,
+   COALESCE(jsonb_agg(tablename||'.'||policyname ORDER BY tablename,policyname),
+    '[]'::jsonb) AS candidate_names
+  FROM admin_mfa_unguarded_policy_candidates
+ ),
  intake_audit AS (
   SELECT COUNT(*)::integer AS total,
    COUNT(*) FILTER (WHERE i.status='submitted')::integer AS submitted,
@@ -199,6 +235,10 @@ SELECT jsonb_build_object(
     WHEN (SELECT installed FROM mfa_audit)<4 THEN 'ADMIN_MFA_POLICY_NOT_INSTALLED'
     WHEN (SELECT structurally_valid FROM mfa_audit)<4 THEN 'ADMIN_MFA_POLICY_STRUCTURE_REVIEW_REQUIRED'
     ELSE 'POLICY_METADATA_MATCHES_NOT_AUTHENTICATED_E2E' END,
+ 'scheduler_admin_policies_without_visible_aal2_guard_candidate_count',(SELECT candidate_policies FROM admin_mfa_gap_audit),
+ 'scheduler_tables_with_candidate_admin_mfa_gap',(SELECT candidate_tables FROM admin_mfa_gap_audit),
+ 'scheduler_candidate_admin_mfa_gap_policy_names',(SELECT candidate_names FROM admin_mfa_gap_audit),
+ 'scheduler_candidate_admin_mfa_gap_evidence','STATIC_POLICY_METADATA_ONLY_NOT_AUTHENTICATED_RUNTIME_PROOF',
  'intake_total',(SELECT total FROM intake_audit),
  'intake_submitted',(SELECT submitted FROM intake_audit),
  'submitted_intakes_missing_receipt',(SELECT missing_submission_receipts FROM intake_audit),

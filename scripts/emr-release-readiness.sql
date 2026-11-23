@@ -80,12 +80,14 @@ WITH
  intake_audit AS (
   SELECT COUNT(*)::integer AS total,
    COUNT(*) FILTER (WHERE i.status='submitted')::integer AS submitted,
+   -- A receipt is NOT a safely linked clinical source when the website
+   -- account points at two or more active charts.  This must agree with the
+   -- cardinality check above, not merely prove that one chart EXISTS.
    COUNT(*) FILTER (WHERE i.status='submitted' AND i.submitted_at IS NOT NULL
-    AND i.updated_at<=i.submitted_at AND EXISTS (
-     SELECT 1 FROM public.clinical_patients cp
-     WHERE cp.account_id=i.patient_id AND cp.directory_deleted_at IS NULL
-    ))::integer AS submitted_receipted_active_chart_links
+    AND i.updated_at<=i.submitted_at AND a.active_charts=1)::integer
+    AS submitted_receipted_active_chart_links
   FROM public.patient_intakes i
+  LEFT JOIN active_chart_accounts a ON a.account_id=i.patient_id
  ),
  bps_audit AS (
   SELECT COUNT(*)::integer AS saved_review_rows,

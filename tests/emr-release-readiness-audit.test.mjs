@@ -20,7 +20,7 @@ test('read-only release audit identifies ambiguous central-chart links and clear
    create table public.emr_bps_intake_reviews(
     patient_id uuid,owner_id uuid,source_account_id uuid,source_version integer,
     source_status text,source_updated_at timestamptz,reviewed boolean,
-    created_at timestamptz,clinician_notes jsonb);
+    created_at timestamptz,clinician_notes jsonb,clinical_answers jsonb);
    create table public.appointments(
     series_id uuid,patient_id uuid,starts_at timestamptz,ends_at timestamptz);
    create table public.psych_test_assignments(id uuid);
@@ -114,6 +114,42 @@ test('read-only release audit identifies ambiguous central-chart links and clear
   assert.equal(provenance.reviewed_bps_rows_with_source_but_incomplete_documentation,0);
   assert.equal(provenance.reviewed_bps_source_aggregate_status,'REVIEW_PROVENANCE_INVESTIGATION_REQUIRED');
   assert.equal(provenance.authenticated_clinical_bps_end_to_end,'UNVERIFIED');
+
+  // Strict storage segregation: independently audit historical general BPS
+  // JSON fields, not just the source API projection. All records are fictional.
+  const cleanStorage=await run();
+  assert.equal(cleanStorage.bps_stored_snapshots_with_unapproved_fields,0);
+  assert.equal(cleanStorage.bps_stored_snapshots_with_structured_trauma,0);
+  assert.equal(cleanStorage.bps_stored_snapshots_with_malformed_field_shape,0);
+  assert.equal(cleanStorage.bps_stored_field_boundary_status,'NO_AGGREGATE_FIELD_CONTAMINATION_NOT_E2E');
+  await db.exec(`
+   update public.emr_bps_intake_reviews set clinical_answers=
+     '{"counseling_reason":"Fictional symptom","trauma_history":{"note":"Fictional private trauma"}, "insurance_policy":"Fictional insurance"}'::jsonb
+   where patient_id='00000000-0000-4000-8000-000000000101';`);
+  const contaminatedStorage=await run();
+  assert.equal(contaminatedStorage.bps_stored_snapshots_with_unapproved_fields,1);
+  assert.equal(contaminatedStorage.bps_stored_snapshots_with_structured_trauma,1);
+  assert.equal(contaminatedStorage.bps_stored_snapshots_with_malformed_field_shape,0);
+  assert.equal(contaminatedStorage.bps_stored_field_boundary_status,'BPS_STORED_FIELD_BOUNDARY_REVIEW_REQUIRED');
+  assert.equal(JSON.stringify(contaminatedStorage).includes('Fictional private trauma'),false);
+  assert.equal(JSON.stringify(contaminatedStorage).includes('Fictional insurance'),false);
+  await db.exec(`
+   update public.emr_bps_intake_reviews set clinical_answers='["nonobject"]'::jsonb
+   where patient_id='00000000-0000-4000-8000-000000000101';`);
+  const malformedStorage=await run();
+  assert.equal(malformedStorage.bps_stored_snapshots_with_unapproved_fields,0);
+  assert.equal(malformedStorage.bps_stored_snapshots_with_structured_trauma,0);
+  assert.equal(malformedStorage.bps_stored_snapshots_with_malformed_field_shape,1);
+  assert.equal(malformedStorage.bps_stored_field_boundary_status,'BPS_STORED_FIELD_BOUNDARY_REVIEW_REQUIRED');
+  await db.exec(`
+   update public.emr_bps_intake_reviews set clinical_answers=
+     '{"counseling_reason":"Fictional safe clinical answer"}'::jsonb
+   where patient_id='00000000-0000-4000-8000-000000000101';`);
+  const repairedStorage=await run();
+  assert.equal(repairedStorage.bps_stored_snapshots_with_unapproved_fields,0);
+  assert.equal(repairedStorage.bps_stored_snapshots_with_structured_trauma,0);
+  assert.equal(repairedStorage.bps_stored_snapshots_with_malformed_field_shape,0);
+  assert.equal(repairedStorage.bps_stored_field_boundary_status,'NO_AGGREGATE_FIELD_CONTAMINATION_NOT_E2E');
 
   // A legitimate source pointer is not evidence of a complete seven-domain
   // clinician history. A single old clinical note remains unqualified.

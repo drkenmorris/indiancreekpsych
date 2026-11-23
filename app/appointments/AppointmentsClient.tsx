@@ -21,6 +21,19 @@ const weekdays=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Sat
 const definitiveSchedulingRejection=(code:unknown):boolean=>
   typeof code==='string' && /^[0-9A-Z]{5}$/.test(code) && code!=='40003' &&
   (/^(22|23|28|40|42)/.test(code)||code==='P0001');
+// Database/provider errors may include protected patient names, account IDs or
+// SQL arguments. Only display messages authored here, never transport text.
+// An unknown completion status remains locked by the existing booking guard.
+const safeBookingFailure=(failure:unknown):string=>{
+  const code=failure&&typeof failure==='object'&&'code' in failure?(failure as {code:unknown}).code:null;
+  if(code==='23505'||code==='23P01')return 'Appointment conflict. Refresh the schedule and choose another time.';
+  if(code==='42501'||code==='28000')return 'Appointment authorization denied. Verify administrator MFA and scheduling permissions.';
+  if(code==='22023'||code==='23503')return 'Appointment details or patient link are invalid. Review the form before retrying.';
+  if(code==='40001'||code==='40P01')return 'Concurrent scheduling change rejected. Refresh the schedule before retrying.';
+  const unverified='Booking was not confirmed. Refresh the calendar to check the schedule before retrying.';
+  if(failure instanceof Error&&failure.message===unverified)return unverified;
+  return 'Booking could not be confirmed. Refresh the calendar before proceeding.';
+};
 const practiceDateInput=(instant:string,timezone:string)=>{const {date,time}=localParts(instant,timezone);return `${date}T${time}`;};
 
 export default function AppointmentsClient({userId,accountType,preferredName,initialSettings,initialRules,initialBlocks}:{userId:string;accountType:AccountType;preferredName:string;initialSettings:Settings|null;initialRules:Rule[];initialBlocks:Block[]}) {
@@ -84,7 +97,7 @@ export default function AppointmentsClient({userId,accountType,preferredName,ini
       await loadSlots();
     }catch(error){
       if(outcomeUnknown){bookingOutcomeUnknown.current=true;setBookingNeedsReconciliation(true);}
-      const reason=error instanceof Error?error.message:(error as {message?:string})?.message??"Booking could not be confirmed.";
+      const reason=safeBookingFailure(error);
       setBookingMessage(reason+(outcomeUnknown?" The write may have completed. This booking form is locked; inspect the calendar and reload the page before any new attempt. Do not resubmit this series blindly.":""));
     }finally{bookingInFlight.current=false;setBusy(false); }
   };

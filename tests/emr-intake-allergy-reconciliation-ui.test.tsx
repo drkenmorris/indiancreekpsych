@@ -158,3 +158,44 @@ test('mixed-case patient UUID matches canonical source receipt and saves only th
  expect((writes[0].payload as {patientId:string}).patientId).toBe(patient);
  expect(calls.some(c=>c.url==='/api/emr/patients?id='+patient)).toBe(true);
 });
+
+
+test('untrusted allergy-history load errors never disclose fictional patient information',async()=>{
+ const secret='PRIVATE_FICTIONAL_ALLERGY_LOAD_AND_SQL_ARGUMENT';
+ vi.stubGlobal('fetch',vi.fn(async()=>({ok:false,status:503,json:async()=>({error:secret})})));
+ render(<IntakeAllergyReconciliation {...props}/>);
+ const alert=await screen.findByRole('alert');
+ expect(alert.textContent).toMatch(/Protected allergy-history request failed/);
+ expect(document.body.textContent).not.toContain(secret);
+ expect(screen.queryByRole('button',{name:'Prepare medication-allergy review'})).toBeNull();
+});
+
+test('invalid successful allergy-history JSON cannot be reflected into the clinician chart',async()=>{
+ const secret='PRIVATE_FICTIONAL_MALFORMED_ALLERGY_RESPONSE';
+ vi.stubGlobal('fetch',vi.fn(async()=>({ok:true,status:200,json:async()=>{throw Error(secret);}})));
+ render(<IntakeAllergyReconciliation {...props}/>);
+ expect((await screen.findByRole('alert')).textContent).toMatch(/response was invalid/);
+ expect(document.body.textContent).not.toContain(secret);
+});
+
+test('allergy-history write errors are redacted and ambiguous saves stay locked',async()=>{
+ const secret='PRIVATE_FICTIONAL_ALLERGY_WRITE_SQL_WITH_PATIENT_DETAILS';
+ const calls=fixtures();
+ const original=globalThis.fetch;
+ vi.stubGlobal('fetch',vi.fn(async(url:string,init?:RequestInit)=>{
+  const payload=init?.body?JSON.parse(String(init.body)):null;
+  if(payload?.path==='/api/save')return {ok:false,status:503,json:async()=>({error:secret})};
+  return original(url,init);
+ }));
+ render(<IntakeAllergyReconciliation {...props}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Prepare medication-allergy review'}));
+ fireEvent.click(screen.getByRole('checkbox'));
+ const save=screen.getByRole('button',{name:'Save reviewed allergy-history entry'});
+ fireEvent.click(save);
+ expect((await screen.findByText(/Protected allergy-history request failed/)).textContent).not.toContain(secret);
+ expect(document.body.textContent).not.toContain(secret);
+ expect(await screen.findByText(/prior save outcome is not independently verified/)).toBeTruthy();
+ expect((save as HTMLButtonElement).disabled).toBe(true);
+ fireEvent.submit(save.closest('form')!);
+ expect(calls.filter(c=>(c.payload as {path?:string})?.path==='/api/save')).toHaveLength(0);
+});

@@ -31,7 +31,8 @@ WITH
   ('20261120101500'),
   ('20261122042000'),
   ('20261122220500'),
-  ('20261123200500')
+  ('20261123200500'),
+  ('20261123210500')
  ),
  migration_audit AS (
   SELECT COUNT(*) FILTER (WHERE installed.version IS NULL)::integer AS not_applied,
@@ -173,6 +174,9 @@ WITH
     AND r.source_status='submitted'
     AND i.version IS NOT NULL AND r.source_version=i.version
     AND r.source_updated_at=i.updated_at
+    -- Legacy deployments lack this column; to_jsonb keeps the audit read-only
+    -- and schema-compatible without treating absent historical evidence as valid.
+    AND (to_jsonb(r)->>'source_submitted_at')::timestamptz=i.submitted_at
     -- No record created before the patient attested submission can prove a
     -- later clinician review, regardless of an otherwise matching source.
     AND r.created_at IS NOT NULL AND r.created_at>=i.submitted_at) AS current_source_provenance,

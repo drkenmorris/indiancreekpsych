@@ -123,7 +123,7 @@ export async function GET(request:Request){
   // An append-only review can be older than the default query row limit.
   // Verify the COMPLETE patient-scoped history, including exact count and stable
   // ordering across pages, before allowing another clinician review.
-  const reviewFields='id,patient_id,source_account_id,source_version,source_status,source_updated_at,clinical_answers,clinician_notes,reviewed,created_at';
+  const reviewFields='id,patient_id,source_account_id,source_version,source_status,source_updated_at,source_submitted_at,clinical_answers,clinician_notes,reviewed,created_at';
   const reviewPageSize=100,maxReviewRows=1000;
   const reviews: Array<Record<string,any>>=[];
   const seenReviewIds=new Set<string>();
@@ -232,6 +232,11 @@ export async function GET(request:Request){
    review.source_version===source.intake.version&&
    review.source_status===source.intake.status&&
    equalBpsTimestampInstants(review.source_updated_at,source.intake.updated_at)&&
+   // Legacy history without a persisted receipt stays readable but cannot
+   // attest that a current submitted intake is the one previously reviewed.
+   (review.source_status==='submitted'?
+    equalBpsTimestampInstants(review.source_submitted_at,source.intake.submitted_at):
+    review.source_submitted_at===null)&&
    report.unmappedKeys.length===0&&
    matchesExactBpsSnapshot(review.clinical_answers,originalAnswers);
   // Original seven-page BPS forms need a live source/attestation indicator,
@@ -401,7 +406,7 @@ export async function POST(request:Request){
   let saved:Record<string,any>|null;
   try{
    const readback=await ctx.supabase.from('emr_bps_intake_reviews')
-    .select('id,patient_id,source_account_id,source_version,source_status,source_updated_at,clinical_answers,clinician_notes,reviewed,created_at')
+    .select('id,patient_id,source_account_id,source_version,source_status,source_updated_at,source_submitted_at,clinical_answers,clinician_notes,reviewed,created_at')
     .eq('id',data).eq('patient_id',body.patientId).eq('source_account_id',body.sourceAccountId)
     .maybeSingle();
    if(readback.error)return reply({error:unverified},503);
@@ -412,6 +417,9 @@ export async function POST(request:Request){
    saved.patient_id!==body.patientId||saved.source_account_id!==body.sourceAccountId||
    saved.source_version!==body.sourceVersion||saved.source_status!==body.sourceStatus||
    !equalBpsTimestampInstants(saved.source_updated_at,body.sourceUpdatedAt)||
+   (body.sourceStatus==='submitted'?
+    !equalBpsTimestampInstants(saved.source_submitted_at,body.sourceSubmittedAt):
+    saved.source_submitted_at!==null)||
    saved.reviewed!==true||!validBpsTimestamp(saved.created_at)||
    !validBpsReviewChronology(saved.source_updated_at,saved.created_at,
     body.sourceStatus==='submitted'?body.sourceSubmittedAt:undefined)||

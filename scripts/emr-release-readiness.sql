@@ -219,6 +219,18 @@ WITH
       AND r.clinical_answers ? 'trauma_history')::integer AS structured_trauma,
    COUNT(*) FILTER (WHERE r.clinical_answers IS NOT NULL
       AND jsonb_typeof(r.clinical_answers)<>'object')::integer AS malformed_shape,
+   -- An approved key with a structured JSON value is not a literal patient
+   -- answer. Blank saved strings are likewise not part of the BPS projection.
+   -- Audit values by TYPE/emptiness only; never return the text or keys.
+   COUNT(*) FILTER (WHERE CASE WHEN jsonb_typeof(r.clinical_answers)='object' THEN
+     EXISTS (SELECT 1 FROM jsonb_each(r.clinical_answers) AS field(key,value)
+       WHERE jsonb_typeof(field.value)<>'string')
+     ELSE false END)::integer AS snapshots_with_non_text_values,
+   COUNT(*) FILTER (WHERE CASE WHEN jsonb_typeof(r.clinical_answers)='object' THEN
+     EXISTS (SELECT 1 FROM jsonb_each(r.clinical_answers) AS field(key,value)
+       WHERE jsonb_typeof(field.value)='string'
+        AND btrim(field.value #>> '{}')='')
+     ELSE false END)::integer AS snapshots_with_blank_values,
    COUNT(*) FILTER (WHERE CASE
      WHEN jsonb_typeof(r.clinical_answers)='object' THEN EXISTS (
        SELECT 1 FROM jsonb_object_keys(r.clinical_answers) AS field(key)
@@ -320,9 +332,13 @@ SELECT jsonb_build_object(
  'bps_stored_snapshots_with_unapproved_fields',(SELECT snapshots_with_unapproved_keys FROM bps_stored_field_boundary),
  'bps_stored_snapshots_with_structured_trauma',(SELECT structured_trauma FROM bps_stored_field_boundary),
  'bps_stored_snapshots_with_malformed_field_shape',(SELECT malformed_shape FROM bps_stored_field_boundary),
+ 'bps_stored_snapshots_with_non_text_values',(SELECT snapshots_with_non_text_values FROM bps_stored_field_boundary),
+ 'bps_stored_snapshots_with_blank_values',(SELECT snapshots_with_blank_values FROM bps_stored_field_boundary),
  'bps_stored_field_boundary_status',CASE WHEN
    (SELECT snapshots_with_unapproved_keys FROM bps_stored_field_boundary)>0 OR
-   (SELECT malformed_shape FROM bps_stored_field_boundary)>0
+   (SELECT malformed_shape FROM bps_stored_field_boundary)>0 OR
+   (SELECT snapshots_with_non_text_values FROM bps_stored_field_boundary)>0 OR
+   (SELECT snapshots_with_blank_values FROM bps_stored_field_boundary)>0
    THEN 'BPS_STORED_FIELD_BOUNDARY_REVIEW_REQUIRED'
    ELSE 'NO_AGGREGATE_FIELD_CONTAMINATION_NOT_E2E' END,
  'appointments',(SELECT appointments FROM scheduler_audit),

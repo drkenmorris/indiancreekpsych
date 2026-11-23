@@ -48,7 +48,25 @@ const documentedClinicianReview=(review:Review):boolean=>
  (review.excluded_clinician_notes??0)===0&&
  sanitizeBpsClinicianNotes(review.clinician_notes).excludedCount===0&&
  hasIndependentBpsReviewNote(sanitizeBpsClinicianNotes(review.clinician_notes).notes);
-async function json(response:Response){const data=await response.json();if(!response.ok)throw Error(data.error||'Protected BPS request failed.');return data;}
+// The protected endpoint's HTTP failure body is not a safe UI message. A
+// database, gateway, or stale handler can put chart identifiers or patient
+// content into its error field. Never reflect those bytes in this clinician UI.
+// HTTP status is sufficient to direct recovery without disclosing PHI.
+async function json(response:Response){
+ if(!response.ok){
+  if(response.status===401||response.status===403)
+   throw Error('Protected BPS access denied. Sign in and complete clinician MFA.');
+  if(response.status===404)
+   throw Error('Linked central chart or intake was not found. Verify the patient link.');
+  if(response.status===409)
+   throw Error('Linked BPS source or review history could not be verified. Reopen the protected chart.');
+  if(response.status===413)
+   throw Error('BPS review request exceeds the allowed size.');
+  throw Error('Protected BPS request failed or its outcome is uncertain. Reopen the chart and verify history.');
+ }
+ try{return await response.json();}
+ catch{throw Error('Protected BPS response was invalid. Reopen the chart before proceeding.');}
+}
 export default function PatientBpsIntakeReview({patientId:requestedPatientId}:{patientId:string}){
  // PostgreSQL and the protected GET route normalize UUIDs to lowercase. Keep
  // every local chart scope, save lock and API readback on that same identity so

@@ -1,6 +1,6 @@
 import React from 'react';
 import {afterEach,expect,test,vi} from 'vitest';
-import {cleanup,render,screen} from '@testing-library/react';
+import {cleanup,fireEvent,render,screen} from '@testing-library/react';
 import PatientBpsIntakeReview from '@/app/emr/PatientBpsIntakeReview';
 import {mapIntakeToBps} from '@/lib/emr/intake-bps';
 
@@ -182,4 +182,30 @@ test('malformed successful BPS response is not echoed to the clinician',async()=
  expect(alert.textContent).toBe('Protected BPS response was invalid. Reopen the chart before proceeding.');
  expect(document.body.textContent).not.toContain(secret);
  expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
+});
+
+test('failed clinical BPS POST cannot echo protected error contents or invite an unverified second save',async()=>{
+ const secret='FICTIONAL_OTHER_CHART_MEDICATION_AND_TRAUMA_FROM_ERROR_321';
+ let writes=0;
+ const source=fixture();
+ vi.stubGlobal('fetch',vi.fn(async(_url:string,options?:RequestInit)=>{
+  if(options?.method==='POST'){
+   writes++;
+   return Response.json({error:secret,details:{source:secret}},{status:503});
+  }
+  return Response.json(source);
+ }));
+ render(<PatientBpsIntakeReview patientId={patient}/>);
+ await screen.findByText(/Version 3/);
+ fireEvent.click(screen.getByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i}));
+ fireEvent.change(screen.getByLabelText('Presenting concerns and functional impact'),{
+  target:{value:'Independent fictional clinician follow-up'}
+ });
+ fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed this intake/i}));
+ fireEvent.click(screen.getByRole('button',{name:/Save reviewed BPS history snapshot/i}));
+ await screen.findByText(/The outcome of this submission is unknown/);
+ expect(writes).toBe(1);
+ expect(document.body.textContent).not.toContain(secret);
+ expect(document.body.textContent).toContain('no clinical save is claimed');
+ expect(screen.queryByRole('button',{name:/Save reviewed BPS history snapshot/i})).toBeNull();
 });

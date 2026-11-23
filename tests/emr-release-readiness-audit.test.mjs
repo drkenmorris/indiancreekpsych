@@ -109,6 +109,53 @@ test('read-only release audit identifies ambiguous central-chart links and clear
   assert.equal(provenance.reviewed_bps_rows_unverified_or_mismatched_provenance,1);
   assert.equal(provenance.reviewed_bps_source_aggregate_status,'REVIEW_PROVENANCE_INVESTIGATION_REQUIRED');
   assert.equal(provenance.authenticated_clinical_bps_end_to_end,'UNVERIFIED');
+  // An MFA policy with the expected NAME but a permissive/always-true
+  // predicate must never be reported as a structurally valid AAL2 gate.
+  await db.exec(`
+   create role authenticated;
+   create schema private;
+   create schema auth;
+   create function private.current_user_is_admin() returns boolean
+     language sql stable as $ select false $;
+   create function auth.jwt() returns jsonb
+     language sql stable as $ select '{}'::jsonb $;
+  `);
+  const mfaPolicies=[
+   ['appointment_settings','appointment_settings_admin_mfa_gate'],
+   ['appointment_availability_rules','availability_rules_admin_mfa_gate'],
+   ['appointment_blocks','appointment_blocks_admin_mfa_gate'],
+   ['appointments','appointments_admin_mfa_gate']
+  ];
+  for(const [table,name] of mfaPolicies){
+   await db.exec(`alter table public.${table} enable row level security;
+     create policy ${name} on public.${table} as permissive
+      for all to authenticated using(true) with check(true);`);
+  }
+  const weak=await run();
+  assert.equal(weak.scheduler_admin_mfa_policies_installed,4);
+  assert.equal(weak.scheduler_admin_mfa_policies_structurally_valid,0);
+  assert.equal(weak.scheduler_admin_mfa_policies_invalid_structure.length,4);
+  assert.equal(weak.scheduler_admin_mfa_policy_metadata_status,'ADMIN_MFA_POLICY_STRUCTURE_REVIEW_REQUIRED');
+  for(const [table,name] of mfaPolicies){
+   await db.exec(`drop policy ${name} on public.${table};
+    create policy ${name} on public.${table} as restrictive
+     for all to authenticated
+     using(not (select private.current_user_is_admin()) or (select auth.jwt()->>'aal')='aal2')
+     with check(not (select private.current_user_is_admin()) or (select auth.jwt()->>'aal')='aal2');`);
+  }
+  const correctlyScoped=await run();
+  assert.equal(correctlyScoped.scheduler_admin_mfa_policies_installed,4);
+  assert.equal(correctlyScoped.scheduler_admin_mfa_policies_structurally_valid,4);
+  assert.deepEqual(correctlyScoped.scheduler_admin_mfa_policies_invalid_structure,[]);
+  assert.equal(correctlyScoped.scheduler_admin_mfa_policy_metadata_status,'POLICY_METADATA_MATCHES_NOT_AUTHENTICATED_E2E');
+  await db.exec('alter table public.appointments disable row level security;');
+  const disabled=await run();
+  assert.equal(disabled.scheduler_admin_mfa_policies_structurally_valid,3);
+  assert.deepEqual(disabled.scheduler_admin_mfa_policies_invalid_structure,['appointments_admin_mfa_gate']);
+  assert.equal(disabled.scheduler_admin_mfa_policy_metadata_status,'ADMIN_MFA_POLICY_STRUCTURE_REVIEW_REQUIRED');
+  // Even perfect policy metadata is not proof of an authenticated browser
+  // session, clinical save/readback, or effective JWT enforcement.
+  assert.equal(correctlyScoped.interactive_scheduler_mfa,'UNVERIFIED');
   // Querying the report itself must not create clinician records or write appointments.
   assert.equal((await db.query('select count(*)::integer as n from public.emr_bps_intake_reviews')).rows[0].n,2);
   assert.equal((await db.query('select count(*)::integer as n from public.appointments')).rows[0].n,0);

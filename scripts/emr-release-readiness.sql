@@ -208,6 +208,53 @@ WITH
      AND seven_domain_notes_candidate IS NOT TRUE)::integer AS incomplete_review_notes
   FROM bps_review_sources
  ),
+ -- Check the *stored* general BPS snapshot, not just the source intake or
+ -- clinical UI. A non-validating constraint may protect future inserts while
+ -- leaving historical records untouched, so report legacy contamination too.
+ -- Keys only: never select or return any values, chart IDs, names or PHI.
+ -- This allowlist must match save_emr_bps_intake_review's approved projection.
+ bps_stored_field_boundary AS (
+  SELECT
+   COUNT(*) FILTER (WHERE jsonb_typeof(r.clinical_answers)='object'
+      AND r.clinical_answers ? 'trauma_history')::integer AS structured_trauma,
+   COUNT(*) FILTER (WHERE r.clinical_answers IS NOT NULL
+      AND jsonb_typeof(r.clinical_answers)<>'object')::integer AS malformed_shape,
+   COUNT(*) FILTER (WHERE CASE
+     WHEN jsonb_typeof(r.clinical_answers)='object' THEN EXISTS (
+       SELECT 1 FROM jsonb_object_keys(r.clinical_answers) AS field(key)
+       WHERE field.key NOT IN (
+        'guardian_relationship',
+        'custody_notes',
+        'counseling_reason',
+        'concern_onset',
+        'concern_duration',
+        'precipitating_events',
+        'symptom_frequency',
+        'symptom_severity',
+        'functional_impact',
+        'sleep',
+        'appetite',
+        'energy',
+        'concentration',
+        'work_school_impact',
+        'relationship_impact',
+        'daily_living_impact',
+        'counseling_goals',
+        'prior_mental_health_treatment',
+        'prior_therapists',
+        'prior_diagnoses',
+        'self_harm_history',
+        'suicide_attempt_history',
+        'suicidal_thoughts_current',
+        'suicidal_plan_current',
+        'homicidal_thoughts_current',
+        'violence_risk_details',
+        'abuse_neglect_current',
+        'weapons_access',
+        'protective_factors'
+       )) ELSE false END)::integer AS snapshots_with_unapproved_keys
+  FROM public.emr_bps_intake_reviews r
+ ),
  scheduler_audit AS (
   SELECT COUNT(*)::integer AS appointments,
    COUNT(*) FILTER (WHERE series_id IS NOT NULL)::integer AS recurring_occurrences,
@@ -270,6 +317,14 @@ SELECT jsonb_build_object(
     WHEN (SELECT incomplete_review_notes FROM bps_audit)>0 THEN 'REVIEW_DOCUMENTATION_INVESTIGATION_REQUIRED'
     WHEN (SELECT candidate_documented_reviews FROM bps_audit)=0 THEN 'NO_MATCHED_REVIEW_SNAPSHOT_NOT_E2E'
     ELSE 'MATCHED_SOURCE_DOCUMENTATION_CANDIDATES_NOT_AUTHENTICATED_E2E' END,
+ 'bps_stored_snapshots_with_unapproved_fields',(SELECT snapshots_with_unapproved_keys FROM bps_stored_field_boundary),
+ 'bps_stored_snapshots_with_structured_trauma',(SELECT structured_trauma FROM bps_stored_field_boundary),
+ 'bps_stored_snapshots_with_malformed_field_shape',(SELECT malformed_shape FROM bps_stored_field_boundary),
+ 'bps_stored_field_boundary_status',CASE WHEN
+   (SELECT snapshots_with_unapproved_keys FROM bps_stored_field_boundary)>0 OR
+   (SELECT malformed_shape FROM bps_stored_field_boundary)>0
+   THEN 'BPS_STORED_FIELD_BOUNDARY_REVIEW_REQUIRED'
+   ELSE 'NO_AGGREGATE_FIELD_CONTAMINATION_NOT_E2E' END,
  'appointments',(SELECT appointments FROM scheduler_audit),
  'recurring_occurrences',(SELECT recurring_occurrences FROM scheduler_audit),
  'recurring_without_chart_id',(SELECT recurring_without_chart_id FROM scheduler_audit),

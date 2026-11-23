@@ -17,13 +17,13 @@ vi.mock('@/lib/emr/access',()=>({
 afterEach(()=>{cleanup();vi.clearAllMocks();vi.unstubAllGlobals();});
 
 test.each([['lowercase receipt',false,false],['uppercase receipt',true,false],['uppercase central-chart UUID',false,true]] as const)('fictional 21-section linked intake traverses the protected BPS API, clinician save and independently verified history without mixing patient charts (%s)',async(_case,receiptUppercase,chartUppercase)=>{
- const patient='00000000-0000-4000-8000-000000000901';
+ const patient='00000000-0000-4000-8000-0000000009a1';
  const otherPatient='00000000-0000-4000-8000-000000000902';
  // Uppercase UUIDs in chart URLs identify the SAME PostgreSQL UUID, not a new patient.
  const selectedPatientId=chartUppercase?patient.toUpperCase():patient;
  const account='00000000-0000-4000-8000-000000000903';
  const otherAccount='00000000-0000-4000-8000-000000000904';
- const reviewId='00000000-0000-4000-8000-000000000905';
+ const reviewId='00000000-0000-4000-8000-0000000009a5';
  const stamp='2026-11-12T12:00:00Z';
  const sourceAnswers:Record<string,string>={legal_packet_version:'2026-11-02-directory-1'};
  for(const section of intakeSections)for(const [key] of section.fields){
@@ -81,13 +81,14 @@ test.each([['lowercase receipt',false,false],['uppercase receipt',true,false],['
    const saved=request.p_payload;
    if(saved.patient_id!==patient||saved.source_account_id!==account||
       saved.source_version!==7||saved.source_status!=='submitted'||
-      saved.source_updated_at!==stamp||saved.reviewed!==true)
+      saved.source_updated_at!==stamp||saved.source_submitted_at!==stamp||saved.reviewed!==true)
     return {data:null,error:{code:'22023'}};
    writes++;
    reviews.push({
     id:reviewId,patient_id:patient,source_account_id:account,
     source_version:7,source_status:'submitted',source_updated_at:stamp,
-    created_at:stamp,reviewed:true,
+    // Mirror the new DB-owned submission receipt, not an invented review timestamp.
+    source_submitted_at:stamp,created_at:stamp,reviewed:true,
     // Simulate DB-owned complete immutable clinical snapshot. The protected
     // GET API redacts trauma/other restricted content only on readback, AFTER
     // checking that the saved original contains the complete approved source.
@@ -156,6 +157,24 @@ test.each([['lowercase receipt',false,false],['uppercase receipt',true,false],['
   'FICTIONAL_PATIENT_PRESENTING_CONCERN'
  );
  expect(historyData.reviews[0].current_source_snapshot_verified).toBe(true);
+ expect(reviews[0].source_submitted_at).toBe(stamp);
+ const summaryUrl='https://www.indiancreekpsych.com/api/emr/bps-intake?patient='+patient+'&summary=1';
+ const verifiedSummary=await GET(new Request(summaryUrl));
+ expect(verifiedSummary.status).toBe(200);
+ expect((await verifiedSummary.json()).currentVersionReviewed).toBe(true);
+ // Missing legacy or altered persisted receipts must not certify current review.
+ // The historical note remains readable, and no additional write is attempted.
+ for(const invalidReceipt of [null,'2026-11-12T11:59:59Z']){
+  reviews[0].source_submitted_at=invalidReceipt;
+  const historical=await GET(new Request('https://www.indiancreekpsych.com/api/emr/bps-intake?patient='+patient));
+  expect(historical.status).toBe(200);
+  expect((await historical.json()).reviews[0].current_source_snapshot_verified).toBe(false);
+  const summary=await GET(new Request(summaryUrl));
+  expect(summary.status).toBe(200);
+  expect((await summary.json()).currentVersionReviewed).toBe(false);
+  expect(writes).toBe(1);
+ }
+ reviews[0].source_submitted_at=stamp;
  expect((reviews[0].clinical_answers as Record<string,string>).trauma_history).toBeUndefined();
  expect(historyData.reviews[0].clinical_answers.trauma_history).toBeUndefined();
  expect(JSON.stringify(historyData)).not.toContain('PRIVATE_FICTIONAL_TRAUMA_NARRATIVE');

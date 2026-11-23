@@ -13,10 +13,11 @@ const booking={
  starts_at:nextMonth+'-10T16:00:00Z',ends_at:nextMonth+'-10T17:00:00Z',
  status:'booked',series_id:'00000000-0000-4000-8000-000000000200'
 };
-function prepare(receipt:unknown, row:CalendarAppointment|CalendarAppointment[]=booking){
+function prepare(receipt:unknown, row:CalendarAppointment|CalendarAppointment[]=booking,reportedCount?:number|null){
+ const entries=Array.isArray(row)?row:[row];
  const q:any={};
  for(const method of ['select','eq','gte','lt','order'])q[method]=vi.fn(()=>q);
- q.abortSignal=vi.fn(async()=>({data:Array.isArray(row)?row:[row],error:null}));
+ q.abortSignal=vi.fn(async()=>({data:entries,count:reportedCount===undefined?entries.length:reportedCount,error:null}));
  m.from.mockReturnValue(q);
  m.rpc.mockImplementation((name:string)=>({abortSignal:async()=>({
   data:name==='scheduling_patients'?[]:receipt,error:null
@@ -183,11 +184,27 @@ test.each([
  expect(m.rpc.mock.calls.filter(([name])=>name==='edit_calendar_appointments')).toHaveLength(0);
 });
 
+test.each([
+ ['missing exact count',null],
+ ['server-truncated calendar',2],
+ ['invalid count',-1]
+])('scheduler rejects %s rather than permitting edits on an incomplete booking list',async(_reason,count)=>{
+ // Even a well-formed row is not proof that a server-capped query
+ // returned the complete booked appointment set for this calendar range.
+ prepare(1,booking,count);
+ render(<CalendarClient timezone={timezone} duration={50}/>);
+ fireEvent.click(screen.getByRole('button',{name:'Next month'}));
+ await screen.findByText(/Calendar appointment listing is incomplete\. Refresh before editing bookings\./);
+ expect(screen.queryByRole('button',{name:/Synthetic Scheduling Patient/})).toBeNull();
+ expect(screen.queryByRole('button',{name:'Save changes'})).toBeNull();
+ expect(m.rpc.mock.calls.filter(([name])=>name==='edit_calendar_appointments')).toHaveLength(0);
+});
+
 test('refresh clears stale patient name and edit selection while appointment readback is pending',async()=>{
  prepare(1);
  await openFutureRecurringEditor();
- let finish!:(result:{data:CalendarAppointment[];error:null})=>void;
- const pending=new Promise<{data:CalendarAppointment[];error:null}>(resolve=>{finish=resolve;});
+ let finish!:(result:{data:CalendarAppointment[];count:number;error:null})=>void;
+ const pending=new Promise<{data:CalendarAppointment[];count:number;error:null}>(resolve=>{finish=resolve;});
  const q:any={};
  for(const method of ['select','eq','gte','lt','order'])q[method]=vi.fn(()=>q);
  q.abortSignal=vi.fn(()=>pending);
@@ -196,7 +213,7 @@ test('refresh clears stale patient name and edit selection while appointment rea
  expect(screen.queryByLabelText('Apply to')).toBeNull();
  expect(screen.queryByRole('button',{name:/Synthetic Scheduling Patient/})).toBeNull();
  expect(screen.getByText('Loading appointments…')).toBeTruthy();
- await act(async()=>{finish({data:[booking],error:null});});
+ await act(async()=>{finish({data:[booking],count:1,error:null});});
  await screen.findByRole('button',{name:/Synthetic Scheduling Patient/});
  expect(screen.queryByLabelText('Apply to')).toBeNull();
  expect(m.rpc.mock.calls.filter(([name])=>name==='edit_calendar_appointments')).toHaveLength(0);

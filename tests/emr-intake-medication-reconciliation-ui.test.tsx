@@ -170,3 +170,39 @@ test('mixed-case patient UUID is canonicalized before medication source verifica
  expect((writes[0].body as {patientId:string}).patientId).toBe(id);
  expect(calls.some(c=>c.url==='/api/emr/patients?id='+id)).toBe(true);
 });
+
+test('medication reconciliation never exposes upstream patient or SQL errors while loading the chart',async()=>{
+ const protectedDetails='SECRET_PATIENT_MARIA_SQL_ARGUMENTS';
+ vi.stubGlobal('fetch',vi.fn(async()=>({ok:false,status:500,json:async()=>({error:protectedDetails})})));
+ render(<IntakeMedicationReconciliation patientId={id} intakeJson={intakeJson} intakeUpdatedAt={updated}/>);
+ const alert=await screen.findByRole('alert');
+ expect(alert.textContent).toContain('protected chart request was not confirmed');
+ expect(document.body.textContent).not.toContain(protectedDetails);
+ expect(screen.queryByRole('button',{name:'Prepare review draft'})).toBeNull();
+});
+
+test.each(['provider-error','transport-error'] as const)(
+ 'medication-history %s during uncertain save neither leaks PHI nor enables retry',async(variant)=>{
+ const protectedDetails='SECRET_PATIENT_MEDICATION_TRAUMA_AND_SQL';
+ const calls=mockApi();
+ const originalFetch=globalThis.fetch;
+ vi.stubGlobal('fetch',vi.fn(async(url:string,init?:RequestInit)=>{
+  const body=init?.body?JSON.parse(String(init.body)):null;
+  if(body?.path==='/api/save'){
+   if(variant==='transport-error')throw Error(protectedDetails);
+   return {ok:false,status:500,json:async()=>({error:protectedDetails})};
+  }
+  return originalFetch(url,init);
+ }));
+ render(<IntakeMedicationReconciliation patientId={id} intakeJson={intakeJson} intakeUpdatedAt={updated}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Prepare review draft'}));
+ fireEvent.click(screen.getByRole('checkbox'));
+ const save=screen.getByRole('button',{name:'Save reviewed medication-history entry'});
+ fireEvent.click(save);
+ expect(await screen.findByText(/Reopen the protected chart and inspect history before another attempt/)).toBeTruthy();
+ expect(document.body.textContent).not.toContain(protectedDetails);
+ expect(screen.queryByText(/A new medication-history entry was saved/)).toBeNull();
+ expect((save as HTMLButtonElement).disabled).toBe(true);
+ fireEvent.submit(save.closest('form')!);
+ expect(calls.filter(c=>(c.body as {path?:string})?.path==='/api/save')).toHaveLength(0);
+ });

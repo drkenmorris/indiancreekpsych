@@ -66,6 +66,7 @@ function verifiedCalendarPatientRows(rows:unknown):Patient[]{
 function safeCalendarLoadFailure(failure:unknown):string{
  const safeMessages=new Set([
   'Calendar appointment readback could not be verified. Refresh before editing bookings.',
+  'Calendar appointment listing is incomplete. Refresh before editing bookings.',
   'Calendar patient roster could not be verified. Refresh before editing bookings.',
   'Calendar linked patient identity could not be verified. Refresh before editing bookings.',
   'Appointments could not be loaded. Try Refresh.',
@@ -121,11 +122,18 @@ export default function CalendarClient({timezone,duration,onBook}:{timezone:stri
    const range=monthQueryRange(month);
    try {
      const [bookings,names]=await Promise.all([
-       supabase.from('appointments').select('id,patient_id,patient_name,starts_at,ends_at,status,series_id').eq('status','booked').gte('starts_at',range.from).lt('starts_at',range.to).order('starts_at').abortSignal(AbortSignal.timeout(15000)),
+       supabase.from('appointments').select('id,patient_id,patient_name,starts_at,ends_at,status,series_id',{count:'exact'}).eq('status','booked').gte('starts_at',range.from).lt('starts_at',range.to).order('starts_at').abortSignal(AbortSignal.timeout(15000)),
        supabase.rpc('scheduling_patients').abortSignal(AbortSignal.timeout(15000))
      ]);
      if(bookings.error)throw new Error('Appointments could not be loaded. Try Refresh.');
      if(names.error)throw new Error('Patient names could not be loaded. Try Refresh.');
+     // PostgREST may silently cap a SELECT at its configured max_rows.
+     // A valid-looking partial month can hide bookings and invite conflicts.
+     // Only an exact server count equal to the fetched row count establishes
+     // a complete editable calendar readback; preserve all source records.
+     if(!Array.isArray(bookings.data)||!Number.isSafeInteger(bookings.count)||
+        bookings.count<0||bookings.count!==bookings.data.length)
+       throw new Error('Calendar appointment listing is incomplete. Refresh before editing bookings.');
      const verified=verifiedBookedCalendarRows(bookings.data,range.from,range.to);
      const verifiedPatients=verifiedCalendarPatientRows(names.data);
      // A booked row's patient_id is not an independently verified chart link.

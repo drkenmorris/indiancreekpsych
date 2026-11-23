@@ -131,8 +131,10 @@ export default function CalendarClient({timezone,duration,onBook}:{timezone:stri
      // A valid-looking partial month can hide bookings and invite conflicts.
      // Only an exact server count equal to the fetched row count establishes
      // a complete editable calendar readback; preserve all source records.
-     if(!Array.isArray(bookings.data)||!Number.isSafeInteger(bookings.count)||
-        bookings.count<0||bookings.count!==bookings.data.length)
+     const exactBookedCount=bookings.count;
+     if(!Array.isArray(bookings.data)||typeof exactBookedCount!=='number'||
+        !Number.isSafeInteger(exactBookedCount)||exactBookedCount<0||
+        exactBookedCount!==bookings.data.length)
        throw new Error('Calendar appointment listing is incomplete. Refresh before editing bookings.');
      const verified=verifiedBookedCalendarRows(bookings.data,range.from,range.to);
      const verifiedPatients=verifiedCalendarPatientRows(names.data);

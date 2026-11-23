@@ -43,7 +43,8 @@ for(const migration of [
  '20261119033000_emr_bps_source_answer_json_guard.sql',
  '20261120101500_bps_explicit_seven_domain_review_guard.sql',
  '20261122042000_bps_combining_diacritic_attestation_guard.sql',
- '20261122220500_bps_dedicated_trauma_storage_boundary.sql'
+ '20261122220500_bps_dedicated_trauma_storage_boundary.sql',
+ '20261123200500_bps_snapshot_approved_text_fields.sql'
 ])await db.exec(readFileSync('supabase/migrations/'+migration,'utf8'));
 const q=(s,args=[])=>db.query(s,args);
 const as=async(id,aal='aal2')=>{await db.exec('reset role');await q("select set_config('request.user',$1,false),set_config('request.aal',$2,false)",[id,aal]);await db.exec('set role authenticated');};
@@ -172,6 +173,31 @@ await test('MFA clinician saves an append-only BPS review using DB-owned clinica
  for(const key of ['roi_authorize','treatment_signature','insurance_member','medication_entries','trauma_history'])assert.equal(row.clinical_answers[key],undefined);
  assert.ok((await q("select 1 from pg_constraint where conname='emr_bps_snapshots_exclude_structured_trauma'")).rows.length===1);
  assert.match(row.clinician_notes.presenting,/not a diagnosis/);
+});
+await test('database snapshot constraint rejects privileged out-of-band protected fields and malformed values',async()=>{
+ // This is the isolated fixture owner, NOT an actual production clinician.
+ // Preserve the existing valid fictional review while exercising the real
+ // database constraint independently of the normal SECURITY DEFINER RPC.
+ await db.exec('reset role');
+ const before=(await q('select id,clinical_answers from public.emr_bps_intake_reviews')).rows;
+ assert.equal(before.length,1);
+ for(const value of [
+  {medication_entries:'Fictional restricted medication'},
+  {medication_allergy_notes:'Fictional restricted allergy'},
+  {insurance_member:'Fictional restricted insurance'},
+  {roi_authorize:'Fictional restricted legal data'},
+  {counseling_reason:{nested:'Fictional private structure'}},
+  {counseling_reason:['Fictional private array']},
+  {counseling_reason:null},
+  {counseling_reason:12},
+  {counseling_reason:true},
+  {counseling_reason:'   '}
+ ]){
+  await assert.rejects(q('update public.emr_bps_intake_reviews set clinical_answers=$1 where id=$2',
+   [value,before[0].id]),/emr_bps_snapshots_approved_text_fields/);
+ }
+ assert.deepEqual((await q('select id,clinical_answers from public.emr_bps_intake_reviews')).rows,before);
+ await as(admin);
 });
 await test('no-MFA and other-admin cannot see chart review; direct writes denied',async()=>{
  await as(other);assert.equal((await q('select * from public.emr_bps_intake_reviews')).rows.length,0);

@@ -48,6 +48,9 @@ const documentedClinicianReview=(review:Review):boolean=>
  (review.excluded_clinician_notes??0)===0&&
  sanitizeBpsClinicianNotes(review.clinician_notes).excludedCount===0&&
  hasIndependentBpsReviewNote(sanitizeBpsClinicianNotes(review.clinician_notes).notes);
+// Only errors authored and validated inside this UI may be shown in a clinical chart.
+// Browser/network/adapter exceptions are untrusted and may contain patient data.
+class KnownBpsClientError extends Error {}
 // The protected endpoint's HTTP failure body is not a safe UI message. A
 // database, gateway, or stale handler can put chart identifiers or patient
 // content into its error field. Never reflect those bytes in this clinician UI.
@@ -55,17 +58,17 @@ const documentedClinicianReview=(review:Review):boolean=>
 async function json(response:Response){
  if(!response.ok){
   if(response.status===401||response.status===403)
-   throw Error('Protected BPS access denied. Sign in and complete clinician MFA.');
+   throw new KnownBpsClientError('Protected BPS access denied. Sign in and complete clinician MFA.');
   if(response.status===404)
-   throw Error('Linked central chart or intake was not found. Verify the patient link.');
+   throw new KnownBpsClientError('Linked central chart or intake was not found. Verify the patient link.');
   if(response.status===409)
-   throw Error('Linked BPS source or review history could not be verified. Reopen the protected chart.');
+   throw new KnownBpsClientError('Linked BPS source or review history could not be verified. Reopen the protected chart.');
   if(response.status===413)
-   throw Error('BPS review request exceeds the allowed size.');
-  throw Error('Protected BPS request failed or its outcome is uncertain. Reopen the chart and verify history.');
+   throw new KnownBpsClientError('BPS review request exceeds the allowed size.');
+  throw new KnownBpsClientError('Protected BPS request failed or its outcome is uncertain. Reopen the chart and verify history.');
  }
  try{return await response.json();}
- catch{throw Error('Protected BPS response was invalid. Reopen the chart before proceeding.');}
+ catch{throw new KnownBpsClientError('Protected BPS response was invalid. Reopen the chart before proceeding.');}
 }
 export default function PatientBpsIntakeReview({patientId:requestedPatientId}:{patientId:string}){
  // PostgreSQL and the protected GET route normalize UUIDs to lowercase. Keep
@@ -100,7 +103,7 @@ export default function PatientBpsIntakeReview({patientId:requestedPatientId}:{p
   !data.reviews.some(review=>review.source_version===data.source.version);
  async function load(id:string){
   const value=await json(await fetch('/api/emr/bps-intake?patient='+encodeURIComponent(id),{cache:'no-store'}));
-  if(value.patientId!==id||!Array.isArray(value.sections)||value.sections.length!==21)throw Error('BPS source did not match the selected chart.');
+  if(value.patientId!==id||!Array.isArray(value.sections)||value.sections.length!==21)throw new KnownBpsClientError('BPS source did not match the selected chart.');
   // The clinician review is an independent PHI and attestation boundary, not just
   // a copy of the original BPS preview. Never render answers or enable review
   // when a malformed/stale API response lacks verified linked source metadata.
@@ -125,7 +128,7 @@ export default function PatientBpsIntakeReview({patientId:requestedPatientId}:{p
     (typeof source.answerFingerprint!=='string'||
      !/^[a-f0-9]{64}$/.test(source.answerFingerprint)))||
    !Array.isArray(value.reviews)||!Array.isArray(value.unmappedKeys))
-   throw Error('Linked patient intake provenance or clinical review history could not be verified. Reopen the protected source.');
+   throw new KnownBpsClientError('Linked patient intake provenance or clinical review history could not be verified. Reopen the protected source.');
   // A correct patient ID does not make a malformed 21-section source safe to
   // render. Reject an incomplete or incorrectly typed section before mapping
   // any patient-reported statements into the clinician review interface.
@@ -226,7 +229,7 @@ export default function PatientBpsIntakeReview({patientId:requestedPatientId}:{p
   });
   if(!validSections||!accurateReportedCounts||
    !value.unmappedKeys.every((key:unknown)=>typeof key==='string'))
-   throw Error('Linked 21-section intake mapping is malformed; patient statements are withheld. Reopen the protected source.');
+   throw new KnownBpsClientError('Linked 21-section intake mapping is malformed; patient statements are withheld. Reopen the protected source.');
   // Source packet version and section identities must agree at the actual
   // clinician review screen, not only at the original BPS read-only panel.
   // A 21-section result can otherwise swap the historical communications
@@ -237,12 +240,12 @@ export default function PatientBpsIntakeReview({patientId:requestedPatientId}:{p
   const hasDirectory=seenSectionTitles.has('Legal forms directory and questionnaire');
   const hasCommunications=seenSectionTitles.has('Communication and confidential-contact preferences');
   if(directoryPacket?(!hasDirectory||hasCommunications):(!hasCommunications||hasDirectory))
-   throw Error('Linked 21-section intake layout does not match its questionnaire version; patient statements are withheld. Reopen the protected source.');
+   throw new KnownBpsClientError('Linked 21-section intake layout does not match its questionnaire version; patient statements are withheld. Reopen the protected source.');
   // A nominal 21/21 section audit is not complete if a source adapter omits
   // unanswered questions, relabels them, swaps their types, or injects
   // unsanctioned legacy entries. Keep all statements and save controls hidden.
   if(!validBpsQuestionnaireTopology(value.sections,source.questionnairePacketVersion??''))
-   throw Error('Linked 21-section intake question inventory does not match its approved questionnaire version; patient statements are withheld. Reopen the protected source.');
+   throw new KnownBpsClientError('Linked 21-section intake question inventory does not match its approved questionnaire version; patient statements are withheld. Reopen the protected source.');
   // The protected API validates historical attestation provenance. Repeat the
   // identity/version/date checks at this UI trust boundary so a malformed,
   // stale or cross-chart history response cannot be displayed as clinical truth.
@@ -283,7 +286,7 @@ export default function PatientBpsIntakeReview({patientId:requestedPatientId}:{p
     (review.excluded_clinician_notes===undefined||
      (Number.isSafeInteger(review.excluded_clinician_notes)&&review.excluded_clinician_notes>=0));
   });
-  if(!validHistory)throw Error('Linked patient clinical review history has invalid saved-row provenance; answers are withheld. Reopen the chart and investigate.');
+  if(!validHistory)throw new KnownBpsClientError('Linked patient clinical review history has invalid saved-row provenance; answers are withheld. Reopen the chart and investigate.');
   return value as ResponseData;
  }
  useEffect(()=>{let active=true;
@@ -301,7 +304,7 @@ export default function PatientBpsIntakeReview({patientId:requestedPatientId}:{p
    }catch(e){
     // A failed validation must remove old PHI rather than leave a stale, apparently
     // current linked intake on screen. The original BPS remains independently usable.
-    if(active&&!reviewInProgress.current){setData(null);setError(e instanceof Error?e.message:'BPS intake unavailable.');}
+    if(active&&!reviewInProgress.current){setData(null);setError(e instanceof KnownBpsClientError?e.message:'Protected BPS intake could not be loaded. Reopen the chart and try again.');}
    }finally{pending=false;if(active)setLoading(false);}
   }
   void refresh();
@@ -330,7 +333,7 @@ export default function PatientBpsIntakeReview({patientId:requestedPatientId}:{p
    if(!stillOnChart())return;
    if(result?.saved!==true||typeof result.id!=='string'||
     !/^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(result.id))
-    throw Error('BPS save response lacks a valid database acknowledgment and review ID.');
+    throw new KnownBpsClientError('BPS save response lacks a valid database acknowledgment and review ID.');
    // The database has acknowledged this append-only write. A subsequent read failure
    // must never be described as an unsaved review or invite a duplicate save.
    setAcknowledgedVersion(data.source.version);
@@ -388,13 +391,13 @@ export default function PatientBpsIntakeReview({patientId:requestedPatientId}:{p
      // Source/review provenance can become inconsistent between a successful
      // write receipt and readback. Do not expose the bad history or describe
      // it as a successful verification, while retaining the version save lock.
-     const mismatchedHistory=e instanceof Error&&e.message.includes('invalid saved-row provenance');
+     const mismatchedHistory=e instanceof KnownBpsClientError&&e.message.includes('invalid saved-row provenance');
      setStatus(mismatchedHistory?
       'BPS save was acknowledged, but the linked intake source changed during chart-history verification or saved history no longer matches its source. The exact clinician review was NOT independently verified. Reopen this chart and investigate; do not submit it again.':
       'BPS save was acknowledged by the database, but the exact clinician review was NOT verified in chart history because the readback failed. Reopen this patient chart and investigate; do not submit it again.');
     }
    }
-  }catch(e){if(stillOnChart())setStatus((e instanceof Error?e.message:'BPS intake save was not confirmed.')+
+  }catch(e){if(stillOnChart())setStatus((e instanceof KnownBpsClientError?e.message:'BPS intake save was not confirmed.')+
    ' The outcome of this submission is unknown; no clinical save is claimed. Reopen this chart and inspect protected review history before considering another submission.');}
   finally{reviewSaveInFlight.current=false;if(stillOnChart())setSaving(false);}
  }

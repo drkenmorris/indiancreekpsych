@@ -5,14 +5,23 @@ import {validateMedicationAllergies} from '@/lib/patient/medications';
 type Allergy={id:string;kind:string;allergy_status:string;allergy_notes:string};
 const statuses=['No known medication allergies','Medication allergies reported'] as const;
 const matches=(a:Allergy,status:string,notes:string)=>a.allergy_status===status&&a.allergy_notes===notes.trim();
+// Only authored workflow messages are safe for display. Never render database,
+ // gateway or network error bodies; they may include patient/allergy details.
+class TrustedAllergyError extends Error {}
 async function read(response:Response){
- const value=await response.json();if(!response.ok)throw Error(value.error||'Central allergy-history request failed.');return value;
+ if(!response.ok){
+  if(response.status===401||response.status===403)throw new TrustedAllergyError('Protected allergy-history access denied. Sign in and complete clinician MFA.');
+  if(response.status===409)throw new TrustedAllergyError('Allergy-history source or chart changed. Reopen the protected patient chart.');
+  throw new TrustedAllergyError('Protected allergy-history request failed or its outcome is uncertain. Reopen the chart to verify.');
+ }
+ try{return await response.json();}
+ catch{throw new TrustedAllergyError('Protected allergy-history response was invalid. Reopen the chart before proceeding.');}
 }
 async function chart(patientId:string):Promise<{revision:number;allergies:Allergy[]}>{
  const r=await fetch('/api/emr/workflow',{method:'POST',headers:{'Content-Type':'application/json'},
   body:JSON.stringify({patientId,path:'/api/chart?patient='+encodeURIComponent(patientId),method:'GET',expectedRevision:0})});
  const value=await read(r);
- if(!Number.isInteger(value.revision)||!Array.isArray(value.value?.records))throw Error('Central chart response was incomplete.');
+ if(!Number.isInteger(value.revision)||!Array.isArray(value.value?.records))throw new TrustedAllergyError('Central chart response was incomplete.');
  return {revision:value.revision,allergies:value.value.records.filter((row:Allergy)=>row.kind==='medication_allergies')};
 }
 /** Explicit source review; never quietly asserts absence of allergies or overwrites prior clinical data. */
@@ -41,7 +50,7 @@ export default function IntakeAllergyReconciliation({patientId:requestedPatientI
  useEffect(()=>{
   let active=true;setRecords([]);setLoading(true);setError('');setMessage('');setEditing(false);setReviewed(false);setBusy(false);setStatus('');setNotes('');setVerificationPending(false);
   chart(patientId).then(value=>{if(active)setRecords(value.allergies);})
-   .catch(e=>{if(active)setError(e instanceof Error?e.message:'Central medication allergy history unavailable.');})
+   .catch(e=>{if(active)setError(e instanceof TrustedAllergyError?e.message:'Protected medication-allergy history unavailable. Reopen the patient chart.');})
    .finally(()=>{if(active)setLoading(false);});
   return ()=>{active=false;};
  },[patientId,sourceStatus,sourceNotes,sourceUpdatedAt]);
@@ -60,21 +69,21 @@ export default function IntakeAllergyReconciliation({patientId:requestedPatientI
   setBusy(true);setMessage('');
   try{
    const reason=validateMedicationAllergies(status,notes);
-   if(reason)throw Error(reason);
-   if(!statuses.includes(status as typeof statuses[number]))throw Error('A clinician-reviewed allergy status is required.');
-   if(duplicate)throw Error('This allergy status and narrative already exist in the chart. Review existing history instead.');
+   if(reason)throw new TrustedAllergyError(reason);
+   if(!statuses.includes(status as typeof statuses[number]))throw new TrustedAllergyError('A clinician-reviewed allergy status is required.');
+   if(duplicate)throw new TrustedAllergyError('This allergy status and narrative already exist in the chart. Review existing history instead.');
    const result=await fetch('/api/emr/patients?id='+encodeURIComponent(patientId),{cache:'no-store'});
    const source=await read(result);
    if(!onOriginalScope())return;
    if(source.intake?.status!=='submitted')
-    throw Error('Linked intake has not been submitted; medication-allergy history cannot be reconciled from a draft.');
+    throw new TrustedAllergyError('Linked intake has not been submitted; medication-allergy history cannot be reconciled from a draft.');
    if(source.patients?.[0]?.id!==patientId||source.intake?.updated_at!==sourceUpdatedAt||
       (source.intake?.answers?.medication_allergy_status||'')!==sourceStatus||
       (source.intake?.answers?.medication_allergy_notes||'')!==sourceNotes)
-      throw Error('The linked allergy intake changed. Reopen this patient and review the latest source before saving.');
+      throw new TrustedAllergyError('The linked allergy intake changed. Reopen this patient and review the latest source before saving.');
    const latest=await chart(patientId);
    if(!onOriginalScope())return;
-   if(latest.allergies.some(row=>matches(row,status,notes)))throw Error('An identical allergy history snapshot was already saved.');
+   if(latest.allergies.some(row=>matches(row,status,notes)))throw new TrustedAllergyError('An identical allergy history snapshot was already saved.');
    // The write may commit even if the response or follow-up chart read fails.
    // Lock retries until verified persistence or a fresh chart reopen.
    if(!onOriginalScope())return;
@@ -90,11 +99,11 @@ export default function IntakeAllergyReconciliation({patientId:requestedPatientI
    // A matching historical entry or unchanged chart revision is not proof this write persisted.
    if(refreshed.revision<=latest.revision||!refreshed.allergies.some(row=>
      typeof row.id==='string'&&row.id.trim().length>0&&!priorIds.has(row.id)&&matches(row,status,notes)))
-    throw Error('Allergy-history save was acknowledged, but the exact reviewed entry was not verified on chart readback. Reopen the chart before retrying.');
+    throw new TrustedAllergyError('Allergy-history save was acknowledged, but the exact reviewed entry was not verified on chart readback. Reopen the chart before retrying.');
    setVerificationPending(false);
    setRecords(refreshed.allergies);setEditing(false);setReviewed(false);setStatus('');setNotes('');
    setMessage('A reviewed medication-allergy history entry was saved in the protected central chart. It is a documentation snapshot, not a signed allergy attestation or medication order.');
-  }catch(e){if(onOriginalScope())setMessage(e instanceof Error?e.message:'Allergy history save was not confirmed.');}
+  }catch(e){if(onOriginalScope())setMessage(e instanceof TrustedAllergyError?e.message:'Allergy-history save outcome is uncertain. Reopen the chart and verify before retrying.');}
   finally{if(savingGeneration.current===generation)savingGeneration.current=null;
    if(onOriginalScope())setBusy(false);}
  }

@@ -36,6 +36,8 @@ test.each([['lowercase receipt',false,false],['uppercase receipt',true,false],['
  sourceAnswers.trauma_history_checklist='PRIVATE_FICTIONAL_TRAUMA';
  sourceAnswers.insurance_member='PRIVATE_FICTIONAL_INSURANCE';
  sourceAnswers.roi_authorize='PRIVATE_FICTIONAL_LEGAL_AUTHORIZATION';
+ const otherSourceAnswers={...sourceAnswers,counseling_reason:'FICTIONAL_SECOND_CHART_CONCERN'};
+ let secondIntakeAvailable=false;
  const reviews:Record<string,unknown>[]=[];
  const queries:{table:string;filters:[string,unknown][]}[]=[];
  let writes=0;
@@ -64,6 +66,8 @@ test.each([['lowercase receipt',false,false],['uppercase receipt',true,false],['
       const id=record.filters.find(([key])=>key==='patient_id')?.[1];
       return {data:id===account?{
        patient_id:account,answers:sourceAnswers,status:'submitted',version:7,updated_at:stamp,submitted_at:stamp
+      }:id===otherAccount&&secondIntakeAvailable?{
+       patient_id:otherAccount,answers:otherSourceAnswers,status:'submitted',version:8,updated_at:stamp,submitted_at:stamp
       }:null,error:null};
      }
      throw Error('Unexpected single-row table '+table);
@@ -223,5 +227,30 @@ test.each([['lowercase receipt',false,false],['uppercase receipt',true,false],['
   expect(screen.getByRole('alert').textContent).toContain('Linked central chart or intake was not found. Verify the patient link.');
   expect(screen.getByRole('alert').textContent).not.toContain('No linked patient intake found');
  expect(document.body.textContent).not.toContain('FICTIONAL_PATIENT_PRESENTING_CONCERN');
+ expect(writes).toBe(1);
+ // A missing second intake is not enough to establish cross-patient isolation.
+ // Reopen a second chart with its own submitted intake and verify the actual
+ // protected route and clinician UI return only its source and empty history.
+ secondIntakeAvailable=true;
+ cleanup();
+ render(<PatientBpsIntakeReview patientId={otherPatient}/>);
+ await screen.findByText(/Version 8/);
+ const secondText=document.body.textContent||'';
+ expect(secondText).toContain('FICTIONAL_SECOND_CHART_CONCERN');
+ expect(secondText).not.toContain('FICTIONAL_PATIENT_PRESENTING_CONCERN');
+ expect(secondText).not.toContain('FICTIONAL_APPROVED_OBSERVATION');
+ expect(secondText).not.toContain('FICTIONAL_REDACTED_CLINICAL_TEXT');
+ expect(screen.getByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeTruthy();
+ const secondHistory=await GET(new Request('https://www.indiancreekpsych.com/api/emr/bps-intake?patient='+otherPatient));
+ expect(secondHistory.status).toBe(200);
+ const secondData=await secondHistory.json();
+ expect(secondData.patientId).toBe(otherPatient);
+ expect(secondData.source.accountId).toBe(otherAccount);
+ expect(secondData.source.version).toBe(8);
+ expect(secondData.reviews).toEqual([]);
+ expect(JSON.stringify(secondData)).not.toContain('FICTIONAL_PATIENT_PRESENTING_CONCERN');
+ const secondSummary=await GET(new Request('https://www.indiancreekpsych.com/api/emr/bps-intake?patient='+otherPatient+'&summary=1'));
+ expect(secondSummary.status).toBe(200);
+ expect((await secondSummary.json()).currentVersionReviewed).toBe(false);
  expect(writes).toBe(1);
 });

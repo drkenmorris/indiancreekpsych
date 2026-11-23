@@ -193,3 +193,43 @@ test('mixed-case patient UUID is canonicalized through trauma source verificatio
  expect(writes[0].payload.patientId).toBe(patientId);
  expect(calls.some(c=>c.url==='/api/emr/patients?id='+patientId)).toBe(true);
 });
+
+
+test('trauma-history loading with a database error never renders protected source details',async()=>{
+ const secret='PRIVATE_FICTIONAL_TRAUMA_LOAD_SQL_WITH_HISTORY';
+ vi.stubGlobal('fetch',vi.fn(async()=>({ok:false,status:503,json:async()=>({error:secret})})));
+ render(<IntakeTraumaHistoryReconciliation {...props}/>);
+ expect((await screen.findByRole('alert')).textContent).toMatch(/Protected trauma-history request failed/);
+ expect(document.body.textContent).not.toContain(secret);
+ expect(screen.queryByRole('button',{name:'Prepare clinician trauma-history draft'})).toBeNull();
+});
+
+test('invalid successful trauma-history JSON never leaks underlying parser error',async()=>{
+ const secret='PRIVATE_FICTIONAL_TRAUMA_INVALID_RESPONSE';
+ vi.stubGlobal('fetch',vi.fn(async()=>({ok:true,status:200,json:async()=>{throw Error(secret);}})));
+ render(<IntakeTraumaHistoryReconciliation {...props}/>);
+ expect((await screen.findByRole('alert')).textContent).toMatch(/response was invalid/);
+ expect(document.body.textContent).not.toContain(secret);
+});
+
+test('trauma-history write failure redacts clinical content and prevents duplicate retries',async()=>{
+ const secret='PRIVATE_FICTIONAL_TRAUMA_WRITE_SQL_PATIENT_STATEMENT';
+ const calls=fixture();
+ const original=globalThis.fetch;
+ vi.stubGlobal('fetch',vi.fn(async(url:string,init?:RequestInit)=>{
+  const payload=init?.body?JSON.parse(String(init.body)):null;
+  if(payload?.path==='/api/save')return {ok:false,status:503,json:async()=>({error:secret})};
+  return original(url,init);
+ }));
+ render(<IntakeTraumaHistoryReconciliation {...props}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Prepare clinician trauma-history draft'}));
+ fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed these reported details/}));
+ const save=screen.getByRole('button',{name:'Save reviewed trauma-history snapshot'});
+ fireEvent.click(save);
+ expect((await screen.findByText(/Protected trauma-history request failed/)).textContent).not.toContain(secret);
+ expect(document.body.textContent).not.toContain(secret);
+ expect(await screen.findByText(/prior save outcome is not independently verified/)).toBeTruthy();
+ expect((save as HTMLButtonElement).disabled).toBe(true);
+ fireEvent.submit(save.closest('form')!);
+ expect(saves(calls)).toHaveLength(0);
+});

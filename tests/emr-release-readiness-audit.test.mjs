@@ -115,6 +115,8 @@ test('read-only release audit identifies ambiguous central-chart links and clear
    create role authenticated;
    create schema private;
    create schema auth;
+   create table public.appointment_settings(id integer);
+   create table public.appointment_blocks(id integer);
    create function private.current_user_is_admin() returns boolean
      language sql stable as 'select false';
    create function auth.jwt() returns jsonb

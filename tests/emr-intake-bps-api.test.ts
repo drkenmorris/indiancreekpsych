@@ -46,7 +46,7 @@ beforeEach(()=>{
      const row=payload?{
       id:'00000000-0000-0000-0000-000000000500',patient_id:payload.patient_id,
       source_account_id:payload.source_account_id,source_version:payload.source_version,
-      source_status:payload.source_status,source_updated_at:payload.source_updated_at,
+      source_status:payload.source_status,source_updated_at:payload.source_updated_at,source_submitted_at:payload.source_submitted_at,
       clinical_answers:projected,clinician_notes:payload.clinician_notes,
       reviewed:true,created_at:stamp
      }:null;
@@ -370,7 +370,7 @@ test('PHI-minimized BPS summary verifies linked source without returning questio
 
 test('BPS summary records current reviewed attestation only for the same patient source revision',async()=>{
  reviewRows=[{id:'00000000-0000-0000-0000-000000000609',patient_id:patient,source_account_id:account,
-  source_version:2,source_status:'submitted',source_updated_at:stamp,created_at:stamp,
+  source_version:2,source_status:'submitted',source_updated_at:stamp,source_submitted_at:stamp,created_at:stamp,
   reviewed:true,clinical_answers:{counseling_reason:'Reports sadness',suicidal_thoughts_current:'Yes'},
   clinician_notes:{presenting:'PRIVATE_FICTIONAL_CLINICIAN_790',treatment:'',medical:'',safety:'',family:'',goals:'',limitations:''}}];
  const url=new Request(request().url+'&summary=1');
@@ -418,7 +418,7 @@ test('original seven-page BPS cannot claim a complete review from partial histor
  const baseline={
   id:'00000000-0000-0000-0000-000000000692',
   patient_id:patient,source_account_id:account,source_version:2,
-  source_status:'submitted',source_updated_at:stamp,created_at:stamp,
+  source_status:'submitted',source_updated_at:stamp,source_submitted_at:stamp,created_at:stamp,
   reviewed:true,clinical_answers:{counseling_reason:'Reports sadness',suicidal_thoughts_current:'Yes'},
   clinician_notes:fullNotes
  };
@@ -449,7 +449,7 @@ test('malformed persisted clinician-note Unicode is withheld and cannot certify 
  const base={
   id:'00000000-0000-0000-0000-000000000691',
   patient_id:patient,source_account_id:account,source_version:2,
-  source_status:'submitted',source_updated_at:stamp,created_at:stamp,
+  source_status:'submitted',source_updated_at:stamp,source_submitted_at:stamp,created_at:stamp,
   reviewed:true,
   clinical_answers:{counseling_reason:'Reports sadness',suicidal_thoughts_current:'Yes'}
  };
@@ -490,7 +490,7 @@ test('a documented provisional draft review cannot clear the original seven-page
  reviewRows=[{
   id:'00000000-0000-0000-0000-000000000650',
   patient_id:patient,source_account_id:account,source_version:version,
-  source_status:'draft',source_updated_at:stamp,created_at:stamp,
+  source_status:'draft',source_updated_at:stamp,source_submitted_at:null,created_at:stamp,
   reviewed:true,
   clinical_answers:{counseling_reason:'Reports sadness',suicidal_thoughts_current:'Yes'},
   clinician_notes:{presenting:'FICTIONAL DRAFT CLINICIAN OBSERVATION'}
@@ -516,7 +516,7 @@ test('original BPS reviewed badge rejects altered, omitted and protected history
  const baseline={
   id:'00000000-0000-0000-0000-000000000611',
   patient_id:patient,source_account_id:account,source_version:2,
-  source_status:'submitted',source_updated_at:stamp,created_at:stamp,
+  source_status:'submitted',source_updated_at:stamp,source_submitted_at:stamp,created_at:stamp,
   reviewed:true,
   clinical_answers:{counseling_reason:'Reports sadness',suicidal_thoughts_current:'Yes'},
   clinician_notes:{presenting:'Fictional independently documented clinical context',treatment:'',medical:'',safety:'',family:'',goals:'',limitations:''}
@@ -574,7 +574,7 @@ test('current clinician history verifies the complete clinical source, not merel
  const base={
   id:'00000000-0000-0000-0000-000000000600',patient_id:patient,
   source_account_id:account,source_version:2,source_status:'submitted',
-  source_updated_at:stamp,created_at:stamp,reviewed:true,
+  source_updated_at:stamp,source_submitted_at:stamp,created_at:stamp,reviewed:true,
   clinician_notes:{presenting:'Independent fictional clinician observation'}
  };
  const matching={counseling_reason:'Reports sadness',suicidal_thoughts_current:'Yes'};
@@ -668,7 +668,7 @@ test('BPS POST reports no verified save when durable readback is missing, mismat
  const id='00000000-0000-0000-0000-000000000500';
  const verified={
   id,patient_id:patient,source_account_id:account,
-  source_version:2,source_status:'submitted',source_updated_at:stamp,
+  source_version:2,source_status:'submitted',source_updated_at:stamp,source_submitted_at:stamp,
   created_at:stamp,reviewed:true,
   clinical_answers:{counseling_reason:'Reports sadness',suicidal_thoughts_current:'Yes'},
   clinician_notes:{presenting:'Reported changes',treatment:'',medical:'',safety:'',family:'',goals:'',limitations:''}
@@ -681,6 +681,8 @@ test('BPS POST reports no verified save when durable readback is missing, mismat
   {name:'stale revision',row:{...verified,source_version:1}},
   {name:'unattested review',row:{...verified,reviewed:false}},
   {name:'changed source timestamp',row:{...verified,source_updated_at:'2026-11-10T09:00:01Z'}},
+  {name:'missing saved submission receipt',row:{...verified,source_submitted_at:null}},
+  {name:'different saved submission receipt',row:{...verified,source_submitted_at:'2026-11-10T09:00:01Z'}},
   {name:'review predates patient submission',row:{...verified,created_at:'2026-11-09T09:00:00Z'}},
   {name:'omitted patient answer',row:{...verified,clinical_answers:{counseling_reason:'Reports sadness'}}},
   {name:'extra restricted patient field',row:{...verified,clinical_answers:{...verified.clinical_answers,roi_authorize:'SECRET_FICTIONAL_LEGAL'}}},
@@ -795,7 +797,7 @@ test('stale source and duplicate snapshots fail closed at the database validatio
 
 test('saved BPS history cannot follow a relinked patient account or cross into another chart',async()=>{
  reviewRows=[{id:'00000000-0000-0000-0000-000000000600',patient_id:patient,source_account_id:account,
-   source_version:2,source_status:'submitted',source_updated_at:stamp,created_at:stamp,reviewed:true,
+   source_version:2,source_status:'submitted',source_updated_at:stamp,source_submitted_at:stamp,created_at:stamp,reviewed:true,
    clinical_answers:{counseling_reason:'Patient-reported history'},clinician_notes:{presenting:'Reviewed'}}];
  const response=await GET(request());expect(response.status).toBe(200);
  const body=await response.json();expect(body.reviews).toHaveLength(1);
@@ -829,7 +831,7 @@ test('saved BPS history cannot follow a relinked patient account or cross into a
 
 test('historical review rows with invalid identity, version, status or dates never disclose protected clinical answers',async()=>{
  const row={id:'00000000-0000-0000-0000-000000000600',patient_id:patient,source_account_id:account,
-  source_version:2,source_status:'submitted',source_updated_at:stamp,created_at:stamp,
+  source_version:2,source_status:'submitted',source_updated_at:stamp,source_submitted_at:stamp,created_at:stamp,
   reviewed:true,clinical_answers:{counseling_reason:'PRIVATE_FICTIONAL_HISTORICAL_NOTE'},
   clinician_notes:{presenting:'PRIVATE_FICTIONAL_CLINICIAN_NOTE'}};
  const malformed=[
@@ -861,7 +863,7 @@ test('historical clinician-note columns are filtered before the protected chart 
  const allowed='Independent fictional clinician context';
  const secret='PRIVATE_INSURANCE_OR_LEGAL_NOTE_MUST_NOT_LEAK';
  reviewRows=[{id:'00000000-0000-0000-0000-000000000600',patient_id:patient,source_account_id:account,
-   source_version:2,source_status:'submitted',source_updated_at:stamp,created_at:stamp,reviewed:true,
+   source_version:2,source_status:'submitted',source_updated_at:stamp,source_submitted_at:stamp,created_at:stamp,reviewed:true,
    clinical_answers:{counseling_reason:'Patient-reported concern'},
    clinician_notes:{presenting:allowed,insurance_member:secret,
     legal_decision:'PRIVATE_LEGAL_NOTE',medical:12345,safety:'S'.repeat(4001)}}];
@@ -909,7 +911,7 @@ test('protected BPS source API never returns unapproved raw emergency-contact PI
 test('explicit false historical attestation stays unreviewed, but missing or malformed attestation blocks the entire clinical response',async()=>{
   const confidential='PRIVATE_FICTIONAL_HISTORICAL_CLINICAL_STATEMENT';
   reviewRows=[{id:'00000000-0000-0000-0000-000000000600',patient_id:patient,source_account_id:account,
-   source_version:2,source_status:'submitted',source_updated_at:stamp,created_at:stamp,
+   source_version:2,source_status:'submitted',source_updated_at:stamp,source_submitted_at:stamp,created_at:stamp,
    reviewed:false,clinical_answers:{counseling_reason:confidential},clinician_notes:{}}];
   const response=await GET(request());expect(response.status).toBe(200);
   const payload=await response.json();expect(payload.reviews).toHaveLength(1);
@@ -943,7 +945,7 @@ test('complete 221-row BPS history is retrieved in patient-scoped exact-count pa
   reviewRows=Array.from({length:221},(_,index)=>({
    id:'00000000-0000-0000-0000-'+String(600+220-index).padStart(12,'0'),
    patient_id:patient,source_account_id:account,
-   source_version:index+1,source_status:'draft',source_updated_at:stamp,created_at:stamp,
+   source_version:index+1,source_status:'draft',source_updated_at:stamp,source_submitted_at:null,created_at:stamp,
    reviewed:true,clinical_answers:{counseling_reason:confidential},clinician_notes:{presenting:'Fictional note'}
   }));
   const response=await GET(request());
@@ -969,7 +971,7 @@ test.each(['concurrent-insert','head-replacement'])('review history altered afte
  data={counseling_reason:confidential};
  const original={id:'00000000-0000-0000-0000-000000000810',patient_id:patient,
   source_account_id:account,source_version:2,source_status:'submitted',
-  source_updated_at:stamp,created_at:stamp,reviewed:true,
+  source_updated_at:stamp,source_submitted_at:stamp,created_at:stamp,reviewed:true,
   clinical_answers:{counseling_reason:confidential},clinician_notes:{presenting:'PRIVATE_FICTIONAL_CLINICIAN_NOTE'}};
  reviewRows=[original];
  let queries=0;
@@ -1001,7 +1003,7 @@ test('out-of-order BPS history fails closed even when total count and review IDs
   reviewRows=Array.from({length:201},(_,index)=>({
    id:'00000000-0000-0000-0000-'+String(1000-index).padStart(12,'0'),
    patient_id:patient,source_account_id:account,
-   source_version:index+1,source_status:'draft',source_updated_at:stamp,
+   source_version:index+1,source_status:'draft',source_updated_at:stamp,source_submitted_at:null,
    created_at:stamp,reviewed:true,
    clinical_answers:{counseling_reason:confidential},clinician_notes:{presenting:'PRIVATE_FICTIONAL_NOTES'}
   }));
@@ -1029,7 +1031,7 @@ test('history above 1,000 verified records is not partially disclosed or treated
   reviewRows=Array.from({length:1001},(_,index)=>({
    id:'00000000-0000-0000-0000-'+String(600+index).padStart(12,'0'),
    patient_id:patient,source_account_id:account,
-   source_version:index+1,source_status:'draft',source_updated_at:stamp,created_at:stamp,
+   source_version:index+1,source_status:'draft',source_updated_at:stamp,source_submitted_at:null,created_at:stamp,
    reviewed:true,clinical_answers:{counseling_reason:confidential},clinician_notes:{}
   }));
   const response=await GET(request());
@@ -1045,7 +1047,7 @@ test('duplicate review identities across pages fail closed without releasing his
   reviewRows=Array.from({length:201},(_,index)=>({
    id:'00000000-0000-0000-0000-'+String(600+index).padStart(12,'0'),
    patient_id:patient,source_account_id:account,
-   source_version:index+1,source_status:'draft',source_updated_at:stamp,created_at:stamp,
+   source_version:index+1,source_status:'draft',source_updated_at:stamp,source_submitted_at:null,created_at:stamp,
    reviewed:true,clinical_answers:{counseling_reason:confidential},clinician_notes:{}
   }));
   historyResultOverride=(start:number,end:number)=>{
@@ -1068,7 +1070,7 @@ test('case-variant duplicate review IDs across pages are rejected before any cli
   id:'abcdefab-cdef-abcd-efab-'+String(900-index).padStart(12,'0'),
   patient_id:patient,source_account_id:account,
   source_version:index+1,source_status:'draft',
-  source_updated_at:'2026-11-10T08:00:00Z',
+  source_updated_at:'2026-11-10T08:00:00Z',source_submitted_at:null,
   created_at:new Date(Date.parse(stamp)-index*1000).toISOString(),
   reviewed:true,clinical_answers:{counseling_reason:confidential},
   clinician_notes:{presenting:'PRIVATE_FICTIONAL_CLINICIAN_NOTE'}
@@ -1089,7 +1091,7 @@ test('partial review page is rejected when the exact count shows missing reviews
   reviewRows=Array.from({length:120},(_,index)=>({
    id:'00000000-0000-0000-0000-'+String(600+index).padStart(12,'0'),
    patient_id:patient,source_account_id:account,
-   source_version:index+1,source_status:'draft',source_updated_at:stamp,created_at:stamp,
+   source_version:index+1,source_status:'draft',source_updated_at:stamp,source_submitted_at:null,created_at:stamp,
    reviewed:true,clinical_answers:{counseling_reason:confidential},clinician_notes:{}
   }));
   historyResultOverride=(start:number,end:number)=>reviewRows.slice(start,Math.min(end+1,start+50));
@@ -1250,7 +1252,7 @@ test('clinician review history cannot predate its source even by one microsecond
  reviewRows=[{
   id:'00000000-0000-4000-8000-000000000850',
   patient_id:patient,source_account_id:account,source_version:2,source_status:'submitted',
-  source_updated_at:intakeUpdatedAt,created_at:'2026-11-10T09:00:00.000000Z',
+  source_updated_at:intakeUpdatedAt,source_submitted_at:intakeSubmittedAt,created_at:'2026-11-10T09:00:00.000000Z',
   reviewed:true,clinical_answers:{counseling_reason:confidential},clinician_notes:{presenting:'FICTIONAL_CLINICIAN_NOTE'}
  }];
  const invalid=await GET(request());
@@ -1275,7 +1277,7 @@ test('a current submitted BPS review cannot predate patient attestation, even wh
  reviewRows=[{
   id:'00000000-0000-4000-8000-000000000891',
   patient_id:patient,source_account_id:account,source_version:2,source_status:'submitted',
-  source_updated_at:intakeUpdatedAt,created_at:'2026-11-10T09:10:00.000000Z',
+  source_updated_at:intakeUpdatedAt,source_submitted_at:intakeSubmittedAt,created_at:'2026-11-10T09:10:00.000000Z',
   reviewed:true,clinical_answers:{counseling_reason:secret},
   clinician_notes:{presenting:'PRIVATE_FICTIONAL_PREATTESTATION_CLINICIAN_NOTE'}
  }];
@@ -1305,7 +1307,7 @@ test('clinician BPS history API withholds unexpected database columns even when 
  reviewRows=[{
   id:'00000000-0000-0000-0000-000000000600',
   patient_id:patient,source_account_id:account,source_version:2,
-  source_status:'submitted',source_updated_at:stamp,created_at:stamp,reviewed:true,
+  source_status:'submitted',source_updated_at:stamp,source_submitted_at:stamp,created_at:stamp,reviewed:true,
   clinical_answers:{counseling_reason:'Fictional approved patient report'},
   clinician_notes:{presenting:'Independent fictional review'},
   // Simulate future schema columns or a stale/malformed database adapter.
@@ -1458,7 +1460,7 @@ test('historical BPS snapshot source cannot echo invalid Unicode through protect
  const historicalReview={
   id:'00000000-0000-0000-0000-000000000699',
   patient_id:patient,source_account_id:account,
-  source_version:2,source_status:'submitted',source_updated_at:stamp,created_at:stamp,
+  source_version:2,source_status:'submitted',source_updated_at:stamp,source_submitted_at:stamp,created_at:stamp,
   reviewed:true,clinician_notes:{
    presenting:'Independent fictional observation',treatment:'',medical:'',
    safety:'',family:'',goals:'',limitations:''
@@ -1547,3 +1549,20 @@ test('standalone combining diacritic marks cannot attest a clinician review; act
  expect(m.rpc.mock.calls[0][1].p_payload.clinician_notes.presenting).toBe(note);
 });
 
+
+ test('current BPS summary refuses legacy or changed persisted submission receipts even when the source version and answers match',async()=>{
+  intakeSubmittedAt='2026-11-10T09:01:00Z';
+  const row={id:'00000000-0000-4000-8000-000000000991',patient_id:patient,source_account_id:account,
+   source_version:2,source_status:'submitted',source_updated_at:stamp,source_submitted_at:intakeSubmittedAt,
+   created_at:'2026-11-10T09:02:00Z',reviewed:true,
+   clinical_answers:{counseling_reason:'Reports sadness',suicidal_thoughts_current:'Yes'},clinician_notes:fullNotes()};
+  const summary=()=>GET(new Request(request().url+'&summary=1'));
+  reviewRows=[row];
+  expect((await (await summary()).json()).currentVersionReviewed).toBe(true);
+  intakeSubmittedAt='2026-11-10T09:00:30Z';
+  expect((await (await summary()).json()).currentVersionReviewed).toBe(false);
+  reviewRows=[{...row,source_submitted_at:null}];
+  expect((await (await summary()).json()).currentVersionReviewed).toBe(false);
+  const history=await GET(request());expect(history.status).toBe(200);
+  expect((await history.json()).reviews[0].current_source_snapshot_verified).toBe(false);
+ });

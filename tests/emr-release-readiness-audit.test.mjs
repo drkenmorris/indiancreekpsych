@@ -16,8 +16,10 @@ test('read-only release audit identifies ambiguous central-chart links and clear
    create table public.clinical_patients(
     id uuid primary key,account_id uuid,directory_deleted_at timestamptz);
    create table public.patient_intakes(
-    patient_id uuid,status text,updated_at timestamptz,submitted_at timestamptz);
-   create table public.emr_bps_intake_reviews(reviewed boolean);
+    patient_id uuid,status text,version integer,updated_at timestamptz,submitted_at timestamptz);
+   create table public.emr_bps_intake_reviews(
+    patient_id uuid,owner_id uuid,source_account_id uuid,source_version integer,
+    source_status text,source_updated_at timestamptz,reviewed boolean);
    create table public.appointments(
     series_id uuid,patient_id uuid,starts_at timestamptz,ends_at timestamptz);
    create table public.psych_test_assignments(id uuid);
@@ -84,8 +86,31 @@ test('read-only release audit identifies ambiguous central-chart links and clear
   // dismissed because each fictional account has exactly one chart.
   assert.equal(unreceipted.clinical_chart_link_aggregate_status,'NO_AGGREGATE_LINK_ANOMALY_NOT_E2E');
   assert.equal(unreceipted.authenticated_clinical_bps_end_to_end,'UNVERIFIED');
+  assert.equal(unreceipted.reviewed_bps_rows_matching_current_intake_provenance,0);
+  assert.equal(unreceipted.reviewed_bps_source_aggregate_status,'NO_MATCHED_REVIEW_SNAPSHOT_NOT_E2E');
+
+  // Synthetic rows prove that merely setting reviewed=true does not count a
+  // stale or draft intake source as a provenance-matched review.
+  await db.exec(`
+   update public.patient_intakes set version=1
+    where patient_id in ('00000000-0000-4000-8000-000000000201',
+                         '00000000-0000-4000-8000-000000000202');
+   insert into public.emr_bps_intake_reviews
+    (patient_id,owner_id,source_account_id,source_version,source_status,source_updated_at,reviewed)
+   values
+    ('00000000-0000-4000-8000-000000000101','00000000-0000-4000-8000-000000000901',
+     '00000000-0000-4000-8000-000000000201',1,'submitted','2026-11-01',true),
+    ('00000000-0000-4000-8000-000000000102','00000000-0000-4000-8000-000000000901',
+     '00000000-0000-4000-8000-000000000202',99,'draft','2026-11-01',true);
+  `);
+  const provenance=await run();
+  assert.equal(provenance.clinician_bps_reviewed_flags,2);
+  assert.equal(provenance.reviewed_bps_rows_matching_current_intake_provenance,1);
+  assert.equal(provenance.reviewed_bps_rows_unverified_or_mismatched_provenance,1);
+  assert.equal(provenance.reviewed_bps_source_aggregate_status,'REVIEW_PROVENANCE_INVESTIGATION_REQUIRED');
+  assert.equal(provenance.authenticated_clinical_bps_end_to_end,'UNVERIFIED');
   // Querying the report itself must not create clinician records or write appointments.
-  assert.equal((await db.query('select count(*)::integer as n from public.emr_bps_intake_reviews')).rows[0].n,0);
+  assert.equal((await db.query('select count(*)::integer as n from public.emr_bps_intake_reviews')).rows[0].n,2);
   assert.equal((await db.query('select count(*)::integer as n from public.appointments')).rows[0].n,0);
  }finally{await db.close();}
 });

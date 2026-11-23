@@ -195,6 +195,28 @@ test('read-only release audit identifies ambiguous central-chart links and clear
   assert.equal(weak.scheduler_admin_mfa_policies_structurally_valid,0);
   assert.equal(weak.scheduler_admin_mfa_policies_invalid_structure.length,4);
   assert.equal(weak.scheduler_admin_mfa_policy_metadata_status,'ADMIN_MFA_POLICY_STRUCTURE_REVIEW_REQUIRED');
+  // Pre-migration permissive admin policies may reach direct-table requests
+  // without an explicit AAL2 guard. Identify the risk BEFORE the new restrictive
+  // gate is installed; metadata alone never proves an authenticated bypass.
+  await db.exec(`
+   create policy appointment_blocks_legacy_admin on public.appointment_blocks
+     as permissive for all to authenticated
+     using(private.current_user_is_admin())
+     with check(private.current_user_is_admin());
+   create policy appointment_settings_legacy_admin on public.appointment_settings
+     as permissive for update to authenticated
+     using(private.current_user_is_admin())
+     with check(private.current_user_is_admin());
+  `);
+  const preMigration=await run();
+  assert.equal(preMigration.scheduler_admin_policies_without_visible_aal2_guard_candidate_count,2);
+  assert.equal(preMigration.scheduler_tables_with_candidate_admin_mfa_gap,2);
+  assert.deepEqual(preMigration.scheduler_candidate_admin_mfa_gap_policy_names,[
+    'appointment_blocks.appointment_blocks_legacy_admin',
+    'appointment_settings.appointment_settings_legacy_admin'
+  ]);
+  assert.equal(preMigration.scheduler_candidate_admin_mfa_gap_evidence,
+    'STATIC_POLICY_METADATA_ONLY_NOT_AUTHENTICATED_RUNTIME_PROOF');
   for(const [table,name] of mfaPolicies){
    await db.exec(`drop policy ${name} on public.${table};
     create policy ${name} on public.${table} as restrictive
@@ -207,6 +229,10 @@ test('read-only release audit identifies ambiguous central-chart links and clear
   assert.equal(correctlyScoped.scheduler_admin_mfa_policies_structurally_valid,4);
   assert.deepEqual(correctlyScoped.scheduler_admin_mfa_policies_invalid_structure,[]);
   assert.equal(correctlyScoped.scheduler_admin_mfa_policy_metadata_status,'POLICY_METADATA_MATCHES_NOT_AUTHENTICATED_E2E');
+  assert.equal(correctlyScoped.scheduler_admin_policies_without_visible_aal2_guard_candidate_count,0,
+    'Restrictive AAL2 guards must remove the candidate legacy-admin direct access risk');
+  assert.equal(correctlyScoped.scheduler_tables_with_candidate_admin_mfa_gap,0);
+  assert.deepEqual(correctlyScoped.scheduler_candidate_admin_mfa_gap_policy_names,[]);
   await db.exec('alter table public.appointments disable row level security;');
   const disabled=await run();
   assert.equal(disabled.scheduler_admin_mfa_policies_structurally_valid,3);

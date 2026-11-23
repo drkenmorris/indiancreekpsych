@@ -104,7 +104,7 @@ test('definitive SQLSTATE booking rejection permits correction and retry without
  fireEvent.change(screen.getByLabelText('First appointment date'),{target:{value:'2026-12-01'}});
  const button=screen.getByRole('button',{name:'Book patient appointments'}) as HTMLButtonElement;
  fireEvent.click(button);
- await screen.findByText(/Appointment overlap rejected by database/);
+ await screen.findByText(/Appointment conflict\. Refresh the schedule and choose another time/);
  expect(button.disabled).toBe(false);
  expect(screen.queryByText(/write may have completed/)).toBeNull();
  fireEvent.submit(button.closest('form')!);
@@ -318,4 +318,55 @@ test('invalid IANA practice timezone must never be written into scheduler settin
  await screen.findByText(/Enter a valid IANA practice time zone/);
  expect(mocks.from).not.toHaveBeenCalledWith('appointment_settings');
  expect(screen.queryByText('Scheduling settings saved and verified.')).toBeNull();
+});
+
+
+test.each([
+ {reason:'database conflict',code:'23505',expected:'Appointment conflict',uncertain:false},
+ {reason:'administrator MFA denial',code:'42501',expected:'Appointment authorization denied',uncertain:false},
+ {reason:'connection lost',code:'08006',expected:'Booking could not be confirmed',uncertain:true},
+ {reason:'indeterminate transaction',code:'40003',expected:'Booking could not be confirmed',uncertain:true}
+])('booking $reason never displays PHI or SQL arguments returned in an RPC error',async ({code,expected,uncertain})=>{
+ const sentinel='FICTIONAL_PHI_SENTINEL_BPS_SCHEDULING';
+ mocks.rpc.mockImplementation((name:string)=>({
+  abortSignal:async()=>name==='scheduling_patients'
+   ?{data:[{id:'patient-1',full_name:'Synthetic Patient',preferred_name:null}],error:null}
+   :{data:null,error:{code,message:sentinel+': private patient identity and SQL parameters'}}
+ }));
+ render(<AppointmentsClient {...props}/>);
+ fireEvent.click(screen.getByRole('button',{name:'Place patient appointments'}));
+ await screen.findByRole('option',{name:/Synthetic Patient/});
+ fireEvent.change(screen.getByLabelText('Patient'),{target:{value:'patient-1'}});
+ fireEvent.change(screen.getByLabelText('First appointment date'),{target:{value:'2026-12-01'}});
+ const button=screen.getByRole('button',{name:'Book patient appointments'}) as HTMLButtonElement;
+ fireEvent.submit(button.closest('form')!);
+ await screen.findByText(new RegExp(expected));
+ expect(document.body.textContent).not.toContain(sentinel);
+ expect(document.body.textContent).not.toContain('private patient identity and SQL parameters');
+ expect(button.disabled).toBe(uncertain);
+ expect(mocks.rpc.mock.calls.filter(([name])=>name==='book_patient_appointments')).toHaveLength(1);
+});
+test('a thrown booking transport exception is redacted and prevents a second series submission',async()=>{
+ const sentinel='FICTIONAL_PHI_SENTINEL_THROWN_BOOKING';
+ let attempts=0;
+ mocks.rpc.mockImplementation((name:string)=>({
+  abortSignal:async()=>{
+   if(name==='scheduling_patients')return {data:[{id:'patient-1',full_name:'Synthetic Patient',preferred_name:null}],error:null};
+   attempts++;
+   throw Error(sentinel+': private SQL stack trace');
+  }
+ }));
+ render(<AppointmentsClient {...props}/>);
+ fireEvent.click(screen.getByRole('button',{name:'Place patient appointments'}));
+ await screen.findByRole('option',{name:/Synthetic Patient/});
+ fireEvent.change(screen.getByLabelText('Patient'),{target:{value:'patient-1'}});
+ fireEvent.change(screen.getByLabelText('First appointment date'),{target:{value:'2026-12-01'}});
+ const button=screen.getByRole('button',{name:'Book patient appointments'}) as HTMLButtonElement;
+ const form=button.closest('form')!;
+ fireEvent.submit(form);
+ await screen.findByText(/Booking could not be confirmed.*write may have completed/);
+ expect(document.body.textContent).not.toContain(sentinel);
+ expect(button.disabled).toBe(true);
+ fireEvent.submit(form);
+ expect(attempts).toBe(1);
 });

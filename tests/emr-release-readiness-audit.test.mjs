@@ -121,6 +121,8 @@ test('read-only release audit identifies ambiguous central-chart links and clear
   assert.equal(cleanStorage.bps_stored_snapshots_with_unapproved_fields,0);
   assert.equal(cleanStorage.bps_stored_snapshots_with_structured_trauma,0);
   assert.equal(cleanStorage.bps_stored_snapshots_with_malformed_field_shape,0);
+  assert.equal(cleanStorage.bps_stored_snapshots_with_non_text_values,0);
+  assert.equal(cleanStorage.bps_stored_snapshots_with_blank_values,0);
   assert.equal(cleanStorage.bps_stored_field_boundary_status,'NO_AGGREGATE_FIELD_CONTAMINATION_NOT_E2E');
   await db.exec(`
    update public.emr_bps_intake_reviews set clinical_answers=
@@ -140,7 +142,30 @@ test('read-only release audit identifies ambiguous central-chart links and clear
   assert.equal(malformedStorage.bps_stored_snapshots_with_unapproved_fields,0);
   assert.equal(malformedStorage.bps_stored_snapshots_with_structured_trauma,0);
   assert.equal(malformedStorage.bps_stored_snapshots_with_malformed_field_shape,1);
+  assert.equal(malformedStorage.bps_stored_snapshots_with_non_text_values,0);
   assert.equal(malformedStorage.bps_stored_field_boundary_status,'BPS_STORED_FIELD_BOUNDARY_REVIEW_REQUIRED');
+  // Recognized clinical keys must contain patient-authored text, not nested
+  // JSON. A key-only allowlist would incorrectly approve this stored payload.
+  await db.exec(`
+   update public.emr_bps_intake_reviews set clinical_answers=
+     '{"counseling_reason":{"injected":"Fictional structured payload"}}'::jsonb
+   where patient_id='00000000-0000-4000-8000-000000000101';`);
+  const structuredValue=await run();
+  assert.equal(structuredValue.bps_stored_snapshots_with_unapproved_fields,0);
+  assert.equal(structuredValue.bps_stored_snapshots_with_malformed_field_shape,0);
+  assert.equal(structuredValue.bps_stored_snapshots_with_non_text_values,1);
+  assert.equal(structuredValue.bps_stored_field_boundary_status,'BPS_STORED_FIELD_BOUNDARY_REVIEW_REQUIRED');
+  assert.equal(JSON.stringify(structuredValue).includes('Fictional structured payload'),false);
+  // A whitespace-only string also cannot qualify as a saved clinical answer.
+  await db.exec(`
+   update public.emr_bps_intake_reviews set clinical_answers=
+     '{"counseling_reason":"   "}'::jsonb
+   where patient_id='00000000-0000-4000-8000-000000000101';`);
+  const blankValue=await run();
+  assert.equal(blankValue.bps_stored_snapshots_with_unapproved_fields,0);
+  assert.equal(blankValue.bps_stored_snapshots_with_non_text_values,0);
+  assert.equal(blankValue.bps_stored_snapshots_with_blank_values,1);
+  assert.equal(blankValue.bps_stored_field_boundary_status,'BPS_STORED_FIELD_BOUNDARY_REVIEW_REQUIRED');
   await db.exec(`
    update public.emr_bps_intake_reviews set clinical_answers=
      '{"counseling_reason":"Fictional safe clinical answer"}'::jsonb
@@ -149,6 +174,8 @@ test('read-only release audit identifies ambiguous central-chart links and clear
   assert.equal(repairedStorage.bps_stored_snapshots_with_unapproved_fields,0);
   assert.equal(repairedStorage.bps_stored_snapshots_with_structured_trauma,0);
   assert.equal(repairedStorage.bps_stored_snapshots_with_malformed_field_shape,0);
+  assert.equal(repairedStorage.bps_stored_snapshots_with_non_text_values,0);
+  assert.equal(repairedStorage.bps_stored_snapshots_with_blank_values,0);
   assert.equal(repairedStorage.bps_stored_field_boundary_status,'NO_AGGREGATE_FIELD_CONTAMINATION_NOT_E2E');
 
   // A legitimate source pointer is not evidence of a complete seven-domain

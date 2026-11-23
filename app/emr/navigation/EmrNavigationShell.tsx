@@ -21,7 +21,7 @@ export default function EmrNavigationShell({children,providerName}:{children:Rea
  const link=(group:string,key?:string)=>workspaceLink(group,key,patient);
  const findPatient=link('personal','patient_directory');
  async function logout(){
-  if(document.querySelector('[data-soap-dirty="true"],[data-implemented-dirty="true"],[data-group-dirty="true"]')&&!window.confirm('Sign out and discard unsaved changes?'))return;
+  if(document.querySelector('[data-soap-dirty="true"],[data-implemented-dirty="true"],[data-group-dirty="true"],[data-group-corpus-dirty="true"]')&&!window.confirm('Sign out and discard unsaved changes?'))return;
   setBusy(true);setError('');
   try{const response=await fetch('/api/emr/logout',{method:'POST'});if(!response.ok)throw Error('Sign out could not be completed. Please try again.');window.location.assign('/login?next=%2Femr');}
   catch(e){setError(e instanceof Error?e.message:'Sign out failed.');setBusy(false);}

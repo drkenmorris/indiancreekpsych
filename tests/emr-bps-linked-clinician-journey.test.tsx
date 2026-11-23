@@ -200,7 +200,9 @@ test.each([['lowercase receipt',false,false],['uppercase receipt',true,false],['
  cleanup();
  render(<PatientBpsIntakeReview patientId={otherPatient}/>);
  await screen.findByRole('alert');
- expect(screen.getByRole('alert').textContent).toContain('No linked patient intake found');
+ // A 404 never reflects raw protected API/database detail in a different chart.
+  expect(screen.getByRole('alert').textContent).toContain('Linked central chart or intake was not found. Verify the patient link.');
+  expect(screen.getByRole('alert').textContent).not.toContain('No linked patient intake found');
  expect(document.body.textContent).not.toContain('FICTIONAL_PATIENT_PRESENTING_CONCERN');
  expect(writes).toBe(1);
 });

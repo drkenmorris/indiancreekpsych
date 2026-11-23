@@ -67,15 +67,39 @@ WITH
   FROM public.patient_intakes i
   LEFT JOIN active_chart_accounts a ON a.account_id=i.patient_id
  ),
- mfa_audit AS (
-  SELECT COUNT(installed.policyname)::integer AS installed,
-   COALESCE(jsonb_agg(expected.policyname ORDER BY expected.policyname)
-    FILTER (WHERE installed.policyname IS NULL),'[]'::jsonb) AS missing_policies
+ -- Policy NAMES alone do not prove that the AAL2 gate was installed safely:
+ -- an identically named PERMISSIVE/USING(true) policy would silently weaken it.
+ -- These metadata checks are necessary but not sufficient. Effective JWT/RLS
+ -- behavior still requires authenticated integration acceptance.
+ mfa_policy_metadata AS (
+  SELECT expected.policyname,
+   installed.policyname IS NOT NULL AS present,
+   (COALESCE((SELECT c.relrowsecurity FROM pg_class c
+      JOIN pg_namespace n ON n.oid=c.relnamespace
+      WHERE n.nspname='public' AND c.relname=expected.tablename
+      LIMIT 1),false)
+    AND installed.permissive='RESTRICTIVE'
+    AND installed.cmd='ALL'
+    AND 'authenticated'=ANY(installed.roles)
+    AND installed.qual ILIKE '%current_user_is_admin%'
+    AND installed.with_check ILIKE '%current_user_is_admin%'
+    AND installed.qual LIKE '%aal2%'
+    AND installed.with_check LIKE '%aal2%') AS structurally_valid
   FROM expected_mfa expected
   LEFT JOIN pg_policies installed
    ON installed.schemaname='public'
    AND installed.tablename=expected.tablename
    AND installed.policyname=expected.policyname
+ ),
+ mfa_audit AS (
+  SELECT COUNT(*) FILTER (WHERE present)::integer AS installed,
+   COUNT(*) FILTER (WHERE structurally_valid IS TRUE)::integer AS structurally_valid,
+   COALESCE(jsonb_agg(policyname ORDER BY policyname)
+     FILTER (WHERE NOT present),'[]'::jsonb) AS missing_policies,
+   COALESCE(jsonb_agg(policyname ORDER BY policyname)
+     FILTER (WHERE present AND structurally_valid IS NOT TRUE),'[]'::jsonb)
+     AS invalid_policy_structure
+  FROM mfa_policy_metadata
  ),
  intake_audit AS (
   SELECT COUNT(*)::integer AS total,
@@ -147,6 +171,12 @@ SELECT jsonb_build_object(
  'scheduler_admin_mfa_policies_installed',(SELECT installed FROM mfa_audit),
  'scheduler_admin_mfa_policies_expected',4,
  'scheduler_admin_mfa_policies_missing',(SELECT missing_policies FROM mfa_audit),
+ 'scheduler_admin_mfa_policies_structurally_valid',(SELECT structurally_valid FROM mfa_audit),
+ 'scheduler_admin_mfa_policies_invalid_structure',(SELECT invalid_policy_structure FROM mfa_audit),
+ 'scheduler_admin_mfa_policy_metadata_status',CASE
+    WHEN (SELECT installed FROM mfa_audit)<4 THEN 'ADMIN_MFA_POLICY_NOT_INSTALLED'
+    WHEN (SELECT structurally_valid FROM mfa_audit)<4 THEN 'ADMIN_MFA_POLICY_STRUCTURE_REVIEW_REQUIRED'
+    ELSE 'POLICY_METADATA_MATCHES_NOT_AUTHENTICATED_E2E' END,
  'intake_total',(SELECT total FROM intake_audit),
  'intake_submitted',(SELECT submitted FROM intake_audit),
  'submitted_intakes_missing_receipt',(SELECT missing_submission_receipts FROM intake_audit),

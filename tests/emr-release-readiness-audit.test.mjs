@@ -58,6 +58,9 @@ test('read-only release audit identifies ambiguous central-chart links and clear
   assert.equal(clear.submitted_intakes_without_active_chart,0);
   assert.equal(clear.duplicate_active_account_chart_links,0);
   assert.equal(clear.intake_linked_submitted_receipted,3);
+  assert.equal(clear.submitted_intakes_missing_receipt,0);
+  assert.equal(clear.submitted_intakes_invalid_receipt_chronology,0);
+  assert.equal(clear.intake_submission_receipt_aggregate_status,'NO_AGGREGATE_RECEIPT_ANOMALY_NOT_E2E');
   assert.equal(clear.clinical_chart_link_aggregate_status,'NO_AGGREGATE_LINK_ANOMALY_NOT_E2E');
   assert.equal(clear.authenticated_clinical_bps_end_to_end,'UNVERIFIED');
 
@@ -74,6 +77,12 @@ test('read-only release audit identifies ambiguous central-chart links and clear
   const unreceipted=await run();
   assert.equal(unreceipted.submitted_intakes_with_exactly_one_active_chart,5);
   assert.equal(unreceipted.intake_linked_submitted_receipted,3);
+  assert.equal(unreceipted.submitted_intakes_missing_receipt,1);
+  assert.equal(unreceipted.submitted_intakes_invalid_receipt_chronology,1);
+  assert.equal(unreceipted.intake_submission_receipt_aggregate_status,'SUBMISSION_RECEIPT_REVIEW_REQUIRED');
+  // A receipt anomaly is independent of the cardinality check and cannot be
+  // dismissed because each fictional account has exactly one chart.
+  assert.equal(unreceipted.clinical_chart_link_aggregate_status,'NO_AGGREGATE_LINK_ANOMALY_NOT_E2E');
   assert.equal(unreceipted.authenticated_clinical_bps_end_to_end,'UNVERIFIED');
   // Querying the report itself must not create clinician records or write appointments.
   assert.equal((await db.query('select count(*)::integer as n from public.emr_bps_intake_reviews')).rows[0].n,0);

@@ -164,3 +164,50 @@ test('mixed-case patient UUID is normalized for medical/substance source and cha
  expect((writes[0].payload as {patientId:string}).patientId).toBe(id);
  expect(calls.some(c=>c.url==='/api/emr/patients?id='+id)).toBe(true);
 });
+
+test('medical/substance raw remote failures never reach clinical screen while opening chart',async()=>{
+ const privateMarker='FICTIONAL-SENSITIVE-HISTORY-DO-NOT-DISPLAY';
+ let parsed=false;
+ vi.stubGlobal('fetch',vi.fn(async()=>({ok:false,status:500,json:async()=>{parsed=true;return {error:privateMarker};}})));
+ render(<IntakeMedicalSubstanceReconciliation patientId={id} sourceJson={sourceJson} sourceUpdatedAt={stamp}/>);
+ const alert=await screen.findByRole('alert');
+ expect(alert.textContent).toMatch(/Central medical\/substance history is unavailable|protected medical\/substance chart request was not confirmed/i);
+ expect(document.body.textContent).not.toContain(privateMarker);
+ expect(parsed).toBe(false); // Never parse a failed backend response that could contain PHI.
+});
+
+test.each(['rejected write','transport exception'])('medical/substance %s never exposes PHI and locks ambiguous clinical retry',async kind=>{
+ const privateMarker='FICTIONAL-SENSITIVE-HISTORY-DO-NOT-DISPLAY';
+ fixture();
+ const originalFetch=globalThis.fetch as (url:string,init?:RequestInit)=>Promise<any>;
+ let writes=0,parsed=false;
+ vi.stubGlobal('fetch',vi.fn(async(url:string,init?:RequestInit)=>{
+  const payload=init?.body?JSON.parse(String(init.body)):null;
+  if(payload?.path==='/api/save'){
+   writes++;
+   if(kind==='transport exception')throw Error(privateMarker);
+   return {ok:false,status:500,json:async()=>{parsed=true;return {error:privateMarker};}};
+  }
+  return originalFetch(url,init);
+ }));
+ render(<IntakeMedicalSubstanceReconciliation patientId={id} sourceJson={sourceJson} sourceUpdatedAt={stamp}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Prepare clinician draft from intake'}));
+ fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed and corrected these patient-reported historical details/}));
+ const save=screen.getByRole('button',{name:'Save clinician-reviewed history snapshot'});
+ fireEvent.click(save);
+ expect(await screen.findByText(/protected medical\/substance chart request was not confirmed|save outcome is uncertain/i)).toBeTruthy();
+ expect(document.body.textContent).not.toContain(privateMarker);
+ expect(parsed).toBe(false);
+ expect(writes).toBe(1);
+ expect((save as HTMLButtonElement).disabled).toBe(true);
+ fireEvent.submit(save.closest('form')!);
+ expect(writes).toBe(1);
+});
+
+test('malformed protected chart JSON does not expose backend exception details',async()=>{
+ const privateMarker='FICTIONAL-SENSITIVE-HISTORY-DO-NOT-DISPLAY';
+ vi.stubGlobal('fetch',vi.fn(async()=>({ok:true,status:200,json:async()=>{throw Error(privateMarker);}})));
+ render(<IntakeMedicalSubstanceReconciliation patientId={id} sourceJson={sourceJson} sourceUpdatedAt={stamp}/>);
+ expect((await screen.findByRole('alert')).textContent).toMatch(/response was incomplete/i);
+ expect(document.body.textContent).not.toContain(privateMarker);
+});

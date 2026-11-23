@@ -44,7 +44,8 @@ for(const migration of [
  '20261120101500_bps_explicit_seven_domain_review_guard.sql',
  '20261122042000_bps_combining_diacritic_attestation_guard.sql',
  '20261122220500_bps_dedicated_trauma_storage_boundary.sql',
- '20261123200500_bps_snapshot_approved_text_fields.sql'
+ '20261123200500_bps_snapshot_approved_text_fields.sql',
+ '20261123210500_bps_persist_submission_receipt.sql'
 ])await db.exec(readFileSync('supabase/migrations/'+migration,'utf8'));
 const q=(s,args=[])=>db.query(s,args);
 const as=async(id,aal='aal2')=>{await db.exec('reset role');await q("select set_config('request.user',$1,false),set_config('request.aal',$2,false)",[id,aal]);await db.exec('set role authenticated');};
@@ -166,8 +167,9 @@ await test('DB-attested clinician review rejects malformed patient answer values
 await test('MFA clinician saves an append-only BPS review using DB-owned clinical source fields',async()=>{
  await as(admin);
  const saved=await q('select public.save_emr_bps_intake_review($1) id',[payload]);assert.ok(saved.rows[0].id);
- const row=(await q('select patient_id,source_account_id,source_version,clinical_answers,clinician_notes from public.emr_bps_intake_reviews')).rows[0];
+ const row=(await q('select patient_id,source_account_id,source_version,source_submitted_at,clinical_answers,clinician_notes from public.emr_bps_intake_reviews')).rows[0];
  assert.equal(row.patient_id,patient);assert.equal(row.source_account_id,account);assert.equal(row.source_version,1);
+ assert.equal(new Date(row.source_submitted_at).toISOString(),new Date(stamp).toISOString());
  assert.equal(row.clinical_answers.counseling_reason,'Patient-reported sadness');
  assert.equal(row.clinical_answers.suicidal_thoughts_current,'Yes');
  for(const key of ['roi_authorize','treatment_signature','insurance_member','medication_entries','trauma_history'])assert.equal(row.clinical_answers[key],undefined);
@@ -197,6 +199,19 @@ await test('database snapshot constraint rejects privileged out-of-band protecte
    [value,before[0].id]),/emr_bps_snapshots_approved_text_fields/);
  }
  assert.deepEqual((await q('select id,clinical_answers from public.emr_bps_intake_reviews')).rows,before);
+ await as(admin);
+});
+await test('immutable BPS snapshot retains the original submission receipt after a later source receipt edit',async()=>{
+ await db.exec('reset role');
+ const before=(await q('select source_submitted_at from public.emr_bps_intake_reviews')).rows;
+ assert.equal(before.length,1);
+ try{
+  await q('update public.patient_intakes set submitted_at=$1 where patient_id=$2',['2026-11-10T09:00:05Z',account]);
+  assert.deepEqual((await q('select source_submitted_at from public.emr_bps_intake_reviews')).rows,before);
+  await assert.rejects(q('update public.emr_bps_intake_reviews set source_submitted_at=null'),/emr_bps_snapshot_submission_receipt/);
+ }finally{
+  await q('update public.patient_intakes set submitted_at=$1 where patient_id=$2',[stamp,account]);
+ }
  await as(admin);
 });
 await test('no-MFA and other-admin cannot see chart review; direct writes denied',async()=>{

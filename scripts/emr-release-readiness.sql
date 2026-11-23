@@ -30,7 +30,8 @@ WITH
   ('20261119033000'),
   ('20261120101500'),
   ('20261122042000'),
-  ('20261122220500')
+  ('20261122220500'),
+  ('20261123200500')
  ),
  migration_audit AS (
   SELECT COUNT(*) FILTER (WHERE installed.version IS NULL)::integer AS not_applied,
@@ -282,7 +283,7 @@ WITH
  )
 SELECT jsonb_build_object(
  'audit_scope','read_only_schema_and_data_state_NOT_authenticated_acceptance',
- 'expected_pr116_migrations',23,
+ 'expected_pr116_migrations',(SELECT COUNT(*)::integer FROM expected_migrations),
  'missing_expected_migrations',(SELECT not_applied FROM migration_audit),
  'missing_migration_versions',(SELECT missing_versions FROM migration_audit),
  'scheduler_admin_mfa_policies_installed',(SELECT installed FROM mfa_audit),

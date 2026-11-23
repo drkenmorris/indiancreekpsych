@@ -19,7 +19,8 @@ test('read-only release audit identifies ambiguous central-chart links and clear
     patient_id uuid,status text,version integer,updated_at timestamptz,submitted_at timestamptz);
    create table public.emr_bps_intake_reviews(
     patient_id uuid,owner_id uuid,source_account_id uuid,source_version integer,
-    source_status text,source_updated_at timestamptz,reviewed boolean);
+    source_status text,source_updated_at timestamptz,reviewed boolean,
+    created_at timestamptz,clinician_notes jsonb);
    create table public.appointments(
     series_id uuid,patient_id uuid,starts_at timestamptz,ends_at timestamptz);
    create table public.psych_test_assignments(id uuid);
@@ -96,19 +97,75 @@ test('read-only release audit identifies ambiguous central-chart links and clear
     where patient_id in ('00000000-0000-4000-8000-000000000201',
                          '00000000-0000-4000-8000-000000000202');
    insert into public.emr_bps_intake_reviews
-    (patient_id,owner_id,source_account_id,source_version,source_status,source_updated_at,reviewed)
+    (patient_id,owner_id,source_account_id,source_version,source_status,source_updated_at,reviewed,created_at,clinician_notes)
    values
     ('00000000-0000-4000-8000-000000000101','00000000-0000-4000-8000-000000000901',
-     '00000000-0000-4000-8000-000000000201',1,'submitted','2026-11-01',true),
+     '00000000-0000-4000-8000-000000000201',1,'submitted','2026-11-01',true,'2026-11-03',
+     '{"presenting":"Fictional clinician observation","treatment":"","medical":"","safety":"","family":"","goals":"","limitations":""}'::jsonb),
     ('00000000-0000-4000-8000-000000000102','00000000-0000-4000-8000-000000000901',
-     '00000000-0000-4000-8000-000000000202',99,'draft','2026-11-01',true);
+     '00000000-0000-4000-8000-000000000202',99,'draft','2026-11-01',true,'2026-11-03',
+     '{"presenting":"Old unchecked narrative"}'::jsonb);
   `);
   const provenance=await run();
   assert.equal(provenance.clinician_bps_reviewed_flags,2);
   assert.equal(provenance.reviewed_bps_rows_matching_current_intake_provenance,1);
   assert.equal(provenance.reviewed_bps_rows_unverified_or_mismatched_provenance,1);
+  assert.equal(provenance.reviewed_bps_rows_with_source_and_seven_domain_documentation_candidate,1);
+  assert.equal(provenance.reviewed_bps_rows_with_source_but_incomplete_documentation,0);
   assert.equal(provenance.reviewed_bps_source_aggregate_status,'REVIEW_PROVENANCE_INVESTIGATION_REQUIRED');
   assert.equal(provenance.authenticated_clinical_bps_end_to_end,'UNVERIFIED');
+
+  // A legitimate source pointer is not evidence of a complete seven-domain
+  // clinician history. A single old clinical note remains unqualified.
+  await db.exec(`
+   update public.emr_bps_intake_reviews set
+     source_version=1,source_status='submitted'
+   where patient_id='00000000-0000-4000-8000-000000000102';`);
+  const partial=await run();
+  assert.equal(partial.reviewed_bps_rows_matching_current_intake_provenance,2);
+  assert.equal(partial.reviewed_bps_rows_with_source_and_seven_domain_documentation_candidate,1);
+  assert.equal(partial.reviewed_bps_rows_with_source_but_incomplete_documentation,1);
+  assert.equal(partial.reviewed_bps_source_aggregate_status,'REVIEW_DOCUMENTATION_INVESTIGATION_REQUIRED');
+
+  // The complete seven-domain note structure and one independent observation
+  // qualify as an AUDIT CANDIDATE, never as authenticated production E2E.
+  await db.exec(`
+   update public.emr_bps_intake_reviews set clinician_notes=
+    '{"presenting":"","treatment":"","medical":"","safety":"","family":"","goals":"Fictional clinical follow-up","limitations":""}'::jsonb
+   where patient_id='00000000-0000-4000-8000-000000000102';`);
+  const documented=await run();
+  assert.equal(documented.reviewed_bps_rows_with_source_and_seven_domain_documentation_candidate,2);
+  assert.equal(documented.reviewed_bps_rows_with_source_but_incomplete_documentation,0);
+  assert.equal(documented.reviewed_bps_source_aggregate_status,'MATCHED_SOURCE_DOCUMENTATION_CANDIDATES_NOT_AUTHENTICATED_E2E');
+  assert.equal(documented.authenticated_clinical_bps_end_to_end,'UNVERIFIED');
+
+  // Backdated reviews preceding the actual patient submission must fail
+  // the provenance gate even if their version, owner, and notes match.
+  await db.exec(`
+   update public.emr_bps_intake_reviews set created_at='2026-11-01'
+   where patient_id='00000000-0000-4000-8000-000000000102';`);
+  const backdated=await run();
+  assert.equal(backdated.reviewed_bps_rows_unverified_or_mismatched_provenance,1);
+  assert.equal(backdated.reviewed_bps_rows_with_source_and_seven_domain_documentation_candidate,1);
+  assert.equal(backdated.reviewed_bps_source_aggregate_status,'REVIEW_PROVENANCE_INVESTIGATION_REQUIRED');
+
+  // Unknown note keys and blank seven-domain payloads must not elevate a
+  // reviewed checkbox to audit-eligible clinical documentation.
+  await db.exec(`
+   update public.emr_bps_intake_reviews set created_at='2026-11-03',
+     clinician_notes='{"presenting":"Fictional note","treatment":"","medical":"","safety":"","family":"","goals":"","limitations":"","unapproved":"Do not leak"}'::jsonb
+   where patient_id='00000000-0000-4000-8000-000000000102';`);
+  const unknownKey=await run();
+  assert.equal(unknownKey.reviewed_bps_rows_with_source_but_incomplete_documentation,1);
+  assert.equal(unknownKey.reviewed_bps_source_aggregate_status,'REVIEW_DOCUMENTATION_INVESTIGATION_REQUIRED');
+  assert.equal(JSON.stringify(unknownKey).includes('Do not leak'),false);
+  await db.exec(`
+   update public.emr_bps_intake_reviews set
+     clinician_notes='{"presenting":"","treatment":"","medical":"","safety":"","family":"","goals":"","limitations":""}'::jsonb
+   where patient_id='00000000-0000-4000-8000-000000000102';`);
+  const blank=await run();
+  assert.equal(blank.reviewed_bps_rows_with_source_but_incomplete_documentation,1);
+  assert.equal(blank.authenticated_clinical_bps_end_to_end,'UNVERIFIED');
   // An MFA policy with the expected NAME but a permissive/always-true
   // predicate must never be reported as a structurally valid AAL2 gate.
   await db.exec(`

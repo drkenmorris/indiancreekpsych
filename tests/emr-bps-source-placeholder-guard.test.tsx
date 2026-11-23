@@ -141,3 +141,45 @@ test.each([
  expect(screen.queryByRole('button',{name:/Save reviewed BPS history snapshot/i})).toBeNull();
  expect(countWrites()).toBe(0);
 });
+
+
+// A network gateway, database adapter or stale protected endpoint can include
+// PHI or another chart's identifier in a failed response. Nothing from that
+// failure body may be shown in the clinician's original BPS review interface.
+test.each([
+ [403,'Protected BPS access denied. Sign in and complete clinician MFA.'],
+ [404,'Linked central chart or intake was not found. Verify the patient link.'],
+ [409,'Linked BPS source or review history could not be verified. Reopen the protected chart.'],
+ [503,'Protected BPS request failed or its outcome is uncertain. Reopen the chart and verify history.']
+] as const)('BPS transport failure body cannot expose patient information (HTTP %i)',async(status,expected)=>{
+ const secret='FICTIONAL_UNAUTHORIZED_CHART_ID_AND_TRAUMA_TEXT_987654321';
+ vi.stubGlobal('fetch',vi.fn(async()=>Response.json({error:secret,details:{patient:secret}},{status})));
+ render(<PatientBpsIntakeReview patientId={patient}/>);
+ const alert=await screen.findByRole('alert');
+ expect(alert.textContent).toBe(expected);
+ expect(document.body.textContent).not.toContain(secret);
+ expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
+ expect(screen.queryByRole('button',{name:/Save reviewed BPS history snapshot/i})).toBeNull();
+});
+
+test('unexpected clinical transport exception cannot leak patient details while loading',async()=>{
+ const secret='FICTIONAL_PATIENT_NAME_IN_FETCH_EXCEPTION_12345';
+ vi.stubGlobal('fetch',vi.fn(async()=>{throw Error(secret);}));
+ render(<PatientBpsIntakeReview patientId={patient}/>);
+ const alert=await screen.findByRole('alert');
+ expect(alert.textContent).toBe('Protected BPS intake could not be loaded. Reopen the chart and try again.');
+ expect(document.body.textContent).not.toContain(secret);
+ expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
+});
+
+test('malformed successful BPS response is not echoed to the clinician',async()=>{
+ const secret='FICTIONAL_PRIVATE_BAD_JSON_RESPONSE_76543';
+ vi.stubGlobal('fetch',vi.fn(async()=>new Response('{"data":'+secret,{
+  status:200,headers:{'Content-Type':'application/json'}
+ })));
+ render(<PatientBpsIntakeReview patientId={patient}/>);
+ const alert=await screen.findByRole('alert');
+ expect(alert.textContent).toBe('Protected BPS response was invalid. Reopen the chart before proceeding.');
+ expect(document.body.textContent).not.toContain(secret);
+ expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
+});

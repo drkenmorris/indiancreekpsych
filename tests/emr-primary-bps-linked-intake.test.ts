@@ -143,13 +143,46 @@ test('a late intake response from a previous selected chart cannot appear in the
  dom.window.close();
 });
 
-test('BPS intake API or migration failure is visible, never represented as saved/verified clinical content',async()=>{
- const {ctx,dom}=harness(async()=>Response.json({error:'BPS review history unavailable; migration not applied.'},{status:503}));
- ctx.render();
- await vi.waitFor(()=>expect(dom.window.document.querySelector('[role="alert"]')?.textContent).toContain('migration not applied'));
- expect(dom.window.document.querySelector('#clinical-form')).not.toBeNull();
- expect(dom.window.document.querySelector('section[aria-label="Patient intake context in original biopsychosocial workspace"]')?.textContent).toContain('no intake data were imported');
- dom.window.close();
+test.each([
+ ['authorization denied',403],
+ ['missing patient',404],
+ ['provenance conflict',409],
+ ['provider outage',503]
+])('original BPS hides PHI-bearing %s error responses without claiming clinical import',async(_scenario,status)=>{
+ const secret='FICTIONAL patient 998 medication and trauma history inside provider error';
+ const {ctx,dom}=harness(async()=>Response.json({error:secret},{status}));
+ try{
+  ctx.render();
+  await vi.waitFor(()=>expect(dom.window.document.querySelector('[role="alert"]')).not.toBeNull());
+  const alert=dom.window.document.querySelector('[role="alert"]')!.textContent||'';
+  expect(alert).toContain('protected clinical source or provenance could not be verified');
+  expect(alert).not.toContain(secret);
+  expect(alert).toContain('no intake data were imported');
+  expect(dom.window.document.querySelector('#clinical-form')).not.toBeNull();
+ }finally{dom.window.close();}
+});
+
+test('original BPS hides network exception messages containing patient text',async()=>{
+ const secret='FICTIONAL private chart and prescription details from a network exception';
+ const {ctx,dom}=harness(async()=>{throw Error(secret);});
+ try{
+  ctx.render();
+  await vi.waitFor(()=>expect(dom.window.document.querySelector('[role="alert"]')).not.toBeNull());
+  expect(dom.window.document.querySelector('[role="alert"]')!.textContent).not.toContain(secret);
+  expect(dom.window.document.querySelector('[role="alert"]')!.textContent)
+   .toContain('no intake data were imported');
+ }finally{dom.window.close();}
+});
+
+test('original BPS hides malformed source JSON rather than echoing parser error text',async()=>{
+ const secret='FICTIONAL patient 801 private source text';
+ const {ctx,dom}=harness(async()=>new Response('{"error":"'+secret+'", invalid json',{status:200}));
+ try{
+  ctx.render();
+  await vi.waitFor(()=>expect(dom.window.document.querySelector('[role="alert"]')).not.toBeNull());
+  expect(dom.window.document.querySelector('[role="alert"]')!.textContent).not.toContain(secret);
+  expect(dom.window.document.querySelector('#clinical-form')).not.toBeNull();
+ }finally{dom.window.close();}
 });
 
 

@@ -80,6 +80,13 @@ WITH
  intake_audit AS (
   SELECT COUNT(*)::integer AS total,
    COUNT(*) FILTER (WHERE i.status='submitted')::integer AS submitted,
+   -- Surface invalid submission receipts as explicit release warnings. A
+   -- successful chart link alone must not hide missing or stale provenance.
+   COUNT(*) FILTER (WHERE i.status='submitted' AND i.submitted_at IS NULL)::integer
+     AS missing_submission_receipts,
+   COUNT(*) FILTER (WHERE i.status='submitted' AND i.submitted_at IS NOT NULL
+    AND (i.updated_at IS NULL OR i.updated_at>i.submitted_at))::integer
+     AS invalid_receipt_chronology,
    -- A receipt is NOT a safely linked clinical source when the website
    -- account points at two or more active charts.  This must agree with the
    -- cardinality check above, not merely prove that one chart EXISTS.
@@ -117,6 +124,13 @@ SELECT jsonb_build_object(
  'scheduler_admin_mfa_policies_missing',(SELECT missing_policies FROM mfa_audit),
  'intake_total',(SELECT total FROM intake_audit),
  'intake_submitted',(SELECT submitted FROM intake_audit),
+ 'submitted_intakes_missing_receipt',(SELECT missing_submission_receipts FROM intake_audit),
+ 'submitted_intakes_invalid_receipt_chronology',(SELECT invalid_receipt_chronology FROM intake_audit),
+ 'intake_submission_receipt_aggregate_status',CASE WHEN
+    (SELECT missing_submission_receipts FROM intake_audit)=0 AND
+    (SELECT invalid_receipt_chronology FROM intake_audit)=0
+    THEN 'NO_AGGREGATE_RECEIPT_ANOMALY_NOT_E2E'
+    ELSE 'SUBMISSION_RECEIPT_REVIEW_REQUIRED' END,
  'intake_linked_submitted_receipted',(SELECT submitted_receipted_active_chart_links FROM intake_audit),
  'duplicate_active_account_chart_links',(SELECT duplicate_active_account_links FROM chart_link_audit),
  'submitted_intakes_without_active_chart',(SELECT submitted_without_active_chart FROM chart_link_audit),

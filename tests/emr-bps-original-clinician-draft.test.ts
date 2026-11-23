@@ -10,6 +10,10 @@ import {bpsSectionClassification} from '@/lib/emr/intake-bps';
 // chart record, appointment, email or MFA state is written by these tests.
 const patient='00000000-0000-4000-8000-000000000901';
 const alternate='00000000-0000-4000-8000-000000000902';
+// Upstream validation and transport details are deliberately hidden from the
+// original clinician forms. Denial must be patient-neutral and cannot import
+// an unverified source into the draft fields.
+const protectedSourceFailure='protected clinical source or provenance could not be verified';
 const stamp='2026-11-14T12:00:00.123456Z';
 function packet(version=7){
  const sections=intakeSectionsForVersion('').map(section=>{
@@ -388,7 +392,7 @@ test('original BPS withholds a patient source carrying unknown RFC3339 local off
  const h=harness(async()=>Response.json(source));
  try{
   await vi.waitFor(()=>expect(h.dom.window.document.querySelector('[role="alert"]')?.textContent)
-   .toContain('Linked intake source identity, status, version or timestamp could not be verified'));
+   .toContain(protectedSourceFailure));
   expect(h.button()).toBeUndefined();
   expect(h.note.value).toBe('');
   expect(h.dom.window.document.body.textContent).not.toContain('FICTIONAL FRIEND SUPPORT');
@@ -403,7 +407,7 @@ test('original BPS withholds a year-zero patient source the clinical database ca
  const h=harness(async()=>Response.json(malformed));
  try{
   await vi.waitFor(()=>expect(h.dom.window.document.querySelector('[role="alert"]')?.textContent)
-   .toContain('Linked intake source identity, status, version or timestamp could not be verified'));
+   .toContain(protectedSourceFailure));
   expect(h.button()).toBeUndefined();
   expect(h.note.value).toBe('');
   expect(h.dom.window.document.body.textContent).not.toContain('FICTIONAL FRIEND SUPPORT');
@@ -417,7 +421,7 @@ test('unrecognized questionnaire layout is withheld before any original-form sou
  }}));
  try{
   await vi.waitFor(()=>expect(h.dom.window.document.querySelector('[role="alert"]')?.textContent)
-   .toContain('Linked intake source identity, status, version or timestamp could not be verified'));
+   .toContain(protectedSourceFailure));
   expect(h.button()).toBeUndefined();
   expect(h.note.value).toBe('');
   expect(h.dom.window.document.body.textContent).not.toContain('FICTIONAL FRIEND SUPPORT');
@@ -435,7 +439,7 @@ test('unapproved or wrong-domain questionnaire routing is withheld before clinic
   });
   try{
    await vi.waitFor(()=>expect(h.dom.window.document.querySelector('[role="alert"]')?.textContent)
-    .toContain('Linked 21-section intake mapping is malformed'));
+    .toContain(protectedSourceFailure));
    expect(h.button()).toBeUndefined();
    expect(h.note.value).toBe('');
    expect(h.dom.window.document.body.textContent).not.toContain('PRIVATE FICTIONAL MEDICATION');
@@ -452,7 +456,7 @@ test('unlabeled reported-answer counts cannot be treated as current clinical ans
  });
  try{
   await vi.waitFor(()=>expect(h.dom.window.document.querySelector('[role="alert"]')?.textContent)
-   .toContain('Linked 21-section intake mapping is malformed'));
+   .toContain(protectedSourceFailure));
   expect(h.button()).toBeUndefined();
   expect(h.note.value).toBe('');
   expect(h.requests).toHaveLength(1);
@@ -471,7 +475,7 @@ test('original BPS rejects directory questionnaire metadata paired with legacy s
  const h=harness(async()=>Response.json({...report,source:{
   ...report.source,questionnairePacketVersion:'2026-11-02-directory-1'}}));
  try{
-  await vi.waitFor(()=>expect(h.dom.window.document.body.textContent).toContain('layout does not match its questionnaire version'));
+  await vi.waitFor(()=>expect(h.dom.window.document.body.textContent).toContain(protectedSourceFailure));
   expect(h.button()).toBeUndefined();
   expect(h.note.value).toBe('');
  }finally{h.dom.window.close();}
@@ -487,7 +491,7 @@ test('original BPS rejects legacy metadata with substituted directory source sec
  const h=harness(async()=>Response.json({...report,source:{
   ...report.source,questionnairePacketVersion:'2026-10-11'}}));
  try{
-  await vi.waitFor(()=>expect(h.dom.window.document.body.textContent).toContain('layout does not match its questionnaire version'));
+  await vi.waitFor(()=>expect(h.dom.window.document.body.textContent).toContain(protectedSourceFailure));
   expect(h.button()).toBeUndefined();
   expect(h.note.value).toBe('');
  }finally{h.dom.window.close();}
@@ -607,7 +611,7 @@ test('original BPS withholds 21-section source on corrupted clinician review his
   const h=harness(async()=>Response.json({...original,reviews:item.reviews}));
   try{
    await vi.waitFor(()=>expect(h.dom.window.document.querySelector('[role="alert"]')?.textContent)
-    .toContain('Linked intake review history provenance'));
+    .toContain(protectedSourceFailure));
    expect(h.button(),item.name).toBeUndefined();
    expect(h.note.value,item.name).toBe('');
    expect(h.dom.window.document.body.textContent,item.name).not.toContain('FICTIONAL FRIEND SUPPORT');
@@ -719,7 +723,7 @@ test('original BPS refuses the entire source when trauma is falsely labeled ordi
  });
  try{
   await vi.waitFor(()=>expect(h.dom.window.document.body.textContent)
-   .toContain('Linked 21-section intake mapping is malformed'));
+   .toContain(protectedSourceFailure));
   expect(h.dom.window.document.body.textContent).not.toContain('FICTIONAL FRIEND SUPPORT');
   expect(h.dom.window.document.body.textContent).not.toContain('PRIVATE FICTIONAL TRAUMA');
   expect(h.button()).toBeUndefined();
@@ -786,7 +790,7 @@ test('wrongly marked medication source cannot render or populate original BPS no
  });
  try{
   await vi.waitFor(()=>expect(h.dom.window.document.body.textContent)
-   .toContain('Linked 21-section intake mapping is malformed'));
+   .toContain(protectedSourceFailure));
   expect(h.button()).toBeUndefined();
   expect(h.note.value).toBe('');
   expect(h.dom.window.document.body.textContent).not.toContain('FICTIONAL FRIEND SUPPORT');
@@ -818,7 +822,7 @@ test.each(['trauma','insurance','legal','historical-legal'] as const)(
  });
  try{
   await vi.waitFor(()=>expect(h.dom.window.document.body.textContent)
-   .toContain('Linked 21-section intake mapping is malformed'));
+   .toContain(protectedSourceFailure));
   expect(h.note.value).toBe('');
   expect(h.button()).toBeUndefined();
   expect(h.requests).toHaveLength(1);
@@ -865,7 +869,7 @@ test.each(['+14:01','-12:01','-13:00','-14:00','+23:59'])(
   });
   try{
    await vi.waitFor(()=>expect(h.dom.window.document.querySelector('[role="alert"]')?.textContent)
-    .toContain('Linked intake source identity, status, version or timestamp could not be verified'));
+    .toContain(protectedSourceFailure));
    expect(h.button()).toBeUndefined();
    expect(h.note.value).toBe('');
    expect(h.dom.window.document.body.textContent).not.toContain('FICTIONAL FRIEND SUPPORT');
@@ -909,7 +913,7 @@ test.each([
   });
   try{
    await vi.waitFor(()=>expect(h.dom.window.document.body.textContent)
-    .toContain('Linked 21-section intake mapping is malformed'));
+    .toContain(protectedSourceFailure));
    expect(h.dom.window.document.body.textContent).not.toContain(secret);
    expect(h.dom.window.document.body.textContent).not.toContain('FICTIONAL FRIEND SUPPORT');
    expect(h.button()).toBeUndefined();

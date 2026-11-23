@@ -19,7 +19,7 @@ test('read-only release audit identifies ambiguous central-chart links and clear
     patient_id uuid,status text,version integer,updated_at timestamptz,submitted_at timestamptz);
    create table public.emr_bps_intake_reviews(
     patient_id uuid,owner_id uuid,source_account_id uuid,source_version integer,
-    source_status text,source_updated_at timestamptz,reviewed boolean,
+    source_status text,source_updated_at timestamptz,source_submitted_at timestamptz,reviewed boolean,
     created_at timestamptz,clinician_notes jsonb,clinical_answers jsonb);
    create table public.appointments(
     series_id uuid,patient_id uuid,starts_at timestamptz,ends_at timestamptz);
@@ -97,13 +97,13 @@ test('read-only release audit identifies ambiguous central-chart links and clear
     where patient_id in ('00000000-0000-4000-8000-000000000201',
                          '00000000-0000-4000-8000-000000000202');
    insert into public.emr_bps_intake_reviews
-    (patient_id,owner_id,source_account_id,source_version,source_status,source_updated_at,reviewed,created_at,clinician_notes)
+    (patient_id,owner_id,source_account_id,source_version,source_status,source_updated_at,source_submitted_at,reviewed,created_at,clinician_notes)
    values
     ('00000000-0000-4000-8000-000000000101','00000000-0000-4000-8000-000000000901',
-     '00000000-0000-4000-8000-000000000201',1,'submitted','2026-11-01',true,'2026-11-03',
+     '00000000-0000-4000-8000-000000000201',1,'submitted','2026-11-01','2026-11-02',true,'2026-11-03',
      '{"presenting":"Fictional clinician observation","treatment":"","medical":"","safety":"","family":"","goals":"","limitations":""}'::jsonb),
     ('00000000-0000-4000-8000-000000000102','00000000-0000-4000-8000-000000000901',
-     '00000000-0000-4000-8000-000000000202',99,'draft','2026-11-01',true,'2026-11-03',
+     '00000000-0000-4000-8000-000000000202',99,'draft','2026-11-01',null,true,'2026-11-03',
      '{"presenting":"Old unchecked narrative"}'::jsonb);
   `);
   const provenance=await run();
@@ -114,6 +114,14 @@ test('read-only release audit identifies ambiguous central-chart links and clear
   assert.equal(provenance.reviewed_bps_rows_with_source_but_incomplete_documentation,0);
   assert.equal(provenance.reviewed_bps_source_aggregate_status,'REVIEW_PROVENANCE_INVESTIGATION_REQUIRED');
   assert.equal(provenance.authenticated_clinical_bps_end_to_end,'UNVERIFIED');
+
+  // Exact receipt provenance is not interchangeable with the current receipt.
+  await db.exec("update public.emr_bps_intake_reviews set source_submitted_at=null where source_version=1");
+  assert.equal((await run()).reviewed_bps_rows_matching_current_intake_provenance,0);
+  await db.exec("update public.emr_bps_intake_reviews set source_submitted_at='2026-11-02 01:00:00+00' where source_version=1");
+  assert.equal((await run()).reviewed_bps_rows_matching_current_intake_provenance,0);
+  await db.exec("update public.emr_bps_intake_reviews set source_submitted_at='2026-11-02' where source_version=1");
+  assert.equal((await run()).reviewed_bps_rows_matching_current_intake_provenance,1);
 
   // Strict storage segregation: independently audit historical general BPS
   // JSON fields, not just the source API projection. All records are fictional.
@@ -182,7 +190,7 @@ test('read-only release audit identifies ambiguous central-chart links and clear
   // clinician history. A single old clinical note remains unqualified.
   await db.exec(`
    update public.emr_bps_intake_reviews set
-     source_version=1,source_status='submitted'
+     source_version=1,source_status='submitted',source_submitted_at='2026-11-02'
    where patient_id='00000000-0000-4000-8000-000000000102';`);
   const partial=await run();
   assert.equal(partial.reviewed_bps_rows_matching_current_intake_provenance,2);

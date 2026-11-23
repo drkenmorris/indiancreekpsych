@@ -8,6 +8,10 @@ import {intakeSectionsForVersion} from '@/lib/patient/intake';
 
 const firstPatient='00000000-0000-4000-8000-000000000801';
 const secondPatient='00000000-0000-4000-8000-000000000802';
+// The original BPS overlay deliberately reports one patient-neutral failure for
+// malformed sources, provenance conflicts and upstream transport failures.
+// Tests must verify denial and absence of PHI rather than demand unsafe backend detail.
+const protectedSourceFailure='protected clinical source or provenance could not be verified';
 function report(patientId:string){
  // Keep the legacy test packet faithful to the protected 21-section routing.
  // The first eight positions are fixed to keep the historical scenario cases stable.
@@ -147,7 +151,9 @@ test.each([
  ['authorization denied',403],
  ['missing patient',404],
  ['provenance conflict',409],
- ['provider outage',503]
+ ['provider outage',503],
+ ['validation failure with sensitive provider detail',422],
+ ['rate-limited upstream with sensitive provider detail',429]
 ])('original BPS hides PHI-bearing %s error responses without claiming clinical import',async(_scenario,status)=>{
  const secret='FICTIONAL patient 998 medication and trauma history inside provider error';
  const {ctx,dom}=harness(async()=>Response.json({error:secret},{status}));
@@ -294,7 +300,7 @@ test.each([
  const panel=()=>dom.window.document.querySelector(
   'section[aria-label="Patient intake context in original biopsychosocial workspace"]')!;
  await vi.waitFor(()=>expect(panel()?.querySelector('[role="alert"]')?.textContent)
-  .toContain('review history provenance'));
+  .toContain(protectedSourceFailure));
  expect(panel().textContent).not.toContain('Fictional patient-reported concern');
  expect(panel().textContent).not.toContain('attested clinician review(s)');
  expect(panel().textContent).toContain('no intake data were imported');
@@ -347,7 +353,7 @@ test('a failed protected intake refresh cannot claim a saved or reviewed clinica
  const refresh=Array.from(panel().querySelectorAll('button')).find(
   (button:any)=>button.textContent?.includes('Refresh linked patient intake')) as HTMLButtonElement;
  refresh.click();
- await vi.waitFor(()=>expect(panel().querySelector('[role="alert"]')?.textContent).toContain('temporarily unavailable'));
+ await vi.waitFor(()=>expect(panel().querySelector('[role="alert"]')?.textContent).toContain(protectedSourceFailure));
  expect(panel().textContent).toContain('no intake data were imported');
  expect(dom.window.document.querySelector('#clinical-form')).not.toBeNull();
  expect(requests).toBe(2);
@@ -369,7 +375,7 @@ test('original BPS redacts malformed structured, reference and missing-marker so
  );
  const {ctx,dom}=harness(async()=>Response.json(unsafe));
  ctx.render();
- await vi.waitFor(()=>expect(dom.window.document.querySelector('section[aria-label="Patient intake context in original biopsychosocial workspace"]')?.textContent).toContain('Linked 21-section intake mapping is malformed'));
+ await vi.waitFor(()=>expect(dom.window.document.querySelector('section[aria-label="Patient intake context in original biopsychosocial workspace"]')?.textContent).toContain(protectedSourceFailure));
  const displayed=dom.window.document.querySelector('section[aria-label="Patient intake context in original biopsychosocial workspace"]')!.textContent||'';
  // The spoofed fixture repeats question identities across sections and asserts an
  // incorrect answered count. The stronger original-BPS trust boundary must now
@@ -401,7 +407,7 @@ test.each([
  const panel=()=>dom.window.document.querySelector(
   'section[aria-label="Patient intake context in original biopsychosocial workspace"]')!;
  await vi.waitFor(()=>expect(panel()?.querySelector('[role="alert"]')?.textContent)
-  .toContain('21-section intake mapping is malformed'));
+  .toContain(protectedSourceFailure));
  const body=panel().textContent||'';
  expect(body).not.toContain('PRIVATE_FICTIONAL_SOURCE_MUST_NOT_RENDER');
  expect(body).not.toContain('PRIVATE_FICTIONAL_NESTED_SOURCE');
@@ -426,7 +432,7 @@ test.each([
  const panel=()=>dom.window.document.querySelector(
   'section[aria-label="Patient intake context in original biopsychosocial workspace"]')!;
  await vi.waitFor(()=>expect(panel()?.querySelector('[role="alert"]')?.textContent)
-  .toContain('identity, status, version or timestamp could not be verified'));
+  .toContain(protectedSourceFailure));
  expect(panel().textContent).not.toContain('Fictional patient-reported concern');
  expect(panel().textContent).not.toContain('attested clinician review(s)');
  expect(panel().textContent).toContain('no intake data were imported');
@@ -457,7 +463,7 @@ test.each([
   // the entire linked answer panel must fail closed, preserving original forms.
   await vi.waitFor(()=>expect(dom.window.document.querySelector(
    'section[aria-label="Patient intake context in original biopsychosocial workspace"] [role="alert"]'
-  )?.textContent).toContain('review history provenance'));
+  )?.textContent).toContain(protectedSourceFailure));
   expect(dom.window.document.body.textContent).not.toContain('Fictional patient-reported concern');
   expect(dom.window.document.querySelector(
    'section[aria-label="Clinician-reviewed BPS intake snapshot history"]')).toBeNull();
@@ -626,7 +632,7 @@ test.each([
  const panel=()=>dom.window.document.querySelector(
   'section[aria-label="Patient intake context in original biopsychosocial workspace"]')!;
  await vi.waitFor(()=>expect(panel()?.querySelector('[role="alert"]')?.textContent)
-  .toContain('review history provenance or unmapped-field audit could not be verified'));
+  .toContain(protectedSourceFailure));
  expect(panel().textContent).not.toContain('PRIVATE_FICTIONAL_CLINICAL_REPORT');
  expect(panel().textContent).not.toContain('attested clinician review(s)');
  expect(panel().textContent).toContain('no intake data were imported');
@@ -659,7 +665,7 @@ test.each([
  const panel=()=>dom.window.document.querySelector(
   'section[aria-label="Patient intake context in original biopsychosocial workspace"]')!;
  await vi.waitFor(()=>expect(panel()?.querySelector('[role="alert"]')?.textContent)
-  .toContain('source identity, status, version or timestamp could not be verified'));
+  .toContain(protectedSourceFailure));
  expect(panel().textContent).not.toContain('PRIVATE_REPORTED_BPS_SOURCE');
  expect(panel().textContent).toContain('no intake data were imported');
  expect(dom.window.document.querySelector('#clinical-form')?.textContent)
@@ -743,7 +749,7 @@ test.each([
  try{
   ctx.render();
   await vi.waitFor(()=>expect(dom.window.document.querySelector('[role="alert"]')?.textContent)
-   .toContain('Linked 21-section intake mapping is malformed'));
+   .toContain(protectedSourceFailure));
   const original=dom.window.document.querySelector('#clinical-form');
   expect(original?.textContent).toContain('Original BPS clinical form remains available');
   const panel=dom.window.document.querySelector(
@@ -841,7 +847,7 @@ test.each([
   const panel=()=>dom.window.document.querySelector(
    'section[aria-label="Patient intake context in original biopsychosocial workspace"]')!;
   await vi.waitFor(()=>expect(panel()?.querySelector('[role="alert"]')?.textContent)
-   .toContain('21-section intake mapping is malformed'));
+   .toContain(protectedSourceFailure));
   expect(panel().textContent).not.toContain('Fictional patient-reported concern');
   expect(panel().textContent).not.toContain('attested clinician review(s)');
   expect(panel().textContent).toContain('no intake data were imported');

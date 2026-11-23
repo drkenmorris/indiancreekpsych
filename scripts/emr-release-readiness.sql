@@ -45,6 +45,28 @@ WITH
   ('appointment_blocks','appointment_blocks_admin_mfa_gate'),
   ('appointments','appointments_admin_mfa_gate')
  ),
+ -- A website account must never be counted as an unambiguous submitted
+ -- clinical source when it resolves to zero or multiple active central charts.
+ -- Aggregate only; never expose chart UUIDs, account identifiers or PHI.
+ active_chart_accounts AS (
+  SELECT account_id,COUNT(*)::integer AS active_charts
+  FROM public.clinical_patients
+  WHERE directory_deleted_at IS NULL AND account_id IS NOT NULL
+  GROUP BY account_id
+ ),
+ chart_link_audit AS (
+  SELECT
+   (SELECT COUNT(*)::integer FROM active_chart_accounts WHERE active_charts>1)
+     AS duplicate_active_account_links,
+   COUNT(*) FILTER (WHERE i.status='submitted' AND COALESCE(a.active_charts,0)=0)::integer
+     AS submitted_without_active_chart,
+   COUNT(*) FILTER (WHERE i.status='submitted' AND a.active_charts=1)::integer
+     AS submitted_with_exactly_one_chart,
+   COUNT(*) FILTER (WHERE i.status='submitted' AND a.active_charts>1)::integer
+     AS submitted_with_multiple_charts
+  FROM public.patient_intakes i
+  LEFT JOIN active_chart_accounts a ON a.account_id=i.patient_id
+ ),
  mfa_audit AS (
   SELECT COUNT(installed.policyname)::integer AS installed,
    COALESCE(jsonb_agg(expected.policyname ORDER BY expected.policyname)
@@ -94,6 +116,16 @@ SELECT jsonb_build_object(
  'intake_total',(SELECT total FROM intake_audit),
  'intake_submitted',(SELECT submitted FROM intake_audit),
  'intake_linked_submitted_receipted',(SELECT submitted_receipted_active_chart_links FROM intake_audit),
+ 'duplicate_active_account_chart_links',(SELECT duplicate_active_account_links FROM chart_link_audit),
+ 'submitted_intakes_without_active_chart',(SELECT submitted_without_active_chart FROM chart_link_audit),
+ 'submitted_intakes_with_exactly_one_active_chart',(SELECT submitted_with_exactly_one_chart FROM chart_link_audit),
+ 'submitted_intakes_with_multiple_active_charts',(SELECT submitted_with_multiple_charts FROM chart_link_audit),
+ 'clinical_chart_link_aggregate_status',CASE WHEN
+   (SELECT duplicate_active_account_links FROM chart_link_audit)=0 AND
+   (SELECT submitted_without_active_chart FROM chart_link_audit)=0 AND
+   (SELECT submitted_with_multiple_charts FROM chart_link_audit)=0
+   THEN 'NO_AGGREGATE_LINK_ANOMALY_NOT_E2E'
+   ELSE 'CHART_LINK_REVIEW_REQUIRED' END,
  'clinician_bps_review_rows',(SELECT saved_review_rows FROM bps_audit),
  'clinician_bps_reviewed_flags',(SELECT reviewed_flag_rows FROM bps_audit),
  'appointments',(SELECT appointments FROM scheduler_audit),

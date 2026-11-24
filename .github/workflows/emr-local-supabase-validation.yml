@@ -1027,6 +1027,170 @@ jobs:
             assert.ok(await patientForm.getByLabel('Full legal name *',{exact:true}).isDisabled());
             assert.equal(checked(await a.client.from('patient_intakes').select('patient_id').eq('patient_id',b.id),'browser submitted intake isolation').length,0);
             console.log('Patient browser pages 1–21, independent draft readback, incomplete-submission guards, final submission, exact preserved answers and locked reopen passed.');
+            // Join the actual website-submitted patient B to their own central
+            // chart and clinician review; patient A's earlier API fixture cannot
+            // substitute for this same-source browser-to-browser acceptance.
+            const bChart=checked(await admin.client.from('clinical_patients').select('id,account_id').eq('account_id',b.id).is('directory_deleted_at',null).single(),'browser patient explicit central chart');
+            assert.notEqual(bChart.id,chart.id);
+            const bSourceUrl=route+'?patient='+bChart.id;
+            const bSourceResponse=await req(admin,bSourceUrl);
+            assert.equal(bSourceResponse.status,200);
+            const bSource=await bSourceResponse.json();
+            assert.equal(bSource.patientId,bChart.id);
+            assert.equal(bSource.source.accountId,b.id);
+            assert.equal(bSource.source.status,'submitted');
+            assert.equal(bSource.source.version,afterFinal.version);
+            assert.equal(Date.parse(bSource.source.submittedAt),Date.parse(afterFinal.submitted_at));
+            assert.equal(bSource.sections.length,21);
+            assert.equal(bSource.unmappedKeys.length,0);
+            assert.equal(bSource.reviews.length,0);
+            const bProtected=['FICTIONAL-BROWSER-INSURANCE','Fictional medication allergy boundary','Fictional dedicated trauma boundary'];
+            for(const value of bProtected)assert.ok(!JSON.stringify(bSource).includes(value),'Protected browser source crossed general BPS boundary');
+            const bReviewUrl=origin+'/emr/bps-intake?patient='+bChart.id;
+            assert.equal((await page.goto(bReviewUrl)).status(),200);
+            await page.getByText('Sections audited: 21/21',{exact:false}).waitFor();
+            await page.getByText('Fictional browser concern',{exact:true}).waitFor({state:'attached'});
+            await prepare.click();
+            const bObservation='Fictional independent review of actual browser-submitted patient B';
+            await noteFields.first().fill(bObservation);
+            await page.getByRole('checkbox',{name:/I reviewed this intake/i}).check();
+            const [bSavedResponse]=await Promise.all([
+              page.waitForResponse(r=>r.url()===route&&r.request().method()==='POST'),
+              saveButton.click()
+            ]);
+            assert.equal(bSavedResponse.status(),201);
+            const bSaved=await bSavedResponse.json();
+            await page.getByText('snapshot saved AND independently verified',{exact:false}).waitFor();
+            const bHistoryResponse=await req(admin,bSourceUrl);
+            assert.equal(bHistoryResponse.status,200);
+            const bHistory=await bHistoryResponse.json();
+            assert.equal(bHistory.reviews.length,1);
+            assert.equal(bHistory.reviews[0].id,bSaved.id);
+            assert.equal(bHistory.reviews[0].source_version,afterFinal.version);
+            assert.equal(bHistory.reviews[0].source_status,'submitted');
+            assert.equal(bHistory.reviews[0].clinical_answers.counseling_reason,'Fictional browser concern');
+            assert.equal(bHistory.reviews[0].clinician_notes.presenting,bObservation);
+            for(const value of bProtected)assert.ok(!JSON.stringify(bHistory).includes(value),'Protected browser source crossed persisted BPS boundary');
+            await page.reload();
+            await page.getByText('Sections audited: 21/21',{exact:false}).waitFor();
+            await page.locator('summary').filter({hasText:'Previously saved immutable clinician reviews (1)'}).click();
+            await page.getByText(bObservation,{exact:true}).waitFor();
+            assert.equal(await prepare.count(),0);
+            assert.equal(await sourceNav.getByRole('link').count(),7);
+            for(const link of await sourceNav.getByRole('link').all()){
+              const href=await link.getAttribute('href');
+              assert.equal(new URL(href,origin).searchParams.get('patient'),bChart.id,'Every original BPS link must target browser patient B');
+            }
+            assert.deepEqual((await readPatient()).answers,afterFinal.answers,'Clinician review must not change signed patient answers');
+            const aHistoryResponse=await req(admin,chartUrl);
+            assert.equal(aHistoryResponse.status,200);
+            const aHistory=await aHistoryResponse.json();
+            assert.equal(aHistory.reviews.length,1);
+            assert.equal(aHistory.reviews[0].id,saved.id,'Patient A history must remain unchanged');
+            assert.equal((await req(a,bSourceUrl)).status,403);
+            console.log('Same-patient 21-page browser submission to linked central BPS clinician browser review, independent provenance and reopened history passed.');
+
+            // Fresh browser context: do not inject a preverified admin session.
+            // Complete password login and the real existing local TOTP factor
+            // through the website before using the appointment interface.
+            const scheduleContext=await browserContext({browserCookies:()=>[]});
+            const schedulePage=await scheduleContext.newPage();
+            schedulePage.setDefaultTimeout(30000);
+            await schedulePage.goto(origin+'/appointments');
+            await schedulePage.waitForURL(u=>u.pathname==='/login');
+            await schedulePage.goto(origin+'/login?next=%2Fappointments');
+            await schedulePage.getByLabel('Email',{exact:true}).fill('emr-local-clinician@example.com');
+            await schedulePage.getByLabel('Password',{exact:true}).fill(password);
+            await schedulePage.getByRole('button',{name:'Sign in',exact:true}).click();
+            await schedulePage.waitForURL(u=>u.pathname==='/account/security');
+            assert.equal(await schedulePage.getByRole('heading',{name:'Appointment administration'}).count(),0);
+            assert.equal((await schedulePage.request.get(chartUrl)).status(),403,'Browser AAL1 must not access protected clinical endpoint');
+            await schedulePage.getByRole('button',{name:'Verify with Local fictional TOTP'}).click();
+            await schedulePage.getByLabel('Six-digit authenticator code').fill(totp(factor.totp.secret));
+            await schedulePage.getByRole('button',{name:'Verify and continue'}).click();
+            await schedulePage.waitForURL(u=>u.pathname==='/appointments');
+            await schedulePage.getByRole('heading',{name:'Appointment administration'}).waitFor();
+            assert.equal((await schedulePage.request.get(chartUrl)).status(),200,'Browser verified AAL2 must reach protected clinical endpoint');
+            console.log('Actual browser administrator password login, AAL1 denial, TOTP verification and authorized scheduler entry passed.');
+
+            // Fixture only: office hours/settings on the disposable loopback
+            // database. All bookings, recurrence edits and cancellations below
+            // must be made by the real browser controls, not fixture SQL.
+            checked(await admin.client.from('appointment_settings').update({scheduling_enabled:true,timezone:'UTC',minimum_notice_hours:0,maximum_advance_days:60,appointment_duration_minutes:50}).eq('id',true).select().single(),'isolated scheduler settings');
+            const dayOffset=3;
+            const first=new Date(Date.now()+dayOffset*86400000);
+            const dates=[0,7,14].map(n=>new Date(first.getTime()+n*86400000).toISOString().slice(0,10));
+            checked(await admin.client.from('appointment_availability_rules').insert({weekday:first.getUTCDay(),start_time:'08:00',end_time:'18:00'}).select().single(),'isolated office hours');
+            await schedulePage.reload();
+            const calendarMenu=schedulePage.getByRole('navigation',{name:'Calendar menu'});
+            await calendarMenu.getByRole('button',{name:'Place patient appointments',exact:true}).click();
+            const bookingForm=schedulePage.locator('form.appointmentSettingsForm');
+            await bookingForm.locator('select').first().locator('option[value="'+b.id+'"]').waitFor({state:'attached'});
+            await bookingForm.getByLabel('Patient',{exact:true}).selectOption(b.id);
+            await bookingForm.getByLabel('First appointment date').fill(dates[0]);
+            await bookingForm.getByLabel('Appointment start').fill('10:00');
+            await bookingForm.getByLabel('Repeat',{exact:true}).selectOption('1');
+            await bookingForm.getByLabel('Repeat through (up to one year)').fill(dates[2]);
+            await bookingForm.getByRole('button',{name:'Book patient appointments'}).click();
+            await schedulePage.getByRole('status').filter({hasText:'3 appointments booked.'}).waitFor();
+            const readBookings=async()=>checked(await admin.client.from('appointments').select('id,patient_id,patient_name,series_id,starts_at,ends_at,status').eq('patient_id',b.id).order('starts_at'),'independent appointment readback');
+            const booked=await readBookings();
+            assert.equal(booked.length,3);
+            assert.ok(booked[0].series_id);
+            for(let i=0;i<3;i++){
+              assert.equal(booked[i].series_id,booked[0].series_id);
+              assert.equal(booked[i].patient_id,b.id);
+              assert.equal(booked[i].status,'booked');
+              assert.equal(new Date(booked[i].starts_at).toISOString(),dates[i]+'T10:00:00.000Z');
+              assert.equal(Date.parse(booked[i].ends_at)-Date.parse(booked[i].starts_at),50*60000);
+            }
+            assert.equal(checked(await a.client.from('appointments').select('id').eq('patient_id',b.id),'other patient appointment isolation').length,0);
+            assert.equal(checked(await b.client.from('appointments').select('id').eq('patient_id',b.id),'own patient appointments').length,3);
+            await calendarMenu.getByRole('button',{name:'Booked appointments',exact:true}).click();
+            const calendar=schedulePage.getByRole('table',{name:'Monthly appointment calendar'});
+            await calendar.waitFor({state:'visible'});
+            const goMonth=async date=>{
+              const label=new Date(date+'T12:00:00Z').toLocaleDateString('en-US',{month:'long',year:'numeric',timeZone:'UTC'});
+              const heading=schedulePage.locator('.calendarToolbar h2');
+              if((await heading.textContent())!==label)await schedulePage.getByRole('button',{name:'Next month'}).click();
+              await schedulePage.getByRole('heading',{name:label,exact:true}).waitFor();
+            };
+            const event=(date,time)=>calendar.getByRole('button',{name:new RegExp(', '+date+', '+time+'
+            console.log('Chromium local acceptance: clinician save/reload, seven original forms saved and reopened for the same chart, protected source boundaries and patient denial passed. Hosted browser and assessment recipient completion remain unverified.');
+
+          }finally{try{if(browser)await browser.close();}finally{app.kill('SIGTERM');engine.kill('SIGTERM');}}
+          JS
+)});
+            await goMonth(dates[0]);
+            await event(dates[0],'10:00').click();
+            await schedulePage.getByLabel('Apply to').selectOption('future');
+            await schedulePage.getByLabel('Start time').fill('11:00');
+            await schedulePage.getByRole('button',{name:'Save changes',exact:true}).click();
+            await schedulePage.getByText('3 appointments updated.',{exact:false}).waitFor();
+            const shifted=await readBookings();
+            assert.deepEqual(shifted.map(x=>x.id),booked.map(x=>x.id));
+            for(let i=0;i<3;i++){
+              assert.equal(shifted[i].series_id,booked[i].series_id);
+              assert.equal(new Date(shifted[i].starts_at).toISOString(),dates[i]+'T11:00:00.000Z');
+            }
+            await event(dates[0],'11:00').click();
+            await schedulePage.getByLabel('Apply to').selectOption('one');
+            await schedulePage.getByRole('button',{name:'Cancel appointment',exact:true}).click();
+            await schedulePage.getByRole('button',{name:'Confirm cancellation',exact:true}).click();
+            await schedulePage.getByText('1 appointment cancelled.',{exact:false}).waitFor();
+            const cancelled=await readBookings();
+            assert.equal(cancelled.length,3,'Cancellation must preserve appointment history');
+            assert.equal(cancelled[0].status,'cancelled');
+            assert.deepEqual(cancelled.slice(1),shifted.slice(1),'Single cancellation must preserve remaining series');
+            await schedulePage.reload();
+            await calendar.waitFor({state:'visible'});
+            await goMonth(dates[0]);
+            await schedulePage.locator('table[aria-label="Monthly appointment calendar"][aria-busy="false"]').waitFor();
+            assert.equal(await event(dates[0],'11:00').count(),0,'Cancelled event must disappear from reopened calendar');
+            await goMonth(dates[1]);
+            await event(dates[1],'11:00').waitFor();
+            console.log('Actual browser recurring bookings, independent row and series readback, future edits, single cancellation, reopened calendar and patient isolation passed.');
+            await scheduleContext.close();
             await otherContext.close();
             await clinicianContext.close();
             console.log('Chromium local acceptance: clinician save/reload, seven original forms saved and reopened for the same chart, protected source boundaries and patient denial passed. Hosted browser, interactive MFA, scheduling and assessment recipient completion remain unverified.');

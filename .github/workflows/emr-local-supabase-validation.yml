@@ -400,6 +400,25 @@ jobs:
           # Start real Auth and REST on the same disposable local schema.
           # Never link a project, use a remote URL, or import production users.
           supabase stop
+          # CLI defaults disable TOTP. Enable it only in the disposable runner
+          # configuration, leaving production and hosted Auth untouched.
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          import tomllib
+          path = Path("supabase/config.toml")
+          config = path.read_text()
+          section = re.compile(r"(?ms)^\[auth\.mfa\.totp\][ \t]*\n.*?(?=^\[|\Z)")
+          replacement = "[auth.mfa.totp]\nenroll_enabled = true\nverify_enabled = true\n\n"
+          if section.search(config):
+              config = section.sub(lambda _: replacement, config, count=1)
+          else:
+              config += "\n" + replacement
+          parsed = tomllib.loads(config)
+          assert parsed["auth"]["mfa"]["totp"]["enroll_enabled"] is True
+          assert parsed["auth"]["mfa"]["totp"]["verify_enabled"] is True
+          path.write_text(config)
+          PY
           supabase start >/dev/null
           supabase status -o env > local-status.env
           set -a

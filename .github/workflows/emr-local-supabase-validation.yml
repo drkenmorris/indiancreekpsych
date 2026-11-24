@@ -1,0 +1,74 @@
+name: EMR isolated Supabase schema validation
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+    paths:
+      - 'supabase/migrations/**'
+      - '.github/workflows/emr-local-supabase-validation.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  local-schema:
+    # Run only for the clinic's own protected EMR integration branch.
+    if: github.head_ref == 'integration/emr-prototype-production-reconcile-20261109' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.number == 116 || github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/integration/emr-prototype-production-reconcile-20261109'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: supabase/setup-cli@v3
+        with:
+          version: 2.84.2
+      - name: Replay migrations on an isolated real Supabase Postgres stack
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Copy only versioned migrations to a brand-new runner-local directory.
+          # No hosted credentials, link, data dump, seed, or remote reset.
+          unset SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD DATABASE_URL
+          sandbox="$(mktemp -d)"
+          cd "$sandbox"
+          supabase init
+          mkdir -p supabase/migrations
+          cp "$GITHUB_WORKSPACE"/supabase/migrations/*.sql supabase/migrations/
+          sed -i -E 's/^major_version = [0-9]+$/major_version = 17/' supabase/config.toml
+          grep -qx 'major_version = 17' supabase/config.toml
+          supabase db start
+          export PGPASSWORD=postgres
+          psql_local() { psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 54322 -U postgres -d postgres "$@"; }
+          # Compare every repository migration version to the actual database ledger.
+          find supabase/migrations -maxdepth 1 -name '*.sql' -printf '%f\n' | cut -d_ -f1 | LC_ALL=C sort > expected-versions.txt
+          psql_local -Atc 'select version from supabase_migrations.schema_migrations order by version' | LC_ALL=C sort > actual-versions.txt
+          test -s expected-versions.txt
+          diff -u expected-versions.txt actual-versions.txt
+          psql_local -Atc "select current_setting('server_version_num')::int / 10000" | grep -qx 17
+          # Confirm real Supabase auth schema and high-priority clinic relations are present.
+          psql_local <<'SQL'
+          DO $$
+          BEGIN
+            IF to_regclass('auth.users') IS NULL
+               OR to_regclass('auth.mfa_factors') IS NULL
+               OR to_regclass('public.patient_intakes') IS NULL
+               OR to_regclass('public.clinical_patients') IS NULL
+               OR to_regclass('public.emr_bps_intake_reviews') IS NULL
+               OR to_regclass('public.appointments') IS NULL THEN
+              RAISE EXCEPTION 'Expected clinical or auth relation missing';
+            END IF;
+            IF EXISTS (
+              SELECT 1 FROM pg_class
+              WHERE oid IN ('public.patient_intakes'::regclass,
+                            'public.clinical_patients'::regclass,
+                            'public.emr_bps_intake_reviews'::regclass,
+                            'public.appointments'::regclass)
+                AND NOT relrowsecurity
+            ) THEN
+              RAISE EXCEPTION 'Expected clinical relation lacks RLS';
+            END IF;
+          END $$;
+          SQL
+          printf 'Verified real runner-local Postgres 17 migration versions: '
+          wc -l < actual-versions.txt
+          echo 'This is real local schema validation, not hosted preview or authenticated browser acceptance.'

@@ -390,6 +390,14 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci
+      - name: Install isolated Chromium acceptance driver
+        shell: bash
+        run: |
+          set -euo pipefail
+          browser_dir="$(mktemp -d)"
+          npm install --prefix "$browser_dir" --no-audit --no-fund --no-package-lock playwright@1.56.1
+          "$browser_dir/node_modules/.bin/playwright" install --with-deps chromium
+          printf 'EMR_BROWSER_MODULE=%s\n' "$browser_dir/node_modules/playwright/index.mjs" >> "$GITHUB_ENV"
       - name: Exercise real password sessions and TOTP through local Auth and BPS HTTP
         shell: bash
         run: |
@@ -436,6 +444,8 @@ jobs:
           import {execFileSync, spawn} from 'node:child_process';
           import {createClient} from '@supabase/supabase-js';
           import {createServerClient} from '@supabase/ssr';
+          import {pathToFileURL} from 'node:url';
+          const {chromium}=await import(pathToFileURL(process.env.EMR_BROWSER_MODULE).href);
           const url=process.env.API_URL, key=process.env.ANON_KEY;
           assert.equal(url,'http://127.0.0.1:54321');
           const localAdmin=createClient(url,process.env.SERVICE_ROLE_KEY,{auth:{persistSession:false,autoRefreshToken:false}});
@@ -450,7 +460,8 @@ jobs:
               getAll:()=>Array.from(jar,([name,value])=>({name,value})),
               setAll:items=>{for(const {name,value} of items){if(value)jar.set(name,value);else jar.delete(name);}}
             }});
-            return {client,cookie:()=>Array.from(jar,([name,value])=>name+'='+value).join('; ')};
+            return {client,cookie:()=>Array.from(jar,([name,value])=>name+'='+value).join('; '),
+              browserCookies:origin=>Array.from(jar,([name,value])=>({name,value,url:origin}))};
           }
           async function account(name,registration_type){
             const email=name+'@example.com';
@@ -497,6 +508,7 @@ jobs:
           const app=spawn('npm',['run','dev','--','--hostname','127.0.0.1','--port',String(port)],{stdio:'ignore',env:{...process.env,NEXT_TELEMETRY_DISABLED:'1'}});
           const route=origin+'/api/emr/bps-intake';
           const req=(s,path=route)=>fetch(path,{headers:s?{cookie:s.cookie()}:{}});
+          let browser;
           try{
             let ready=false;
             for(let i=0;i<90;i++){
@@ -578,8 +590,46 @@ jobs:
             assert.equal((await post(a,payload)).status,403,'Patient cannot attest clinician review');
             assert.equal((await post(admin,{...payload,sourceVersion:filled.version})).status,409,'Stale source cannot be reviewed');
             assert.equal((await post(admin,{...payload,sourceAccountId:b.id})).status,409,'Wrong patient source cannot be reviewed');
-            const savedResponse=await post(admin,payload);
-            assert.equal(savedResponse.status,201,'Actual clinician BPS HTTP save');
+            // Exercise the real rendered clinician form, not a mocked DOM or an
+            // API-only positive save. The browser receives the genuine local
+            // AAL2 session established above; this is not a browser login test.
+            browser=await chromium.launch({headless:true});
+            async function browserContext(actor){
+              const context=await browser.newContext();
+              // No browser request may reach hosted systems or external services.
+              await context.route('**/*',request=>{
+                const target=new URL(request.request().url());
+                return [origin,url].includes(target.origin)?request.continue():request.abort();
+              });
+              await context.addCookies(actor.browserCookies(origin));
+              return context;
+            }
+            const clinicianContext=await browserContext(admin);
+            const page=await clinicianContext.newPage();
+            page.setDefaultTimeout(30000);
+            const reviewUrl=origin+'/emr/bps-intake?patient='+chart.id;
+            const sourceNav=page.getByRole('navigation',{name:'Original seven-page biopsychosocial forms'});
+            assert.equal((await page.goto(reviewUrl)).status(),200,'Rendered clinician reconciliation');
+            await page.getByText('Sections audited: 21/21',{exact:false}).waitFor();
+            await page.getByText('Submitted intake (immutable source)',{exact:true}).waitFor();
+            await page.getByText('Fictional local concern',{exact:true}).waitFor({state:'attached'});
+            assert.equal(await sourceNav.getByRole('link').count(),7);
+            const prepare=page.getByRole('button',{name:'Prepare clinician-reviewed BPS intake draft'});
+            await prepare.click();
+            const saveButton=page.getByRole('button',{name:'Save reviewed BPS history snapshot'});
+            assert.ok(await saveButton.isDisabled(),'Unattested or empty review cannot be saved');
+            const noteFields=page.locator('article[aria-label="Intake biopsychosocial reconciliation"] form textarea');
+            assert.equal(await noteFields.count(),7,'Seven separate clinician note domains');
+            await noteFields.first().fill(notes.presenting);
+            await page.getByRole('checkbox',{name:/I reviewed this intake/i}).check();
+            assert.ok(await saveButton.isEnabled(),'Documented and attested fictional review enables save');
+            const [savedResponse]=await Promise.all([
+              page.waitForResponse(r=>r.url()===route&&r.request().method()==='POST'),
+              saveButton.click()
+            ]);
+            await page.getByText('snapshot saved AND independently verified',{exact:false}).waitFor();
+            console.log('Rendered local Chromium clinician review submitted through actual protected application and verified by UI.');
+            assert.equal(savedResponse.status(),201,'Actual clinician BPS HTTP save from rendered UI');
             const saved=await savedResponse.json();
             assert.equal(saved.saved,true);assert.equal(saved.unsigned,true);assert.equal(saved.diagnosisCreated,false);
             assert.match(saved.id,/^[a-f0-9-]{36}$/);
@@ -599,7 +649,45 @@ jobs:
             assert.equal(summaryAfter.status,200);assert.equal((await summaryAfter.json()).currentVersionReviewed,true);
             assert.equal((await post(admin,payload)).status,409,'Duplicate version review must be rejected');
             assert.equal((await req(b,chartUrl)).status,403,'Other patient must not access clinician history');
-            console.log('Real local patient submission and immutable receipt, 21-section BPS API mapping, clinician HTTP save and independent history readback passed; not browser page completion or hosted acceptance.');
+            console.log('Real local patient submission and immutable receipt, 21-section BPS API mapping, clinician HTTP save and independent history readback passed.');
+            // Reload rather than relying on the previous in-memory React state.
+            await page.reload();
+            await page.getByText('Sections audited: 21/21',{exact:false}).waitFor();
+            await page.locator('summary').filter({hasText:'Previously saved immutable clinician reviews (1)'}).click();
+            await page.getByText(notes.presenting,{exact:true}).waitFor();
+            assert.equal(await prepare.count(),0,'Previously saved source cannot be reviewed again');
+            for(const value of hiddenValues)assert.ok(!(await page.locator('body').textContent()).includes(value),'Protected source leaked into rendered BPS');
+            // Visit the exact original forms using the patient-scoped links.
+            // This proves browser render/navigation, not persistence of each form.
+            const forms=[
+              ['symptoms','biopsychosocial_symptoms'],
+              ['treatment_history','biopsychosocial_treatment_history'],
+              ['medications','biopsychosocial_medication'],
+              ['family_origin','biopsychosocial_family_origin'],
+              ['medical_substance','biopsychosocial_medical_substance'],
+              ['developmental_personal','biopsychosocial_developmental_personal'],
+              ['trauma_history','biopsychosocial_trauma_history']
+            ];
+            for(const [subpage,action] of forms){
+              await page.goto(reviewUrl);
+              const matching=sourceNav.locator('a[href*="bps_page='+subpage+'"]');
+              assert.equal(await matching.count(),1,'One original form link per subpage');
+              await matching.click();
+              await page.locator('form[data-action="'+action+'"]').waitFor({state:'visible'});
+              const current=new URL(page.url());
+              assert.equal(current.searchParams.get('patient'),chart.id);
+              assert.equal(current.searchParams.get('bps_page'),subpage);
+              await page.locator('[data-bps-page="'+subpage+'"][aria-current="page"]').waitFor();
+            }
+            const otherContext=await browserContext(b);
+            const otherPage=await otherContext.newPage();
+            await otherPage.goto(reviewUrl);
+            assert.equal(await otherPage.locator('article[aria-label="Intake biopsychosocial reconciliation"]').count(),0);
+            assert.ok(!(await otherPage.locator('body').textContent()).includes(notes.presenting),'Patient browser saw clinician history');
+            assert.equal((await otherPage.request.get(chartUrl)).status(),403);
+            await otherContext.close();
+            await clinicianContext.close();
+            console.log('Chromium local acceptance: clinician save/reload, seven original forms rendered for the same chart, protected source boundaries and patient denial passed. Patient intake page-by-page, original-form persistence, hosted browser and interactive MFA remain unverified.');
 
-          }finally{app.kill('SIGTERM');}
+          }finally{try{if(browser)await browser.close();}finally{app.kill('SIGTERM');}}
           JS

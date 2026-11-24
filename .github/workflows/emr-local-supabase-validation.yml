@@ -258,3 +258,108 @@ jobs:
           ROLLBACK;
           SQL
           echo 'Real local BPS RPC and RLS checks passed; source fixtures and claims simulated, not full patient submission or browser acceptance.'
+
+      - name: Exercise connected assessment assignment and response on actual migrated PostgreSQL
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PGPASSWORD=postgres
+          psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 54322 -U postgres -d postgres <<'SQL'
+          BEGIN;
+          -- No outbound email, hosted credentials or production records. A synthetic
+          -- provider receipt exercises the DB state transition, not email delivery.
+          SET LOCAL session_replication_role = replica;
+          INSERT INTO auth.users(id,email,email_confirmed_at,raw_app_meta_data,raw_user_meta_data)
+          VALUES
+            ('00000000-0000-4000-8000-000000000401','assessment-admin@example.invalid',now(),'{}','{}'),
+            ('00000000-0000-4000-8000-000000000402','assessment-other-admin@example.invalid',now(),'{}','{}'),
+            ('00000000-0000-4000-8000-000000000403','assessment-patient@example.invalid',now(),'{}','{}'),
+            ('00000000-0000-4000-8000-000000000404','assessment-stranger@example.invalid',now(),'{}','{}');
+          SET LOCAL session_replication_role = origin;
+          INSERT INTO public.profiles(id,full_name,account_type) VALUES
+            ('00000000-0000-4000-8000-000000000401','Fictional Assessment Administrator','admin'),
+            ('00000000-0000-4000-8000-000000000402','Fictional Other Administrator','admin'),
+            ('00000000-0000-4000-8000-000000000403','Fictional Assessment Patient','patient'),
+            ('00000000-0000-4000-8000-000000000404','Fictional Assessment Stranger','patient');
+          SET LOCAL ROLE authenticated;
+          SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000401","role":"authenticated","aal":"aal2","email":"assessment-admin@example.invalid"}',true);
+          INSERT INTO public.psych_test_assignments
+            (id,recipient_first_name,recipient_last_name,recipient_email,test_key,patient_id,connected_source,connected_source_hash)
+          SELECT '00000000-0000-4000-8000-000000000405','Fictional','Assessment Patient',
+            'assessment-patient@example.invalid','cseq',c.id,
+            '{"format":"icps-connected/1","testKey":"cseq","pageSize":7,"items":[{"id":"fixture-q1","options":[{"value":0},{"value":1}]},{"id":"fixture-q2","options":[{"value":"A"},{"value":"B"}]}]}'::jsonb,
+            repeat('a',64)
+          FROM public.clinical_patients c WHERE c.account_id='00000000-0000-4000-8000-000000000403';
+          DO $$ BEGIN
+            IF (SELECT count(*) FROM public.psych_test_assignments WHERE id='00000000-0000-4000-8000-000000000405' AND status='draft')<>1
+              THEN RAISE EXCEPTION 'Fictional chart-bound assignment not created'; END IF;
+          END $$;
+          SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000403","role":"authenticated","aal":"aal2","email":"assessment-patient@example.invalid"}',true);
+          DO $$ BEGIN
+            IF EXISTS(SELECT 1 FROM public.psych_test_assignments WHERE id='00000000-0000-4000-8000-000000000405')
+              THEN RAISE EXCEPTION 'Draft assignment visible before provider acceptance'; END IF;
+          END $$;
+          SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000401","role":"authenticated","aal":"aal2","email":"assessment-admin@example.invalid"}',true);
+          UPDATE public.psych_test_assignments SET status='sent',sent_at=now(),email_provider_id='local-fictional-provider-receipt'
+            WHERE id='00000000-0000-4000-8000-000000000405';
+          DO $$ BEGIN
+            IF NOT EXISTS(SELECT 1 FROM public.psych_test_assignments WHERE id='00000000-0000-4000-8000-000000000405' AND status='sent' AND expires_at-sent_at=interval '14 days')
+              THEN RAISE EXCEPTION 'Provider receipt and expiry transition failed'; END IF;
+          END $$;
+          SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000404","role":"authenticated","aal":"aal2","email":"assessment-patient@example.invalid"}',true);
+          DO $$ BEGIN
+            BEGIN
+              PERFORM public.save_connected_assignment('00000000-0000-4000-8000-000000000405',0,'{"fixture-q1":1}',0,false,true);
+              RAISE EXCEPTION 'Wrong account with spoofed email saved response';
+            EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+          END $$;
+          SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000403","role":"authenticated","aal":"aal1","email":"assessment-patient@example.invalid"}',true);
+          DO $$ BEGIN
+            BEGIN
+              PERFORM public.save_connected_assignment('00000000-0000-4000-8000-000000000405',0,'{"fixture-q1":1}',0,false,true);
+              RAISE EXCEPTION 'AAL1 recipient saved protected response';
+            EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+          END $$;
+          SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000403","role":"authenticated","aal":"aal2","email":"assessment-patient@example.invalid"}',true);
+          DO $$
+          DECLARE a constant uuid := '00000000-0000-4000-8000-000000000405'; rev integer;
+          BEGIN
+            SELECT public.save_connected_assignment(a,0,'{"fixture-q1":1}',0,false,true) INTO rev;
+            IF rev<>1 THEN RAISE EXCEPTION 'Draft revision mismatch'; END IF;
+            BEGIN
+              PERFORM public.save_connected_assignment(a,0,'{"fixture-q1":0}',0,false,true);
+              RAISE EXCEPTION 'Stale revision accepted';
+            EXCEPTION WHEN serialization_failure THEN NULL; END;
+            BEGIN
+              PERFORM public.save_connected_assignment(a,1,'{"fixture-q1":1}',0,true,true);
+              RAISE EXCEPTION 'Incomplete submission accepted';
+            EXCEPTION WHEN raise_exception THEN
+              IF SQLERRM NOT LIKE '%Answer every question%' THEN RAISE; END IF;
+            END;
+            SELECT public.save_connected_assignment(a,1,'{"fixture-q1":1,"fixture-q2":"B"}',0,true,true) INTO rev;
+            IF rev<>2 OR NOT EXISTS(SELECT 1 FROM public.connected_assignment_responses
+              WHERE assignment_id=a AND status='submitted' AND revision=2 AND answered_count=2
+              AND submitted_at IS NOT NULL AND answers='{"fixture-q1":1,"fixture-q2":"B"}'::jsonb)
+              THEN RAISE EXCEPTION 'Submitted response or immutable receipt missing'; END IF;
+            BEGIN
+              PERFORM public.save_connected_assignment(a,2,'{"fixture-q1":0,"fixture-q2":"A"}',0,true,true);
+              RAISE EXCEPTION 'Submitted response changed';
+            EXCEPTION WHEN raise_exception THEN
+              IF SQLERRM NOT LIKE '%cannot be changed%' THEN RAISE; END IF;
+            END;
+          END $$;
+          SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000402","role":"authenticated","aal":"aal2","email":"assessment-other-admin@example.invalid"}',true);
+          DO $$ BEGIN
+            IF EXISTS(SELECT 1 FROM public.connected_assignment_responses WHERE assignment_id='00000000-0000-4000-8000-000000000405')
+              OR EXISTS(SELECT 1 FROM public.connected_assignment_response_versions WHERE assignment_id='00000000-0000-4000-8000-000000000405')
+              THEN RAISE EXCEPTION 'Unassigned administrator read response/history'; END IF;
+          END $$;
+          SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000401","role":"authenticated","aal":"aal2","email":"assessment-admin@example.invalid"}',true);
+          DO $$ BEGIN
+            IF NOT EXISTS(SELECT 1 FROM public.connected_assignment_responses WHERE assignment_id='00000000-0000-4000-8000-000000000405' AND status='submitted' AND revision=2)
+              OR (SELECT count(*) FROM public.connected_assignment_response_versions WHERE assignment_id='00000000-0000-4000-8000-000000000405')<>2
+              THEN RAISE EXCEPTION 'Assigning clinician cannot retrieve submitted response/history'; END IF;
+          END $$;
+          ROLLBACK;
+          SQL
+          echo 'Real local connected assessment response/RLS checks passed; fictional items, synthetic provider receipt and simulated claims, not actual email, sign-in or scored clinical report.'

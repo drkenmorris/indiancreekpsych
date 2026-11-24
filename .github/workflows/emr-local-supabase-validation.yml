@@ -403,7 +403,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          unset SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD DATABASE_URL OMNICORE_SITE_ID OMNICORE_INGEST_KEY
+          unset SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD DATABASE_URL OMNICORE_SITE_ID OMNICORE_INGEST_KEY VERCEL_ENV VERCEL_URL
           test -n "$EMR_LOCAL_SANDBOX"
           cd "$EMR_LOCAL_SANDBOX"
           # Start real Auth and REST on the same disposable local schema.
@@ -506,11 +506,30 @@ jobs:
           // browser-facing hostname for the URL and Origin, without weakening
           // the application's exact same-origin authorization check.
           const port=39116, origin='http://localhost:'+port;
+          // Next dev does not serve Vercel's Python function. The production
+          // workflow adapter already targets port 3000 in local mode. Serve the
+          // real handler there, using only the disposable local Supabase.
+          assert.equal(process.env.NEXT_PUBLIC_SUPABASE_URL,url);
+          assert.equal(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,key);
+          assert.ok(!process.env.VERCEL_ENV&&!process.env.VERCEL_URL);
+          const engine=spawn('python3',['-u','-c',[
+            'from http.server import ThreadingHTTPServer',
+            'from api.emr_engine import handler',
+            'server=ThreadingHTTPServer(("127.0.0.1",3000),handler)',
+            'print("LOCAL_ENGINE_READY",flush=True)',
+            'server.serve_forever()'
+          ].join('\n')],{stdio:['ignore','pipe','inherit'],env:process.env});
+          const engineReady=new Promise(resolve=>{
+            engine.stdout.on('data',chunk=>{if(chunk.toString().includes('LOCAL_ENGINE_READY'))resolve(true);});
+            engine.once('error',()=>resolve(false));
+            engine.once('exit',()=>resolve(false));
+          });
           const app=spawn('npm',['run','dev','--','--hostname','127.0.0.1','--port',String(port)],{stdio:'ignore',env:{...process.env,NEXT_TELEMETRY_DISABLED:'1'}});
           const route=origin+'/api/emr/bps-intake';
           const req=(s,path=route)=>fetch(path,{headers:s?{cookie:s.cookie()}:{}});
           let browser;
           try{
+            assert.ok(await Promise.race([engineReady,new Promise(resolve=>{const timer=setTimeout(()=>resolve(false),15000);timer.unref();})]),'Real local Python workflow engine did not bind port 3000');
             let ready=false;
             for(let i=0;i<90;i++){
               try{const response=await fetch(route,{signal:AbortSignal.timeout(5000)});if(response.status===403){ready=true;break;}}catch{}
@@ -527,6 +546,16 @@ jobs:
             assert.equal(checked(await admin.client.from('patient_intakes').select('patient_id').eq('patient_id',a.id),'AAL2 intake authorization').length,1);
             assert.equal((await req(admin)).status,400,'Verified AAL2 administrator must reach protected route validation');
             const chart=checked(await admin.client.from('clinical_patients').select('id,account_id').eq('account_id',a.id).is('directory_deleted_at',null).single(),'explicit local chart link');
+            // Exercise the actual Next -> Python -> local Supabase path before
+            // opening the original browser forms. No fake bootstrap or route mocks.
+            const workflowUrl=origin+'/api/emr/workflow';
+            const bootstrap=await fetch(workflowUrl,{method:'POST',headers:{cookie:admin.cookie(),Origin:origin,'Content-Type':'application/json'},body:JSON.stringify({path:'/api/bootstrap',method:'GET',body:null,patientId:chart.id,expectedRevision:0})});
+            assert.equal(bootstrap.status,200,'Real authenticated Python workflow bootstrap');
+            const boot=await bootstrap.json();
+            assert.equal(boot.value.patients.length,1);
+            assert.equal(boot.value.patients[0].id,chart.id);
+            assert.ok(Array.isArray(boot.value.biopsychosocial_symptoms.symptoms));
+            console.log('Actual Next workflow proxy and Python engine bootstrap verified on isolated local Supabase.');
             const response=await req(admin,route+'?patient='+chart.id);
             assert.equal(response.status,200,'Actual BPS source HTTP readback');
             const body=await response.json();
@@ -674,7 +703,10 @@ jobs:
               const matching=sourceNav.locator('a[href*="bps_page='+subpage+'"]');
               assert.equal(await matching.count(),1,'One original form link per subpage');
               await matching.click();
+              // Wait for the real form and report its page key only; never dump
+              // the chart, token, or patient data into CI logs.
               await page.locator('form[data-action="'+action+'"]').waitFor({state:'visible'});
+              console.log('Original BPS form rendered: '+subpage);
               const current=new URL(page.url());
               assert.equal(current.searchParams.get('patient'),chart.id);
               assert.equal(current.searchParams.get('bps_page'),subpage);
@@ -690,5 +722,5 @@ jobs:
             await clinicianContext.close();
             console.log('Chromium local acceptance: clinician save/reload, seven original forms rendered for the same chart, protected source boundaries and patient denial passed. Patient intake page-by-page, original-form persistence, hosted browser and interactive MFA remain unverified.');
 
-          }finally{try{if(browser)await browser.close();}finally{app.kill('SIGTERM');}}
+          }finally{try{if(browser)await browser.close();}finally{app.kill('SIGTERM');engine.kill('SIGTERM');}}
           JS

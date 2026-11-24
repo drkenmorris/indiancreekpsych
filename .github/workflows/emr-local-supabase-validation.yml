@@ -816,7 +816,10 @@ jobs:
             assert.equal(await readPatient(),null,'Second fictional patient has no pre-seeded intake');
             assert.ok(await savePage.isDisabled(),'Empty demographics cannot be saved');
             const fill=async(label,value)=>patientForm.getByLabel(label,{exact:true}).fill(value);
-            const select=async(label,value)=>patientForm.getByLabel(label,{exact:true}).selectOption(value);
+            // Native select options are descendants of the wrapping label. Match the
+            // label's question text, then the single actual select (strict locator).
+            const selectField=label=>patientForm.locator('fieldset.intakeSectionCard label').filter({hasText:label}).locator('select');
+            const select=async(label,value)=>selectField(label).selectOption(value);
             const tab=number=>tabs.getByRole('tab',{name:String(number),exact:true});
             const pickRemaining=async()=>{
               for(const field of await patientForm.locator('fieldset.intakeSectionCard select').all()){
@@ -872,7 +875,7 @@ jobs:
             await select('How will you pay for care? *','self-pay');
             await fill('Other insurance, coordination-of-benefits, or billing information','FICTIONAL-BROWSER-INSURANCE');
             await saveAndReopen(3,{insurance_coverage:'self-pay',insurance_notes:'FICTIONAL-BROWSER-INSURANCE'});
-            assert.equal(await patientForm.getByLabel('How will you pay for care? *',{exact:true}).inputValue(),'self-pay');
+            assert.equal(await selectField('How will you pay for care? *').inputValue(),'self-pay');
             await tab(4).click();
             await fill('What brings you to counseling now? *','Fictional browser concern');
             await fill('What would you like to achieve through counseling? *','Fictional browser goal');

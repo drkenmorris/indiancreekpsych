@@ -490,7 +490,10 @@ jobs:
             "BEGIN; SET LOCAL session_replication_role=replica; UPDATE public.profiles SET account_type='admin' WHERE id='"+admin.id+"'; COMMIT;"],{env:{...process.env,PGPASSWORD:'postgres'},stdio:'ignore'});
           assert.equal(checked(await admin.client.from('profiles').select('account_type').eq('id',admin.id).single(),'admin fixture role').account_type,'admin');
           assert.equal(checked(await admin.client.from('patient_intakes').select('patient_id').eq('patient_id',a.id),'AAL1 admin isolation').length,0);
-          const port=39116, origin='http://127.0.0.1:'+port;
+          // NextRequest canonicalizes loopback IPs to localhost. Use the same
+          // browser-facing hostname for the URL and Origin, without weakening
+          // the application's exact same-origin authorization check.
+          const port=39116, origin='http://localhost:'+port;
           const app=spawn('npm',['run','dev','--','--hostname','127.0.0.1','--port',String(port)],{stdio:'ignore',env:{...process.env,NEXT_TELEMETRY_DISABLED:'1'}});
           const route=origin+'/api/emr/bps-intake';
           const req=(s,path=route)=>fetch(path,{headers:s?{cookie:s.cookie()}:{}});
@@ -570,7 +573,8 @@ jobs:
             assert.equal(summaryBefore.status,200);assert.equal((await summaryBefore.json()).currentVersionReviewed,false);
             const notes={presenting:'Fictional independent observation for local acceptance only',treatment:'',medical:'',safety:'',family:'',goals:'',limitations:''};
             const payload={patientId:chart.id,sourceAccountId:a.id,sourceVersion:opened.source.version,sourceStatus:opened.source.status,sourceUpdatedAt:opened.source.updatedAt,sourceSubmittedAt:opened.source.submittedAt,sourceAnswerFingerprint:opened.source.answerFingerprint,reviewed:true,notes};
-            const post=(actor,data)=>fetch(route,{method:'POST',headers:{cookie:actor.cookie(),origin,'content-type':'application/json'},body:JSON.stringify(data)});
+            const post=(actor,data,requestOrigin=origin)=>fetch(route,{method:'POST',headers:{cookie:actor.cookie(),origin:requestOrigin,'content-type':'application/json'},body:JSON.stringify(data)});
+            assert.equal((await post(admin,payload,'http://untrusted.example.com')).status,403,'AAL2 administrator cross-origin POST must be denied');
             assert.equal((await post(a,payload)).status,403,'Patient cannot attest clinician review');
             assert.equal((await post(admin,{...payload,sourceVersion:filled.version})).status,409,'Stale source cannot be reviewed');
             assert.equal((await post(admin,{...payload,sourceAccountId:b.id})).status,409,'Wrong patient source cannot be reviewed');

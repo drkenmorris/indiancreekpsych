@@ -802,7 +802,7 @@ jobs:
             assert.ok(!(await otherPage.locator('body').textContent()).includes(notes.presenting),'Patient browser saw clinician history');
             assert.equal((await otherPage.request.get(chartUrl)).status(),403);
             // A second, initially empty fictional patient completes the first
-            // four actual website pages. No database answer or completed_pages
+            // six actual website pages. No database answer or completed_pages
             // fixture writes for this patient. The remainder is a separate gate.
             const patientPage=otherPage;
             const intakeUrl=origin+'/patient/intake';
@@ -882,14 +882,32 @@ jobs:
             await select('Overall, how much do these concerns interfere with daily life? *','Moderately');
             await pickRemaining();
             await saveAndReopen(4,{counseling_reason:'Fictional browser concern',counseling_goals:'Fictional browser goal',functional_impact:'Moderately'});
-            assert.equal(await patientForm.getByLabel('What brings you to counseling now? *',{exact:true}).inputValue(),'Fictional browser concern');
+            const reopenedNarrative=label=>patientForm.locator('.intakeNarrative label').filter({hasText:label}).locator('textarea');
+            assert.equal(await tab(4).getAttribute('aria-selected'),'true');
+            assert.equal(await reopenedNarrative('What brings you to counseling now? *').inputValue(),'Fictional browser concern');
+            assert.equal(await reopenedNarrative('What would you like to achieve through counseling? *').inputValue(),'Fictional browser goal');
+            console.log('Patient browser page 4 narrative values reopened.');
+            await tab(5).click();
+            await patientForm.getByRole('checkbox',{name:'I have no treatment entries to report',exact:true}).check();
+            await select('Have you received counseling, psychotherapy, psychiatric care, or psychological services before? *','No');
+            for(const checkbox of await patientForm.getByRole('checkbox',{name:/^Not applicable —/}).all())await checkbox.check();
+            await saveAndReopen(5,{treatment_history_entries:'[]',prior_mental_health_treatment:'No',prior_therapists:'Not applicable'});
+            assert.ok(await patientForm.getByRole('checkbox',{name:'I have no treatment entries to report',exact:true}).isChecked());
+            await tab(6).click();
+            await patientForm.getByRole('checkbox',{name:'I do not currently take any medications',exact:true}).check();
+            await select('Medication Allergy Status','Medication allergies reported');
+            for(const checkbox of await patientForm.getByRole('checkbox',{name:/^Not applicable —/}).all())await checkbox.check();
+            await reopenedNarrative('Medication Allergies / Reactions').fill('Fictional medication allergy boundary');
+            await saveAndReopen(6,{medication_entries:'[]',medication_allergy_status:'Medication allergies reported',medication_allergy_notes:'Fictional medication allergy boundary'});
+            assert.equal(await reopenedNarrative('Medication Allergies / Reactions').inputValue(),'Fictional medication allergy boundary');
+            assert.ok(await patientForm.getByRole('checkbox',{name:'I do not currently take any medications',exact:true}).isChecked());
             await tab(14).click();
             await patientPage.getByRole('button',{name:'Review and submit'}).click();
-            await patientPage.getByRole('alert').filter({hasText:'Complete and save page 5 before submitting.'}).waitFor();
-            assert.equal(await tab(5).getAttribute('aria-selected'),'true');
+            await patientPage.getByRole('alert').filter({hasText:'Complete and save page 7 before submitting.'}).waitFor();
+            assert.equal(await tab(7).getAttribute('aria-selected'),'true');
             assert.equal((await readPatient()).status,'draft');
             assert.equal(checked(await a.client.from('patient_intakes').select('patient_id').eq('patient_id',b.id),'browser draft isolation').length,0);
-            console.log('Patient browser pages 1–4 and incomplete-submission guard passed; pages 5–21 and final browser submission remain unverified.');
+            console.log('Patient browser pages 1–6 and incomplete-submission guard passed; pages 7–21 and final browser submission remain unverified.');
             await otherContext.close();
             await clinicianContext.close();
             console.log('Chromium local acceptance: clinician save/reload, seven original forms saved and reopened for the same chart, protected source boundaries and patient denial passed. Patient intake page-by-page, hosted browser and interactive MFA remain unverified.');

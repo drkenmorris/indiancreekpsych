@@ -149,3 +149,112 @@ jobs:
           ROLLBACK;
           SQL
           echo 'Actual migrated scheduler RLS and booking/cancellation checks passed on local PostgreSQL; JWT claims simulated, not browser MFA.'
+      - name: Exercise real BPS review RPC, provenance and chart isolation
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PGPASSWORD=postgres
+          psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 54322 -U postgres -d postgres <<'SQL'
+          BEGIN;
+          -- Only disposable fixture bootstrap bypasses triggers. Submitted source
+          -- fixtures do not demonstrate completion of the 21-page patient intake.
+          SET LOCAL session_replication_role = replica;
+          INSERT INTO auth.users(id,email,email_confirmed_at,raw_app_meta_data,raw_user_meta_data)
+          VALUES
+            ('00000000-0000-4000-8000-000000000301','bps-admin@example.invalid',now(),'{}','{}'),
+            ('00000000-0000-4000-8000-000000000302','bps-other-admin@example.invalid',now(),'{}','{}'),
+            ('00000000-0000-4000-8000-000000000303','bps-patient-a@example.invalid',now(),'{}','{}'),
+            ('00000000-0000-4000-8000-000000000304','bps-patient-b@example.invalid',now(),'{}','{}');
+          SET LOCAL session_replication_role = origin;
+          INSERT INTO public.profiles(id,full_name,account_type) VALUES
+            ('00000000-0000-4000-8000-000000000301','Fictional BPS Administrator','admin'),
+            ('00000000-0000-4000-8000-000000000302','Fictional Other Administrator','admin'),
+            ('00000000-0000-4000-8000-000000000303','Fictional BPS Patient A','patient'),
+            ('00000000-0000-4000-8000-000000000304','Fictional BPS Patient B','patient');
+          SET LOCAL session_replication_role = replica;
+          INSERT INTO public.patient_intakes(patient_id,answers,status,version,updated_at,submitted_at)
+          VALUES
+            ('00000000-0000-4000-8000-000000000303',
+             '{"counseling_reason":"Fictional concern A","medication_entries":"fictional restricted medication","medication_allergy_notes":"fictional restricted allergy","trauma_history":"fictional restricted trauma","roi_authorize":"fictional restricted legal","insurance_member":"fictional restricted insurance"}',
+             'submitted',3,now()-interval '1 hour',now()-interval '1 hour'),
+            ('00000000-0000-4000-8000-000000000304',
+             '{"counseling_reason":"Fictional concern B"}',
+             'submitted',2,now()-interval '1 hour',now()-interval '1 hour');
+          SET LOCAL session_replication_role = origin;
+          SET LOCAL ROLE authenticated;
+          SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000301","role":"authenticated","aal":"aal2"}',true);
+          DO $$
+          DECLARE payload jsonb; saved uuid; other_chart uuid; actual public.emr_bps_intake_reviews%rowtype;
+          BEGIN
+            SELECT jsonb_build_object('patient_id',c.id,'source_account_id',i.patient_id,
+              'source_version',i.version,'source_status',i.status,'source_updated_at',i.updated_at,
+              'source_submitted_at',i.submitted_at,'source_answers',i.answers,'reviewed',true,
+              'clinician_notes',jsonb_build_object('presenting','Fictional independent observation',
+                'treatment','','medical','','safety','','family','','goals','','limitations',''))
+            INTO STRICT payload FROM public.patient_intakes i
+            JOIN public.clinical_patients c ON c.account_id=i.patient_id
+            WHERE i.patient_id='00000000-0000-4000-8000-000000000303';
+            SELECT id INTO STRICT other_chart FROM public.clinical_patients
+              WHERE account_id='00000000-0000-4000-8000-000000000304';
+            BEGIN
+              PERFORM public.save_emr_bps_intake_review(payload || jsonb_build_object('patient_id',other_chart));
+              RAISE EXCEPTION 'Cross-chart source was accepted';
+            EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+            BEGIN
+              PERFORM public.save_emr_bps_intake_review(payload || '{"source_version":99}');
+              RAISE EXCEPTION 'Stale source version was accepted';
+            EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+            BEGIN
+              PERFORM public.save_emr_bps_intake_review(payload || '{"source_submitted_at":null}');
+              RAISE EXCEPTION 'Missing source receipt was accepted';
+            EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+            BEGIN
+              PERFORM public.save_emr_bps_intake_review(payload || '{"source_answers":{}}');
+              RAISE EXCEPTION 'Changed patient answers were accepted';
+            EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+            BEGIN
+              PERFORM public.save_emr_bps_intake_review(payload || '{"clinician_notes":{"presenting":"Incomplete review"}}');
+              RAISE EXCEPTION 'Incomplete seven-domain review was accepted';
+            EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+            saved:=public.save_emr_bps_intake_review(payload);
+            SELECT * INTO STRICT actual FROM public.emr_bps_intake_reviews WHERE id=saved;
+            IF actual.source_account_id::text <> payload->>'source_account_id'
+              OR actual.source_version <> 3 OR actual.source_status <> 'submitted'
+              OR actual.source_submitted_at IS DISTINCT FROM (payload->>'source_submitted_at')::timestamptz
+              OR actual.clinical_answers IS DISTINCT FROM '{"counseling_reason":"Fictional concern A"}'::jsonb
+              OR actual.clinician_notes IS DISTINCT FROM payload->'clinician_notes'
+              OR EXISTS(SELECT 1 FROM public.emr_bps_intake_reviews WHERE patient_id=other_chart)
+            THEN RAISE EXCEPTION 'Stored BPS source, field boundaries or chart isolation failed'; END IF;
+            BEGIN
+              PERFORM public.save_emr_bps_intake_review(payload);
+              RAISE EXCEPTION 'Duplicate BPS review was accepted';
+            EXCEPTION WHEN unique_violation THEN NULL; END;
+          END $$;
+          SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000301","role":"authenticated","aal":"aal1"}',true);
+          DO $$ BEGIN
+            IF EXISTS(SELECT 1 FROM public.emr_bps_intake_reviews) THEN
+              RAISE EXCEPTION 'AAL1 administrator read reviewed BPS history'; END IF;
+            BEGIN
+              PERFORM public.save_emr_bps_intake_review('{}');
+              RAISE EXCEPTION 'AAL1 administrator invoked review';
+            EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+          END $$;
+          SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000302","role":"authenticated","aal":"aal2"}',true);
+          DO $$ BEGIN
+            IF EXISTS(SELECT 1 FROM public.emr_bps_intake_reviews) THEN
+              RAISE EXCEPTION 'Other administrator read owner-specific review'; END IF;
+          END $$;
+          SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000304","role":"authenticated","aal":"aal1"}',true);
+          DO $$ BEGIN
+            IF EXISTS(SELECT 1 FROM public.emr_bps_intake_reviews)
+              OR EXISTS(SELECT 1 FROM public.patient_intakes WHERE patient_id='00000000-0000-4000-8000-000000000303')
+              OR NOT EXISTS(SELECT 1 FROM public.patient_intakes WHERE patient_id='00000000-0000-4000-8000-000000000304')
+            THEN RAISE EXCEPTION 'Patient B clinical or intake isolation failed'; END IF;
+            BEGIN
+              PERFORM public.save_emr_bps_intake_review('{}');
+              RAISE EXCEPTION 'Patient invoked clinician review';
+            EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+          END $$;
+          ROLLBACK;
+          SQL
+          echo 'Real local BPS RPC and RLS checks passed; source fixtures and claims simulated, not full patient submission or browser acceptance.'

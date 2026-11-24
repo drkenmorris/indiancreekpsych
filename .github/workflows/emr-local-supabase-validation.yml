@@ -736,12 +736,23 @@ jobs:
                 await form.locator('select[name="setting"]').selectOption('Outpatient');
                 await form.locator('textarea[name="reason"]').fill(marker);
                 verifyRecord=record=>{assert.equal(record.setting,'Outpatient');assert.equal(record.reason,marker);};
-                verifyReopened=async()=>{await page.getByText(marker,{exact:true}).waitFor();};
+                verifyReopened=async()=>{
+                  const entry=page.locator('article.record').filter({hasText:marker}).filter({has:page.locator('[data-edit-treatment-history]')});
+                  await entry.waitFor({state:'visible'});
+                  await entry.locator('[data-edit-treatment-history]').click();
+                  assert.equal(await page.locator('form[data-action="'+action+'"] textarea[name="reason"]').inputValue(),marker);
+                };
               }else if(subpage==='medications'){
                 await form.locator('input[name="medication"]').fill(marker);
                 await form.locator('input[name="dosage"]').fill('Fictional amount');
                 verifyRecord=record=>{assert.equal(record.medication,marker);assert.equal(record.dosage,'Fictional amount');};
-                verifyReopened=async()=>{await page.getByText(marker,{exact:false}).first().waitFor();};
+                verifyReopened=async()=>{
+                  const entry=page.locator('article.record').filter({hasText:marker}).filter({has:page.locator('[data-edit-medication]')});
+                  await entry.waitFor({state:'visible'});
+                  await entry.locator('[data-edit-medication]').click();
+                  assert.equal(await page.locator('form[data-action="'+action+'"] input[name="medication"]').inputValue(),marker);
+                  assert.equal(await page.locator('form[data-action="'+action+'"] input[name="dosage"]').inputValue(),'Fictional amount');
+                };
               }else{
                 const details=form.locator('details').filter({has:page.locator('textarea')}).first();
                 if(!(await details.getAttribute('open')!==null))await details.locator('summary').click();
@@ -768,7 +779,8 @@ jobs:
               const receipt=await formSave.json();
               assert.equal(receipt.revision,before.revision+1,'Exactly one original-form revision advanced');
               // Wait for the actual save handler to finish its chart reload.
-              await page.getByText('Saved '+action+' locally.',{exact:false}).waitFor();
+              // production.js translates the prototype's local-save text to the central-record acknowledgement.
+              await page.locator('#status').filter({hasText:'Saved '+action+' to the central patient record. The immutable snapshot is available in record history.'}).waitFor();
               const after=await readChart();
               assert.equal(after.revision,receipt.revision);
               const previousIds=new Set(before.value.records.map(r=>r.id));

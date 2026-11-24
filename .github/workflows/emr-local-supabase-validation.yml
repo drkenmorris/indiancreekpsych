@@ -314,18 +314,38 @@ jobs:
             EXCEPTION WHEN insufficient_privilege THEN NULL; END;
           END $$;
           SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000403","role":"authenticated","aal":"aal1","email":"assessment-patient@example.invalid"}',true);
-          DO $$ BEGIN
-            BEGIN
-              PERFORM public.save_connected_assignment('00000000-0000-4000-8000-000000000405',0,'{"fixture-q1":1}',0,false,true);
-              RAISE EXCEPTION 'AAL1 recipient saved protected response';
-            EXCEPTION WHEN insufficient_privilege THEN NULL; END;
-          END $$;
-          SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000403","role":"authenticated","aal":"aal2","email":"assessment-patient@example.invalid"}',true);
-          DO $$
+          -- Owner-approved optional patient MFA: a verified patient with no
+          -- enrolled verified factor may save at AAL1; administrators still require AAL2.
+          DO $
           DECLARE a constant uuid := '00000000-0000-4000-8000-000000000405'; rev integer;
           BEGIN
             SELECT public.save_connected_assignment(a,0,'{"fixture-q1":1}',0,false,true) INTO rev;
-            IF rev<>1 THEN RAISE EXCEPTION 'Draft revision mismatch'; END IF;
+            IF rev<>1 OR NOT EXISTS(SELECT 1 FROM public.connected_assignment_responses
+              WHERE assignment_id=a AND status='draft' AND revision=1 AND answered_count=1)
+              THEN RAISE EXCEPTION 'Optional patient MFA draft save failed'; END IF;
+          END $;
+          -- Add a fictional verified factor only in this rollback transaction.
+          RESET ROLE;
+          INSERT INTO auth.mfa_factors(id,user_id,friendly_name,factor_type,status,created_at,updated_at)
+            VALUES ('00000000-0000-4000-8000-000000000406','00000000-0000-4000-8000-000000000403',
+                    'Fictional enrolled factor','totp','verified',now(),now());
+          SET LOCAL ROLE authenticated;
+          SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000403","role":"authenticated","aal":"aal1","email":"assessment-patient@example.invalid"}',true);
+          DO $ BEGIN
+            IF EXISTS(SELECT 1 FROM public.connected_assignment_responses WHERE assignment_id='00000000-0000-4000-8000-000000000405')
+              OR EXISTS(SELECT 1 FROM public.connected_assignment_response_versions WHERE assignment_id='00000000-0000-4000-8000-000000000405')
+              THEN RAISE EXCEPTION 'Enrolled patient at AAL1 read protected response/history'; END IF;
+            BEGIN
+              PERFORM public.save_connected_assignment('00000000-0000-4000-8000-000000000405',1,'{"fixture-q1":0}',0,false,true);
+              RAISE EXCEPTION 'Enrolled patient at AAL1 saved protected response';
+            EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+          END $;
+          SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000403","role":"authenticated","aal":"aal2","email":"assessment-patient@example.invalid"}',true);
+          DO $
+          DECLARE a constant uuid := '00000000-0000-4000-8000-000000000405'; rev integer;
+          BEGIN
+            IF NOT EXISTS(SELECT 1 FROM public.connected_assignment_responses WHERE assignment_id=a AND revision=1 AND answers='{"fixture-q1":1}'::jsonb)
+              THEN RAISE EXCEPTION 'MFA step-up did not recover unchanged draft'; END IF;
             BEGIN
               PERFORM public.save_connected_assignment(a,0,'{"fixture-q1":0}',0,false,true);
               RAISE EXCEPTION 'Stale revision accepted';

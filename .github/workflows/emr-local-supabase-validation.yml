@@ -72,3 +72,80 @@ jobs:
           printf 'Verified real runner-local Postgres 17 migration versions: '
           wc -l < actual-versions.txt
           echo 'This is real local schema validation, not hosted preview or authenticated browser acceptance.'
+      - name: Exercise actual migrated scheduler RLS on fictional local identities
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PGPASSWORD=postgres
+          # This stack lives only in this runner; never use a hosted URL or credential.
+          psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 54322 -U postgres -d postgres <<'SQL'
+          BEGIN;
+          -- Bootstrap only the fixture auth rows without signup side effects.
+          -- Restore normal triggers before any clinical/scheduler operation.
+          SET LOCAL session_replication_role = replica;
+          INSERT INTO auth.users (id,email,email_confirmed_at,raw_app_meta_data,raw_user_meta_data)
+          VALUES
+            ('00000000-0000-4000-8000-000000000001','emr-admin@example.invalid',now(),'{}','{}'),
+            ('00000000-0000-4000-8000-000000000002','emr-patient-a@example.invalid',now(),'{}','{}'),
+            ('00000000-0000-4000-8000-000000000003','emr-patient-b@example.invalid',now(),'{}','{}');
+          SET LOCAL session_replication_role = origin;
+          INSERT INTO public.profiles(id,full_name,account_type) VALUES
+            ('00000000-0000-4000-8000-000000000001','Fictional Administrator','admin'),
+            ('00000000-0000-4000-8000-000000000002','Fictional Patient A','patient'),
+            ('00000000-0000-4000-8000-000000000003','Fictional Patient B','patient');
+          UPDATE public.appointment_settings SET scheduling_enabled=true,timezone='UTC' WHERE id;
+          INSERT INTO public.appointment_availability_rules(weekday,start_time,end_time)
+          VALUES (extract(dow from (current_date+2))::smallint,'08:00','18:00');
+          -- Actual migrated policies and triggers, with simulated verified JWT claims.
+          SET LOCAL ROLE authenticated;
+          SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000001","role":"authenticated","aal":"aal2"}',true);
+          INSERT INTO public.appointments(id,patient_id,starts_at,ends_at)
+          VALUES
+            ('00000000-0000-4000-8000-000000000101','00000000-0000-4000-8000-000000000002',(current_date+2+time '10:00') AT TIME ZONE 'UTC',(current_date+2+time '10:50') AT TIME ZONE 'UTC'),
+            ('00000000-0000-4000-8000-000000000102','00000000-0000-4000-8000-000000000003',(current_date+2+time '12:00') AT TIME ZONE 'UTC',(current_date+2+time '12:50') AT TIME ZONE 'UTC');
+          INSERT INTO public.appointments(id,patient_name,series_id,starts_at,ends_at)
+          VALUES ('00000000-0000-4000-8000-000000000103','Fictional Unlinked Recurrence','00000000-0000-4000-8000-000000000201',(current_date+2+time '14:00') AT TIME ZONE 'UTC',(current_date+2+time '14:50') AT TIME ZONE 'UTC');
+          DO $$
+          BEGIN
+            IF (SELECT count(*) FROM public.appointments) <> 3
+               OR (SELECT count(*) FROM public.scheduling_patients()) <> 2
+               OR NOT EXISTS(SELECT 1 FROM public.appointment_settings WHERE id)
+            THEN RAISE EXCEPTION 'AAL2 administrator positive control failed'; END IF;
+          END $$;
+          SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000001","role":"authenticated","aal":"aal1"}',true);
+          DO $$
+          BEGIN
+            IF EXISTS(SELECT 1 FROM public.appointments)
+               OR EXISTS(SELECT 1 FROM public.appointment_settings)
+               OR EXISTS(SELECT 1 FROM public.appointment_availability_rules)
+            THEN RAISE EXCEPTION 'AAL1 administrator accessed protected scheduler rows'; END IF;
+            BEGIN
+              PERFORM * FROM public.scheduling_patients();
+              RAISE EXCEPTION 'AAL1 administrator accessed protected patient list';
+            EXCEPTION WHEN insufficient_privilege THEN NULL;
+            END;
+          END $$;
+          SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000002","role":"authenticated","aal":"aal1"}',true);
+          DO $$
+          DECLARE changed integer;
+          BEGIN
+            IF (SELECT count(*) FROM public.appointments) <> 1
+               OR NOT EXISTS(SELECT 1 FROM public.appointments WHERE id='00000000-0000-4000-8000-000000000101')
+            THEN RAISE EXCEPTION 'Patient A own-row or isolation control failed'; END IF;
+            UPDATE public.appointments SET status='cancelled' WHERE id IN ('00000000-0000-4000-8000-000000000102','00000000-0000-4000-8000-000000000103');
+            GET DIAGNOSTICS changed = ROW_COUNT;
+            IF changed <> 0 THEN RAISE EXCEPTION 'Patient A changed another or unlinked booking'; END IF;
+            UPDATE public.appointments SET status='cancelled' WHERE id='00000000-0000-4000-8000-000000000101';
+            GET DIAGNOSTICS changed = ROW_COUNT;
+            IF changed <> 1 THEN RAISE EXCEPTION 'Patient A own cancellation control failed'; END IF;
+          END $$;
+          SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000003","role":"authenticated","aal":"aal1"}',true);
+          DO $$
+          BEGIN
+            IF (SELECT count(*) FROM public.appointments) <> 1
+               OR NOT EXISTS(SELECT 1 FROM public.appointments WHERE id='00000000-0000-4000-8000-000000000102' AND status='booked')
+            THEN RAISE EXCEPTION 'Patient B own-row or isolation control failed'; END IF;
+          END $$;
+          ROLLBACK;
+          SQL
+          echo 'Actual migrated scheduler RLS and booking/cancellation checks passed on local PostgreSQL; JWT claims simulated, not browser MFA.'

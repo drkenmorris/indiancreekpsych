@@ -521,5 +521,81 @@ jobs:
             assert.equal(body.source.submittedAt,null);
             assert.equal(body.reviews.length,0);
             console.log('Real local password sessions, TOTP AAL2, patient draft isolation and protected BPS HTTP source readback passed. Not browser, final intake submission or hosted acceptance.');
+
+            // The following uses only the actual patient session and normal
+            // database triggers; never bootstrap a submitted source with SQL.
+            const incomplete=await a.client.from('patient_intakes').update({status:'submitted'}).eq('patient_id',a.id).eq('version',draft.version).select().single();
+            assert.ok(incomplete.error,'Incomplete draft must not become a submitted intake');
+            const today=new Date().toISOString().slice(0,10), name='Fictional Patient A';
+            const complete={
+              legal_packet_version:'2026-11-02-directory-1',
+              legal_routing_answers:JSON.stringify({version:'1.0.0',answers:{telehealth:'No',electronic:'No',minor:'No',representative:'No',release:'No',part2:'No',sud_notes:'No',psychotherapy_notes:'No'}}),
+              full_name:name,date_of_birth:'1990-01-01',address:'1 Example St',city:'Example',state:'KS',postal_code:'66000',phone:'5550100',email:'emr-local-patient-a@example.com',
+              insurance_coverage:'self-pay',insurance_notes:'LOCAL-INSURANCE-ONLY',
+              emergency_contact_name:'Fictional Contact',emergency_contact_relationship:'Friend',emergency_contact_phone:'5550101',emergency_contact_permission:'Yes',
+              counseling_reason:'Fictional local concern',functional_impact:'Moderately',counseling_goals:'Fictional local goal',
+              prior_mental_health_treatment:'No',medications_current:'LOCAL-MEDICATION-ONLY',medication_allergy_status:'Medication allergies reported',medication_allergy_notes:'LOCAL-ALLERGY-ONLY',trauma_history:'LOCAL-TRAUMA-ONLY',
+              suicidal_thoughts_current:'No',suicidal_plan_current:'No',homicidal_thoughts_current:'No',abuse_neglect_current:'No',weapons_access:'No',
+              comm_phone_calls:'No',comm_voicemail:'No',comm_text:'No',comm_email:'No',comm_portal:'Yes',comm_mail:'No',
+              treatment_consent:'Yes, I consent to outpatient counseling',treatment_signature:name,treatment_signature_date:today,
+              financial_review:'I reviewed this information',financial_signature:name,financial_signature_date:today,
+              npp_received:'Yes',npp_signature:name,npp_signature_date:today,
+              information_accuracy:'Yes',electronic_signature_consent:'Yes',patient_signature:name,patient_signature_date:today,
+              roi_authorize:'No',psych_notes_authorize:'No',part2_authorize:'No',sud_notes_authorize:'No'
+            };
+            // Direct authenticated data-layer save, not page-by-page browser
+            // completion. Do not manufacture completed_pages flags.
+            const filled=checked(await a.client.from('patient_intakes').update({answers:complete,status:'draft'}).eq('patient_id',a.id).eq('version',draft.version).select('version,status,submitted_at').single(),'actual populated intake draft save');
+            assert.equal(filled.version,draft.version+1);assert.equal(filled.status,'draft');
+            const submitted=checked(await a.client.from('patient_intakes').update({status:'submitted'}).eq('patient_id',a.id).eq('version',filled.version).select('version,status,submitted_at,updated_at').single(),'actual patient submission');
+            assert.equal(submitted.version,filled.version+1);assert.equal(submitted.status,'submitted');assert.ok(Number.isFinite(Date.parse(submitted.submitted_at)));
+            const locked=await a.client.from('patient_intakes').update({answers:{...complete,counseling_reason:'Changed after submission'}}).eq('patient_id',a.id).eq('version',submitted.version).select().single();
+            assert.ok(locked.error,'Submitted intake must remain immutable');
+            assert.equal(checked(await b.client.from('patient_intakes').select('patient_id').eq('patient_id',a.id),'submitted intake isolation').length,0);
+            const chartUrl=route+'?patient='+chart.id;
+            const openedResponse=await req(admin,chartUrl);
+            assert.equal(openedResponse.status,200,'Submitted linked BPS source');
+            const opened=await openedResponse.json();
+            assert.equal(opened.patientId,chart.id);assert.equal(opened.source.accountId,a.id);
+            assert.equal(opened.source.status,'submitted');assert.equal(opened.source.version,submitted.version);
+            assert.equal(Date.parse(opened.source.submittedAt),Date.parse(submitted.submitted_at));
+            assert.equal(Date.parse(opened.source.updatedAt),Date.parse(submitted.updated_at));
+            assert.equal(opened.source.questionnairePacketVersion,complete.legal_packet_version);
+            assert.equal(opened.sections.length,21);assert.equal(new Set(opened.sections.map(x=>x.title)).size,21);
+            assert.equal(opened.unmappedKeys.length,0);assert.equal(opened.reviews.length,0);
+            const hiddenValues=['LOCAL-INSURANCE-ONLY','LOCAL-MEDICATION-ONLY','LOCAL-ALLERGY-ONLY','LOCAL-TRAUMA-ONLY'];
+            for(const value of hiddenValues)assert.ok(!JSON.stringify(opened).includes(value),'Protected source value crossed BPS boundary');
+            const summaryUrl=chartUrl+'&summary=1';
+            const summaryBefore=await req(admin,summaryUrl);
+            assert.equal(summaryBefore.status,200);assert.equal((await summaryBefore.json()).currentVersionReviewed,false);
+            const notes={presenting:'Fictional independent observation for local acceptance only',treatment:'',medical:'',safety:'',family:'',goals:'',limitations:''};
+            const payload={patientId:chart.id,sourceAccountId:a.id,sourceVersion:opened.source.version,sourceStatus:opened.source.status,sourceUpdatedAt:opened.source.updatedAt,sourceSubmittedAt:opened.source.submittedAt,sourceAnswerFingerprint:opened.source.answerFingerprint,reviewed:true,notes};
+            const post=(actor,data)=>fetch(route,{method:'POST',headers:{cookie:actor.cookie(),origin,'content-type':'application/json'},body:JSON.stringify(data)});
+            assert.equal((await post(a,payload)).status,403,'Patient cannot attest clinician review');
+            assert.equal((await post(admin,{...payload,sourceVersion:filled.version})).status,409,'Stale source cannot be reviewed');
+            assert.equal((await post(admin,{...payload,sourceAccountId:b.id})).status,409,'Wrong patient source cannot be reviewed');
+            const savedResponse=await post(admin,payload);
+            assert.equal(savedResponse.status,201,'Actual clinician BPS HTTP save');
+            const saved=await savedResponse.json();
+            assert.equal(saved.saved,true);assert.equal(saved.unsigned,true);assert.equal(saved.diagnosisCreated,false);
+            assert.match(saved.id,/^[a-f0-9-]{36}$/);
+            // A separate protected GET must independently see the persisted
+            // unsigned review. This is HTTP readback, not browser reopen.
+            const reopenedResponse=await req(admin,chartUrl);
+            assert.equal(reopenedResponse.status,200);
+            const reopened=await reopenedResponse.json();
+            assert.equal(reopened.reviews.length,1);
+            const review=reopened.reviews[0];
+            assert.equal(review.id,saved.id);assert.equal(review.source_version,submitted.version);assert.equal(review.source_status,'submitted');
+            assert.equal(review.clinician_note_domains_complete,true);assert.equal(review.current_source_snapshot_verified,true);
+            assert.deepEqual(review.clinician_notes,notes);
+            assert.equal(review.clinical_answers.counseling_reason,complete.counseling_reason);
+            for(const value of hiddenValues)assert.ok(!JSON.stringify(reopened).includes(value),'Protected source value crossed persisted BPS boundary');
+            const summaryAfter=await req(admin,summaryUrl);
+            assert.equal(summaryAfter.status,200);assert.equal((await summaryAfter.json()).currentVersionReviewed,true);
+            assert.equal((await post(admin,payload)).status,409,'Duplicate version review must be rejected');
+            assert.equal((await req(b,chartUrl)).status,403,'Other patient must not access clinician history');
+            console.log('Real local patient submission and immutable receipt, 21-section BPS API mapping, clinician HTTP save and independent history readback passed; not browser page completion or hosted acceptance.');
+
           }finally{app.kill('SIGTERM');}
           JS

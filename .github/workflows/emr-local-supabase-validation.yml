@@ -13,7 +13,8 @@ jobs:
   local-schema:
     # Run only for the clinic's own protected EMR integration branch.
     if: github.head_ref == 'integration/emr-prototype-production-reconcile-20261109' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.number == 116 || github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/integration/emr-prototype-production-reconcile-20261109'
-    runs-on: ubuntu-latest
+    # Playwright 1.56.1 supports Ubuntu 24.04; ubuntu-latest has moved to 26.04.
+    runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4

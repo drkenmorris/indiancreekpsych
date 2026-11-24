@@ -802,8 +802,8 @@ jobs:
             assert.ok(!(await otherPage.locator('body').textContent()).includes(notes.presenting),'Patient browser saw clinician history');
             assert.equal((await otherPage.request.get(chartUrl)).status(),403);
             // A second, initially empty fictional patient completes the first
-            // six actual website pages. No database answer or completed_pages
-            // fixture writes for this patient. The remainder is a separate gate.
+            // 21 actual website pages. No database answer or completed_pages
+            // fixture writes for this patient. Hosted acceptance remains separate.
             const patientPage=otherPage;
             const intakeUrl=origin+'/patient/intake';
             assert.equal((await patientPage.goto(intakeUrl)).status(),200);
@@ -901,16 +901,135 @@ jobs:
             await saveAndReopen(6,{medication_entries:'[]',medication_allergy_status:'Medication allergies reported',medication_allergy_notes:'Fictional medication allergy boundary'});
             assert.equal(await reopenedNarrative('Medication Allergies / Reactions').inputValue(),'Fictional medication allergy boundary');
             assert.ok(await patientForm.getByRole('checkbox',{name:'I do not currently take any medications',exact:true}).isChecked());
+            // Keep the early submission guard, then continue through the actual
+            // clinical, safety, routing and legal controls. No fixture writes.
             await tab(14).click();
             await patientPage.getByRole('button',{name:'Review and submit'}).click();
             await patientPage.getByRole('alert').filter({hasText:'Complete and save page 7 before submitting.'}).waitFor();
             assert.equal(await tab(7).getAttribute('aria-selected'),'true');
             assert.equal((await readPatient()).status,'draft');
-            assert.equal(checked(await a.client.from('patient_intakes').select('patient_id').eq('patient_id',b.id),'browser draft isolation').length,0);
-            console.log('Patient browser pages 1–6 and incomplete-submission guard passed; pages 7–21 and final browser submission remain unverified.');
+            const {readFile}=await import('node:fs/promises');
+            const medicalDefinition=JSON.parse(await readFile('lib/patient/medical-substance-definition.json','utf8'));
+            const medicalExpected={definition_version:medicalDefinition.version,selections:{},notes:{}};
+            for(const group of medicalDefinition.groups){
+              const choice=group.key==='medical_conditions'?'High blood pressure':'None reported';
+              assert.ok(group.choices.includes(choice));
+              const control=patientForm.locator('input[name="medical_history_'+group.key+'"][value="'+choice+'"]');
+              await control.check();
+              medicalExpected.selections[group.key]=[choice];
+            }
+            await patientForm.getByText('Details / Dates, amounts, care contacts and other information',{exact:true}).click();
+            for(const [key,label] of Object.entries(medicalDefinition.notes)){
+              if(['primary_care_provider','pcp_phone'].includes(key)){medicalExpected.notes[key]='';continue;}
+              if(key==='other_allergies'){
+                medicalExpected.notes[key]='Fictional non-medication allergy boundary';
+                await reopenedNarrative(label).fill(medicalExpected.notes[key]);
+              }else{
+                medicalExpected.notes[key]='Not applicable';
+                await patientForm.getByRole('checkbox',{name:'Not applicable — '+label,exact:true}).check();
+              }
+            }
+            await saveAndReopen(7,{medical_substance_history:JSON.stringify(medicalExpected)});
+            assert.ok(await patientForm.locator('input[name="medical_history_medical_conditions"][value="High blood pressure"]').isChecked());
+            await patientForm.getByText('Details / Dates, amounts, care contacts and other information',{exact:true}).click();
+            assert.equal(await reopenedNarrative(medicalDefinition.notes.other_allergies).inputValue(),medicalExpected.notes.other_allergies);
+            assert.equal((await readPatient()).answers.medication_allergy_notes,'Fictional medication allergy boundary');
+            await tab(8).click();
+            const riskKeys=['suicidal_thoughts_current','suicidal_plan_current','homicidal_thoughts_current','abuse_neglect_current','weapons_access'];
+            for(const key of riskKeys)await patientForm.locator('input[name="'+key+'_no"]').check();
+            await patientForm.getByRole('checkbox',{name:/^Not applicable — If yes to any safety question/}).check();
+            await reopenedNarrative('People, responsibilities, beliefs, or supports that help keep you safe').fill('Fictional protective support');
+            await saveAndReopen(8,{...Object.fromEntries(riskKeys.map(key=>[key,'No'])),violence_risk_details:'Not applicable',protective_factors:'Fictional protective support'});
+            for(const key of riskKeys)assert.ok(await patientForm.locator('input[name="'+key+'_no"]').isChecked());
+            assert.equal(await reopenedNarrative('People, responsibilities, beliefs, or supports that help keep you safe').inputValue(),'Fictional protective support');
+            await tab(9).click();
+            await reopenedNarrative('Significant trauma, abuse, loss, violence, or other adverse experiences you want your clinician to know about').fill('Fictional dedicated trauma boundary');
+            await patientForm.getByRole('button',{name:'No checklist items to report',exact:true}).click();
+            const traumaDefinition=JSON.parse(await readFile('lib/patient/trauma-history-definition.json','utf8'));
+            const emptyTrauma={definition_version:traumaDefinition.version,selections:Object.fromEntries(traumaDefinition.groups.map(group=>[group.key,[]]))};
+            await saveAndReopen(9,{trauma_history:'Fictional dedicated trauma boundary',trauma_history_checklist:JSON.stringify(emptyTrauma)});
+            assert.equal(await reopenedNarrative('Significant trauma, abuse, loss, violence, or other adverse experiences you want your clinician to know about').inputValue(),'Fictional dedicated trauma boundary');
+            assert.equal(await patientForm.locator('input[name^="trauma-checklist-"]:checked').count(),0);
+            await tab(10).click();
+            const legalDefinition=JSON.parse(await readFile('lib/patient/legal-routing-definition.json','utf8'));
+            const routingAnswers=Object.fromEntries(legalDefinition.questions.map(q=>[q.id,'No']));
+            assert.ok(await savePage.isDisabled(),'Unanswered legal directory cannot be saved');
+            for(const key of Object.keys(routingAnswers))await patientForm.locator('input[name="routing-'+key+'"][value="No"]').check();
+            await saveAndReopen(10,{legal_routing_answers:JSON.stringify({version:legalDefinition.version,answers:routingAnswers})});
+            for(const key of Object.keys(routingAnswers))assert.ok(await patientForm.locator('input[name="routing-'+key+'"][value="No"]').isChecked());
+            for(let number=15;number<=21;number++)assert.equal(await tab(number).getAttribute('data-page-status'),'optional');
+            await tab(14).click();
+            await patientPage.getByRole('button',{name:'Review and submit'}).click();
+            await patientPage.getByRole('alert').filter({hasText:'Complete and save page 11 before submitting.'}).waitFor();
+            assert.equal(await tab(11).getAttribute('aria-selected'),'true');
+            const browserName='Fictional Browser Patient B';
+            const markNarrativesNA=async()=>{for(const box of await patientForm.getByRole('checkbox',{name:/^Not applicable —/}).all())await box.check();};
+            await select('Decision about outpatient counseling','Yes, I consent to outpatient counseling');
+            await markNarrativesNA();
+            await fill('Electronic signature for informed treatment consent (if Yes)',browserName);
+            await fill('Date signed (if Yes)',today);
+            await saveAndReopen(11,{treatment_consent:'Yes, I consent to outpatient counseling',treatment_signature:browserName,treatment_signature_date:today,treatment_questions:'Not applicable'});
+            assert.equal(await patientForm.getByLabel('Electronic signature for informed treatment consent (if Yes)',{exact:true}).inputValue(),browserName);
+            await tab(12).click();
+            await select('Financial information review','I reviewed this information');
+            await markNarrativesNA();
+            await fill('Electronic signature acknowledging financial information (if reviewed)',browserName);
+            await fill('Date signed (if reviewed)',today);
+            await saveAndReopen(12,{financial_review:'I reviewed this information',financial_signature:browserName,financial_signature_date:today,financial_questions:'Not applicable'});
+            assert.equal(await patientForm.getByLabel('Electronic signature acknowledging financial information (if reviewed)',{exact:true}).inputValue(),browserName);
+            await tab(13).click();
+            await select('Did you receive or review the Notice of Privacy Practices?','Decline acknowledgment');
+            await markNarrativesNA();
+            await saveAndReopen(13,{npp_received:'Decline acknowledgment',npp_signature:'',npp_signature_date:'',npp_questions:'Not applicable'});
+            assert.equal(await selectField('Did you receive or review the Notice of Privacy Practices?').inputValue(),'Decline acknowledgment');
+            await tab(14).click();
+            await select('I certify that the information I provided is accurate and complete to the best of my knowledge.','Yes');
+            await select('I agree that typing my name below constitutes my electronic signature for this intake questionnaire and acknowledgments.','Yes');
+            await fill('Electronic signature — type your full legal name *',browserName);
+            await fill('Date signed *',today);
+            await saveAndReopen(14,{information_accuracy:'Yes',electronic_signature_consent:'Yes',patient_signature:browserName,patient_signature_date:today});
+            assert.equal(await patientForm.getByLabel('Electronic signature — type your full legal name *',{exact:true}).inputValue(),browserName);
+            // Explicit negative decisions exercise the distinct optional forms
+            // without ever creating a disclosure authorization.
+            const declines=[
+              [15,'Telehealth preference','No, in-person care only','telehealth_choice','telehealth_signature','telehealth_signature_date'],
+              [16,'Electronic documents and portal preference','I request paper intake','electronic_choice','electronic_signature','electronic_signature_date'],
+              [17,'Who is signing this intake?','Patient signing for myself','representative_signer','representative_signature','representative_signature_date'],
+              [18,'Do you want to authorize a disclosure to another person or organization?','No','roi_authorize','roi_signature','roi_signature_date'],
+              [19,'Authorize a specific use or disclosure of Part 2 substance-use records?','No','part2_authorize','part2_signature','part2_signature_date'],
+              [20,'Authorize disclosure of separate SUD counseling notes?','No','sud_notes_authorize','sud_notes_signature','sud_notes_signature_date'],
+              [21,'Do you authorize disclosure of psychotherapy notes?','No','psych_notes_authorize','psych_notes_signature','psych_notes_signature_date']
+            ];
+            for(const [number,label,decision,key,signature,date] of declines){
+              await tab(number).click();
+              await select(label,decision);
+              if(number<=16)await markNarrativesNA();
+              await saveAndReopen(number,{[key]:decision,[signature]:'',[date]:''});
+              assert.equal(await selectField(label).inputValue(),decision);
+            }
+            const beforeFinal=await readPatient();
+            assert.equal(beforeFinal.status,'draft');
+            await tab(14).click();
+            await patientPage.getByRole('button',{name:'Review and submit'}).click();
+            await patientPage.getByRole('button',{name:'Confirm submission',exact:true}).click();
+            await patientPage.getByRole('status').filter({hasText:'Your questionnaire has been submitted to the practice.'}).waitFor();
+            const afterFinal=await readPatient();
+            assert.equal(afterFinal.status,'submitted');
+            assert.equal(afterFinal.version,beforeFinal.version+1);
+            assert.ok(Number.isFinite(Date.parse(afterFinal.submitted_at)));
+            assert.deepEqual(afterFinal.answers,beforeFinal.answers);
+            assert.deepEqual(afterFinal.completed_pages,beforeFinal.completed_pages);
+            await patientPage.reload();
+            await tabs.waitFor({state:'visible'});
+            await patientPage.getByText('Signed submissions are intentionally locked',{exact:false}).waitFor();
+            assert.equal(await savePage.count(),0);
+            assert.equal(await patientPage.getByRole('button',{name:'Review and submit'}).count(),0);
+            assert.ok(await patientForm.getByLabel('Full legal name *',{exact:true}).isDisabled());
+            assert.equal(checked(await a.client.from('patient_intakes').select('patient_id').eq('patient_id',b.id),'browser submitted intake isolation').length,0);
+            console.log('Patient browser pages 1–21, independent draft readback, incomplete-submission guards, final submission, exact preserved answers and locked reopen passed.');
             await otherContext.close();
             await clinicianContext.close();
-            console.log('Chromium local acceptance: clinician save/reload, seven original forms saved and reopened for the same chart, protected source boundaries and patient denial passed. Patient intake page-by-page, hosted browser and interactive MFA remain unverified.');
+            console.log('Chromium local acceptance: clinician save/reload, seven original forms saved and reopened for the same chart, protected source boundaries and patient denial passed. Hosted browser, interactive MFA, scheduling and assessment recipient completion remain unverified.');
 
           }finally{try{if(browser)await browser.close();}finally{app.kill('SIGTERM');engine.kill('SIGTERM');}}
           JS

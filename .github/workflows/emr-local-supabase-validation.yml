@@ -801,6 +801,92 @@ jobs:
             assert.equal(await otherPage.locator('article[aria-label="Intake biopsychosocial reconciliation"]').count(),0);
             assert.ok(!(await otherPage.locator('body').textContent()).includes(notes.presenting),'Patient browser saw clinician history');
             assert.equal((await otherPage.request.get(chartUrl)).status(),403);
+            // A second, initially empty fictional patient completes the first
+            // four actual website pages. No database answer or completed_pages
+            // fixture writes for this patient. The remainder is a separate gate.
+            const patientPage=otherPage;
+            const intakeUrl=origin+'/patient/intake';
+            assert.equal((await patientPage.goto(intakeUrl)).status(),200);
+            const tabs=patientPage.getByRole('tablist',{name:'Intake sections'});
+            await tabs.waitFor({state:'visible'});
+            assert.equal(await tabs.getByRole('tab').count(),21);
+            const patientForm=patientPage.locator('.intakeWizard');
+            const savePage=patientPage.getByRole('button',{name:'Save page',exact:true});
+            const readPatient=async()=>checked(await b.client.from('patient_intakes').select('patient_id,version,status,answers,completed_pages,submitted_at').eq('patient_id',b.id).maybeSingle(),'independent patient browser draft readback');
+            assert.equal(await readPatient(),null,'Second fictional patient has no pre-seeded intake');
+            assert.ok(await savePage.isDisabled(),'Empty demographics cannot be saved');
+            const fill=async(label,value)=>patientForm.getByLabel(label,{exact:true}).fill(value);
+            const select=async(label,value)=>patientForm.getByLabel(label,{exact:true}).selectOption(value);
+            const tab=number=>tabs.getByRole('tab',{name:String(number),exact:true});
+            const pickRemaining=async()=>{
+              for(const field of await patientForm.locator('fieldset.intakeSectionCard select').all()){
+                if(!(await field.inputValue())&&await field.isEnabled()){
+                  const options=await field.locator('option').evaluateAll(items=>items.filter(o=>o.value&&!o.disabled).map(o=>o.value));
+                  assert.ok(options.length>0,'Rendered select must offer an answer');
+                  await field.selectOption(options[0]);
+                }
+              }
+            };
+            const saveAndReopen=async(number,expected)=>{
+              const before=await readPatient();
+              await savePage.click({timeout:15000});
+              await patientPage.getByRole('status').filter({hasText:'Draft saved securely.'}).waitFor();
+              const after=await readPatient();
+              assert.equal(after.patient_id,b.id);
+              assert.equal(after.status,'draft');
+              assert.equal(after.submitted_at,null);
+              assert.equal(after.version,(before?.version??0)+1);
+              assert.deepEqual([...after.completed_pages].sort((x,y)=>x-y),Array.from({length:number},(_,i)=>i+1));
+              for(const [key,value] of Object.entries(expected))assert.equal(after.answers[key],value);
+              for(const [key,value] of Object.entries(before?.answers??{}))assert.equal(after.answers[key],value,'Previously saved page answer preserved: '+key);
+              await patientPage.reload();
+              await tabs.waitFor({state:'visible'});
+              await tab(number===1?2:1).click();
+              assert.equal(await tab(number).getAttribute('data-page-status'),'saved');
+              await tab(number).click();
+              console.log('Patient website page saved, independently read back and reopened: '+number);
+            };
+            await fill('Full legal name *','Fictional Browser Patient B');
+            await fill('Date of birth *','1992-01-01');
+            await fill('Street address *','2 Example St');
+            await fill('City *','Example');
+            await fill('State *','KS');
+            await fill('ZIP code *','66000');
+            await fill('Phone number *','5550102');
+            await fill('Contact email *','emr-local-patient-b@example.com');
+            await pickRemaining();
+            await saveAndReopen(1,{full_name:'Fictional Browser Patient B',email:'emr-local-patient-b@example.com'});
+            assert.equal(await patientForm.getByLabel('Full legal name *',{exact:true}).inputValue(),'Fictional Browser Patient B');
+            await tab(2).click();
+            await fill('Emergency contact name *','Fictional Browser Contact');
+            await fill('Relationship to you *','Friend');
+            await fill('Emergency contact phone *','5550103');
+            await select('May we contact this person in an emergency? *','Yes');
+            for(const key of ['comm_phone_calls','comm_voicemail','comm_text','comm_email','comm_portal','comm_mail']){
+              await patientForm.locator('select[name="'+key+'"]').selectOption(key==='comm_portal'?'Yes':'No');
+            }
+            for(const checkbox of await patientForm.getByRole('checkbox',{name:/^Not applicable —/}).all())await checkbox.check();
+            await saveAndReopen(2,{emergency_contact_name:'Fictional Browser Contact',comm_portal:'Yes',comm_email:'No'});
+            assert.equal(await patientForm.getByLabel('Emergency contact name *',{exact:true}).inputValue(),'Fictional Browser Contact');
+            await tab(3).click();
+            await select('How will you pay for care? *','self-pay');
+            await fill('Other insurance, coordination-of-benefits, or billing information','FICTIONAL-BROWSER-INSURANCE');
+            await saveAndReopen(3,{insurance_coverage:'self-pay',insurance_notes:'FICTIONAL-BROWSER-INSURANCE'});
+            assert.equal(await patientForm.getByLabel('How will you pay for care? *',{exact:true}).inputValue(),'self-pay');
+            await tab(4).click();
+            await fill('What brings you to counseling now? *','Fictional browser concern');
+            await fill('What would you like to achieve through counseling? *','Fictional browser goal');
+            await select('Overall, how much do these concerns interfere with daily life? *','Moderately');
+            await pickRemaining();
+            await saveAndReopen(4,{counseling_reason:'Fictional browser concern',counseling_goals:'Fictional browser goal',functional_impact:'Moderately'});
+            assert.equal(await patientForm.getByLabel('What brings you to counseling now? *',{exact:true}).inputValue(),'Fictional browser concern');
+            await tab(14).click();
+            await patientPage.getByRole('button',{name:'Review and submit'}).click();
+            await patientPage.getByRole('alert').filter({hasText:'Complete and save page 5 before submitting.'}).waitFor();
+            assert.equal(await tab(5).getAttribute('aria-selected'),'true');
+            assert.equal((await readPatient()).status,'draft');
+            assert.equal(checked(await a.client.from('patient_intakes').select('patient_id').eq('patient_id',b.id),'browser draft isolation').length,0);
+            console.log('Patient browser pages 1–4 and incomplete-submission guard passed; pages 5–21 and final browser submission remain unverified.');
             await otherContext.close();
             await clinicianContext.close();
             console.log('Chromium local acceptance: clinician save/reload, seven original forms saved and reopened for the same chart, protected source boundaries and patient denial passed. Patient intake page-by-page, hosted browser and interactive MFA remain unverified.');

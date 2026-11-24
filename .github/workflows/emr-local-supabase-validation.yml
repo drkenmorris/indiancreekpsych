@@ -14,7 +14,7 @@ jobs:
     # Run only for the clinic's own protected EMR integration branch.
     if: github.head_ref == 'integration/emr-prototype-production-reconcile-20261109' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.number == 116 || github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/integration/emr-prototype-production-reconcile-20261109'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
         with:
@@ -30,6 +30,7 @@ jobs:
           # No hosted credentials, link, data dump, seed, or remote reset.
           unset SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD DATABASE_URL
           sandbox="$(mktemp -d)"
+          printf 'EMR_LOCAL_SANDBOX=%s\n' "$sandbox" >> "$GITHUB_ENV"
           cd "$sandbox"
           supabase init
           mkdir -p supabase/migrations
@@ -383,3 +384,123 @@ jobs:
           ROLLBACK;
           SQL
           echo 'Real local connected assessment response/RLS checks passed; fictional items, synthetic provider receipt and simulated claims, not actual email, sign-in or scored clinical report.'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Exercise real password sessions and TOTP through local Auth and BPS HTTP
+        shell: bash
+        run: |
+          set -euo pipefail
+          unset SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD DATABASE_URL OMNICORE_SITE_ID OMNICORE_INGEST_KEY
+          test -n "$EMR_LOCAL_SANDBOX"
+          cd "$EMR_LOCAL_SANDBOX"
+          # Start real Auth and REST on the same disposable local schema.
+          # Never link a project, use a remote URL, or import production users.
+          supabase stop
+          supabase start >/dev/null
+          supabase status -o env > local-status.env
+          set -a
+          source local-status.env
+          set +a
+          test "$API_URL" = "http://127.0.0.1:54321"
+          test -n "$ANON_KEY"
+          test -n "$SERVICE_ROLE_KEY"
+          export NEXT_PUBLIC_SUPABASE_URL="$API_URL"
+          export NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="$ANON_KEY"
+          cd "$GITHUB_WORKSPACE"
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import {createHmac, randomBytes} from 'node:crypto';
+          import {execFileSync, spawn} from 'node:child_process';
+          import {createClient} from '@supabase/supabase-js';
+          import {createServerClient} from '@supabase/ssr';
+          const url=process.env.API_URL, key=process.env.ANON_KEY;
+          assert.equal(url,'http://127.0.0.1:54321');
+          const localAdmin=createClient(url,process.env.SERVICE_ROLE_KEY,{auth:{persistSession:false,autoRefreshToken:false}});
+          const password=randomBytes(24).toString('hex')+'aA1!';
+          function checked(result,label){
+            assert.ok(!result.error,label+' failed ('+(result.error?.code||result.error?.status||'unknown')+')');
+            return result.data;
+          }
+          function session(){
+            const jar=new Map();
+            const client=createServerClient(url,key,{cookies:{
+              getAll:()=>Array.from(jar,([name,value])=>({name,value})),
+              setAll:items=>{for(const {name,value} of items){if(value)jar.set(name,value);else jar.delete(name);}}
+            }});
+            return {client,cookie:()=>Array.from(jar,([name,value])=>name+'='+value).join('; ')};
+          }
+          async function account(name,registration_type){
+            const email=name+'@example.com';
+            // Confirmed fictional identity bootstrap only; no signup email sent.
+            const {user}=checked(await localAdmin.auth.admin.createUser({email,password,email_confirm:true,user_metadata:{full_name:'Fictional '+name,registration_type}}),'local fixture creation');
+            const s=session();
+            checked(await s.client.auth.signInWithPassword({email,password}),'real password sign-in');
+            assert.equal(checked(await s.client.auth.getUser(),'real user verification').user.id,user.id);
+            assert.equal(checked(await s.client.auth.mfa.getAuthenticatorAssuranceLevel(),'initial AAL').currentLevel,'aal1');
+            return {...s,id:user.id};
+          }
+          function totp(secret){
+            const alphabet='ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+            let bits=0,value=0; const bytes=[];
+            for(const char of secret.toUpperCase().replace(/=+$/,'')){
+              const n=alphabet.indexOf(char); assert.ok(n>=0,'Invalid local TOTP secret');
+              value=(value<<5)|n;bits+=5;
+              if(bits>=8){bits-=8;bytes.push((value>>bits)&255);}
+            }
+            const counter=Buffer.alloc(8);counter.writeBigUInt64BE(BigInt(Math.floor(Date.now()/30000)));
+            const digest=createHmac('sha1',Buffer.from(bytes)).update(counter).digest();
+            return String((digest.readUInt32BE(digest[digest.length-1]&15)&0x7fffffff)%1000000).padStart(6,'0');
+          }
+          const a=await account('emr-local-patient-a','patient'), b=await account('emr-local-patient-b','patient');
+          for(const p of [a,b]){
+            assert.equal(checked(await p.client.rpc('complete_registration'),'patient activation'),'patient');
+          }
+          const draft=checked(await a.client.from('patient_intakes').insert({patient_id:a.id,status:'draft',answers:{full_name:'Fictional Patient A',counseling_reason:'Fictional local concern'}}).select('patient_id,version,status,submitted_at').single(),'actual patient draft save');
+          assert.equal(draft.version,1);assert.equal(draft.status,'draft');assert.equal(draft.submitted_at,null);
+          const hidden=checked(await b.client.from('patient_intakes').select('patient_id').eq('patient_id',a.id),'cross-patient read');
+          assert.equal(hidden.length,0);
+          const admin=await account('emr-local-clinician','guest');
+          // Bootstrap only the fictional local administrator role. All subsequent
+          // authorization checks use real issued access tokens, never forged claims.
+          assert.match(admin.id,/^[a-f0-9-]{36}$/);
+          execFileSync('psql',['-X','-v','ON_ERROR_STOP=1','-h','127.0.0.1','-p','54322','-U','postgres','-d','postgres','-c',
+            "BEGIN; SET LOCAL session_replication_role=replica; UPDATE public.profiles SET account_type='admin' WHERE id='"+admin.id+"'; COMMIT;"],{env:{...process.env,PGPASSWORD:'postgres'},stdio:'ignore'});
+          assert.equal(checked(await admin.client.from('profiles').select('account_type').eq('id',admin.id).single(),'admin fixture role').account_type,'admin');
+          assert.equal(checked(await admin.client.from('patient_intakes').select('patient_id').eq('patient_id',a.id),'AAL1 admin isolation').length,0);
+          const port=39116, origin='http://127.0.0.1:'+port;
+          const app=spawn('npm',['run','dev','--','--hostname','127.0.0.1','--port',String(port)],{stdio:'ignore',env:{...process.env,NEXT_TELEMETRY_DISABLED:'1'}});
+          const route=origin+'/api/emr/bps-intake';
+          const req=(s,path=route)=>fetch(path,{headers:s?{cookie:s.cookie()}:{}});
+          try{
+            let ready=false;
+            for(let i=0;i<90;i++){
+              try{const response=await fetch(route,{signal:AbortSignal.timeout(5000)});if(response.status===403){ready=true;break;}}catch{}
+              if(app.exitCode!==null)break;
+              await new Promise(resolve=>setTimeout(resolve,1000));
+            }
+            assert.ok(ready,'Local application did not become ready with protected API');
+            assert.equal((await req(admin)).status,403,'AAL1 admin must be denied by actual BPS HTTP handler');
+            assert.equal((await req(a)).status,403,'Patient must be denied by actual BPS HTTP handler');
+            const factor=checked(await admin.client.auth.mfa.enroll({factorType:'totp',friendlyName:'Local fictional TOTP'}),'actual TOTP enrollment');
+            const challenge=checked(await admin.client.auth.mfa.challenge({factorId:factor.id}),'actual TOTP challenge');
+            checked(await admin.client.auth.mfa.verify({factorId:factor.id,challengeId:challenge.id,code:totp(factor.totp.secret)}),'actual TOTP verification');
+            assert.equal(checked(await admin.client.auth.mfa.getAuthenticatorAssuranceLevel(),'verified AAL').currentLevel,'aal2');
+            assert.equal(checked(await admin.client.from('patient_intakes').select('patient_id').eq('patient_id',a.id),'AAL2 intake authorization').length,1);
+            assert.equal((await req(admin)).status,400,'Verified AAL2 administrator must reach protected route validation');
+            const chart=checked(await admin.client.from('clinical_patients').select('id,account_id').eq('account_id',a.id).is('directory_deleted_at',null).single(),'explicit local chart link');
+            const response=await req(admin,route+'?patient='+chart.id);
+            assert.equal(response.status,200,'Actual BPS source HTTP readback');
+            const body=await response.json();
+            assert.equal(body.patientId,chart.id);
+            assert.equal(body.source.accountId,a.id);
+            assert.equal(body.source.status,'draft');
+            assert.equal(body.source.version,1);
+            assert.equal(body.source.submittedAt,null);
+            assert.equal(body.reviews.length,0);
+            console.log('Real local password sessions, TOTP AAL2, patient draft isolation and protected BPS HTTP source readback passed. Not browser, final intake submission or hosted acceptance.');
+          }finally{app.kill('SIGTERM');}
+          JS

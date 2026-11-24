@@ -688,7 +688,7 @@ jobs:
             assert.equal(await prepare.count(),0,'Previously saved source cannot be reviewed again');
             for(const value of hiddenValues)assert.ok(!(await page.locator('body').textContent()).includes(value),'Protected source leaked into rendered BPS');
             // Visit the exact original forms using the patient-scoped links.
-            // This proves browser render/navigation, not persistence of each form.
+            // Each original form must render, save exactly one record, and reopen.
             const forms=[
               ['symptoms','biopsychosocial_symptoms'],
               ['treatment_history','biopsychosocial_treatment_history'],
@@ -711,6 +711,77 @@ jobs:
               assert.equal(current.searchParams.get('patient'),chart.id);
               assert.equal(current.searchParams.get('bps_page'),subpage);
               await page.locator('[data-bps-page="'+subpage+'"][aria-current="page"]').waitFor();
+              // Save a distinct fictional value via the actual original form.
+              // Independent protected chart reads bracket each UI write.
+              const readChart=async()=>{
+                const response=await fetch(workflowUrl,{method:'POST',headers:{cookie:admin.cookie(),Origin:origin,'Content-Type':'application/json'},body:JSON.stringify({path:'/api/chart?patient='+chart.id,method:'GET',body:null,patientId:chart.id,expectedRevision:0})});
+                assert.equal(response.status,200,'Independent original chart read');
+                const result=await response.json();
+                assert.equal(result.value.patient.id,chart.id);
+                assert.ok(Array.isArray(result.value.records));
+                return result;
+              };
+              const before=await readChart();
+              const form=page.locator('form[data-action="'+action+'"]');
+              const marker='Fictional local original BPS '+subpage;
+              let verifyRecord, verifyReopened;
+              if(subpage==='symptoms'){
+                const choice=form.locator('input[type="checkbox"]').first();
+                const key=await choice.getAttribute('name'), value=await choice.getAttribute('value');
+                assert.ok(key&&value);
+                await choice.check();
+                verifyRecord=record=>assert.equal(record.ratings[key],value);
+                verifyReopened=async()=>assert.ok(await page.locator('form[data-action="'+action+'"] input[type="checkbox"]').first().isChecked());
+              }else if(subpage==='treatment_history'){
+                await form.locator('select[name="setting"]').selectOption('Outpatient');
+                await form.locator('textarea[name="reason"]').fill(marker);
+                verifyRecord=record=>{assert.equal(record.setting,'Outpatient');assert.equal(record.reason,marker);};
+                verifyReopened=async()=>{await page.getByText(marker,{exact:true}).waitFor();};
+              }else if(subpage==='medications'){
+                await form.locator('input[name="medication"]').fill(marker);
+                await form.locator('input[name="dosage"]').fill('Fictional amount');
+                verifyRecord=record=>{assert.equal(record.medication,marker);assert.equal(record.dosage,'Fictional amount');};
+                verifyReopened=async()=>{await page.getByText(marker,{exact:false}).first().waitFor();};
+              }else{
+                const details=form.locator('details').filter({has:page.locator('textarea')}).first();
+                if(!(await details.getAttribute('open')!==null))await details.locator('summary').click();
+                const field=details.locator('textarea').first();
+                const key=await field.getAttribute('name');
+                assert.ok(key,'Original clinical note must have a persisted field name');
+                await field.fill(marker);
+                verifyRecord=record=>assert.equal(record.notes[key],marker);
+                verifyReopened=async()=>{
+                  const reopenedForm=page.locator('form[data-action="'+action+'"]');
+                  const reopenedField=reopenedForm.locator('textarea[name="'+key+'"]');
+                  await reopenedField.waitFor({state:'attached'});
+                  assert.equal(await reopenedField.inputValue(),marker);
+                };
+              }
+              const [formSave]=await Promise.all([
+                page.waitForResponse(r=>{
+                  if(r.url()!==workflowUrl||r.request().method()!=='POST')return false;
+                  try{const p=r.request().postDataJSON();return p.path==='/api/save'&&p.body?.action===action;}catch{return false;}
+                }),
+                form.locator('button[type="submit"]').click()
+              ]);
+              assert.equal(formSave.status(),200,'Original form save: '+subpage);
+              const receipt=await formSave.json();
+              assert.equal(receipt.revision,before.revision+1,'Exactly one original-form revision advanced');
+              // Wait for the actual save handler to finish its chart reload.
+              await page.getByText('Saved '+action+' locally.',{exact:false}).waitFor();
+              const after=await readChart();
+              assert.equal(after.revision,receipt.revision);
+              const previousIds=new Set(before.value.records.map(r=>r.id));
+              const newRecords=after.value.records.filter(r=>!previousIds.has(r.id));
+              assert.equal(newRecords.length,1,'Exactly one new original-form record');
+              assert.equal(newRecords[0].kind,action);
+              verifyRecord(newRecords[0]);
+              for(const old of before.value.records)assert.deepEqual(after.value.records.find(r=>r.id===old.id),old,'Previous records remain immutable');
+              await page.reload();
+              await page.locator('form[data-action="'+action+'"]').waitFor({state:'visible'});
+              assert.equal(new URL(page.url()).searchParams.get('patient'),chart.id);
+              await verifyReopened();
+              console.log('Original BPS form saved, independently read back and reopened: '+subpage);
             }
             const otherContext=await browserContext(b);
             const otherPage=await otherContext.newPage();
@@ -720,7 +791,7 @@ jobs:
             assert.equal((await otherPage.request.get(chartUrl)).status(),403);
             await otherContext.close();
             await clinicianContext.close();
-            console.log('Chromium local acceptance: clinician save/reload, seven original forms rendered for the same chart, protected source boundaries and patient denial passed. Patient intake page-by-page, original-form persistence, hosted browser and interactive MFA remain unverified.');
+            console.log('Chromium local acceptance: clinician save/reload, seven original forms saved and reopened for the same chart, protected source boundaries and patient denial passed. Patient intake page-by-page, hosted browser and interactive MFA remain unverified.');
 
           }finally{try{if(browser)await browser.close();}finally{app.kill('SIGTERM');engine.kill('SIGTERM');}}
           JS

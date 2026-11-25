@@ -1,5 +1,5 @@
 -- Hosted baseline parity guard (read-only). These relations and columns
--- were present on production main f6efd40065c2d961629cf8ac36ef07a050af786d
+-- were present on production main ba02bd4a6a63de95d6ab56269cc5523936d8c446
 -- on 2026-11-25, but absent on the old hosted validation branch.
 -- Run on any proposed hosted acceptance target BEFORE fictional sign-in.
 -- All rows must pass; this is a minimum baseline, not full schema parity,
@@ -13,6 +13,11 @@ with required_relations(name) as (
     ('emr_discharge_criteria_libraries'),
     ('emr_group_corpora'),
     ('emr_group_corpus_versions'),
+    ('emr_therapy_groups'),
+    ('emr_therapy_group_versions'),
+    ('emr_group_planning_libraries'),
+    ('emr_group_planning_versions'),
+    ('emr_group_clinical_notes'),
     ('emr_homework_assignments'),
     ('emr_implemented_intervention_entries'),
     ('emr_individual_progress_note_revisions'),

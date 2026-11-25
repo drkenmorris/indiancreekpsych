@@ -31,9 +31,9 @@ jobs:
         run: |
           set -euo pipefail
           # Schema-only approximation, not a production clone or live migration.
-          # Snapshot from read-only ledger inspection on 2026-11-24 CST.
+          # Snapshot from read-only ledger inspection on 2026-11-25 CST.
           # A changed main requires re-verification of the live ledger and baseline.
-          test "$BASE_SHA" = f6efd40065c2d961629cf8ac36ef07a050af786d
+          test "$BASE_SHA" = ba02bd4a6a63de95d6ab56269cc5523936d8c446
           unset SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD DATABASE_URL
           sandbox="$(mktemp -d)"
           cd "$sandbox"
@@ -106,8 +106,9 @@ jobs:
           20261119185607 independent_group_notes 89edf4a34ab11d0a659c921d6b68ddacd2a3620cf91e869da3e46225678b2fe8
           20261119213152 discharge_criteria_library db3639ddc696d811f3c2cbd05cf3db6ceba3324b7a2de6ec73e5ed24ac69dba8
           20261123185241 group_corpus d6554aaa5a7e9576b1a4009da01fc15df7f80fe47d5375eea3000a5164153c1e
+          20261125190445 groups_workflow 3bee62e2ff867baa2272bc1917e3d9d05edda67ed92dbbf1871c426fd9102310
           LEDGER
-          test "$(wc -l < observed-ledger.txt)" -eq 62
+          test "$(wc -l < observed-ledger.txt)" -eq 63
           cut -d' ' -f1 observed-ledger.txt > observed-versions.txt
           python3 - <<'PY'
           import hashlib, os, pathlib, re, subprocess, sys
@@ -251,17 +252,17 @@ jobs:
           diff -u baseline-versions.txt actual-before.txt
           test "$(wc -l < baseline-versions.txt)" -eq 66
           test -z "$(comm -23 observed-versions.txt actual-before.txt)"
-          echo "Verified all 62 observed ledger versions plus four explicitly local baseline reconstructions on disposable PostgreSQL 17"
+          echo "Verified all 63 observed ledger versions plus four explicitly local baseline reconstructions on disposable PostgreSQL 17"
           psql_local -At -F '|' -f "$GITHUB_WORKSPACE/scripts/emr-hosted-schema-preflight.sql"
           check_baseline_parity() {
             local result
             result="$(psql_local -At -F '|' -f "$GITHUB_WORKSPACE/scripts/emr-hosted-baseline-preflight.sql")"
             printf '%s\n' "$result"
-            test "$(printf '%s\n' "$result" | wc -l)" -eq 18
-            test "$(printf '%s\n' "$result" | cut -d '|' -f1 | sort -u | wc -l)" -eq 18
-            test "$(printf '%s\n' "$result" | awk -F '|' '$2 == "t" { n++ } END { print n+0 }')" -eq 18
+            test "$(printf '%s\n' "$result" | wc -l)" -eq 23
+            test "$(printf '%s\n' "$result" | cut -d '|' -f1 | sort -u | wc -l)" -eq 23
+            test "$(printf '%s\n' "$result" | awk -F '|' '$2 == "t" { n++ } END { print n+0 }')" -eq 23
           }
-          echo 'Check all 18 observed production baseline requirements before upgrade'
+          echo 'Check all 23 observed production baseline requirements before upgrade'
           check_baseline_parity
           # Explicitly fictional historical data on the disposable local DB only.
           psql_local <<'SQL'
@@ -380,7 +381,7 @@ jobs:
           printf '%s\n' "$preflight"
           test "$(printf '%s\n' "$preflight" | wc -l)" -eq 6
           test "$(printf '%s\n' "$preflight" | awk -F '|' '$2 == "t" { n++ } END { print n+0 }')" -eq 6
-          echo 'Check all 18 observed production baseline requirements after upgrade'
+          echo 'Check all 23 observed production baseline requirements after upgrade'
           check_baseline_parity
           # Exercise actual scheduler RLS against fictional historical rows, using
           # the authenticated database role. These are simulated JWT claims, not

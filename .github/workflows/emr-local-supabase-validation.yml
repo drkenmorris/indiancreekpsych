@@ -1,11 +1,8 @@
 name: EMR isolated Supabase schema validation
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
-    branches: [main]
-    # Full local browser acceptance must follow every revision of PR 116,
-    # including app/API changes and forward-rehearsal-only changes. The job
-    # below restricts execution to the protected same-repository EMR branch.
+  # Called by the existing CI workflow for every protected PR revision.
+  # A direct manual run is also supported on the protected branch.
+  workflow_call:
   workflow_dispatch:
 permissions:
   contents: read

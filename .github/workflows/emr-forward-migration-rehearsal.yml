@@ -7,6 +7,7 @@ on:
       - 'supabase/migrations/**'
       - '.github/workflows/emr-forward-migration-rehearsal.yml'
       - 'scripts/emr-hosted-schema-preflight.sql'
+      - 'scripts/emr-forward-data-preflight.sql'
 permissions:
   contents: read
 jobs:
@@ -237,6 +238,10 @@ jobs:
           test -z "$(comm -23 observed-versions.txt actual-before.txt)"
           echo "Verified all 62 observed ledger versions plus four explicitly local baseline reconstructions on disposable PostgreSQL 17"
           psql_local -At -F '|' -f "$GITHUB_WORKSPACE/scripts/emr-hosted-schema-preflight.sql"
+          # Aggregate-only check of retained rows on the isolated rehearsal DB.
+          psql_local -At -F '|' -f "$GITHUB_WORKSPACE/scripts/emr-forward-data-preflight.sql" > data-before.txt
+          test "$(wc -l < data-before.txt)" -eq 15
+          cat data-before.txt
           cp pending-sql/*.sql supabase/migrations/
           find supabase/migrations -maxdepth 1 -name '*.sql' -printf '%f\n' | cut -d_ -f1 | LC_ALL=C sort > expected-after.txt
           test "$(wc -l < expected-after.txt)" -eq "$(sort -u expected-after.txt | wc -l)"
@@ -248,6 +253,9 @@ jobs:
           supabase migration up --local --include-all
           psql_local -Atc 'select version from supabase_migrations.schema_migrations order by version' > actual-after.txt
           diff -u expected-after.txt actual-after.txt
+          psql_local -At -F '|' -f "$GITHUB_WORKSPACE/scripts/emr-forward-data-preflight.sql" > data-after.txt
+          diff -u data-before.txt data-after.txt
+          echo 'Aggregate preservation check passed in isolated rehearsal (not live-data acceptance).'
           preflight="$(psql_local -At -F '|' -f "$GITHUB_WORKSPACE/scripts/emr-hosted-schema-preflight.sql")"
           printf '%s\n' "$preflight"
           test "$(printf '%s\n' "$preflight" | wc -l)" -eq 6

@@ -238,6 +238,73 @@ jobs:
           test -z "$(comm -23 observed-versions.txt actual-before.txt)"
           echo "Verified all 62 observed ledger versions plus four explicitly local baseline reconstructions on disposable PostgreSQL 17"
           psql_local -At -F '|' -f "$GITHUB_WORKSPACE/scripts/emr-hosted-schema-preflight.sql"
+          # Explicitly fictional historical data on the disposable local DB only.
+          psql_local <<'SQL'
+          BEGIN;
+          DO $ BEGIN
+            IF EXISTS (SELECT 1 FROM auth.users) OR EXISTS (SELECT 1 FROM public.appointments)
+              OR EXISTS (SELECT 1 FROM public.patient_intakes) OR EXISTS (SELECT 1 FROM public.emr_bps_intake_reviews)
+            THEN RAISE EXCEPTION 'Expected an empty disposable fixture database'; END IF;
+          END $;
+          SET LOCAL session_replication_role = replica;
+          INSERT INTO auth.users(id,email,email_confirmed_at,raw_app_meta_data,raw_user_meta_data)
+          VALUES
+            ('00000000-0000-4000-8000-000000000001','migration-admin@example.invalid',now(),'{}','{}'),
+            ('00000000-0000-4000-8000-000000000002','migration-a@example.invalid',now(),'{}','{}'),
+            ('00000000-0000-4000-8000-000000000003','migration-b@example.invalid',now(),'{}','{}');
+          SET LOCAL session_replication_role = origin;
+          INSERT INTO public.profiles(id,full_name,account_type) VALUES
+            ('00000000-0000-4000-8000-000000000001','Fictional Migration Administrator','admin'),
+            ('00000000-0000-4000-8000-000000000002','Fictional Migration Patient A','patient'),
+            ('00000000-0000-4000-8000-000000000003','Fictional Migration Patient B','patient');
+          SET LOCAL session_replication_role = replica;
+          INSERT INTO public.patient_intakes(patient_id,answers,status,version,updated_at,submitted_at)
+          VALUES
+            ('00000000-0000-4000-8000-000000000002','{"counseling_reason":"Fictional reason A","medication_entries":"Fictional medication","trauma_history":"Fictional historical trauma","insurance_member":"Fictional insurance"}','submitted',3,now()-interval '1 hour',now()-interval '1 hour'),
+            ('00000000-0000-4000-8000-000000000003','{"counseling_reason":"Fictional draft B"}','draft',2,now()-interval '1 hour',null);
+          SET LOCAL session_replication_role = origin;
+          -- Historical fixture, not a clinician attestation or functional acceptance.
+          INSERT INTO public.emr_bps_intake_reviews
+            (id,patient_id,owner_id,source_account_id,source_version,source_status,source_updated_at,clinical_answers,clinician_notes,reviewed)
+          SELECT '00000000-0000-4000-8000-000000000301',c.id,'00000000-0000-4000-8000-000000000001',i.patient_id,i.version,i.status,i.updated_at,
+            '{"counseling_reason":"Fictional reason A","trauma_history":"Fictional historical trauma"}','{"presenting":"Fictional migration fixture only"}',true
+          FROM public.patient_intakes i JOIN public.clinical_patients c ON c.account_id=i.patient_id
+          WHERE i.patient_id='00000000-0000-4000-8000-000000000002';
+          UPDATE public.appointment_settings SET scheduling_enabled=true,timezone='UTC' WHERE id;
+          INSERT INTO public.appointment_availability_rules(weekday,start_time,end_time)
+          VALUES (extract(dow from (current_date+2))::smallint,'08:00','18:00');
+          SET LOCAL ROLE authenticated;
+          SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000001","role":"authenticated","aal":"aal2"}',true);
+          INSERT INTO public.appointments(id,patient_id,starts_at,ends_at)
+          VALUES
+            ('00000000-0000-4000-8000-000000000101','00000000-0000-4000-8000-000000000002',(current_date+2+time '10:00') AT TIME ZONE 'UTC',(current_date+2+time '10:50') AT TIME ZONE 'UTC'),
+            ('00000000-0000-4000-8000-000000000102','00000000-0000-4000-8000-000000000003',(current_date+2+time '12:00') AT TIME ZONE 'UTC',(current_date+2+time '12:50') AT TIME ZONE 'UTC');
+          INSERT INTO public.appointments(id,patient_name,series_id,starts_at,ends_at)
+          VALUES ('00000000-0000-4000-8000-000000000103','Fictional Unlinked Recurrence','00000000-0000-4000-8000-000000000201',(current_date+2+time '14:00') AT TIME ZONE 'UTC',(current_date+2+time '14:50') AT TIME ZONE 'UTC');
+          RESET ROLE;
+          DO $ BEGIN
+            IF (SELECT count(*) FROM public.appointments) <> 3
+              OR (SELECT count(*) FROM public.patient_intakes) <> 2
+              OR (SELECT count(*) FROM public.emr_bps_intake_reviews) <> 1
+              OR (SELECT count(*) FROM public.appointment_availability_rules) <> 1
+              OR (SELECT count(*) FROM public.clinical_patients WHERE account_id IN ('00000000-0000-4000-8000-000000000002','00000000-0000-4000-8000-000000000003')) <> 2
+            THEN RAISE EXCEPTION 'Nonempty historical fixtures missing'; END IF;
+          END $;
+          COMMIT;
+          SQL
+          fixture_fingerprints() {
+            psql_local -At -F '|' <<'SQL'
+          SELECT 'appointments',md5(jsonb_agg(to_jsonb(a) ORDER BY id)::text) FROM public.appointments a
+          UNION ALL SELECT 'availability',md5(jsonb_agg(to_jsonb(a) ORDER BY id)::text) FROM public.appointment_availability_rules a
+          UNION ALL SELECT 'intakes',md5(jsonb_agg(to_jsonb(i) ORDER BY patient_id)::text) FROM public.patient_intakes i
+          UNION ALL SELECT 'historical_bps',md5(jsonb_agg(to_jsonb(r)-'source_submitted_at' ORDER BY id)::text) FROM public.emr_bps_intake_reviews r
+          UNION ALL SELECT 'chart_links',md5(jsonb_agg(jsonb_build_array(id,account_id,directory_deleted_at) ORDER BY id)::text) FROM public.clinical_patients
+          ORDER BY 1;
+          SQL
+          }
+          fixture_fingerprints > fingerprints-before.txt
+          test "$(wc -l < fingerprints-before.txt)" -eq 5
+          test "$(awk -F '|' 'length($2)==32 {n++} END {print n+0}' fingerprints-before.txt)" -eq 5
           # Aggregate-only check of retained rows on the isolated rehearsal DB.
           psql_local -At -F '|' -f "$GITHUB_WORKSPACE/scripts/emr-forward-data-preflight.sql" > data-before.txt
           test "$(wc -l < data-before.txt)" -eq 15
@@ -255,6 +322,10 @@ jobs:
           diff -u expected-after.txt actual-after.txt
           psql_local -At -F '|' -f "$GITHUB_WORKSPACE/scripts/emr-forward-data-preflight.sql" > data-after.txt
           diff -u data-before.txt data-after.txt
+          fixture_fingerprints > fingerprints-after.txt
+          diff -u fingerprints-before.txt fingerprints-after.txt
+          psql_local -Atc "select count(*) from public.emr_bps_intake_reviews where source_submitted_at is null" | grep -qx 1
+          echo 'Nonempty historical fixtures preserved: exact row fingerprints and legacy unknown receipt.'
           echo 'Aggregate preservation check passed in isolated rehearsal (not live-data acceptance).'
           preflight="$(psql_local -At -F '|' -f "$GITHUB_WORKSPACE/scripts/emr-hosted-schema-preflight.sql")"
           printf '%s\n' "$preflight"

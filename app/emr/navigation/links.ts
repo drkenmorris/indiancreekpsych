@@ -1,9 +1,9 @@
 import menu from './menu-data.json';
 import {uuid} from '@/lib/emr/demographics';
 export const menus=menu as {sections:Record<string,string[][]>;extra:Record<string,string[][]>;modules:Record<string,string[]>};
-export function workspaceLink(module:string,key?:string,patient?:string){
+export function workspaceLink(module:string,key?:string,patient?:string,groupId?:string){
  if(module==='prognosis_details'){module='prognosis';key='prognosis';}
- if(module==='group'){const query=new URLSearchParams({section:menus.sections.group.some(s=>s[0]===key)?key!:'administration'});if(uuid(patient))query.set('patient',patient);return '/emr/groups?'+query.toString();}
+ if(module==='group'){const query=new URLSearchParams({section:menus.sections.group.some(s=>s[0]===key)?key!:'administration'});if(uuid(patient))query.set('patient',patient);if(uuid(groupId))query.set('group',groupId);return '/emr/groups?'+query.toString();}
  const section=key?menus.sections[module]?.find(item=>item[0]===key)??menus.extra[module]?.find(item=>item[0]===key):menus.sections[module]?.find(item=>item[0]!=='patient_directory');
  const query=new URLSearchParams({module:section?.[2]??menus.modules[module]?.[1]??module});
  if(section)query.set('section',module+':'+section[0]);

@@ -3,10 +3,9 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
     branches: [main]
-    paths:
-      - 'supabase/migrations/**'
-      - '.github/workflows/emr-local-supabase-validation.yml'
-      - 'scripts/emr-hosted-schema-preflight.sql'
+    # Full local browser acceptance must follow every revision of PR 116,
+    # including app/API changes and forward-rehearsal-only changes. The job
+    # below restricts execution to the protected same-repository EMR branch.
   workflow_dispatch:
 permissions:
   contents: read

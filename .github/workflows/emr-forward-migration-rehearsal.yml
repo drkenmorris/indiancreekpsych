@@ -106,7 +106,7 @@ jobs:
           20261123185241 group_corpus d6554aaa5a7e9576b1a4009da01fc15df7f80fe47d5375eea3000a5164153c1e
           LEDGER
           test "$(wc -l < observed-ledger.txt)" -eq 62
-          cut -d' ' -f1 observed-ledger.txt > baseline-versions.txt
+          cut -d' ' -f1 observed-ledger.txt > observed-versions.txt
           python3 - <<'PY'
           import hashlib, os, pathlib, re, subprocess, sys
           workspace = pathlib.Path(os.environ['GITHUB_WORKSPACE'])
@@ -187,6 +187,23 @@ jobs:
               print('UNRESOLVED ' + error)
           if errors:
               sys.exit('Historical SQL not fully reconciled; no local replay attempted.')
+          # Four main-branch migrations reconstruct objects already observed in production,
+          # but have no historical ledger row. Include only in the disposable baseline;
+          # never classify these as a live forward migration. This is not a full schema clone.
+          local_baseline_only = [
+              '20260925090000_account_newsletter_baseline.sql',
+              '20260928200300_patient_booking_spacing_rule.sql',
+              '20260928210000_kiosk_intake_baseline.sql',
+              '20261109012352_newsletter_article_schedule.sql',
+          ]
+          for name in local_baseline_only:
+              path = prefix + name
+              if path in represented_head or path not in main or path not in head or main[path] != head[path]:
+                  sys.exit('Local baseline source missing, changed, or already represented: ' + path)
+              baseline[name] = main[path]
+              represented_head.add(path)
+              print('LOCAL BASELINE ONLY (not a production ledger entry) ' + name)
+          pathlib.Path('baseline-versions.txt').write_text(''.join(v + '\n' for v in sorted(n.split('_', 1)[0] for n in baseline)))
           pending = {}
           for path, data in sorted(head.items()):
               if path in represented_head:
@@ -216,7 +233,9 @@ jobs:
           psql_local -Atc "select current_setting('server_version_num')::int / 10000" | grep -qx 17
           psql_local -Atc 'select version from supabase_migrations.schema_migrations order by version' > actual-before.txt
           diff -u baseline-versions.txt actual-before.txt
-          echo "Verified observed baseline ledger on disposable local PostgreSQL 17"
+          test "$(wc -l < baseline-versions.txt)" -eq 66
+          test -z "$(comm -23 observed-versions.txt actual-before.txt)"
+          echo "Verified all 62 observed ledger versions plus four explicitly local baseline reconstructions on disposable PostgreSQL 17"
           psql_local -At -F '|' -f "$GITHUB_WORKSPACE/scripts/emr-hosted-schema-preflight.sql"
           cp pending-sql/*.sql supabase/migrations/
           find supabase/migrations -maxdepth 1 -name '*.sql' -printf '%f\n' | cut -d_ -f1 | LC_ALL=C sort > expected-after.txt
@@ -233,4 +252,4 @@ jobs:
           printf '%s\n' "$preflight"
           test "$(printf '%s\n' "$preflight" | wc -l)" -eq 6
           test "$(printf '%s\n' "$preflight" | awk -F '|' '$2 == "t" { n++ } END { print n+0 }')" -eq 6
-          echo "Local forward migration rehearsal passed; hosted schema and data compatibility still require separate verification."
+          echo "Local forward migration rehearsal passed against a reconstructed baseline; hosted schema and data compatibility still require separate verification. Do not apply local baseline-only files to production."

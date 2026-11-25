@@ -270,6 +270,24 @@ jobs:
             '{"counseling_reason":"Fictional reason A","trauma_history":"Fictional historical trauma"}','{"presenting":"Fictional migration fixture only"}',true
           FROM public.patient_intakes i JOIN public.clinical_patients c ON c.account_id=i.patient_id
           WHERE i.patient_id='00000000-0000-4000-8000-000000000002';
+          -- Retain historical connected assessment data without sending an email or
+          -- claiming that these storage fixtures are a scored clinical assessment.
+          SET LOCAL session_replication_role = replica;
+          INSERT INTO public.psych_test_assignments
+            (id,assigned_by,recipient_first_name,recipient_last_name,recipient_email,test_key,status,sent_at,email_provider_id,patient_id)
+          SELECT '00000000-0000-4000-8000-000000000401','00000000-0000-4000-8000-000000000001',
+            'Fictional','Migration Patient A','migration-a@example.invalid','cseq','sent',now()-interval '2 hours',
+            'isolated-fixture-no-delivery',id
+          FROM public.clinical_patients WHERE account_id='00000000-0000-4000-8000-000000000002';
+          INSERT INTO public.connected_assignment_responses
+            (assignment_id,respondent_id,answers,page,status,answered_count,revision,identity_confirmed)
+          VALUES ('00000000-0000-4000-8000-000000000401','00000000-0000-4000-8000-000000000002',
+            '{"fixture_item":2}',0,'draft',1,1,true);
+          INSERT INTO public.connected_assignment_response_versions
+            (assignment_id,revision,answers,page,status,actor_id)
+          VALUES ('00000000-0000-4000-8000-000000000401',1,'{"fixture_item":2}',0,'draft',
+            '00000000-0000-4000-8000-000000000002');
+          SET LOCAL session_replication_role = origin;
           UPDATE public.appointment_settings SET scheduling_enabled=true,timezone='UTC' WHERE id;
           INSERT INTO public.appointment_availability_rules(weekday,start_time,end_time)
           VALUES (extract(dow from (current_date+2))::smallint,'08:00','18:00');
@@ -286,6 +304,9 @@ jobs:
             IF (SELECT count(*) FROM public.appointments) <> 3
               OR (SELECT count(*) FROM public.patient_intakes) <> 2
               OR (SELECT count(*) FROM public.emr_bps_intake_reviews) <> 1
+              OR (SELECT count(*) FROM public.psych_test_assignments) <> 1
+              OR (SELECT count(*) FROM public.connected_assignment_responses) <> 1
+              OR (SELECT count(*) FROM public.connected_assignment_response_versions) <> 1
               OR (SELECT count(*) FROM public.appointment_availability_rules) <> 1
               OR (SELECT count(*) FROM public.clinical_patients WHERE account_id IN ('00000000-0000-4000-8000-000000000002','00000000-0000-4000-8000-000000000003')) <> 2
             THEN RAISE EXCEPTION 'Nonempty historical fixtures missing'; END IF;
@@ -298,13 +319,16 @@ jobs:
           UNION ALL SELECT 'availability',md5(jsonb_agg(to_jsonb(a) ORDER BY id)::text) FROM public.appointment_availability_rules a
           UNION ALL SELECT 'intakes',md5(jsonb_agg(to_jsonb(i) ORDER BY patient_id)::text) FROM public.patient_intakes i
           UNION ALL SELECT 'historical_bps',md5(jsonb_agg(to_jsonb(r)-'source_submitted_at' ORDER BY id)::text) FROM public.emr_bps_intake_reviews r
+          UNION ALL SELECT 'assessment_assignments',md5(jsonb_agg(to_jsonb(a) ORDER BY id)::text) FROM public.psych_test_assignments a
+          UNION ALL SELECT 'assessment_responses',md5(jsonb_agg(to_jsonb(r) ORDER BY assignment_id)::text) FROM public.connected_assignment_responses r
+          UNION ALL SELECT 'assessment_versions',md5(jsonb_agg(to_jsonb(v) ORDER BY assignment_id,revision)::text) FROM public.connected_assignment_response_versions v
           UNION ALL SELECT 'chart_links',md5(jsonb_agg(jsonb_build_array(id,account_id,directory_deleted_at) ORDER BY id)::text) FROM public.clinical_patients
           ORDER BY 1;
           SQL
           }
           fixture_fingerprints > fingerprints-before.txt
-          test "$(wc -l < fingerprints-before.txt)" -eq 5
-          test "$(awk -F '|' 'length($2)==32 {n++} END {print n+0}' fingerprints-before.txt)" -eq 5
+          test "$(wc -l < fingerprints-before.txt)" -eq 8
+          test "$(awk -F '|' 'length($2)==32 {n++} END {print n+0}' fingerprints-before.txt)" -eq 8
           # Aggregate-only check of retained rows on the isolated rehearsal DB.
           psql_local -At -F '|' -f "$GITHUB_WORKSPACE/scripts/emr-forward-data-preflight.sql" > data-before.txt
           test "$(wc -l < data-before.txt)" -eq 15
@@ -325,7 +349,7 @@ jobs:
           fixture_fingerprints > fingerprints-after.txt
           diff -u fingerprints-before.txt fingerprints-after.txt
           psql_local -Atc "select count(*) from public.emr_bps_intake_reviews where source_submitted_at is null" | grep -qx 1
-          echo 'Nonempty historical fixtures preserved: exact row fingerprints and legacy unknown receipt.'
+          echo 'Nonempty historical fixtures preserved: exact row fingerprints, connected assessment history and legacy unknown receipt.'
           echo 'Aggregate preservation check passed in isolated rehearsal (not live-data acceptance).'
           preflight="$(psql_local -At -F '|' -f "$GITHUB_WORKSPACE/scripts/emr-hosted-schema-preflight.sql")"
           printf '%s\n' "$preflight"

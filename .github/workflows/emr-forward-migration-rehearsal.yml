@@ -1,0 +1,141 @@
+name: EMR forward migration rehearsal
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+    paths:
+      - 'supabase/migrations/**'
+      - '.github/workflows/emr-forward-migration-rehearsal.yml'
+      - 'scripts/emr-hosted-schema-preflight.sql'
+permissions:
+  contents: read
+jobs:
+  forward-rehearsal:
+    if: github.event.pull_request.number == 116 && github.head_ref == 'integration/emr-prototype-production-reconcile-20261109' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: supabase/setup-cli@v3
+        with:
+          version: 2.84.2
+      - name: Rehearse forward-only upgrade from observed production migration ledger
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          # Schema-only approximation, not a production clone or live migration.
+          # Snapshot from read-only ledger inspection on 2026-11-24 CST.
+          # A changed main requires re-verification of the live ledger and baseline.
+          test "$BASE_SHA" = f6efd40065c2d961629cf8ac36ef07a050af786d
+          unset SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD DATABASE_URL
+          sandbox="$(mktemp -d)"
+          cd "$sandbox"
+          supabase init
+          mkdir -p supabase/migrations
+          sed -i -E 's/^major_version = [0-9]+$/major_version = 17/' supabase/config.toml
+          grep -qx 'major_version = 17' supabase/config.toml
+          cat > baseline-versions.txt <<'LEDGER'
+          20260925095837
+          20260925100139
+          20260926185827
+          20260926190223
+          20260926203356
+          20260927141041
+          20260928212604
+          20260930001135
+          20261012014135
+          20261012014140
+          20261012014240
+          20261012152527
+          20261013084401
+          20261013091132
+          20261102170218
+          20261102171825
+          20261102173531
+          20261102182635
+          20261102212246
+          20261102233010
+          20261103025453
+          20261103055915
+          20261103194624
+          20261103195652
+          20261103212059
+          20261103234805
+          20261103235256
+          20261104012530
+          20261104071845
+          20261104074701
+          20261104185408
+          20261104193723
+          20261104194959
+          20261107204408
+          20261107204551
+          20261111040337
+          20261111040338
+          20261111040340
+          20261111040341
+          20261111040343
+          20261111040345
+          20261111115727
+          20261111134550
+          20261112230900
+          20261113020212
+          20261113030203
+          20261113092344
+          20261113175618
+          20261113181247
+          20261113210013
+          20261113211255
+          20261115222833
+          20261116180909
+          20261116194054
+          20261117154018
+          20261117162318
+          20261117205945
+          20261118071744
+          20261119183317
+          20261119185607
+          20261119213152
+          20261123185241
+          LEDGER
+          test "$(wc -l < baseline-versions.txt)" -eq 62
+          git -C "$GITHUB_WORKSPACE" ls-tree -r "$BASE_SHA" -- supabase/migrations | awk '{print $3}' | sort -u > baseline-blobs.txt
+          shopt -s nullglob
+          for version in $(cat baseline-versions.txt); do
+            candidates=("$GITHUB_WORKSPACE"/supabase/migrations/"$version"_*.sql)
+            test "${#candidates[@]}" -eq 1 || { echo "Missing or ambiguous baseline migration $version"; exit 1; }
+            blob="$(git -C "$GITHUB_WORKSPACE" hash-object "${candidates[0]}")"
+            # Permit a renamed file only when its content is already present in main.
+            grep -Fxq "$blob" baseline-blobs.txt || { echo "Baseline SQL differs from main: $version"; exit 1; }
+            cp "${candidates[0]}" supabase/migrations/
+          done
+          # No production data, project link, remote credentials, or seed.
+          supabase db start
+          export PGPASSWORD=postgres
+          psql_local() { psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 54322 -U postgres -d postgres "$@"; }
+          psql_local -Atc "select current_setting('server_version_num')::int / 10000" | grep -qx 17
+          psql_local -Atc 'select version from supabase_migrations.schema_migrations order by version' > actual-before.txt
+          diff -u baseline-versions.txt actual-before.txt
+          echo "Verified observed baseline ledger on disposable local PostgreSQL 17"
+          psql_local -At -F '|' -f "$GITHUB_WORKSPACE/scripts/emr-hosted-schema-preflight.sql"
+          cp "$GITHUB_WORKSPACE"/supabase/migrations/*.sql supabase/migrations/
+          find supabase/migrations -maxdepth 1 -name '*.sql' -printf '%f\n' | cut -d_ -f1 | LC_ALL=C sort > expected-after.txt
+          test "$(wc -l < expected-after.txt)" -eq "$(sort -u expected-after.txt | wc -l)"
+          comm -13 baseline-versions.txt expected-after.txt > pending-versions.txt
+          test -s pending-versions.txt
+          echo "Forward pending migration versions:"
+          cat pending-versions.txt
+          # Backdated versions are intentionally included; the existing ledger stays intact.
+          supabase migration up --local --include-all
+          psql_local -Atc 'select version from supabase_migrations.schema_migrations order by version' > actual-after.txt
+          diff -u expected-after.txt actual-after.txt
+          preflight="$(psql_local -At -F '|' -f "$GITHUB_WORKSPACE/scripts/emr-hosted-schema-preflight.sql")"
+          printf '%s\n' "$preflight"
+          test "$(printf '%s\n' "$preflight" | wc -l)" -eq 6
+          test "$(printf '%s\n' "$preflight" | awk -F '|' '$2 == "t" { n++ } END { print n+0 }')" -eq 6
+          echo "Local forward migration rehearsal passed; hosted schema and data compatibility still require separate verification."

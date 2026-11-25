@@ -7,6 +7,7 @@ on:
       - 'supabase/migrations/**'
       - '.github/workflows/emr-forward-migration-rehearsal.yml'
       - 'scripts/emr-hosted-schema-preflight.sql'
+      - 'scripts/emr-hosted-baseline-preflight.sql'
       - 'scripts/emr-forward-data-preflight.sql'
 permissions:
   contents: read
@@ -228,9 +229,23 @@ jobs:
           print(f'Pending SQL files: {len(pending)}')
           PY
           # No production data, project link, remote credentials, or seed.
+          # Allocate an available host port for this disposable project rather than
+          # colliding with another local service on Supabase's default 54322.
+          local_db_port="$(python3 -c 'import socket; s=socket.socket(); s.bind(("0.0.0.0",0)); print(s.getsockname()[1]); s.close()')"
+          python3 - "$local_db_port" <<'PY'
+          import pathlib, re, sys, tomllib
+          path = pathlib.Path("supabase/config.toml")
+          raw = path.read_text()
+          port = int(sys.argv[1])
+          changed, n = re.subn(r"(?m)^(\[db\]\s*\n(?:[^\n]*\n)*?port\s*=\s*)54322\s*$", lambda m: m.group(1) + str(port), raw, count=1)
+          if n != 1 or tomllib.loads(changed)["db"]["port"] != port:
+              sys.exit("Unable to configure isolated database port")
+          path.write_text(changed)
+          PY
+          echo "Disposable database host port: $local_db_port"
           supabase db start
           export PGPASSWORD=postgres
-          psql_local() { psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 54322 -U postgres -d postgres "$@"; }
+          psql_local() { psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p "$local_db_port" -U postgres -d postgres "$@"; }
           psql_local -Atc "select current_setting('server_version_num')::int / 10000" | grep -qx 17
           psql_local -Atc 'select version from supabase_migrations.schema_migrations order by version' > actual-before.txt
           diff -u baseline-versions.txt actual-before.txt

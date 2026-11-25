@@ -1126,10 +1126,16 @@ jobs:
             await calendarMenu.getByRole('button',{name:'Place patient appointments',exact:true}).click();
             const bookingForm=schedulePage.locator('form.appointmentSettingsForm');
             await bookingForm.locator('select').first().locator('option[value="'+b.id+'"]').waitFor({state:'attached'});
-            await bookingForm.getByLabel('Patient',{exact:true}).selectOption(b.id);
+            const patientSelect=bookingForm.locator('select').filter({has:schedulePage.locator('option[value="'+b.id+'"]')});
+            assert.equal(await patientSelect.count(),1,'Exactly one booking control offers the linked fictional patient');
+            await patientSelect.selectOption(b.id);
+            assert.equal(await patientSelect.inputValue(),b.id);
             await bookingForm.getByLabel('First appointment date').fill(dates[0]);
             await bookingForm.getByLabel('Appointment start').fill('10:00');
-            await bookingForm.getByLabel('Repeat',{exact:true}).selectOption('1');
+            const repeatSelect=bookingForm.locator('select').filter({has:schedulePage.getByRole('option',{name:'Every week',exact:true})});
+            assert.equal(await repeatSelect.count(),1,'Exactly one weekly recurrence control');
+            await repeatSelect.selectOption('1');
+            assert.equal(await repeatSelect.inputValue(),'1');
             await bookingForm.getByLabel('Repeat through (up to one year)').fill(dates[2]);
             await bookingForm.getByRole('button',{name:'Book patient appointments'}).click();
             await schedulePage.getByRole('status').filter({hasText:'3 appointments booked.'}).waitFor();
@@ -1158,7 +1164,9 @@ jobs:
             const event=(date,time)=>calendar.getByRole('button',{name:new RegExp(', '+date+', '+time+'$')});
             await goMonth(dates[0]);
             await event(dates[0],'10:00').click();
-            await schedulePage.getByLabel('Apply to').selectOption('future');
+            const scopeSelect=schedulePage.locator('.calendarEditor select').filter({has:schedulePage.getByRole('option',{name:'This and future appointments in this series',exact:true})});
+            await scopeSelect.selectOption('future');
+            assert.equal(await scopeSelect.inputValue(),'future');
             await schedulePage.getByLabel('Start time').fill('11:00');
             await schedulePage.getByRole('button',{name:'Save changes',exact:true}).click();
             await schedulePage.getByText('3 appointments updated.',{exact:false}).waitFor();
@@ -1169,7 +1177,8 @@ jobs:
               assert.equal(new Date(shifted[i].starts_at).toISOString(),dates[i]+'T11:00:00.000Z');
             }
             await event(dates[0],'11:00').click();
-            await schedulePage.getByLabel('Apply to').selectOption('one');
+            await scopeSelect.selectOption('one');
+            assert.equal(await scopeSelect.inputValue(),'one');
             await schedulePage.getByRole('button',{name:'Cancel appointment',exact:true}).click();
             await schedulePage.getByRole('button',{name:'Confirm cancellation',exact:true}).click();
             await schedulePage.getByText('1 appointment cancelled.',{exact:false}).waitFor();

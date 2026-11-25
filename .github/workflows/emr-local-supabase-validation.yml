@@ -1170,12 +1170,25 @@ jobs:
             await schedulePage.getByLabel('Start time').fill('11:00');
             await schedulePage.getByRole('button',{name:'Save changes',exact:true}).click();
             await schedulePage.getByText('3 appointments updated.',{exact:false}).waitFor();
-            const shifted=await readBookings();
-            assert.deepEqual(shifted.map(x=>x.id),booked.map(x=>x.id));
+            // The inherited edit RPC atomically cancels and replaces rows,
+            // preserving the original historical IDs rather than editing them.
+            const afterShift=await readBookings();
+            assert.equal(afterShift.length,6,'Exactly three original and three replacement rows must remain');
+            const originalIds=new Set(booked.map(x=>x.id));
+            const originals=afterShift.filter(x=>originalIds.has(x.id));
+            assert.deepEqual(originals,booked.map(x=>({...x,status:'cancelled'})),'Original booking history must be unchanged except cancellation status');
+            const shifted=afterShift.filter(x=>!originalIds.has(x.id));
+            assert.equal(shifted.length,3);
+            assert.equal(new Set(shifted.map(x=>x.id)).size,3);
             for(let i=0;i<3;i++){
               assert.equal(shifted[i].series_id,booked[i].series_id);
+              assert.equal(shifted[i].patient_id,b.id);
+              assert.equal(shifted[i].patient_name,booked[i].patient_name);
+              assert.equal(shifted[i].status,'booked');
               assert.equal(new Date(shifted[i].starts_at).toISOString(),dates[i]+'T11:00:00.000Z');
+              assert.equal(Date.parse(shifted[i].ends_at)-Date.parse(shifted[i].starts_at),50*60000);
             }
+            assert.equal(checked(await a.client.from('appointments').select('id').eq('patient_id',b.id),'other patient replacement isolation').length,0);
             await event(dates[0],'11:00').click();
             await scopeSelect.selectOption('one');
             assert.equal(await scopeSelect.inputValue(),'one');
@@ -1183,9 +1196,10 @@ jobs:
             await schedulePage.getByRole('button',{name:'Confirm cancellation',exact:true}).click();
             await schedulePage.getByText('1 appointment cancelled.',{exact:false}).waitFor();
             const cancelled=await readBookings();
-            assert.equal(cancelled.length,3,'Cancellation must preserve appointment history');
-            assert.equal(cancelled[0].status,'cancelled');
-            assert.deepEqual(cancelled.slice(1),shifted.slice(1),'Single cancellation must preserve remaining series');
+            assert.equal(cancelled.length,6,'Cancellation must preserve original and replacement history');
+            assert.deepEqual(cancelled,afterShift.map(x=>x.id===shifted[0].id?{...x,status:'cancelled'}:x),'Only selected replacement may change; original history and remaining active series must be preserved');
+            assert.equal(cancelled.filter(x=>x.status==='booked').length,2);
+            assert.equal(checked(await a.client.from('appointments').select('id').eq('patient_id',b.id),'other patient cancelled series isolation').length,0);
             await schedulePage.reload();
             await calendar.waitFor({state:'visible'});
             await goMonth(dates[0]);

@@ -1208,10 +1208,120 @@ jobs:
             await goMonth(dates[1]);
             await event(dates[1],'11:00').waitFor();
             console.log('Actual browser recurring bookings, independent row and series readback, future edits, single cancellation, reopened calendar and patient isolation passed.');
+            // Exercise the actual chart-bound CSEQ assignment and recipient
+            // workflow. Only the provider receipt is a synthetic local fixture;
+            // no email is sent, and no hosted credentials or systems are used.
+            const assignmentApi=origin+'/api/admin/test-assignments';
+            const recipientApi=origin+'/api/assigned-tests/connected';
+            const createdResponse=await schedulePage.request.post(assignmentApi,{headers:{Origin:origin},data:{action:'create',firstName:'Fictional',lastName:'CSEQ Recipient',email:'emr-local-patient-b@example.com',testKey:'cseq',patientId:bChart.id}});
+            assert.equal(createdResponse.status(),201,'Actual authenticated administrator assignment creation');
+            const assignmentReceipt=await createdResponse.json();
+            assert.equal(assignmentReceipt.created,true);assert.equal(assignmentReceipt.emailed,false);
+            const assignmentId=assignmentReceipt.id;assert.match(assignmentId,/^[a-f0-9-]{36}$/);
+            const readAssignment=async()=>checked(await admin.client.from('psych_test_assignments').select('id,assigned_by,patient_id,recipient_email,test_key,status,connected_source,connected_source_hash,sent_at,expires_at').eq('id',assignmentId).single(),'independent connected assignment readback');
+            const assignmentDraft=await readAssignment();
+            assert.equal(assignmentDraft.assigned_by,admin.id);assert.equal(assignmentDraft.patient_id,bChart.id);
+            assert.equal(assignmentDraft.recipient_email,'emr-local-patient-b@example.com');
+            assert.equal(assignmentDraft.test_key,'cseq');assert.equal(assignmentDraft.status,'draft');
+            assert.equal(assignmentDraft.sent_at,null);assert.match(assignmentDraft.connected_source_hash,/^[a-f0-9]{64}$/);
+            const definition=assignmentDraft.connected_source;
+            assert.equal(definition.testKey,'cseq');assert.ok(definition.items.length>7);
+            const recipientUrl=recipientApi+'?id='+assignmentId;
+            assert.equal((await req(b,recipientUrl)).status,403,'Draft must be inaccessible before provider acceptance');
+            checked(await admin.client.from('psych_test_assignments').update({status:'sent',sent_at:new Date().toISOString(),email_provider_id:'local-synthetic-cseq-provider-receipt'}).eq('id',assignmentId).select('id').single(),'synthetic local provider acceptance fixture (no email)');
+            const accepted=await readAssignment();
+            assert.equal(accepted.status,'sent');assert.equal(Date.parse(accepted.expires_at)-Date.parse(accepted.sent_at),14*86400000);
+            assert.equal(accepted.connected_source_hash,assignmentDraft.connected_source_hash);
+            assert.equal((await req(a,recipientUrl)).status,403,'Wrong verified patient must not load invitation');
+            const recipientContext=await browserContext({browserCookies:()=>[]});
+            const recipientPage=await recipientContext.newPage();recipientPage.setDefaultTimeout(30000);
+            const invitationPath='/patient/assigned-tests/'+assignmentId;
+            await recipientPage.goto(origin+invitationPath);
+            await recipientPage.waitForURL(u=>u.pathname==='/login');
+            await recipientPage.getByLabel('Email',{exact:true}).fill('emr-local-patient-b@example.com');
+            await recipientPage.getByLabel('Password',{exact:true}).fill(password);
+            await recipientPage.getByRole('button',{name:'Sign in',exact:true}).click();
+            await recipientPage.waitForURL(u=>u.pathname===invitationPath);
+            await recipientPage.getByRole('heading',{name:definition.title,exact:true}).waitFor();
+            const start=recipientPage.getByRole('button',{name:'Start questionnaire',exact:true});
+            assert.ok(await start.isDisabled(),'Explicit recipient identity confirmation required');
+            await recipientPage.getByRole('checkbox').check();await start.click();
+            const readResponse=async()=>checked(await admin.client.from('connected_assignment_responses').select('assignment_id,respondent_id,answers,page,revision,status,identity_confirmed,answered_count,submitted_at').eq('assignment_id',assignmentId).maybeSingle(),'independent connected response readback');
+            const reportPath='/admin/assign-test/connected-responses/'+assignmentId;
+            const reportPage=await scheduleContext.newPage();reportPage.setDefaultTimeout(30000);
+            await reportPage.goto(origin+reportPath);
+            await reportPage.getByText('no clinical scores are calculated from partial responses',{exact:false}).waitFor();
+            assert.equal(await reportPage.locator('.connectedReport').count(),0);
+            const expectedAnswers={};
+            const pageCount=Math.ceil(definition.items.length/7);
+            for(let n=0;n<pageCount;n++){
+              const items=definition.items.slice(n*7,n*7+7);
+              const groups=recipientPage.locator('.asqQuestion');
+              assert.equal(await groups.count(),items.length);
+              const final=n===pageCount-1;
+              const advance=recipientPage.getByRole('button',{name:final?'Save and submit questionnaire':'Save and next',exact:true});
+              if(n===0){
+                await advance.click();
+                await recipientPage.getByRole('alert').filter({hasText:'Answer each question on this page'}).waitFor();
+                assert.equal(await readResponse(),null,'Incomplete first page must not create a response');
+              }
+              for(let i=0;i<items.length;i++){
+                const item=items[i],choice=(n+i)%item.options.length;
+                await groups.nth(i).getByRole('radio').nth(choice).check();
+                expectedAnswers[item.id]=item.options[choice].value;
+              }
+              await advance.click();
+              if(final)await recipientPage.getByRole('heading',{name:'Questionnaire submitted',exact:true}).waitFor();
+              else await recipientPage.getByRole('status').filter({hasText:'Your answers and place are saved.'}).waitFor();
+              const record=await readResponse();
+              assert.equal(record.assignment_id,assignmentId);assert.equal(record.respondent_id,b.id);
+              assert.deepEqual(record.answers,expectedAnswers);assert.equal(record.revision,n+1);
+              assert.equal(record.page,final?n:n+1);assert.equal(record.status,final?'submitted':'draft');
+              assert.equal(record.identity_confirmed,true);assert.equal(record.answered_count,Object.keys(expectedAnswers).length);
+              if(final)assert.ok(Number.isFinite(Date.parse(record.submitted_at)));else assert.equal(record.submitted_at,null);
+              if(n===0&&!final){
+                await recipientPage.reload();
+                await recipientPage.getByRole('button',{name:'Resume questionnaire',exact:true}).waitFor();
+                assert.ok(await recipientPage.getByRole('checkbox').isChecked());
+                await recipientPage.getByRole('button',{name:'Resume questionnaire',exact:true}).click();
+                await recipientPage.getByRole('heading',{name:/Questions 8–/}).waitFor();
+                await reportPage.reload();
+                await reportPage.getByText('no clinical scores are calculated from partial responses',{exact:false}).waitFor();
+                assert.equal(await reportPage.locator('.connectedReport').count(),0);
+              }
+            }
+            const finalResponse=await readResponse();
+            assert.equal(finalResponse.answered_count,definition.items.length);
+            await recipientPage.reload();
+            await recipientPage.getByRole('heading',{name:'Questionnaire submitted',exact:true}).waitFor();
+            assert.equal(await recipientPage.getByRole('button',{name:'Save and submit questionnaire'}).count(),0);
+            const staleWrite=await recipientPage.request.post(recipientApi,{headers:{Origin:origin},data:{id:assignmentId,expectedRevision:finalResponse.revision,page:finalResponse.page,submit:true,identityConfirmed:true,answers:expectedAnswers}});
+            assert.ok(staleWrite.status()>=400,'Submitted response must reject another save');
+            assert.deepEqual(await readResponse(),finalResponse,'Submitted answers must remain unchanged');
+            assert.equal(checked(await a.client.from('connected_assignment_responses').select('assignment_id').eq('assignment_id',assignmentId),'wrong patient response isolation').length,0);
+            await reportPage.reload();
+            const report=reportPage.locator('.connectedReport');
+            await report.getByRole('heading',{name:/Clinical Results/}).waitFor();
+            assert.equal(await report.locator('.reportAppendix .reportResponse').count(),definition.items.length);
+            assert.ok(await report.locator('.reportScores meter').count()>0,'Clinician report must calculate scale results');
+            await report.getByText(assignmentDraft.connected_source_hash,{exact:true}).waitFor();
+            await report.getByText(assignmentId,{exact:true}).waitFor();
+            await report.getByText(bChart.id,{exact:true}).waitFor();
+            await report.getByText(definition.items.length+' / '+definition.items.length+' answers · revision '+finalResponse.revision,{exact:true}).waitFor();
+            for(let i=0;i<definition.items.length;i++){
+              const item=definition.items[i],label=item.options.find(o=>o.value===expectedAnswers[item.id]).label;
+              assert.ok((await report.locator('.reportAppendix .reportResponse').nth(i).locator('p').innerText()).startsWith(label+' '),'Report appendix must match persisted response');
+            }
+            assert.equal(new URL(await reportPage.getByRole('link',{name:'Central patient record'}).getAttribute('href'),origin).searchParams.get('patient'),bChart.id);
+            const unauthorizedReport=await recipientPage.goto(origin+reportPath);
+            assert.equal(await recipientPage.locator('.connectedReport').count(),0,'Patient must not render clinician report');
+            assert.notEqual(recipientPage.url(),origin+reportPath);
+            await recipientContext.close();
+            console.log('Local CSEQ actual assignment API, fictional provider receipt only (no email), browser recipient password login and all answers, immutable submission, independent chart-bound report rendering and patient denial passed.');
             await scheduleContext.close();
             await otherContext.close();
             await clinicianContext.close();
-            console.log('Chromium local acceptance: clinician save/reload, seven original forms saved and reopened for the same chart, protected source boundaries and patient denial passed. Hosted browser and assessment recipient completion remain unverified.');
+            console.log('Chromium local acceptance: clinician save/reload, seven original forms saved and reopened for the same chart, protected source boundaries and patient denial passed. Hosted browser and real provider delivery remain outside this local test.');
 
           }finally{try{if(browser)await browser.close();}finally{app.kill('SIGTERM');engine.kill('SIGTERM');}}
           JS

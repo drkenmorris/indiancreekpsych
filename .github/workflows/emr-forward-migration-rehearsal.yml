@@ -548,6 +548,43 @@ jobs:
             END;
             IF (SELECT count(*) FROM public.emr_bps_intake_reviews) <> 2 THEN
               RAISE EXCEPTION 'Rejected submitted BPS operations wrote history'; END IF;
+            BEGIN
+              PERFORM public.save_emr_bps_intake_review(payload);
+              RAISE EXCEPTION 'Malformed historical patient answer accepted';
+            EXCEPTION WHEN invalid_parameter_value THEN
+              IF SQLERRM NOT LIKE '%requires string-valued patient answers%' THEN RAISE; END IF;
+            END;
+            IF (SELECT count(*) FROM public.emr_bps_intake_reviews) <> 2 THEN
+              RAISE EXCEPTION 'Rejected malformed source wrote clinical history'; END IF;
+          END $gate$;
+          -- The preceding historical fixture intentionally contains a numeric answer.
+          -- Model a separate corrected fictional revision, retaining private fields
+          -- and whitespace for projection checks; never weaken the string guard.
+          -- This is a fixture-only write inside the disposable rollback transaction.
+          RESET ROLE;
+          SET LOCAL session_replication_role = replica;
+          UPDATE public.patient_intakes SET version=version+1, answers=answers-'energy'
+          WHERE patient_id='00000000-0000-4000-8000-000000000002' AND status='submitted' AND version=4;
+          SET LOCAL session_replication_role = origin;
+          DO $gate$
+          DECLARE payload jsonb;
+          BEGIN
+            SELECT jsonb_build_object('patient_id',c.id,'source_account_id',i.patient_id,
+              'source_version',i.version,'source_status',i.status,'source_updated_at',i.updated_at,
+              'source_submitted_at',i.submitted_at,'source_answers',i.answers,'reviewed',true,
+              'clinician_notes',jsonb_build_object('presenting','Fictional submitted-source rollback-only observation',
+                'treatment','','medical','','safety','','family','','goals','','limitations',''))
+            INTO STRICT payload FROM public.patient_intakes i
+            JOIN public.clinical_patients c ON c.account_id=i.patient_id
+            WHERE i.patient_id='00000000-0000-4000-8000-000000000002' AND i.status='submitted' AND i.version=5;
+            PERFORM set_config('emr.submitted_fixture_payload',payload::text,true);
+          END $gate$;
+          SET LOCAL ROLE authenticated;
+          SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000001","role":"authenticated","aal":"aal2"}',true);
+          DO $gate$
+          DECLARE payload jsonb:=current_setting('emr.submitted_fixture_payload')::jsonb;
+            saved uuid; row_data public.emr_bps_intake_reviews%rowtype;
+          BEGIN
             saved:=public.save_emr_bps_intake_review(payload);
             SELECT * INTO STRICT row_data FROM public.emr_bps_intake_reviews WHERE id=saved;
             IF row_data.source_account_id IS DISTINCT FROM (payload->>'source_account_id')::uuid
@@ -565,7 +602,8 @@ jobs:
           ROLLBACK;
           DO $gate$ BEGIN
             IF (SELECT count(*) FROM public.emr_bps_intake_reviews) <> 1
-              OR (SELECT version FROM public.patient_intakes WHERE patient_id='00000000-0000-4000-8000-000000000002') IS DISTINCT FROM 3 THEN
+              OR (SELECT version FROM public.patient_intakes WHERE patient_id='00000000-0000-4000-8000-000000000002') IS DISTINCT FROM 3
+              OR (SELECT answers->'energy' FROM public.patient_intakes WHERE patient_id='00000000-0000-4000-8000-000000000002') IS DISTINCT FROM '123'::jsonb THEN
               RAISE EXCEPTION 'Fictional BPS RPC test did not fully roll back'; END IF;
           END $gate$;
           SQL

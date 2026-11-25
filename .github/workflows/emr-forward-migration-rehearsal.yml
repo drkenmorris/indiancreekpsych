@@ -285,7 +285,7 @@ jobs:
           SET LOCAL session_replication_role = replica;
           INSERT INTO public.patient_intakes(patient_id,answers,status,version,updated_at,submitted_at)
           VALUES
-            ('00000000-0000-4000-8000-000000000002','{"counseling_reason":"Fictional reason A","medication_entries":"Fictional medication","trauma_history":"Fictional historical trauma","insurance_member":"Fictional insurance"}','submitted',3,now()-interval '1 hour',now()-interval '1 hour'),
+            ('00000000-0000-4000-8000-000000000002','{"counseling_reason":"Fictional reason A","medication_entries":"Fictional medication","trauma_history":"Fictional historical trauma","insurance_member":"Fictional insurance","allergy_entries":"Fictional allergy","legal_signature":"Fictional legal signature","sleep":"Fictional sleep","appetite":"   ","energy":123}','submitted',3,now()-interval '1 hour',now()-interval '1 hour'),
             ('00000000-0000-4000-8000-000000000003','{"counseling_reason":"Fictional draft B"}','draft',2,now()-interval '1 hour',null);
           SET LOCAL session_replication_role = origin;
           -- Historical fixture, not a clinician attestation or functional acceptance.
@@ -497,11 +497,60 @@ jobs:
               OR (SELECT count(*) FROM public.emr_bps_intake_reviews) <> 2 THEN
               RAISE EXCEPTION 'Draft BPS provenance or readback mismatch'; END IF;
           END $gate$;
+          -- Submitted-source acceptance: exact receipt, chart and approved text
+          -- projection, including structured/private field exclusion.
+          DO $gate$
+          DECLARE payload jsonb; saved uuid; row_data public.emr_bps_intake_reviews%rowtype;
+          BEGIN
+            SELECT jsonb_build_object('patient_id',c.id,'source_account_id',i.patient_id,
+              'source_version',i.version,'source_status',i.status,'source_updated_at',i.updated_at,
+              'source_submitted_at',i.submitted_at,'source_answers',i.answers,'reviewed',true,
+              'clinician_notes',jsonb_build_object('presenting','Fictional submitted-source rollback-only observation',
+                'treatment','','medical','','safety','','family','','goals','','limitations',''))
+            INTO STRICT payload FROM public.patient_intakes i
+            JOIN public.clinical_patients c ON c.account_id=i.patient_id
+            WHERE i.patient_id='00000000-0000-4000-8000-000000000002' AND i.status='submitted';
+            BEGIN
+              PERFORM public.save_emr_bps_intake_review(payload - 'source_submitted_at');
+              RAISE EXCEPTION 'Missing submitted receipt accepted';
+            EXCEPTION WHEN invalid_parameter_value THEN
+              IF SQLERRM NOT LIKE '%Patient submission receipt changed%' THEN RAISE; END IF;
+            END;
+            BEGIN
+              PERFORM public.save_emr_bps_intake_review(jsonb_set(payload,'{source_submitted_at}',
+                to_jsonb((payload->>'source_submitted_at')::timestamptz-interval '1 second')));
+              RAISE EXCEPTION 'Changed submitted receipt accepted';
+            EXCEPTION WHEN invalid_parameter_value THEN
+              IF SQLERRM NOT LIKE '%Patient submission receipt changed%' THEN RAISE; END IF;
+            END;
+            BEGIN
+              PERFORM public.save_emr_bps_intake_review(jsonb_set(payload,'{source_account_id}',
+                to_jsonb('00000000-0000-4000-8000-000000000003'::text)));
+              RAISE EXCEPTION 'Wrong patient source accepted';
+            EXCEPTION WHEN invalid_parameter_value THEN
+              IF SQLERRM NOT LIKE '%Patient account link changed%' THEN RAISE; END IF;
+            END;
+            IF (SELECT count(*) FROM public.emr_bps_intake_reviews) <> 2 THEN
+              RAISE EXCEPTION 'Rejected submitted BPS operations wrote history'; END IF;
+            saved:=public.save_emr_bps_intake_review(payload);
+            SELECT * INTO STRICT row_data FROM public.emr_bps_intake_reviews WHERE id=saved;
+            IF row_data.source_account_id IS DISTINCT FROM (payload->>'source_account_id')::uuid
+              OR row_data.patient_id IS DISTINCT FROM (payload->>'patient_id')::uuid
+              OR row_data.source_version IS DISTINCT FROM (payload->>'source_version')::integer
+              OR row_data.source_status IS DISTINCT FROM 'submitted'
+              OR row_data.source_updated_at IS DISTINCT FROM (payload->>'source_updated_at')::timestamptz
+              OR row_data.source_submitted_at IS DISTINCT FROM (payload->>'source_submitted_at')::timestamptz
+              OR row_data.clinical_answers IS DISTINCT FROM '{"counseling_reason":"Fictional reason A","sleep":"Fictional sleep"}'::jsonb
+              OR row_data.clinician_notes IS DISTINCT FROM payload->'clinician_notes'
+              OR row_data.owner_id IS DISTINCT FROM auth.uid()
+              OR (SELECT count(*) FROM public.emr_bps_intake_reviews) <> 3 THEN
+              RAISE EXCEPTION 'Submitted BPS provenance, projection or readback mismatch'; END IF;
+          END $gate$;
           ROLLBACK;
           DO $gate$ BEGIN
             IF (SELECT count(*) FROM public.emr_bps_intake_reviews) <> 1 THEN
               RAISE EXCEPTION 'Fictional BPS RPC test did not fully roll back'; END IF;
           END $gate$;
           SQL
-          echo 'BPS RPC authorization, exact answers, seven domains, draft provenance and rollback passed on disposable PostgreSQL (not hosted acceptance).'
+          echo 'BPS RPC authorization, exact answers, seven domains, draft and submitted provenance, protected-field projection and rollback passed on disposable PostgreSQL (not hosted acceptance).'
           echo "Local forward migration rehearsal passed against a reconstructed baseline; hosted schema and data compatibility still require separate verification. Do not apply local baseline-only files to production."

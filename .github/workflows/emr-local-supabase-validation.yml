@@ -1155,12 +1155,7 @@ jobs:
               if((await heading.textContent())!==label)await schedulePage.getByRole('button',{name:'Next month'}).click();
               await schedulePage.getByRole('heading',{name:label,exact:true}).waitFor();
             };
-            const event=(date,time)=>calendar.getByRole('button',{name:new RegExp(', '+date+', '+time+'
-            console.log('Chromium local acceptance: clinician save/reload, seven original forms saved and reopened for the same chart, protected source boundaries and patient denial passed. Hosted browser and assessment recipient completion remain unverified.');
-
-          }finally{try{if(browser)await browser.close();}finally{app.kill('SIGTERM');engine.kill('SIGTERM');}}
-          JS
-)});
+            const event=(date,time)=>calendar.getByRole('button',{name:new RegExp(', '+date+', '+time+'$')});
             await goMonth(dates[0]);
             await event(dates[0],'10:00').click();
             await schedulePage.getByLabel('Apply to').selectOption('future');
@@ -1193,7 +1188,7 @@ jobs:
             await scheduleContext.close();
             await otherContext.close();
             await clinicianContext.close();
-            console.log('Chromium local acceptance: clinician save/reload, seven original forms saved and reopened for the same chart, protected source boundaries and patient denial passed. Hosted browser, interactive MFA, scheduling and assessment recipient completion remain unverified.');
+            console.log('Chromium local acceptance: clinician save/reload, seven original forms saved and reopened for the same chart, protected source boundaries and patient denial passed. Hosted browser and assessment recipient completion remain unverified.');
 
           }finally{try{if(browser)await browser.close();}finally{app.kill('SIGTERM');engine.kill('SIGTERM');}}
           JS

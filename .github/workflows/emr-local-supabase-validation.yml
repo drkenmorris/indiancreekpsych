@@ -80,7 +80,7 @@ jobs:
           preflight="$(psql_local -At -F '|' -f "$GITHUB_WORKSPACE/scripts/emr-hosted-schema-preflight.sql")"
           printf '%s\n' "$preflight"
           test "$(printf '%s\n' "$preflight" | wc -l)" -eq 6
-          test "$(printf '%s\n' "$preflight" | grep -c '|t
+          test "$(printf '%s\n' "$preflight" | awk -F '|' '$2 == "t" { n++ } END { print n+0 }')" -eq 6
       - name: Exercise actual migrated scheduler RLS on fictional local identities
         shell: bash
         run: |

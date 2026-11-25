@@ -39,81 +39,138 @@ jobs:
           mkdir -p supabase/migrations
           sed -i -E 's/^major_version = [0-9]+$/major_version = 17/' supabase/config.toml
           grep -qx 'major_version = 17' supabase/config.toml
-          cat > baseline-versions.txt <<'LEDGER'
-          20260925095837
-          20260925100139
-          20260926185827
-          20260926190223
-          20260926203356
-          20260927141041
-          20260928212604
-          20260930001135
-          20261012014135
-          20261012014140
-          20261012014240
-          20261012152527
-          20261013084401
-          20261013091132
-          20261102170218
-          20261102171825
-          20261102173531
-          20261102182635
-          20261102212246
-          20261102233010
-          20261103025453
-          20261103055915
-          20261103194624
-          20261103195652
-          20261103212059
-          20261103234805
-          20261103235256
-          20261104012530
-          20261104071845
-          20261104074701
-          20261104185408
-          20261104193723
-          20261104194959
-          20261107204408
-          20261107204551
-          20261111040337
-          20261111040338
-          20261111040340
-          20261111040341
-          20261111040343
-          20261111040345
-          20261111115727
-          20261111134550
-          20261112230900
-          20261113020212
-          20261113030203
-          20261113092344
-          20261113175618
-          20261113181247
-          20261113210013
-          20261113211255
-          20261115222833
-          20261116180909
-          20261116194054
-          20261117154018
-          20261117162318
-          20261117205945
-          20261118071744
-          20261119183317
-          20261119185607
-          20261119213152
-          20261123185241
+          # Match the observed live SQL byte-for-byte, not just filename/version.
+          # Ledger contains one stored SQL text per migration. SHA-256 is over UTF-8 bytes.
+          cat > observed-ledger.txt <<'LEDGER'
+          20260925095837 appointment_scheduling_foundation 88df3ff5f429cc3df34a7f1625714fc28bf9a688300eab8f0c1ca8589c14b83e
+          20260925100139 harden_appointment_availability_rpc 87671b52391903985a230989862f9b5125b3258d9ba6a8ef0faf6720b0a827b3
+          20260926185827 adjacent_patient_scheduling 3b9e4a06256d3afa5beff6658618e5016ca84d08caaa56dbb6372b28ece67cb9
+          20260926190223 grant_calendar_private_schema_usage 2f6c149454b7bf514bdd997a19ea9c01070caf03e975c306c1c57540d737c61a
+          20260926203356 editable_monthly_calendar c4e9b2f22880ef53909a04a20e09fe7873da4493f7b7ac06fb63f4c91ef9666b
+          20260927141041 patient_registration_intake 1c68b24167a008ec631e7cb5d9835ed1c6d368edc3329942628c72df51c95054
+          20260928212604 harden_kiosk_intake_privacy 2df1e3b3ec39657cf7a34fb3e982dcc992dde6fdb317bc423b502d53e8fa1c66
+          20260930001135 backend_viewer_admin_read_policies c279ef6f7b203f4d440707b4185ccf80095f261ba2e2bb6bc52d9ad81368bf4a
+          20261012014135 expand_patient_legal_packet_20261011 a112f6bfa368d2af45be9a44e1cbdbea80348ad63ae5fc9c567298f125a491df
+          20261012014140 staff_secure_legal_packet_review_20261011 86d3134319249c6a73c21936a46a4492d897897c422ad1f38ba459fe2946a604
+          20261012014240 enforce_current_legal_packet_revision_20261011 3b1d5709c93e67f8f96c828ce73a15e68e0484c1517621e47b535946c3759212
+          20261012152527 admin_temporary_test_patients_20261012 adb2f32ead9c79fba4e107e05d370ec475fba06b930ea16f7fa475fa75c10b3b
+          20261013084401 asq_qa_persistence_20261013 07ab399e7566bc0f6545bab8511cfe315c8252b6c24eea931b40fda8ce2c2a83
+          20261013091132 psych_test_assignments_20261013 81f8d8b352ff090105c679ffea210f324fb569092a4995b1793ff39d866b0b62
+          20261102170218 intake_assignment_documents c3db24e6a0c31696fe6908a448e7c7da9b977ec8b14c23932c07528dfd052c00
+          20261102171825 intake_treatment_history 4ef906b264b192f779da6895abd200e0083bd1e9467f8e40ce401ae18dc71539
+          20261102173531 intake_medications 9acb2988c457b6a3d3088153753cc3917524877901636eee37a4322a6df7026a
+          20261102182635 intake_medical_substance 24a214a654913beceabd5330a3ff4b1477eeed0f539ca79cc4a4978598ee9b81
+          20261102212246 legal_forms_revision 95f8c6832048124e57bc6dbf4ce1acf33dab981e28f2d892d56b35465a9fef76
+          20261102233010 intake_legal_directory 93470211096525464d73beb83711be5e724329658c8dfda4a8d7d5adeca12170
+          20261103025453 intake_trauma_history df0927534f9abe669726dd2effd628d90d66fb4f11307a55fa6d981939a696f1
+          20261103055915 dsm_entry_version_choice 424707c20e3c6d1ee3a4f97da9f20c08c35a77256eed5c9cdac20c80052e1926
+          20261103194624 dsm_record_persistence 94892bbe5a9f72deb51cbaef3a1176fec09a353c6415815aab0dfe8ee1163e92
+          20261103195652 central_repository_indexes 0c7a65d3d92929de5e2017b6afcfbcb08c1e44fc94b626b98ae3accb4e5f15ab
+          20261103212059 emr_production_workspace 6cfbb941f98b1e0db01905acf7ed7d287cb05b6d1c2897de8d7b22a9edb694f0
+          20261103234805 asq_recipient_assignments 469ccc63f916b0edf47e1818d9048f173b98f804717bce16f377dbd8f82aaf2c
+          20261103235256 asq_recipient_policy_compatibility c4892cb2bc16ef433f163947cef073aefaeeb4b8cf334714e9fc4578ed9e805b
+          20261104012530 asq_assignment_evaluations 9c6069329e1a0576899fb1df7adc0d81a9e665401e307e6c6e87843fbb95b76a
+          20261104071845 dsm_recipient_assignments bdbd994a11687d06de3a0529263739b3e381f28d8f76c1db4fbac373b03ee29c
+          20261104074701 dsm_six_tier_recipient bb8fe2aa68f510415e06c61fad96b247ba3faf715164093929d95feab5dddcfa
+          20261104185408 shared_descriptor_library 56f9741367c0632177e2831394e3b59386972a1a6ab26f3e89063f342005c3f5
+          20261104193723 connected_five_test_assignments e535849bbc0b70c686a482c03a94e0b4ac31f508fbcda15d685e79fdfde472a9
+          20261104194959 treatment_planner_library 5b79d3ac8edd395168a3078c366b53ec279dd899a2cefca32f03dd19e74dec78
+          20261107204408 optional_patient_mfa 26a1a663b3ad03d08deb4b440bce1e71771a9d1d479c784897f62493899b4e50
+          20261107204551 patient_intake_validator_permissions 23ebe30c79de1a4ad9c51b17de43f793fcac1746ba4f20b9ccc1b4c84ac7516e
+          20261111040337 emr_group_sessions 01409d53fba6df4fcd35428cf19b0fb62150abdfc724d83837e900629ff18696
+          20261111040338 emr_group_individual_notes c3af982d623278f3506b53b70430775a4badcaeaf299187f0d315a145eb16adc
+          20261111040340 emr_group_note_amendments a07b1552143479f5ff7213d8b83d097346f4ce245581447523ff7eab84c258c3
+          20261111040341 emr_individual_progress_notes aa2d0e08af290e9dabb0d775be20d6a24367a50e7542a10696824db3d1a88e3a
+          20261111040343 emr_individual_progress_note_attestations c86cfc6424267ef51773fb7440b34b5dd86961d360e42aaba70a2e387a028007
+          20261111040345 emr_group_note_attestations b3949c2a1d0641e3ec358f29fabf1a3449038100c7b2cee8d017cbeac2bad329
+          20261111115727 emr_pr108_bps_intake_release 3b493e5d6ac4d569c44b962e110cd16bc1bda1d7e09387cc3da8b3d007b8241a
+          20261111134550 emr_patient_directory_recoverable_delete 06e7fe4a3effe4cbedfa9d69049341ade4ab69eb7f0721befaf4fea2f5d99d2c
+          20261112230900 intake_medication_duration 1fc6dacd26f08a783c062cf8a288f6b7fd6875aabf4ffc378ec095075915c62a
+          20261113020212 intake_completed_pages 50fc66af5020c392b5f9d7ca05d7f7749922639deb7283f92b85761f02a9670f
+          20261113030203 assignment_invitation_lifecycle 344a0a5e297381ca5ad19b7dee530520762bcde55373d938b3f67b3fade6352a
+          20261113092344 treatment_planner_problem_level 47cee273053a25092d186b2ade1650a916a449521e20cb808c66c376a92eed39
+          20261113175618 emr_treatment_modality ed6f9b170b55f0fa5c76f3844dea499bdc6938b5ba17fb290931644a534633fb
+          20261113181247 expand_modality_cpt fbf6e80090e554b35b4640dcb8b5bba777791b5bc29136bab685b5ad6638efbe
+          20261113210013 modality_levels_of_care 87b052490e974869577f4da99ff94946940d89a66e6b63af2c52b88270b2bda2
+          20261113211255 treatment_approaches e1c34042bb32adcd0272c6ce660a8ae0a0b9a3b54a7604468f888d11914b3650
+          20261115222833 patient_diagnoses 1e678f3e47efb01379726f45e19d8d28ccbcb6d44393c9b955f03496f7ea8780
+          20261116180909 treatment_plan_responses b7c6dad7f848b83a775437b3810c0bb520e8dbb3e32607d1817eb4731074a8f0
+          20261116194054 patient_homework_assignments bec6b68430a60ac88746ff5640aca6cf80e56ee0ec7a5c7229b363af07a4046f
+          20261117154018 treatment_response_chart_context 49b722233f6e636433e16af052f8d61bcd2e063e8f388b51182a014c3ab582ad
+          20261117162318 response_active_patient_name be41bc2a42ac320d993c6c7570154c2d9b5438e51243d0d6a025bae60915afdc
+          20261117205945 emr_account_settings 63d23b3c9438010013ac08f3c0f70a47d42a65508a1b041a4e19d206efa2e6c0
+          20261118071744 implemented_intervention_library_and_entries 7ea0ea534c6baa635740b5c1d2dd79fe688b7dd29057b81ff07451adf696961c
+          20261119183317 emr_session_note_revisions c7fbdf283ca9b2910500e9da09d0c77f9b6f7138318e01bb2bc38ac2017e1a03
+          20261119185607 independent_group_notes 89edf4a34ab11d0a659c921d6b68ddacd2a3620cf91e869da3e46225678b2fe8
+          20261119213152 discharge_criteria_library db3639ddc696d811f3c2cbd05cf3db6ceba3324b7a2de6ec73e5ed24ac69dba8
+          20261123185241 group_corpus d6554aaa5a7e9576b1a4009da01fc15df7f80fe47d5375eea3000a5164153c1e
           LEDGER
-          test "$(wc -l < baseline-versions.txt)" -eq 62
-          git -C "$GITHUB_WORKSPACE" ls-tree -r "$BASE_SHA" -- supabase/migrations | awk '{print $3}' | sort -u > baseline-blobs.txt
-          shopt -s nullglob
-          for version in $(cat baseline-versions.txt); do
-            candidates=("$GITHUB_WORKSPACE"/supabase/migrations/"$version"_*.sql)
-            test "${#candidates[@]}" -eq 1 || { echo "Missing or ambiguous baseline migration $version"; exit 1; }
-            blob="$(git -C "$GITHUB_WORKSPACE" hash-object "${candidates[0]}")"
-            # Permit a renamed file only when its content is already present in main.
-            grep -Fxq "$blob" baseline-blobs.txt || { echo "Baseline SQL differs from main: $version"; exit 1; }
-            cp "${candidates[0]}" supabase/migrations/
-          done
+          test "$(wc -l < observed-ledger.txt)" -eq 62
+          cut -d' ' -f1 observed-ledger.txt > baseline-versions.txt
+          python3 - <<'PY'
+          import hashlib, os, pathlib, re, subprocess, sys
+          workspace = pathlib.Path(os.environ['GITHUB_WORKSPACE'])
+          base = os.environ['BASE_SHA']
+          def git(*args):
+              return subprocess.check_output(['git', '-C', str(workspace), *args])
+          def digest(data):
+              return hashlib.sha256(data).hexdigest()
+          main = {}
+          for path in git('ls-tree', '-r', '--name-only', base, '--', 'supabase/migrations').decode().splitlines():
+              if re.fullmatch(r'supabase/migrations/[0-9]{14}_.+\.sql', path):
+                  main[path] = git('show', base + ':' + path)
+          head = {str(p.relative_to(workspace)): p.read_bytes()
+                  for p in (workspace / 'supabase/migrations').glob('*.sql')}
+          ledger = [line.split() for line in pathlib.Path('observed-ledger.txt').read_text().splitlines()]
+          def index(files):
+              out = {}
+              for path, data in files.items():
+                  out.setdefault(digest(data), []).append(path)
+              return out
+          main_index, head_index = index(main), index(head)
+          baseline, represented_head, errors, aliases = {}, set(), [], 0
+          for version, name, sha in ledger:
+              m, h = main_index.get(sha, []), head_index.get(sha, [])
+              if len(m) != 1 or len(h) != 1:
+                  candidates = [p for p in main if pathlib.Path(p).name.endswith('_' + name + '.sql')
+                                or pathlib.Path(p).name.startswith(version + '_')]
+                  errors.append(f'{version} {name}: exact main matches={len(m)}, head matches={len(h)}, name/version candidates={candidates}')
+                  continue
+              if h[0] in represented_head:
+                  errors.append(f'{version} {name}: one repository migration maps to multiple live versions')
+                  continue
+              represented_head.add(h[0])
+              if pathlib.Path(h[0]).name.split('_', 1)[0] != version:
+                  aliases += 1
+              baseline[version + '_' + name + '.sql'] = main[m[0]]
+              print(f'EXACT {version} {name} <- {m[0]} -> {h[0]}')
+          print(f'Exact SQL mappings: {len(baseline)}/{len(ledger)}; head version aliases: {aliases}')
+          for error in errors:
+              print('UNRESOLVED ' + error)
+          if errors:
+              sys.exit('Historical SQL not fully reconciled; no local replay attempted.')
+          pending = {}
+          for path, data in sorted(head.items()):
+              if path in represented_head:
+                  continue
+              name = pathlib.Path(path).name
+              if not re.fullmatch(r'[0-9]{14}_.+\.sql', name):
+                  sys.exit('Unexpected migration filename: ' + name)
+              pending[name] = data
+          versions = [n.split('_',1)[0] for n in [*baseline, *pending]]
+          if len(set(versions)) != len(versions):
+              sys.exit('Pending migration collides with an observed ledger version.')
+          if not pending:
+              sys.exit('No pending migrations found.')
+          for name, data in baseline.items():
+              pathlib.Path('supabase/migrations', name).write_bytes(data)
+          pending_dir = pathlib.Path('pending-sql')
+          pending_dir.mkdir()
+          for name, data in pending.items():
+              (pending_dir / name).write_bytes(data)
+              print('PENDING ' + name)
+          print(f'Pending SQL files: {len(pending)}')
+          PY
           # No production data, project link, remote credentials, or seed.
           supabase db start
           export PGPASSWORD=postgres
@@ -123,7 +180,7 @@ jobs:
           diff -u baseline-versions.txt actual-before.txt
           echo "Verified observed baseline ledger on disposable local PostgreSQL 17"
           psql_local -At -F '|' -f "$GITHUB_WORKSPACE/scripts/emr-hosted-schema-preflight.sql"
-          cp "$GITHUB_WORKSPACE"/supabase/migrations/*.sql supabase/migrations/
+          cp pending-sql/*.sql supabase/migrations/
           find supabase/migrations -maxdepth 1 -name '*.sql' -printf '%f\n' | cut -d_ -f1 | LC_ALL=C sort > expected-after.txt
           test "$(wc -l < expected-after.txt)" -eq "$(sort -u expected-after.txt | wc -l)"
           comm -13 baseline-versions.txt expected-after.txt > pending-versions.txt

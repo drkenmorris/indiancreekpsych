@@ -241,11 +241,11 @@ jobs:
           # Explicitly fictional historical data on the disposable local DB only.
           psql_local <<'SQL'
           BEGIN;
-          DO $ BEGIN
+          DO $fixture$ BEGIN
             IF EXISTS (SELECT 1 FROM auth.users) OR EXISTS (SELECT 1 FROM public.appointments)
               OR EXISTS (SELECT 1 FROM public.patient_intakes) OR EXISTS (SELECT 1 FROM public.emr_bps_intake_reviews)
             THEN RAISE EXCEPTION 'Expected an empty disposable fixture database'; END IF;
-          END $;
+          END $fixture$;
           SET LOCAL session_replication_role = replica;
           INSERT INTO auth.users(id,email,email_confirmed_at,raw_app_meta_data,raw_user_meta_data)
           VALUES
@@ -282,14 +282,14 @@ jobs:
           INSERT INTO public.appointments(id,patient_name,series_id,starts_at,ends_at)
           VALUES ('00000000-0000-4000-8000-000000000103','Fictional Unlinked Recurrence','00000000-0000-4000-8000-000000000201',(current_date+2+time '14:00') AT TIME ZONE 'UTC',(current_date+2+time '14:50') AT TIME ZONE 'UTC');
           RESET ROLE;
-          DO $ BEGIN
+          DO $fixture$ BEGIN
             IF (SELECT count(*) FROM public.appointments) <> 3
               OR (SELECT count(*) FROM public.patient_intakes) <> 2
               OR (SELECT count(*) FROM public.emr_bps_intake_reviews) <> 1
               OR (SELECT count(*) FROM public.appointment_availability_rules) <> 1
               OR (SELECT count(*) FROM public.clinical_patients WHERE account_id IN ('00000000-0000-4000-8000-000000000002','00000000-0000-4000-8000-000000000003')) <> 2
             THEN RAISE EXCEPTION 'Nonempty historical fixtures missing'; END IF;
-          END $;
+          END $fixture$;
           COMMIT;
           SQL
           fixture_fingerprints() {

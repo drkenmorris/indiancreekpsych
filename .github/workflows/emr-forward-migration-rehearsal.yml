@@ -499,8 +499,16 @@ jobs:
           END $gate$;
           -- Submitted-source acceptance: exact receipt, chart and approved text
           -- projection, including structured/private field exclusion.
+          -- Advance the already-reviewed fictional source to a new fixture
+          -- revision in this rollback-only transaction, avoiding the existing
+          -- immutable (owner, chart, version) uniqueness constraint.
+          RESET ROLE;
+          SET LOCAL session_replication_role = replica;
+          UPDATE public.patient_intakes SET version=version+1
+          WHERE patient_id='00000000-0000-4000-8000-000000000002' AND status='submitted';
+          SET LOCAL session_replication_role = origin;
           DO $gate$
-          DECLARE payload jsonb; saved uuid; row_data public.emr_bps_intake_reviews%rowtype;
+          DECLARE payload jsonb;
           BEGIN
             SELECT jsonb_build_object('patient_id',c.id,'source_account_id',i.patient_id,
               'source_version',i.version,'source_status',i.status,'source_updated_at',i.updated_at,
@@ -509,7 +517,15 @@ jobs:
                 'treatment','','medical','','safety','','family','','goals','','limitations',''))
             INTO STRICT payload FROM public.patient_intakes i
             JOIN public.clinical_patients c ON c.account_id=i.patient_id
-            WHERE i.patient_id='00000000-0000-4000-8000-000000000002' AND i.status='submitted';
+            WHERE i.patient_id='00000000-0000-4000-8000-000000000002' AND i.status='submitted' AND i.version=4;
+            PERFORM set_config('emr.submitted_fixture_payload',payload::text,true);
+          END $gate$;
+          SET LOCAL ROLE authenticated;
+          SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000001","role":"authenticated","aal":"aal2"}',true);
+          DO $gate$
+          DECLARE payload jsonb:=current_setting('emr.submitted_fixture_payload')::jsonb;
+            saved uuid; row_data public.emr_bps_intake_reviews%rowtype;
+          BEGIN
             BEGIN
               PERFORM public.save_emr_bps_intake_review(payload - 'source_submitted_at');
               RAISE EXCEPTION 'Missing submitted receipt accepted';
@@ -548,7 +564,8 @@ jobs:
           END $gate$;
           ROLLBACK;
           DO $gate$ BEGIN
-            IF (SELECT count(*) FROM public.emr_bps_intake_reviews) <> 1 THEN
+            IF (SELECT count(*) FROM public.emr_bps_intake_reviews) <> 1
+              OR (SELECT version FROM public.patient_intakes WHERE patient_id='00000000-0000-4000-8000-000000000002') IS DISTINCT FROM 3 THEN
               RAISE EXCEPTION 'Fictional BPS RPC test did not fully roll back'; END IF;
           END $gate$;
           SQL

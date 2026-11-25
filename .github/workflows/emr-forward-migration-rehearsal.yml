@@ -129,7 +129,45 @@ jobs:
               return out
           main_index, head_index = index(main), index(head)
           baseline, represented_head, errors, aliases = {}, set(), [], 0
+          # Three reviewed historical exceptions: reconstruct the exact observed SQL,
+          # never infer equivalence from filenames. Require immutable source bytes in both
+          # trees and verify reconstructed live bytes against the observed SHA-256.
+          prefix = 'supabase/migrations/'
+          exceptions = {
+              '20260926190223': ['20260926190144_grant_calendar_private_schema_usage.sql'],
+              '20261111115727': ['20261110103000_emr_bps_intake_reviews.sql',
+                                 '20261110121936_emr_workspace_conflict_http_status.sql',
+                                 '20261111101500_emr_bps_review_account_provenance.sql'],
+              '20261111134550': ['20261111133500_emr_patient_directory_recoverable_delete.sql'],
+          }
+          reconstructed = 0
+          def reconstruct(version, files):
+              if version == '20261111115727':
+                  return b"set local lock_timeout='5s';\n" + b''.join(files)
+              if version == '20260926190223':
+                  expected = b'-- Public SECURITY INVOKER wrappers need schema access to call their explicitly\n-- granted implementations. This does not expose private through the Data API.\nGRANT USAGE ON SCHEMA private TO authenticated;\n'
+                  if files[0] == expected:
+                      return b'-- Invoker calendar wrappers require schema access; function grants and RLS still apply.\nGRANT USAGE ON SCHEMA private TO authenticated;'
+              if version == '20261111134550':
+                  expected = b'-- Directory deletion is reversible and preserves all patient-linked records.\nalter table public.clinical_patients\n add column directory_deleted_at timestamptz;\n'
+                  if files[0] == expected:
+                      return b"set local lock_timeout='5s'; alter table public.clinical_patients add column directory_deleted_at timestamptz;"
+              return None
           for version, name, sha in ledger:
+              if version in exceptions:
+                  paths = [prefix + p for p in exceptions[version]]
+                  if any(p not in main or p not in head or main[p] != head[p] or p in represented_head for p in paths):
+                      errors.append(f'{version} {name}: reviewed exception source missing, changed or duplicated')
+                      continue
+                  data = reconstruct(version, [main[p] for p in paths])
+                  if data is None or digest(data) != sha:
+                      errors.append(f'{version} {name}: reviewed exception does not reconstruct observed SQL')
+                      continue
+                  represented_head.update(paths)
+                  baseline[version + '_' + name + '.sql'] = data
+                  reconstructed += 1
+                  print(f'RECONSTRUCTED {version} {name} <- {paths}')
+                  continue
               m, h = main_index.get(sha, []), head_index.get(sha, [])
               if len(m) != 1 or len(h) != 1:
                   candidates = [p for p in main if pathlib.Path(p).name.endswith('_' + name + '.sql')
@@ -144,7 +182,7 @@ jobs:
                   aliases += 1
               baseline[version + '_' + name + '.sql'] = main[m[0]]
               print(f'EXACT {version} {name} <- {m[0]} -> {h[0]}')
-          print(f'Exact SQL mappings: {len(baseline)}/{len(ledger)}; head version aliases: {aliases}')
+          print(f'Exact SQL mappings: {len(baseline)-reconstructed}/{len(ledger)}; reconstructed: {reconstructed}; total verified: {len(baseline)}/{len(ledger)}; head version aliases: {aliases}')
           for error in errors:
               print('UNRESOLVED ' + error)
           if errors:

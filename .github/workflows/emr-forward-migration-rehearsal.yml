@@ -238,6 +238,16 @@ jobs:
           test -z "$(comm -23 observed-versions.txt actual-before.txt)"
           echo "Verified all 62 observed ledger versions plus four explicitly local baseline reconstructions on disposable PostgreSQL 17"
           psql_local -At -F '|' -f "$GITHUB_WORKSPACE/scripts/emr-hosted-schema-preflight.sql"
+          check_baseline_parity() {
+            local result
+            result="$(psql_local -At -F '|' -f "$GITHUB_WORKSPACE/scripts/emr-hosted-baseline-preflight.sql")"
+            printf '%s\n' "$result"
+            test "$(printf '%s\n' "$result" | wc -l)" -eq 18
+            test "$(printf '%s\n' "$result" | cut -d '|' -f1 | sort -u | wc -l)" -eq 18
+            test "$(printf '%s\n' "$result" | awk -F '|' '$2 == "t" { n++ } END { print n+0 }')" -eq 18
+          }
+          echo 'Check all 18 observed production baseline requirements before upgrade'
+          check_baseline_parity
           # Explicitly fictional historical data on the disposable local DB only.
           psql_local <<'SQL'
           BEGIN;
@@ -355,4 +365,6 @@ jobs:
           printf '%s\n' "$preflight"
           test "$(printf '%s\n' "$preflight" | wc -l)" -eq 6
           test "$(printf '%s\n' "$preflight" | awk -F '|' '$2 == "t" { n++ } END { print n+0 }')" -eq 6
+          echo 'Check all 18 observed production baseline requirements after upgrade'
+          check_baseline_parity
           echo "Local forward migration rehearsal passed against a reconstructed baseline; hosted schema and data compatibility still require separate verification. Do not apply local baseline-only files to production."

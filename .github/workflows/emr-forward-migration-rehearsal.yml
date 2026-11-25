@@ -423,4 +423,85 @@ jobs:
           ROLLBACK;
           SQL
           echo 'Four actual scheduler RLS role/visibility checks passed on disposable fictional records (simulated JWT, not hosted sign-in).'
+          # Actual PostgreSQL BPS RPC checks, using only disposable fixtures.
+          # A successful draft-source save is rolled back; no clinical sign-off.
+          psql_local <<'SQL'
+          BEGIN;
+          DO $gate$
+          DECLARE payload jsonb;
+          BEGIN
+            SELECT jsonb_build_object('patient_id',c.id,'source_account_id',i.patient_id,
+              'source_version',i.version,'source_status',i.status,'source_updated_at',i.updated_at,
+              'source_submitted_at',i.submitted_at,'source_answers',i.answers,'reviewed',true,
+              'clinician_notes',jsonb_build_object('presenting','Fictional rollback-only RPC observation',
+                'treatment','','medical','','safety','','family','','goals','','limitations',''))
+            INTO STRICT payload FROM public.patient_intakes i
+            JOIN public.clinical_patients c ON c.account_id=i.patient_id
+            WHERE i.patient_id='00000000-0000-4000-8000-000000000003' AND i.status='draft';
+            PERFORM set_config('emr.fixture_payload',payload::text,true);
+          END $gate$;
+          SET LOCAL ROLE authenticated;
+          SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000001","role":"authenticated","aal":"aal1"}',true);
+          DO $gate$ BEGIN
+            IF EXISTS (SELECT 1 FROM public.emr_bps_intake_reviews) THEN
+              RAISE EXCEPTION 'AAL1 administrator can read BPS history'; END IF;
+            BEGIN
+              PERFORM public.save_emr_bps_intake_review(current_setting('emr.fixture_payload')::jsonb);
+              RAISE EXCEPTION 'AAL1 administrator can save BPS history';
+            EXCEPTION WHEN insufficient_privilege THEN
+              IF SQLERRM NOT LIKE '%Administrator sign-in and MFA required%' THEN RAISE; END IF;
+            END;
+          END $gate$;
+          SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000003","role":"authenticated","aal":"aal2"}',true);
+          DO $gate$ BEGIN
+            IF EXISTS (SELECT 1 FROM public.emr_bps_intake_reviews) THEN
+              RAISE EXCEPTION 'Patient can read clinician BPS history'; END IF;
+            BEGIN
+              PERFORM public.save_emr_bps_intake_review(current_setting('emr.fixture_payload')::jsonb);
+              RAISE EXCEPTION 'Patient can save clinician BPS history';
+            EXCEPTION WHEN insufficient_privilege THEN
+              IF SQLERRM NOT LIKE '%Administrator sign-in and MFA required%' THEN RAISE; END IF;
+            END;
+          END $gate$;
+          SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000001","role":"authenticated","aal":"aal2"}',true);
+          DO $gate$
+          DECLARE payload jsonb:=current_setting('emr.fixture_payload')::jsonb;
+            saved uuid; row_data public.emr_bps_intake_reviews%rowtype;
+          BEGIN
+            IF (SELECT count(*) FROM public.emr_bps_intake_reviews) <> 1 THEN
+              RAISE EXCEPTION 'Unexpected historical review count'; END IF;
+            BEGIN
+              PERFORM public.save_emr_bps_intake_review(jsonb_set(payload,'{source_answers}','{}'::jsonb));
+              RAISE EXCEPTION 'Changed patient answer BPS RPC accepted';
+            EXCEPTION WHEN invalid_parameter_value THEN
+              IF SQLERRM NOT LIKE '%Patient answers changed during clinical review%' THEN RAISE; END IF;
+            END;
+            BEGIN
+              PERFORM public.save_emr_bps_intake_review(payload #- '{clinician_notes,limitations}');
+              RAISE EXCEPTION 'Incomplete seven-domain BPS RPC accepted';
+            EXCEPTION WHEN invalid_parameter_value THEN
+              IF SQLERRM NOT LIKE '%All seven BPS clinician-note domains%' THEN RAISE; END IF;
+            END;
+            IF (SELECT count(*) FROM public.emr_bps_intake_reviews) <> 1 THEN
+              RAISE EXCEPTION 'Rejected BPS operations wrote history'; END IF;
+            saved:=public.save_emr_bps_intake_review(payload);
+            SELECT * INTO STRICT row_data FROM public.emr_bps_intake_reviews WHERE id=saved;
+            IF row_data.source_account_id IS DISTINCT FROM (payload->>'source_account_id')::uuid
+              OR row_data.patient_id IS DISTINCT FROM (payload->>'patient_id')::uuid
+              OR row_data.source_version IS DISTINCT FROM (payload->>'source_version')::integer
+              OR row_data.source_status IS DISTINCT FROM 'draft'
+              OR row_data.source_updated_at IS DISTINCT FROM (payload->>'source_updated_at')::timestamptz
+              OR row_data.source_submitted_at IS NOT NULL
+              OR row_data.clinical_answers IS DISTINCT FROM payload->'source_answers'
+              OR row_data.clinician_notes IS DISTINCT FROM payload->'clinician_notes'
+              OR (SELECT count(*) FROM public.emr_bps_intake_reviews) <> 2 THEN
+              RAISE EXCEPTION 'Draft BPS provenance or readback mismatch'; END IF;
+          END $gate$;
+          ROLLBACK;
+          DO $gate$ BEGIN
+            IF (SELECT count(*) FROM public.emr_bps_intake_reviews) <> 1 THEN
+              RAISE EXCEPTION 'Fictional BPS RPC test did not fully roll back'; END IF;
+          END $gate$;
+          SQL
+          echo 'BPS RPC authorization, exact answers, seven domains, draft provenance and rollback passed on disposable PostgreSQL (not hosted acceptance).'
           echo "Local forward migration rehearsal passed against a reconstructed baseline; hosted schema and data compatibility still require separate verification. Do not apply local baseline-only files to production."

@@ -382,4 +382,45 @@ jobs:
           test "$(printf '%s\n' "$preflight" | awk -F '|' '$2 == "t" { n++ } END { print n+0 }')" -eq 6
           echo 'Check all 18 observed production baseline requirements after upgrade'
           check_baseline_parity
+          # Exercise actual scheduler RLS against fictional historical rows, using
+          # the authenticated database role. These are simulated JWT claims, not
+          # real Supabase sign-in or interactive MFA acceptance.
+          psql_local <<'SQL'
+          BEGIN;
+          SET LOCAL ROLE authenticated;
+          SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000001","role":"authenticated","aal":"aal1"}',true);
+          DO $gate$ BEGIN
+            IF auth.uid() IS DISTINCT FROM '00000000-0000-4000-8000-000000000001'::uuid
+              OR (auth.jwt()->>'aal') IS DISTINCT FROM 'aal1'
+            THEN RAISE EXCEPTION 'Unexpected administrator AAL1 fixture identity'; END IF;
+            IF EXISTS (SELECT 1 FROM public.appointments)
+              OR EXISTS (SELECT 1 FROM public.appointment_settings)
+              OR EXISTS (SELECT 1 FROM public.appointment_availability_rules)
+            THEN RAISE EXCEPTION 'Administrator without MFA could read scheduler rows'; END IF;
+          END $gate$;
+          SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000001","role":"authenticated","aal":"aal2"}',true);
+          DO $gate$ BEGIN
+            IF (auth.jwt()->>'aal') IS DISTINCT FROM 'aal2'
+              OR (SELECT count(*) FROM public.appointments) <> 3
+              OR (SELECT count(*) FROM public.appointment_settings) <> 1
+              OR (SELECT count(*) FROM public.appointment_availability_rules) <> 1
+            THEN RAISE EXCEPTION 'MFA administrator cannot read all historical scheduler fixtures'; END IF;
+          END $gate$;
+          SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000002","role":"authenticated","aal":"aal2"}',true);
+          DO $gate$ BEGIN
+            IF auth.uid() IS DISTINCT FROM '00000000-0000-4000-8000-000000000002'::uuid
+              OR (SELECT count(*) FROM public.appointments) <> 1
+              OR NOT EXISTS (SELECT 1 FROM public.appointments WHERE id='00000000-0000-4000-8000-000000000101')
+            THEN RAISE EXCEPTION 'Patient A appointment isolation or own-row access failed'; END IF;
+          END $gate$;
+          SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000003","role":"authenticated","aal":"aal2"}',true);
+          DO $gate$ BEGIN
+            IF auth.uid() IS DISTINCT FROM '00000000-0000-4000-8000-000000000003'::uuid
+              OR (SELECT count(*) FROM public.appointments) <> 1
+              OR NOT EXISTS (SELECT 1 FROM public.appointments WHERE id='00000000-0000-4000-8000-000000000102')
+            THEN RAISE EXCEPTION 'Patient B appointment isolation or own-row access failed'; END IF;
+          END $gate$;
+          ROLLBACK;
+          SQL
+          echo 'Four actual scheduler RLS role/visibility checks passed on disposable fictional records (simulated JWT, not hosted sign-in).'
           echo "Local forward migration rehearsal passed against a reconstructed baseline; hosted schema and data compatibility still require separate verification. Do not apply local baseline-only files to production."

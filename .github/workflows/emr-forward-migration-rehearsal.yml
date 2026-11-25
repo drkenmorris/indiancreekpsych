@@ -250,7 +250,11 @@ jobs:
           psql_local -Atc "select current_setting('server_version_num')::int / 10000" | grep -qx 17
           psql_local -Atc 'select version from supabase_migrations.schema_migrations order by version' > actual-before.txt
           diff -u baseline-versions.txt actual-before.txt
-          test "$(wc -l < baseline-versions.txt)" -eq 66
+          # The pinned observed ledger plus four explicitly local-only reconstructions.
+          expected_baseline_count="$(( $(wc -l < observed-ledger.txt) + 4 ))"
+          actual_baseline_count="$(wc -l < actual-before.txt)"
+          echo "Baseline version count: expected $expected_baseline_count; actual $actual_baseline_count"
+          test "$actual_baseline_count" -eq "$expected_baseline_count"
           test -z "$(comm -23 observed-versions.txt actual-before.txt)"
           echo "Verified all 63 observed ledger versions plus four explicitly local baseline reconstructions on disposable PostgreSQL 17"
           psql_local -At -F '|' -f "$GITHUB_WORKSPACE/scripts/emr-hosted-schema-preflight.sql"

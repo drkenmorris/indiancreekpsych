@@ -1,6 +1,6 @@
 'use client';
 
-import {useEffect,useState} from 'react';
+import {useEffect,useRef,useState} from 'react';
 
 type Product = [id:string,label:string];
 let catalogRequest:Promise<Product[]>|undefined;
@@ -24,6 +24,8 @@ export default function IntakeMedicationProduct({id,name,value,onChange}:{id:str
  const [products,setProducts]=useState<Product[]>([]);
  const [unavailable,setUnavailable]=useState(false);
  const [active,setActive]=useState(false);
+ const [lookupOpen,setLookupOpen]=useState(false);
+ const input=useRef<HTMLInputElement>(null);
 
  useEffect(()=>{
   if(!active)return;
@@ -47,18 +49,21 @@ export default function IntakeMedicationProduct({id,name,value,onChange}:{id:str
  return <>
   <div>
   <label htmlFor={id}>Medication
-   <input id={id} name={name} maxLength={200} value={value} autoComplete="off" aria-describedby={id+'-help'}
-    onFocus={()=>setActive(true)} onChange={event=>{setActive(true);onChange(event.target.value);}}/>
+   <input ref={input} id={id} name={name} maxLength={200} value={value} autoComplete="off" aria-describedby={id+'-help'}
+    onFocus={()=>setActive(true)} onChange={event=>{setActive(true);setLookupOpen(true);onChange(event.target.value);}}/>
   </label>
+  <button type="button" className="secondaryAction" aria-expanded={lookupOpen} aria-controls={id+'-lookup'}
+   onClick={()=>{setActive(true);setLookupOpen(!lookupOpen);if(!lookupOpen)input.current?.focus();}}>Search medication catalog</button>
   <small id={id+'-help'}>Type a brand or generic name, or enter the name and strength from your label manually.</small>
   </div>
-  {active&&query.length>=2&&!selected&&<div>
-   {matches.length>0?<fieldset aria-label="Available strengths and forms">
+  <div id={id+'-lookup'} hidden={!lookupOpen}>
+   {lookupOpen&&(query.length<2||selected?<p>Enter at least two letters of a brand or generic name to search.</p>:
+   matches.length>0?<fieldset aria-label="Available strengths and forms">
     <legend>Available strengths and forms</legend>
     <div className="medicationProductMatches">
-     {matches.map(([code,label])=><button key={code} type="button" className="secondaryAction" onClick={()=>onChange(label)}>{label}</button>)}
+     {matches.map(([code,label])=><button key={code} type="button" className="secondaryAction" onClick={()=>{onChange(label);setLookupOpen(false);input.current?.focus();}}>{label}</button>)}
     </div>
-   </fieldset>:<p role="status">{unavailable?'Catalog unavailable. Use manual entry.':products.length?'No match. Use manual entry.':'Loading medications…'}</p>}
-  </div>}
+   </fieldset>:<p role="status">{unavailable?'Catalog unavailable. Use manual entry.':products.length?'No match. Use manual entry.':'Loading medications…'}</p>)}
+  </div>
  </>;
 }

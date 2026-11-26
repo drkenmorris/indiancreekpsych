@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {spawnSync} from 'node:child_process';
+import {fileURLToPath} from 'node:url';
 import {test} from 'node:test';
 import {PGlite} from '@electric-sql/pglite';
 
@@ -316,4 +318,22 @@ test('read-only release audit identifies ambiguous central-chart links and clear
   assert.equal((await db.query('select count(*)::integer as n from public.emr_bps_intake_reviews')).rows[0].n,2);
   assert.equal((await db.query('select count(*)::integer as n from public.appointments')).rows[0].n,0);
  }finally{await db.close();}
+});
+
+
+// Run the new hosted runner's safety guards in standard CI, without any
+// inherited credentials, network calls, hosted fixtures or clinical writes.
+const hostedPreflightPath=fileURLToPath(new URL('../scripts/emr-hosted-browser-preflight.mjs',import.meta.url));
+test('hosted browser preflight guard regression runs without external configuration',()=>{
+ const result=spawnSync(process.execPath,[hostedPreflightPath,'--self-test'],{env:{},encoding:'utf8',timeout:10000});
+ assert.ifError(result.error);
+ assert.equal(result.status,0,result.stderr);
+ assert.match(result.stdout,/15 hosted preflight guard\/TOTP checks passed; no hosted requests performed\./);
+});
+test('hosted browser preflight fails closed before any hosted request when unconfigured',()=>{
+ const result=spawnSync(process.execPath,[hostedPreflightPath],{env:{},encoding:'utf8',timeout:10000});
+ assert.ifError(result.error);
+ assert.notEqual(result.status,0);
+ assert.match(result.stderr,/ERR_INVALID_URL|Invalid URL/);
+ assert.doesNotMatch(result.stdout,/Hosted read-only preflight passed/);
 });

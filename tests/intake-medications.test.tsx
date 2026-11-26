@@ -9,11 +9,20 @@ test('validation accepts blank drafts and rejects contradictory allergy/date/ben
 test('brand search offers labeled strengths and preserves the patient-reported dose',async()=>{
  vi.stubGlobal('fetch',vi.fn().mockResolvedValue({ok:true,json:async()=> (await import('@/public/emr-assets/medication-catalog.json')).default}));
  render(<Harness/>);
+ const lookup=screen.getByRole('button',{name:'Search medication catalog'});
+ expect(lookup).toHaveProperty('type','button');
+ expect(lookup.getAttribute('aria-expanded')).toBe('false');
+ fireEvent.click(lookup);
+ expect(screen.getByText(/Enter at least two letters/)).toBeTruthy();
+ expect(lookup.getAttribute('aria-expanded')).toBe('true');
+ fireEvent.click(lookup);
+ expect(lookup.getAttribute('aria-expanded')).toBe('false');
  fireEvent.change(screen.getByLabelText('Amount taken each time'),{target:{value:'Half a tablet'}});
  fireEvent.change(screen.getByLabelText('Medication'),{target:{value:'Zo'}});
  const product=await screen.findByRole('button',{name:'sertraline 50 MG Oral Tablet [Zoloft]'});
  expect(screen.getByRole('button',{name:'sertraline 100 MG Oral Tablet [Zoloft]'})).toBeTruthy();
  fireEvent.click(product);
+ expect(lookup.getAttribute('aria-expanded')).toBe('false');
  const [saved]=JSON.parse(screen.getByTestId('value').textContent!);
  expect(saved.medication).toBe(product.textContent);
  expect(saved.dosage).toBe('Half a tablet');

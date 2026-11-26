@@ -281,7 +281,7 @@ try{
     };
     const before=await readChart();
     const form=page.locator('form[data-action="'+action+'"]');
-    const marker='Fictional local original BPS '+subpage;
+    const marker=subpage==='medications'?'sertraline 50 MG Oral Tablet [Zoloft]':'Fictional local original BPS '+subpage;
     let verifyRecord, verifyReopened;
     if(subpage==='symptoms'){
       const choice=form.locator('input[type="checkbox"]').first();
@@ -301,8 +301,23 @@ try{
         assert.equal(await page.locator('form[data-action="'+action+'"] textarea[name="reason"]').inputValue(),marker);
       };
     }else if(subpage==='medications'){
-      await form.locator('input[name="medication"]').fill(marker);
-      await form.locator('input[name="dosage"]').fill('Fictional amount');
+      const lookup=form.getByRole('button',{name:'Search medication catalog',exact:true});
+      const medication=form.locator('input[name="medication"]');
+      const dosage=form.locator('input[name="dosage"]');
+      assert.equal(await lookup.getAttribute('aria-expanded'),'false');
+      await lookup.click();
+      await form.getByText('Enter at least two letters of a brand or generic name to search.',{exact:true}).waitFor();
+      assert.equal(await lookup.getAttribute('aria-expanded'),'true');
+      await lookup.click();
+      assert.equal(await lookup.getAttribute('aria-expanded'),'false');
+      await dosage.fill('Fictional amount');
+      await medication.fill('Zoloft');
+      await form.getByRole('button',{name:'sertraline 100 MG Oral Tablet [Zoloft]',exact:true}).waitFor();
+      await form.getByRole('button',{name:marker,exact:true}).click();
+      assert.equal(await medication.inputValue(),marker);
+      assert.equal(await dosage.inputValue(),'Fictional amount');
+      assert.equal(await lookup.getAttribute('aria-expanded'),'false');
+      console.log('Original BPS medication catalog: visible lookup, multiple strengths and unchanged reported amount verified.');
       verifyRecord=record=>{assert.equal(record.medication,marker);assert.equal(record.dosage,'Fictional amount');};
       verifyReopened=async()=>{
         const entry=page.locator('article.record').filter({hasText:marker}).filter({has:page.locator('[data-edit-medication]')});
@@ -452,7 +467,27 @@ try{
   await saveAndReopen(5,{treatment_history_entries:'[]',prior_mental_health_treatment:'No',prior_therapists:'Not applicable'});
   assert.ok(await patientForm.getByRole('checkbox',{name:'I have no treatment entries to report',exact:true}).isChecked());
   await tab(6).click();
+  const patientMedicationLookup=patientForm.getByRole('button',{name:'Search medication catalog',exact:true});
+  const patientMedication=patientForm.getByLabel('Medication',{exact:true});
+  const patientMedicationAmount=patientForm.getByLabel('Amount taken each time',{exact:true});
+  assert.equal(await patientMedicationLookup.getAttribute('aria-expanded'),'false');
+  await patientMedicationLookup.click();
+  await patientForm.getByText('Enter at least two letters of a brand or generic name to search.',{exact:true}).waitFor();
+  assert.equal(await patientMedicationLookup.getAttribute('aria-expanded'),'true');
+  await patientMedicationLookup.click();
+  assert.equal(await patientMedicationLookup.getAttribute('aria-expanded'),'false');
+  await patientMedicationAmount.fill('Fictional amount');
+  await patientMedication.fill('Zoloft');
+  await patientForm.getByRole('button',{name:'sertraline 100 MG Oral Tablet [Zoloft]',exact:true}).waitFor();
+  await patientForm.getByRole('button',{name:'sertraline 50 MG Oral Tablet [Zoloft]',exact:true}).click();
+  assert.equal(await patientMedication.inputValue(),'sertraline 50 MG Oral Tablet [Zoloft]');
+  assert.equal(await patientMedicationAmount.inputValue(),'Fictional amount');
+  assert.equal(await patientMedicationLookup.getAttribute('aria-expanded'),'false');
+  // Clear the unsaved fictional lookup before exercising the existing explicit no-medications path.
+  await patientMedication.fill('');
+  await patientMedicationAmount.fill('');
   await patientForm.getByRole('checkbox',{name:'I do not currently take any medications',exact:true}).check();
+  console.log('Patient intake medication catalog: visible lookup, strengths and unchanged reported amount verified.');
   await select('Medication Allergy Status','Medication allergies reported');
   for(const checkbox of await patientForm.getByRole('checkbox',{name:/^Not applicable —/}).all())await checkbox.check();
   await reopenedNarrative('Medication Allergies / Reactions').fill('Fictional medication allergy boundary');

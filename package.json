@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "node scripts/build-emr-soap.mjs && next dev",
-    "build": "node scripts/reconstruct-images.mjs && node scripts/build-emr-soap.mjs && next build",
+    "build": "node scripts/assert-preview-supabase-isolation.mjs && node scripts/reconstruct-images.mjs && node scripts/build-emr-soap.mjs && next build",
     "start": "next start",
     "lint": "npm run typecheck",
     "test:scheduling": "node --test tests/scheduling.test.mjs tests/scheduler-admin-mfa-db.test.mjs && vitest run",

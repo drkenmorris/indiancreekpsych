@@ -158,7 +158,7 @@ let bpsMedicationEdit=null;
 function bpsMedicationEntries(){const latest=new Map();for(const r of records('biopsychosocial_medication'))latest.set(r.medication_id,r);return [...latest.values()].toReversed();}
 function medicationEntryFields(r={},prefix='med'){
  const input=(key,label,type='text',required=false)=>`<label class="field" for="${prefix}-${key}">${label}${required?' (required)':''}<input id="${prefix}-${key}" name="${key}" type="${type}" value="${esc(r[key]||'')}" ${type==='text'?'maxlength="200"':''} ${required?'required':''} autocomplete="off"></label>`;
- return `<div class="provider-field-grid"><div>${input('medication','Medication','text',true)}<p class="hint">Type at least two letters of the generic or brand name, or enter the product manually.</p><div data-medication-matches hidden></div></div><input type="hidden" name="status" value="${r.status==='Past'?'Past':'Current'}"><label class="field" for="${prefix}-duration">Estimated duration<select id="${prefix}-duration" name="duration"><option value="">Choose an estimate</option>${['Less than 3 months','3 to less than 6 months','6 months to less than 1 year','1 to less than 2 years','2 to 5 years','More than 5 years','Not sure'].map(v=>`<option ${r.duration===v?'selected':''}>${v}</option>`).join('')}</select></label>${input('dosage','Amount taken each time')}${input('frequency','Frequency')}${input('prescribing_physician','Prescribing Physician')}</div><fieldset><legend>Was the medication beneficial?</legend><div class="choices">${['Beneficial','Not beneficial'].map((value,index)=>`<label class="check" for="${prefix}-benefit-${index}"><input id="${prefix}-benefit-${index}" type="checkbox" name="benefit" value="${value}" ${r.benefit===value?'checked':''}>${value}</label>`).join('')}</div><p class="hint">Choose one, or leave both unchecked if not recorded.</p></fieldset><p class="hint">Leave unknown details or dates blank. Choose Past to record an end date.</p>`;
+ return `<div class="provider-field-grid"><div>${input('medication','Medication','text',true)}<button type="button" class="secondary" data-medication-lookup aria-expanded="false" aria-controls="${prefix}-lookup">Search medication catalog</button><p class="hint">Type at least two letters of the generic or brand name, or enter the product manually.</p><div id="${prefix}-lookup" data-medication-matches hidden></div></div><input type="hidden" name="status" value="${r.status==='Past'?'Past':'Current'}"><label class="field" for="${prefix}-duration">Estimated duration<select id="${prefix}-duration" name="duration"><option value="">Choose an estimate</option>${['Less than 3 months','3 to less than 6 months','6 months to less than 1 year','1 to less than 2 years','2 to 5 years','More than 5 years','Not sure'].map(v=>`<option ${r.duration===v?'selected':''}>${v}</option>`).join('')}</select></label>${input('dosage','Amount taken each time')}${input('frequency','Frequency')}${input('prescribing_physician','Prescribing Physician')}</div><fieldset><legend>Was the medication beneficial?</legend><div class="choices">${['Beneficial','Not beneficial'].map((value,index)=>`<label class="check" for="${prefix}-benefit-${index}"><input id="${prefix}-benefit-${index}" type="checkbox" name="benefit" value="${value}" ${r.benefit===value?'checked':''}>${value}</label>`).join('')}</div><p class="hint">Choose one, or leave both unchecked if not recorded.</p></fieldset><p class="hint">Leave unknown details or dates blank. Choose Past to record an end date.</p>`;
 }
 function bpsMedicationsView(){
  const entries=bpsMedicationEntries(),edit=entries.find(r=>r.id===bpsMedicationEdit),r=edit||{},allergies=last('medication_allergies');
@@ -169,11 +169,20 @@ function bpsMedicationsView(){
 let medicationCatalogRequest;
 function bindMedicationCatalog(form){
  const input=form.elements.medication, results=form.querySelector('[data-medication-matches]');
- input.addEventListener('input',async()=>{
+ const toggle=form.querySelector('[data-medication-lookup]');
+ let requestVersion=0;
+ function showResults(show){results.hidden=!show;toggle.setAttribute('aria-expanded',String(show));}
+ toggle.addEventListener('click',()=>{
+  if(!results.hidden){requestVersion++;showResults(false);return;}
+  input.focus();void search();
+ });
+ input.addEventListener('input',search);
+ async function search(){
+  const version=++requestVersion;
   const query=input.value.trim().toLowerCase();
   results.replaceChildren();
-  results.hidden=query.length<2;
-  if(results.hidden)return;
+  showResults(true);
+  if(query.length<2){results.textContent='Enter at least two letters of a brand or generic name to search.';return;}
   results.textContent='Loading medications…';
   try{
    medicationCatalogRequest ||= fetch('/emr-assets/medication-catalog.json').then(response=>{
@@ -181,7 +190,7 @@ function bindMedicationCatalog(form){
     return response.json();
    }).catch(error=>{medicationCatalogRequest=undefined;throw error;});
    const catalog=await medicationCatalogRequest;
-   if(!input.isConnected||input.value.trim().toLowerCase()!==query)return;
+   if(!input.isConnected||version!==requestVersion||results.hidden||input.value.trim().toLowerCase()!==query)return;
    const startsWithName=label=>label.startsWith(query)||label.includes('['+query);
    const words=query.split(/\s+/);
    const matches=Object.values(catalog).filter(label=>words.every(word=>label.toLowerCase().includes(word)))
@@ -201,7 +210,7 @@ function bindMedicationCatalog(form){
     button.textContent=label;
     button.addEventListener('click',()=>{
      input.value=label;
-     results.hidden=true;
+     requestVersion++;showResults(false);
      form.dataset.modified='true';
      input.focus();
     });
@@ -210,9 +219,9 @@ function bindMedicationCatalog(form){
    list.append(choices);
    results.append(list);
   }catch{
-   if(input.isConnected&&input.value.trim().toLowerCase()===query)results.textContent='Catalog unavailable. Use manual entry.';
+   if(input.isConnected&&version===requestVersion&&!results.hidden&&input.value.trim().toLowerCase()===query)results.textContent='Catalog unavailable. Use manual entry.';
   }
- });
+ }
 }
 function refreshSavedMedications(container,id){
  let pending=false;

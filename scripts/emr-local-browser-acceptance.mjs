@@ -483,11 +483,24 @@ try{
   assert.equal(await patientMedication.inputValue(),'sertraline 50 MG Oral Tablet [Zoloft]');
   assert.equal(await patientMedicationAmount.inputValue(),'Fictional amount');
   assert.equal(await patientMedicationLookup.getAttribute('aria-expanded'),'false');
-  // Clear the unsaved fictional lookup before exercising the existing explicit no-medications path.
-  await patientMedication.fill('');
-  await patientMedicationAmount.fill('');
-  await patientForm.getByRole('checkbox',{name:'I do not currently take any medications',exact:true}).check();
-  console.log('Patient intake medication catalog: visible lookup, strengths and unchanged reported amount verified.');
+  // A populated medication must not coexist with the explicit no-medications state.
+  // Clearing text alone leaves the entry's Current status intact. Use the real
+  // removal control and its confirmation rather than bypassing the guard.
+  const noCurrentMedications=patientForm.getByRole('checkbox',{name:'I do not currently take any medications',exact:true});
+  assert.ok(await noCurrentMedications.isDisabled(),'Medication entry and explicit absence are mutually exclusive');
+  const removeMedication=patientForm.getByRole('button',{name:'Remove medication 1',exact:true});
+  const confirmRemoval=patientPage.waitForEvent('dialog').then(async dialog=>{
+    const message=dialog.message();
+    await dialog.accept();
+    return message;
+  });
+  await removeMedication.click();
+  assert.equal(await confirmRemoval,'Remove this medication from the draft? Save the draft to keep this change.');
+  assert.ok(await noCurrentMedications.isEnabled());
+  assert.ok(await noCurrentMedications.isChecked(),'Removing the final entry represents an explicit empty list');
+  await noCurrentMedications.uncheck();
+  await noCurrentMedications.check();
+  console.log('Patient intake medication catalog: visible lookup, strengths, unchanged reported amount and explicit no-medications guard verified.');
   await select('Medication Allergy Status','Medication allergies reported');
   for(const checkbox of await patientForm.getByRole('checkbox',{name:/^Not applicable —/}).all())await checkbox.check();
   await reopenedNarrative('Medication Allergies / Reactions').fill('Fictional medication allergy boundary');

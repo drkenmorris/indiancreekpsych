@@ -1,7 +1,8 @@
 // Hosted authentication preflight; optional fictional review write is separately gated.
 // Never run against production,
 // the obsolete validation branch, or a project belonging to another app.
-// This is not the full patient intake/original-form write/booking/assessment suite.
+// Optional original-form writes require a fresh isolated fictional chart.
+// This is not the full patient intake/booking/assessment suite.
 import assert from 'node:assert/strict';
 import {createHmac} from 'node:crypto';
 import {pathToFileURL} from 'node:url';
@@ -88,6 +89,21 @@ function reviewWriteConfig(e) {
   assert.notEqual(e.EMR_ACCEPTANCE_SOURCE_ACCOUNT_ID,e.EMR_ACCEPTANCE_CHART_ID.toLowerCase());
   assert.match(e.EMR_ACCEPTANCE_FIXTURE_MARKER,/^FICTIONAL-EMR-ACCEPTANCE-[a-f0-9]{32}$/);
   return {account:e.EMR_ACCEPTANCE_SOURCE_ACCOUNT_ID,marker:e.EMR_ACCEPTANCE_FIXTURE_MARKER};
+}
+function originalWriteConfig(e,reviewFixture) {
+  if(e.EMR_ACCEPTANCE_ORIGINAL_WRITE===undefined||e.EMR_ACCEPTANCE_ORIGINAL_WRITE==='false') return false;
+  assert.equal(e.EMR_ACCEPTANCE_ORIGINAL_WRITE,'true');
+  assert.ok(reviewFixture,'Original form writes require the independently approved fictional review stage');
+  return true;
+}
+function verifyOriginalChart(result,chart,expectedRevision,requireEmpty=false) {
+  assert.equal(result?.value?.patient?.id,chart,'Original form chart identity mismatch');
+  assert.ok(Number.isSafeInteger(result.revision)&&result.revision>=0,'Invalid original chart revision');
+  assert.ok(Array.isArray(result.value.records),'Original chart records unavailable');
+  assert.ok(result.value.records.every(r=>r&&typeof r.id==='string'&&r.id.length>0),'Invalid original record identity');
+  assert.equal(new Set(result.value.records.map(r=>r.id)).size,result.value.records.length,'Duplicate original record identity');
+  if(expectedRevision!==undefined)assert.equal(result.revision,expectedRevision,'Unexpected concurrent original chart revision');
+  if(requireEmpty)assert.deepEqual(result.value.records,[],'Fresh fictional original chart must have no existing workflow records');
 }
 function verifyFreshReviewFixture(data,e,fixture) {
   assert.ok(data && data.linked===true && data.patientId===e.EMR_ACCEPTANCE_CHART_ID.toLowerCase(),'Incorrect linked chart');
@@ -182,8 +198,21 @@ if(process.argv.includes('--self-test')) {
   assert.throws(()=>verifyFreshReviewFixture({...full,sections:full.sections.map((section,i)=>i===1?{...section,fields:full.sections[0].fields}:section)},write,fixture));
   assert.throws(()=>verifyFreshReviewFixture({...full,sections:full.sections.map((section,i)=>i===1?{...section,title:full.sections[0].title}:section)},write,fixture));
   console.log('16 opt-in fictional review write safety checks passed; no hosted requests performed.');
+  assert.equal(originalWriteConfig(e,null),false);
+  assert.equal(originalWriteConfig({...write,EMR_ACCEPTANCE_ORIGINAL_WRITE:'false'},fixture),false);
+  assert.throws(()=>originalWriteConfig({...write,EMR_ACCEPTANCE_ORIGINAL_WRITE:'true'},null));
+  assert.throws(()=>originalWriteConfig({...write,EMR_ACCEPTANCE_ORIGINAL_WRITE:'yes'},fixture));
+  assert.equal(originalWriteConfig({...write,EMR_ACCEPTANCE_ORIGINAL_WRITE:'true'},fixture),true);
+  const original={revision:3,value:{patient:{id:e.EMR_ACCEPTANCE_CHART_ID},records:[]}};
+  assert.doesNotThrow(()=>verifyOriginalChart(original,e.EMR_ACCEPTANCE_CHART_ID,3,true));
+  assert.throws(()=>verifyOriginalChart(original,'wrong',3,true));
+  assert.throws(()=>verifyOriginalChart(original,e.EMR_ACCEPTANCE_CHART_ID,4,true));
+  assert.throws(()=>verifyOriginalChart({...original,revision:-1},e.EMR_ACCEPTANCE_CHART_ID,undefined,true));
+  assert.throws(()=>verifyOriginalChart({...original,value:{...original.value,records:[{id:'existing'}]}},e.EMR_ACCEPTANCE_CHART_ID,3,true));
+  assert.throws(()=>verifyOriginalChart({...original,value:{...original.value,records:[{id:'duplicate'},{id:'duplicate'}]}},e.EMR_ACCEPTANCE_CHART_ID,3));
+  console.log('11 original-form opt-in and fresh chart guards passed; no hosted requests performed.');
 } else {
-  const e=process.env,{origin,database}=config(e),writeFixture=reviewWriteConfig(e);
+  const e=process.env,{origin,database}=config(e),writeFixture=reviewWriteConfig(e),originalWrite=originalWriteConfig(e,writeFixture);
   assert.ok(e.EMR_ACCEPTANCE_VERCEL_TOKEN,'Read-only Vercel API access required');
   const deploymentResponse=await fetch('https://api.vercel.com/v13/deployments/'+e.EMR_ACCEPTANCE_DEPLOYMENT_ID+'?slug=ken-morris-projects',{headers:{Authorization:'Bearer '+e.EMR_ACCEPTANCE_VERCEL_TOKEN},redirect:'error'});
   assert.equal(deploymentResponse.status,200,'Deployment metadata unavailable');
@@ -273,6 +302,28 @@ if(process.argv.includes('--self-test')) {
       verifyFreshReviewFixture(before.body,e,writeFixture);
       await page.getByText('Submitted intake (immutable source)',{exact:true}).waitFor();
       await page.getByText(writeFixture.marker,{exact:true}).waitFor({state:'attached'});
+      const chart={id:e.EMR_ACCEPTANCE_CHART_ID.toLowerCase()};
+      const workflowUrl=origin+'/api/emr/workflow';
+      // This POST envelope is the authenticated workflow transport for a logical GET.
+      // Keep all requests inside the routed browser session, never an APIRequestContext.
+      const readChart=async()=>{
+        const response=await page.evaluate(async ({chartId})=>{
+          const r=await fetch('/api/emr/workflow',{method:'POST',headers:{'Content-Type':'application/json'},cache:'no-store',redirect:'error',body:JSON.stringify({path:'/api/chart?patient='+chartId,method:'GET',body:null,patientId:chartId,expectedRevision:0})});
+          return {status:r.status,cache:r.headers.get('cache-control'),body:await r.json()};
+        },{chartId:chart.id});
+        assert.equal(response.status,200,'Independent original chart read');
+        assert.match(response.cache??'',/\bprivate\b/i);
+        assert.match(response.cache??'',/\bno-store\b/i);
+        verifyOriginalChart(response.body,chart.id);
+        return response.body;
+      };
+      let originalRevision;
+      if(originalWrite){
+        stage='fresh isolated original-form chart precondition';
+        const fresh=await readChart();
+        verifyOriginalChart(fresh,chart.id,undefined,true);
+        originalRevision=fresh.revision;
+      }
       stage='fictional clinician review through rendered UI';
       const note='Fictional isolated acceptance observation '+writeFixture.marker;
       const prepare=page.getByRole('button',{name:'Prepare clinician-reviewed BPS intake draft'});
@@ -312,7 +363,116 @@ if(process.argv.includes('--self-test')) {
       await page.locator('summary').filter({hasText:'Previously saved immutable clinician reviews (1)'}).click();
       await page.getByText(note,{exact:true}).waitFor();
       assert.equal(await prepare.count(),0);
-      console.log('Hosted fictional unsigned clinician review saved through UI, independently read back and reopened. No original-form writes, bookings or invitations performed.');
+      console.log('Hosted fictional unsigned clinician review saved through UI, independently read back and reopened.');
+      if(originalWrite){
+        for(const {url,key:subpage,action} of forms){
+          stage='fictional original BPS write '+subpage;
+          const opened=await page.goto(url);
+          assert.equal(opened.status(),200);
+          assert.equal(page.url(),url);
+          assert.equal(await page.locator('html').getAttribute('data-dpl-id'),e.EMR_ACCEPTANCE_DEPLOYMENT_ID);
+          await page.locator('form[data-action="'+action+'"]').waitFor({state:'visible'});
+          await page.locator('[data-bps-page="'+subpage+'"][aria-current="page"]').waitFor();
+          const before=await readChart();
+          verifyOriginalChart(before,chart.id,originalRevision);
+          const form=page.locator('form[data-action="'+action+'"]');
+          const marker=subpage==='medications'?'sertraline 50 MG Oral Tablet [Zoloft]':writeFixture.marker+' original '+subpage;
+          let verifyRecord, verifyReopened;
+          if(subpage==='symptoms'){
+            const choice=form.locator('input[type="checkbox"]').first();
+            const key=await choice.getAttribute('name'), value=await choice.getAttribute('value');
+            assert.ok(key&&value);
+            await choice.check();
+            verifyRecord=record=>assert.equal(record.ratings[key],value);
+            verifyReopened=async()=>assert.ok(await page.locator('form[data-action="'+action+'"] input[type="checkbox"]').first().isChecked());
+          }else if(subpage==='treatment_history'){
+            await form.locator('select[name="setting"]').selectOption('Outpatient');
+            await form.locator('textarea[name="reason"]').fill(marker);
+            verifyRecord=record=>{assert.equal(record.setting,'Outpatient');assert.equal(record.reason,marker);};
+            verifyReopened=async()=>{
+              const entry=page.locator('article.record').filter({hasText:marker}).filter({has:page.locator('[data-edit-treatment-history]')});
+              await entry.waitFor({state:'visible'});
+              await entry.locator('[data-edit-treatment-history]').click();
+              assert.equal(await page.locator('form[data-action="'+action+'"] textarea[name="reason"]').inputValue(),marker);
+            };
+          }else if(subpage==='medications'){
+            const lookup=form.getByRole('button',{name:'Search medication catalog',exact:true});
+            const medication=form.locator('input[name="medication"]');
+            const dosage=form.locator('input[name="dosage"]');
+            assert.equal(await lookup.getAttribute('aria-expanded'),'false');
+            await lookup.click();
+            await form.getByText('Enter at least two letters of a brand or generic name to search.',{exact:true}).waitFor();
+            assert.equal(await lookup.getAttribute('aria-expanded'),'true');
+            await lookup.click();
+            assert.equal(await lookup.getAttribute('aria-expanded'),'false');
+            await dosage.fill(writeFixture.marker+' amount');
+            await medication.fill('Zoloft');
+            await form.getByRole('button',{name:'sertraline 100 MG Oral Tablet [Zoloft]',exact:true}).waitFor();
+            await form.getByRole('button',{name:marker,exact:true}).click();
+            assert.equal(await medication.inputValue(),marker);
+            assert.equal(await dosage.inputValue(),writeFixture.marker+' amount');
+            assert.equal(await lookup.getAttribute('aria-expanded'),'false');
+            console.log('Original BPS medication catalog: visible lookup, multiple strengths and unchanged reported amount verified.');
+            verifyRecord=record=>{assert.equal(record.medication,marker);assert.equal(record.dosage,writeFixture.marker+' amount');};
+            verifyReopened=async()=>{
+              const entry=page.locator('article.record').filter({hasText:marker}).filter({has:page.locator('[data-edit-medication]')});
+              await entry.waitFor({state:'visible'});
+              await entry.locator('[data-edit-medication]').click();
+              assert.equal(await page.locator('form[data-action="'+action+'"] input[name="medication"]').inputValue(),marker);
+              assert.equal(await page.locator('form[data-action="'+action+'"] input[name="dosage"]').inputValue(),writeFixture.marker+' amount');
+            };
+          }else{
+            const details=form.locator('details').filter({has:page.locator('textarea')}).first();
+            if(!(await details.getAttribute('open')!==null))await details.locator('summary').click();
+            const field=details.locator('textarea').first();
+            const key=await field.getAttribute('name');
+            assert.ok(key,'Original clinical note must have a persisted field name');
+            await field.fill(marker);
+            verifyRecord=record=>assert.equal(record.notes[key],marker);
+            verifyReopened=async()=>{
+              const reopenedForm=page.locator('form[data-action="'+action+'"]');
+              const reopenedField=reopenedForm.locator('textarea[name="'+key+'"]');
+              await reopenedField.waitFor({state:'attached'});
+              assert.equal(await reopenedField.inputValue(),marker);
+            };
+          }
+          const [formSave]=await Promise.all([
+            page.waitForResponse(r=>{
+              if(r.url()!==workflowUrl||r.request().method()!=='POST')return false;
+              try{const p=r.request().postDataJSON();return p.path==='/api/save'&&p.body?.action===action;}catch{return false;}
+            }),
+            form.locator('button[type="submit"]').click()
+          ]);
+          assert.equal(formSave.status(),200,'Original form save: '+subpage);
+          const receipt=await formSave.json();
+          assert.equal(receipt.revision,before.revision+1,'Exactly one original-form revision advanced');
+          // Wait for the actual save handler to finish its chart reload.
+          // production.js translates the prototype's local-save text to the central-record acknowledgement.
+          await page.locator('#status').filter({hasText:'Saved '+action+' to the central patient record. The immutable snapshot is available in record history.'}).waitFor();
+          const after=await readChart();
+          verifyOriginalChart(after,chart.id,receipt.revision);
+          originalRevision=after.revision;
+          const previousIds=new Set(before.value.records.map(r=>r.id));
+          const newRecords=after.value.records.filter(r=>!previousIds.has(r.id));
+          assert.equal(newRecords.length,1,'Exactly one new original-form record');
+          assert.equal(newRecords[0].kind,action);
+          verifyRecord(newRecords[0]);
+          for(const old of before.value.records)assert.deepEqual(after.value.records.find(r=>r.id===old.id),old,'Previous records remain immutable');
+          await page.reload();
+          await page.locator('form[data-action="'+action+'"]').waitFor({state:'visible'});
+          assert.equal(new URL(page.url()).searchParams.get('patient'),chart.id);
+          assert.equal(await page.locator('html').getAttribute('data-dpl-id'),e.EMR_ACCEPTANCE_DEPLOYMENT_ID);
+          await verifyReopened();
+          console.log('Hosted original BPS form saved, independently read back and reopened: '+subpage);
+        }
+      
+        stage='original forms immutable linked source recheck';
+        const finalSource=await read(bps);
+        assert.equal(finalSource.status,200);
+        assert.deepEqual(finalSource.body.source,after.body.source);
+        assert.deepEqual(finalSource.body.reviews,after.body.reviews);
+        console.log('Hosted seven original forms saved and reopened; linked questionnaire and clinician snapshot unchanged. No bookings or invitations performed.');
+      }else console.log('No original-form writes, bookings or invitations performed.');
     }else console.log('No clinical writes, bookings or invitations performed.');
   } catch {
     throw new Error('Hosted preflight failed at '+stage+'; browser error details suppressed to protect credentials and clinical content.');

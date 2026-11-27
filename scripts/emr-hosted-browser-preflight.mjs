@@ -472,7 +472,36 @@ function recurringBookingConfig(e) {
     assert.match(editTime,/^(?:[01]\d|2[0-3]):00$/,'Use an exact hourly replacement fixture slot');
     assert.notEqual(editTime,time,'Replacement slot must differ from the original');
   }
-  return {marker,date,time,through,editTime};
+  const linkedTime=e.EMR_ACCEPTANCE_SCHEDULE_LINKED_TIME;
+  let linked;
+  if(linkedTime!==undefined){
+    assert.ok(editTime,'Complete recurrence edit and cancellation before linked booking');
+    assert.match(linkedTime,/^(?:[01]\d|2[0-3]):00$/);
+    assert.notEqual(linkedTime,time);
+    assert.notEqual(linkedTime,editTime);
+    const account=e.EMR_ACCEPTANCE_SOURCE_ACCOUNT_ID, chart=e.EMR_ACCEPTANCE_CHART_ID, name=e.EMR_ACCEPTANCE_SCHEDULE_LINKED_NAME;
+    const uuid=/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
+    assert.match(account,uuid);
+    assert.match(chart,uuid);
+    assert.notEqual(account.toLowerCase(),chart.toLowerCase(),'Website account and central chart are separate fixture identities');
+    assert.match(name,/^FICTIONAL-EMR-PATIENT-[a-f0-9]{32}$/);
+    linked={account,chart,name,time:linkedTime};
+  }
+  return {marker,date,time,through,editTime,linked};
+}
+function verifyLinkedBooking(before,after,fixture,timezone,duration){
+  assert.equal(before.length,4,'Complete recurring edit/cancel fixture required');
+  assert.equal(after.length,before.length+1);
+  assert.equal(new Set(after.map(r=>r.id)).size,after.length);
+  for(const row of before)assert.deepEqual(after.find(r=>r.id===row.id),row,'Linked booking must preserve all previous appointments');
+  const added=after.find(r=>!before.some(old=>old.id===r.id));
+  assert.match(added.id,/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i);
+  assert.equal(added.patient_id,fixture.linked.account,'Scheduler links the website patient account, not the distinct EMR chart UUID');
+  assert.equal(added.patient_name,null,'Linked booking must not store a free-text name');
+  assert.equal(added.series_id,null);
+  assert.equal(added.status,'booked');
+  assert.deepEqual(scheduleLocal(added.starts_at,timezone),{date:fixture.date,time:fixture.linked.time});
+  assert.equal(Date.parse(added.ends_at)-Date.parse(added.starts_at),duration*60000);
 }
 function scheduleLocal(instant,timezone) {
   const d=new Date(instant);
@@ -540,6 +569,17 @@ async function exerciseRecurringBooking({page,origin,database,e,fixture}) {
   };
   const user=await (await read('/auth/v1/user')).json();
   assert.equal(user.email,e.EMR_ACCEPTANCE_CLINICIAN_EMAIL);
+  if(fixture.linked){
+    const source=await page.evaluate(async chart=>{
+      const r=await fetch('/api/emr/bps-intake?patient='+encodeURIComponent(chart),{cache:'no-store',redirect:'error'});
+      return {status:r.status,body:await r.json()};
+    },fixture.linked.chart);
+    assert.equal(source.status,200);
+    assert.equal(source.body.patientId,fixture.linked.chart.toLowerCase());
+    assert.equal(source.body.linked,true);
+    assert.equal(source.body.source?.accountId,fixture.linked.account);
+    assert.equal(source.body.source?.status,'submitted');
+  }
   const settings=await (await read('/rest/v1/appointment_settings?select=timezone,appointment_duration_minutes&id=eq.true')).json();
   assert.equal(settings.length,1);
   const {timezone,appointment_duration_minutes:duration}=settings[0];
@@ -656,6 +696,50 @@ async function exerciseRecurringBooking({page,origin,database,e,fixture}) {
   assert.equal(await calendar.locator('.calendarEvent').filter({hasText:fixture.marker}).count(),1);
   verifySingleCancellation(shifted,await allRows(),replacements[0].id);
   console.log('Hosted fictional recurring future edit, preserved original history, single cancellation, exact receipt and reopened calendar verified. No invitations performed.');
+  if(!fixture.linked)return;
+  const linked=fixture.linked, beforeLinked=await allRows();
+  await page.locator('.calendarHeading').getByRole('button',{name:'Place patient appointments',exact:true}).click();
+  const select=page.getByLabel('Patient',{exact:true});
+  const option=select.locator('option').filter({hasText:linked.name+' · '+linked.account.slice(0,8)});
+  await option.waitFor({state:'attached'});
+  assert.equal(await option.count(),1);
+  assert.equal(await option.textContent(),linked.name+' · '+linked.account.slice(0,8));
+  assert.equal(await option.getAttribute('value'),linked.account);
+  await select.selectOption(linked.account);
+  assert.equal(await page.getByLabel('Patient name',{exact:true}).count(),0);
+  await page.getByLabel('First appointment date',{exact:true}).fill(fixture.date);
+  await page.getByLabel('Appointment start',{exact:true}).fill(linked.time);
+  await page.getByLabel('Repeat',{exact:true}).selectOption('0');
+  const [linkedReceipt]=await Promise.all([
+    page.waitForResponse(r=>{const u=new URL(r.url());return u.origin===database&&u.pathname==='/rest/v1/rpc/book_patient_appointments'&&r.request().method()==='POST';}),
+    page.getByRole('button',{name:'Book patient appointments',exact:true}).click()
+  ]);
+  assert.deepEqual(linkedReceipt.request().postDataJSON(),{p_patient_id:linked.account,p_patient_name:null,p_first_date:fixture.date,p_start_time:linked.time,p_repeat_weeks:0,p_through:fixture.date});
+  assert.equal(linkedReceipt.status(),200);
+  assert.equal(await linkedReceipt.json(),1);
+  await page.getByText('1 appointment booked. Adjacent openings updated.',{exact:true}).waitFor();
+  verifyLinkedBooking(beforeLinked,await allRows(),fixture,timezone,duration);
+  await page.reload();
+  assert.equal(await page.locator('html').getAttribute('data-dpl-id'),e.EMR_ACCEPTANCE_DEPLOYMENT_ID);
+  await calendar.waitFor();
+  await page.locator('.monthCalendar[aria-busy="false"]').waitFor();
+  if(fixture.date.slice(0,7)===nextMonth){
+    await page.getByRole('button',{name:'Next month',exact:true}).click();
+    await page.locator('.monthCalendar[aria-busy="false"]').waitFor();
+  }
+  const linkedEvent=calendar.getByRole('button',{name:linked.name+', '+fixture.date+', '+linked.time,exact:true});
+  await linkedEvent.waitFor();
+  assert.equal(await linkedEvent.count(),1);
+  await linkedEvent.click();
+  await page.getByRole('heading',{name:'Appointment details'}).waitFor();
+  assert.equal(await page.getByText(/This is a name-only booking, not a central patient chart link/).count(),0);
+  assert.equal(await page.getByLabel('Patient name',{exact:true}).count(),0);
+  assert.equal(await page.getByLabel('Appointment date',{exact:true}).inputValue(),fixture.date);
+  assert.equal(await page.getByLabel('Start time',{exact:true}).inputValue(),linked.time);
+  assert.equal(await page.getByLabel('Apply to',{exact:true}).count(),0);
+  await page.getByRole('button',{name:'Close appointment details',exact:true}).click();
+  verifyLinkedBooking(beforeLinked,await allRows(),fixture,timezone,duration);
+  console.log('Hosted fictional linked appointment: exact source-account/chart association, single booking receipt, independent database readback, preserved history and reopened calendar verified.');
 }
 
 if(process.argv.includes('--self-test')) {
@@ -811,6 +895,16 @@ if(process.argv.includes('--self-test')) {
   assert.throws(()=>verifySingleCancellation(shifted,cancelled.slice(1),moved[0].id));
   assert.throws(()=>verifySingleCancellation(shifted,cancelled.map(row=>({...row,status:'cancelled'})),moved[0].id));
   console.log('12 hosted recurrence edit and cancellation history guards passed; no hosted requests performed.');
+  const linkedEnv={...recurringEnv,EMR_ACCEPTANCE_SCHEDULE_EDIT_TIME:'11:00',EMR_ACCEPTANCE_SCHEDULE_LINKED_TIME:'14:00',EMR_ACCEPTANCE_SCHEDULE_LINKED_NAME:'FICTIONAL-EMR-PATIENT-'+'e'.repeat(32),EMR_ACCEPTANCE_SOURCE_ACCOUNT_ID:write.EMR_ACCEPTANCE_SOURCE_ACCOUNT_ID};
+  const linkedBooking=recurringBookingConfig(linkedEnv);
+  for(const [key,value] of [['EMR_ACCEPTANCE_SCHEDULE_EDIT_TIME',undefined],['EMR_ACCEPTANCE_SCHEDULE_LINKED_TIME','11:00'],['EMR_ACCEPTANCE_SOURCE_ACCOUNT_ID',e.EMR_ACCEPTANCE_CHART_ID],['EMR_ACCEPTANCE_SCHEDULE_LINKED_NAME','actual patient']])assert.throws(()=>recurringBookingConfig({...linkedEnv,[key]:value}));
+  const linkedRow={id:'00000000-0000-4000-8000-000000000010',patient_id:linkedBooking.linked.account,patient_name:null,series_id:null,status:'booked',starts_at:'2027-01-05T20:00:00Z',ends_at:'2027-01-05T20:50:00Z'};
+  const linkedRows=[...cancelled,linkedRow];
+  assert.doesNotThrow(()=>verifyLinkedBooking(cancelled,linkedRows,linkedBooking,'America/Chicago',50));
+  for(const [key,value] of [['patient_id',linkedBooking.linked.chart],['patient_name',linkedBooking.linked.name],['series_id',rows[0].series_id],['status','cancelled'],['starts_at','2027-01-05T21:00:00Z'],['ends_at','2027-01-05T20:45:00Z']])assert.throws(()=>verifyLinkedBooking(cancelled,[...cancelled,{...linkedRow,[key]:value}],linkedBooking,'America/Chicago',50));
+  assert.throws(()=>verifyLinkedBooking(cancelled,[...cancelled.slice(1),linkedRow],linkedBooking,'America/Chicago',50));
+  assert.throws(()=>verifyLinkedBooking(cancelled,[{...cancelled[0],patient_name:'changed'},...cancelled.slice(1),linkedRow],linkedBooking,'America/Chicago',50));
+  console.log('13 hosted linked-account appointment guards passed; no hosted requests performed.');
 
 } else {
   const e=process.env,{origin,database}=config(e),writeFixture=reviewWriteConfig(e),originalWrite=originalWriteConfig(e,writeFixture);

@@ -46,6 +46,32 @@ function verifySubmittedSummary(receipt, expectedChart, expectedVersion, expecte
   assert.equal(receipt.source.questionnairePacketVersion,expectedPacket,'Unexpected questionnaire packet version');
   assert.equal(receipt.currentVersionReviewed,expectedReviewed,'Unexpected clinician review state');
 }
+const originalForms = new Map([
+  ['symptoms','biopsychosocial_symptoms'],
+  ['treatment_history','biopsychosocial_treatment_history'],
+  ['medications','biopsychosocial_medication'],
+  ['family_origin','biopsychosocial_family_origin'],
+  ['medical_substance','biopsychosocial_medical_substance'],
+  ['developmental_personal','biopsychosocial_developmental_personal'],
+  ['trauma_history','biopsychosocial_trauma_history']
+]);
+function verifyOriginalFormLinks(hrefs,origin,chart) {
+  assert.equal(hrefs.length,originalForms.size,'Exactly seven original form links required');
+  const seen=new Set();
+  return hrefs.map(href=>{
+    assert.ok(typeof href==='string' && href.length>0,'Missing original form URL');
+    const url=new URL(href,origin);
+    assert.ok(url.origin===origin && url.pathname==='/emr/workspace' && !url.username && !url.password && !url.hash,'Unexpected original form destination');
+    assert.deepEqual([...url.searchParams.keys()].sort(),['bps_page','module','patient','section']);
+    assert.equal(url.searchParams.get('patient'),chart.toLowerCase(),'Original form targets incorrect chart');
+    assert.equal(url.searchParams.get('module'),'assessment');
+    assert.equal(url.searchParams.get('section'),'assessment:biopsychosocial');
+    const key=url.searchParams.get('bps_page');
+    assert.ok(originalForms.has(key)&&!seen.has(key),'Unexpected or repeated original form page');
+    seen.add(key);
+    return {url:url.href,key,action:originalForms.get(key)};
+  });
+}
 function totp(secret,now=Date.now()) {
   let bits=0,value=0;const bytes=[];
   for(const char of secret.toUpperCase().replace(/=+$/,'')) {
@@ -85,6 +111,17 @@ if(process.argv.includes('--self-test')) {
   assert.throws(()=>config({...e,EMR_ACCEPTANCE_EXPECTED_PACKET_VERSION:''}));
   assert.throws(()=>config({...e,EMR_ACCEPTANCE_EXPECTED_REVIEWED:'unknown'}));
   console.log('16 hosted fixture identity, version and metadata-boundary checks passed; no hosted requests performed.');
+  const fixtureLinks=[...originalForms.keys()].map(key=>'/emr/workspace?'+new URLSearchParams({patient:e.EMR_ACCEPTANCE_CHART_ID,module:'assessment',section:'assessment:biopsychosocial',bps_page:key}));
+  const verifyLinks=links=>verifyOriginalFormLinks(links,e.EMR_ACCEPTANCE_ORIGIN,e.EMR_ACCEPTANCE_CHART_ID);
+  assert.equal(verifyLinks(fixtureLinks).length,7);
+  assert.throws(()=>verifyLinks(fixtureLinks.slice(1)));
+  assert.throws(()=>verifyLinks([fixtureLinks[1],...fixtureLinks.slice(1)]));
+  assert.throws(()=>verifyLinks([fixtureLinks[0].replace(e.EMR_ACCEPTANCE_CHART_ID,'wrong-chart'),...fixtureLinks.slice(1)]));
+  assert.throws(()=>verifyLinks(['https://example.com'+fixtureLinks[0],...fixtureLinks.slice(1)]));
+  assert.throws(()=>verifyLinks([fixtureLinks[0]+'&patient=wrong-chart',...fixtureLinks.slice(1)]));
+  assert.throws(()=>verifyLinks([fixtureLinks[0].replace('/emr/workspace','/emr'),...fixtureLinks.slice(1)]));
+  assert.throws(()=>verifyLinks([fixtureLinks[0].replace('bps_page=symptoms','bps_page=unknown'),...fixtureLinks.slice(1)]));
+  console.log('8 original BPS link safety checks passed; no hosted requests performed.');
 } else {
   const e=process.env,{origin,database}=config(e);
   assert.ok(e.EMR_ACCEPTANCE_VERCEL_TOKEN,'Read-only Vercel API access required');
@@ -146,8 +183,21 @@ if(process.argv.includes('--self-test')) {
     const review=await page.goto(origin+'/emr/bps-intake?patient='+e.EMR_ACCEPTANCE_CHART_ID);
     assert.equal(review.status(),200);
     await page.getByText('Sections audited: 21/21',{exact:false}).waitFor();
-    assert.equal(await page.getByRole('navigation',{name:'Original seven-page biopsychosocial forms'}).getByRole('link').count(),7);
-    console.log('Hosted read-only preflight passed: real browser password/TOTP, AAL1 denial, AAL2 chart read, exact submitted fixture identity/version/receipt, appointment administration and seven BPS links. No clinical writes, bookings, or invitations performed.');
+    const links=page.getByRole('navigation',{name:'Original seven-page biopsychosocial forms'}).getByRole('link');
+    const forms=verifyOriginalFormLinks(await links.evaluateAll(nodes=>nodes.map(node=>node.getAttribute('href'))),origin,e.EMR_ACCEPTANCE_CHART_ID);
+    for(const {url,key,action} of forms){
+      stage='read-only original BPS form '+key;
+      const response=await page.goto(url);
+      assert.equal(response.status(),200);
+      assert.equal(new URL(page.url()).origin,origin);
+      assert.equal(new URL(page.url()).pathname,'/emr/workspace');
+      assert.equal(new URL(page.url()).searchParams.get('patient'),e.EMR_ACCEPTANCE_CHART_ID.toLowerCase());
+      assert.equal(new URL(page.url()).searchParams.get('bps_page'),key);
+      await page.locator('form[data-action="'+action+'"]').waitFor({state:'visible'});
+      await page.locator('[data-bps-page="'+key+'"][aria-current="page"]').waitFor();
+      assert.equal(await page.locator('html').getAttribute('data-dpl-id'),e.EMR_ACCEPTANCE_DEPLOYMENT_ID);
+    }
+    console.log('Hosted read-only preflight passed: real browser password/TOTP, AAL1 denial, AAL2 chart read, exact submitted fixture identity/version/receipt, appointment administration and all seven original BPS forms rendered for the exact chart. No clinical writes, bookings, or invitations performed.');
   } catch {
     throw new Error('Hosted preflight failed at '+stage+'; browser error details suppressed to protect credentials and clinical content.');
   } finally {await browser.close();}

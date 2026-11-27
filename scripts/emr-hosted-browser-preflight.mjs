@@ -78,13 +78,16 @@ function verifyOriginalFormLinks(hrefs,origin,chart) {
 // independently verify the exact deployment's server-side database configuration,
 // schema and fixture ownership before supplying the approval string. A public URL
 // or READY deployment alone is not isolation evidence.
+function verifyIsolationApproval(e) {
+  assert.equal(e.EMR_ACCEPTANCE_ISOLATION_APPROVAL,
+    e.EMR_ACCEPTANCE_DEPLOYMENT_ID+':'+e.EMR_ACCEPTANCE_EXPECTED_SHA+':'+e.EMR_ACCEPTANCE_APPROVED_PROJECT_REF,
+    'Independent server/database isolation approval for the exact revision required');
+}
 function reviewWriteConfig(e) {
   if(e.EMR_ACCEPTANCE_REVIEW_WRITE===undefined||e.EMR_ACCEPTANCE_REVIEW_WRITE==='false') return null;
   assert.equal(e.EMR_ACCEPTANCE_REVIEW_WRITE,'true');
   assert.equal(e.EMR_ACCEPTANCE_EXPECTED_REVIEWED,'false','A fresh unreviewed fictional source is required');
-  assert.equal(e.EMR_ACCEPTANCE_ISOLATION_APPROVAL,
-    e.EMR_ACCEPTANCE_DEPLOYMENT_ID+':'+e.EMR_ACCEPTANCE_EXPECTED_SHA+':'+e.EMR_ACCEPTANCE_APPROVED_PROJECT_REF,
-    'Independent server/database isolation approval for the exact revision required');
+  verifyIsolationApproval(e);
   assert.match(e.EMR_ACCEPTANCE_SOURCE_ACCOUNT_ID,/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
   assert.notEqual(e.EMR_ACCEPTANCE_SOURCE_ACCOUNT_ID,e.EMR_ACCEPTANCE_CHART_ID.toLowerCase());
   assert.match(e.EMR_ACCEPTANCE_FIXTURE_MARKER,/^FICTIONAL-EMR-ACCEPTANCE-[a-f0-9]{32}$/);
@@ -211,8 +214,19 @@ if(process.argv.includes('--self-test')) {
   assert.throws(()=>verifyOriginalChart({...original,value:{...original.value,records:[{id:'existing'}]}},e.EMR_ACCEPTANCE_CHART_ID,3,true));
   assert.throws(()=>verifyOriginalChart({...original,value:{...original.value,records:[{id:'duplicate'},{id:'duplicate'}]}},e.EMR_ACCEPTANCE_CHART_ID,3));
   console.log('11 original-form opt-in and fresh chart guards passed; no hosted requests performed.');
+  // Password sign-in and TOTP also create authentication state. Even a read-only
+  // chart preflight must not authenticate before exact deployment isolation approval.
+  assert.throws(()=>verifyIsolationApproval(e));
+  assert.doesNotThrow(()=>verifyIsolationApproval(write));
+  for(const [key,value] of [['EMR_ACCEPTANCE_DEPLOYMENT_ID','dpl_other'],['EMR_ACCEPTANCE_EXPECTED_SHA','b'.repeat(40)],['EMR_ACCEPTANCE_APPROVED_PROJECT_REF','zyxwvutsrqponmlkjihg']]) {
+    assert.throws(()=>verifyIsolationApproval({...write,[key]:value}));
+  }
+  console.log('5 mandatory hosted authentication isolation guards passed; no hosted requests performed.');
 } else {
   const e=process.env,{origin,database}=config(e),writeFixture=reviewWriteConfig(e),originalWrite=originalWriteConfig(e,writeFixture);
+  // Fail before external requests, including authentication/session creation,
+  // unless server-side isolation was independently confirmed for this revision.
+  verifyIsolationApproval(e);
   assert.ok(e.EMR_ACCEPTANCE_VERCEL_TOKEN,'Read-only Vercel API access required');
   const deploymentResponse=await fetch('https://api.vercel.com/v13/deployments/'+e.EMR_ACCEPTANCE_DEPLOYMENT_ID+'?slug=ken-morris-projects',{headers:{Authorization:'Bearer '+e.EMR_ACCEPTANCE_VERCEL_TOKEN},redirect:'error'});
   assert.equal(deploymentResponse.status,200,'Deployment metadata unavailable');

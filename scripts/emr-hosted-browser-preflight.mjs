@@ -92,7 +92,22 @@ function patientIsolationConfig(e) {
   assert.match(e.EMR_ACCEPTANCE_PATIENT_EMAIL,/^emr-acceptance-patient-[a-z0-9-]+@example\.com$/);
   assert.notEqual(e.EMR_ACCEPTANCE_PATIENT_EMAIL,e.EMR_ACCEPTANCE_CLINICIAN_EMAIL,'Patient and clinician must be separate fixtures');
   assert.ok(typeof e.EMR_ACCEPTANCE_PATIENT_PASSWORD==='string'&&e.EMR_ACCEPTANCE_PATIENT_PASSWORD.length>0,'Fictional patient password required');
-  return {email:e.EMR_ACCEPTANCE_PATIENT_EMAIL,password:e.EMR_ACCEPTANCE_PATIENT_PASSWORD};
+  const account=e.EMR_ACCEPTANCE_PATIENT_ACCOUNT_ID, source=e.EMR_ACCEPTANCE_SOURCE_ACCOUNT_ID;
+  const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+  assert.match(account,uuid,'Exact second fictional Auth account required');
+  assert.match(source,uuid,'Exact linked source Auth account required');
+  assert.notEqual(account,source,'Patient role fixture must be different from linked intake owner');
+  assert.notEqual(account,e.EMR_ACCEPTANCE_CHART_ID.toLowerCase(),'Auth account must not be the central chart ID');
+  assert.notEqual(source,e.EMR_ACCEPTANCE_CHART_ID.toLowerCase(),'Linked source account must not be the central chart ID');
+  return {email:e.EMR_ACCEPTANCE_PATIENT_EMAIL,password:e.EMR_ACCEPTANCE_PATIENT_PASSWORD,account,source};
+}
+function verifyPatientAuth(user,fixture) {
+  assert.equal(user?.id,fixture.account,'Authenticated patient must match the exact separate fictional account');
+  assert.equal(user?.email,fixture.email,'Authenticated patient email mismatch');
+}
+function verifyPatientRows(own,foreign,fixture) {
+  assert.deepEqual(own,[{patient_id:fixture.account}],'Positive own-intake row required for meaningful RLS test');
+  assert.deepEqual(foreign,[],'Another patient intake must be filtered by RLS');
 }
 function reviewWriteConfig(e) {
   if(e.EMR_ACCEPTANCE_REVIEW_WRITE===undefined||e.EMR_ACCEPTANCE_REVIEW_WRITE==='false') return null;
@@ -233,7 +248,7 @@ if(process.argv.includes('--self-test')) {
     assert.throws(()=>verifyIsolationApproval({...write,[key]:value}));
   }
   console.log('5 mandatory hosted authentication isolation guards passed; no hosted requests performed.');
-  const patient={...write,EMR_ACCEPTANCE_PATIENT_ISOLATION:'true',EMR_ACCEPTANCE_PATIENT_EMAIL:'emr-acceptance-patient-other@example.com',EMR_ACCEPTANCE_PATIENT_PASSWORD:'fixture-patient'};
+  const patient={...write,EMR_ACCEPTANCE_PATIENT_ISOLATION:'true',EMR_ACCEPTANCE_PATIENT_EMAIL:'emr-acceptance-patient-other@example.com',EMR_ACCEPTANCE_PATIENT_PASSWORD:'fixture-patient',EMR_ACCEPTANCE_PATIENT_ACCOUNT_ID:'00000000-0000-4000-8000-000000000003'};
   assert.equal(patientIsolationConfig(e),null);
   assert.equal(patientIsolationConfig({...patient,EMR_ACCEPTANCE_PATIENT_ISOLATION:'false'}),null);
   assert.throws(()=>patientIsolationConfig({...patient,EMR_ACCEPTANCE_PATIENT_ISOLATION:'yes'}));
@@ -241,8 +256,21 @@ if(process.argv.includes('--self-test')) {
   assert.throws(()=>patientIsolationConfig({...patient,EMR_ACCEPTANCE_PATIENT_EMAIL:'real@example.com'}));
   assert.throws(()=>patientIsolationConfig({...patient,EMR_ACCEPTANCE_CLINICIAN_EMAIL:patient.EMR_ACCEPTANCE_PATIENT_EMAIL}));
   assert.throws(()=>patientIsolationConfig({...patient,EMR_ACCEPTANCE_PATIENT_PASSWORD:''}));
-  assert.deepEqual(patientIsolationConfig(patient),{email:patient.EMR_ACCEPTANCE_PATIENT_EMAIL,password:patient.EMR_ACCEPTANCE_PATIENT_PASSWORD});
-  console.log('8 separate fictional patient isolation configuration checks passed; no hosted requests performed.');
+  const second=patientIsolationConfig(patient);
+  assert.deepEqual(second,{email:patient.EMR_ACCEPTANCE_PATIENT_EMAIL,password:patient.EMR_ACCEPTANCE_PATIENT_PASSWORD,account:patient.EMR_ACCEPTANCE_PATIENT_ACCOUNT_ID,source:patient.EMR_ACCEPTANCE_SOURCE_ACCOUNT_ID});
+  assert.throws(()=>patientIsolationConfig({...patient,EMR_ACCEPTANCE_PATIENT_ACCOUNT_ID:undefined}));
+  assert.throws(()=>patientIsolationConfig({...patient,EMR_ACCEPTANCE_SOURCE_ACCOUNT_ID:undefined}));
+  assert.throws(()=>patientIsolationConfig({...patient,EMR_ACCEPTANCE_PATIENT_ACCOUNT_ID:patient.EMR_ACCEPTANCE_SOURCE_ACCOUNT_ID}));
+  assert.throws(()=>patientIsolationConfig({...patient,EMR_ACCEPTANCE_PATIENT_ACCOUNT_ID:patient.EMR_ACCEPTANCE_CHART_ID}));
+  assert.throws(()=>patientIsolationConfig({...patient,EMR_ACCEPTANCE_SOURCE_ACCOUNT_ID:patient.EMR_ACCEPTANCE_CHART_ID}));
+  assert.doesNotThrow(()=>verifyPatientAuth({id:second.account,email:second.email},second));
+  assert.throws(()=>verifyPatientAuth({id:second.source,email:second.email},second));
+  assert.throws(()=>verifyPatientAuth({id:second.account,email:'different@example.com'},second));
+  assert.doesNotThrow(()=>verifyPatientRows([{patient_id:second.account}],[],second));
+  assert.throws(()=>verifyPatientRows([],[],second));
+  assert.throws(()=>verifyPatientRows([{patient_id:second.source}],[],second));
+  assert.throws(()=>verifyPatientRows([{patient_id:second.account}],[{patient_id:second.source}],second));
+  console.log('20 separate fictional patient identity and RLS guard checks passed; no hosted requests performed.');
 } else {
   const e=process.env,{origin,database}=config(e),writeFixture=reviewWriteConfig(e),originalWrite=originalWriteConfig(e,writeFixture);
   // Fail before external requests, including authentication/session creation,
@@ -326,8 +354,8 @@ if(process.argv.includes('--self-test')) {
       assert.equal(await page.locator('html').getAttribute('data-dpl-id'),e.EMR_ACCEPTANCE_DEPLOYMENT_ID);
     }
     console.log('Hosted read-only preflight passed: real browser password/TOTP, AAL1 denial, AAL2 chart read, exact submitted fixture identity/version/receipt, appointment administration and all seven original BPS forms rendered for the exact chart.');
-    if(patientFixture){
-      stage='separate fictional patient sign-in and positive own intake access';
+    const runPatientIsolation=async(label)=>{
+      stage=label+': separate fictional patient sign-in and positive own intake access';
       const otherContext=await newRoutedContext();
       try{
         const other=await otherContext.newPage();other.setDefaultTimeout(30000);
@@ -336,12 +364,35 @@ if(process.argv.includes('--self-test')) {
         assert.equal(await other.locator('html').getAttribute('data-dpl-id'),e.EMR_ACCEPTANCE_DEPLOYMENT_ID);
         await other.getByLabel('Email',{exact:true}).fill(patientFixture.email);
         await other.getByLabel('Password',{exact:true}).fill(patientFixture.password);
-        await other.getByRole('button',{name:'Sign in',exact:true}).click();
+        const [auth]=await Promise.all([
+          other.waitForResponse(r=>{
+            const u=new URL(r.url());
+            return u.origin===database&&u.pathname==='/auth/v1/token'&&u.searchParams.get('grant_type')==='password'&&r.request().method()==='POST';
+          }),
+          other.getByRole('button',{name:'Sign in',exact:true}).click()
+        ]);
+        assert.equal(auth.status(),200,'Fictional patient authentication must succeed');
+        const session=await auth.json();
+        verifyPatientAuth(session.user,patientFixture);
+        const key=(await auth.request().allHeaders()).apikey;
+        assert.ok(typeof key==='string'&&key.length>0&&typeof session.access_token==='string'&&session.access_token.length>0,'Actual fictional patient session required');
         await other.waitForURL(u=>u.origin===origin&&u.pathname==='/patient/intake');
         await other.getByRole('tablist',{name:'Intake sections'}).waitFor({state:'visible'});
         assert.equal(await other.getByRole('tablist',{name:'Intake sections'}).getByRole('tab').count(),21);
         assert.equal(await other.locator('html').getAttribute('data-dpl-id'),e.EMR_ACCEPTANCE_DEPLOYMENT_ID);
-        stage='authenticated patient denial of clinician chart and metadata';
+        stage=label+': patient-authenticated database row-level isolation';
+        // Independent read-only PostgREST probe using the actual patient JWT,
+        // never a service-role credential. Select identity metadata only.
+        const readPatientRows=async account=>{
+          const url=new URL('/rest/v1/patient_intakes',database);
+          url.searchParams.set('select','patient_id');
+          url.searchParams.set('patient_id','eq.'+account);
+          const response=await fetch(url,{headers:{apikey:key,Authorization:'Bearer '+session.access_token},redirect:'error',cache:'no-store'});
+          assert.equal(response.status,200,'Patient-authenticated RLS probe must return a valid result');
+          return response.json();
+        };
+        verifyPatientRows(await readPatientRows(patientFixture.account),await readPatientRows(patientFixture.source),patientFixture);
+        stage=label+': authenticated patient denial of clinician chart and metadata';
         const denied=await other.evaluate(async path=>{
           const status=async p=>{
             const r=await fetch(p,{cache:'no-store',redirect:'error'});
@@ -354,15 +405,21 @@ if(process.argv.includes('--self-test')) {
           assert.match(r.cache??'',/\bprivate\b/i);
           assert.match(r.cache??'',/\bno-store\b/i);
         }
-        await other.goto(origin+'/emr/bps-intake?patient='+e.EMR_ACCEPTANCE_CHART_ID);
+        const blocked=await other.goto(origin+'/emr/bps-intake?patient='+e.EMR_ACCEPTANCE_CHART_ID);
+        assert.equal(blocked.status(),200,'Patient denial must render the actual account page, not an error');
+        assert.equal(new URL(other.url()).origin,origin);
+        assert.equal(new URL(other.url()).pathname,'/account','Patient role must redirect to the account page');
+        assert.equal(await other.locator('html').getAttribute('data-dpl-id'),e.EMR_ACCEPTANCE_DEPLOYMENT_ID);
         assert.equal(await other.locator('article[aria-label="Intake biopsychosocial reconciliation"]').count(),0);
         await other.goto(origin+'/patient/intake');
         await other.getByRole('tablist',{name:'Intake sections'}).waitFor({state:'visible'});
         assert.equal(await other.locator('html').getAttribute('data-dpl-id'),e.EMR_ACCEPTANCE_DEPLOYMENT_ID);
         assert.equal(await readStatus(),200,'Independent clinician session must remain authorized');
-        console.log('Hosted fictional patient role isolation: positive own intake access before and after denied clinician chart and metadata, separate clinician session preserved.');
+        console.log(label+': hosted patient isolation verified exact separate Auth identity, positive own intake row, cross-account RLS filtering, denied clinician chart and metadata, separate clinician session preserved.');
       }finally{await otherContext.close();}
-    }else console.log('Separate hosted patient-role isolation not executed; fixture opt-in required.');
+    };
+    if(patientFixture)await runPatientIsolation('Before clinical writes');
+    else console.log('Separate hosted patient-role isolation not executed; fixture opt-in required.');
     if(writeFixture){
       stage='fictional linked review source and fresh-chart guard';
       await page.goto(origin+'/emr/bps-intake?patient='+e.EMR_ACCEPTANCE_CHART_ID);
@@ -550,6 +607,7 @@ if(process.argv.includes('--self-test')) {
         console.log('Hosted seven original forms saved and reopened; linked questionnaire and clinician snapshot unchanged. No bookings or invitations performed.');
       }else console.log('No original-form writes, bookings or invitations performed.');
     }else console.log('No clinical writes, bookings or invitations performed.');
+    if(patientFixture&&writeFixture)await runPatientIsolation('After clinical writes and readback');
   } catch {
     throw new Error('Hosted preflight failed at '+stage+'; browser error details suppressed to protect credentials and clinical content.');
   } finally {await browser.close();}

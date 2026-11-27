@@ -98,7 +98,18 @@ function verifyFreshReviewFixture(data,e,fixture) {
   assert.ok(Array.isArray(data.sections)&&data.sections.length===21,'Incomplete source audit');
   assert.deepEqual(data.unmappedKeys,[]);
   assert.deepEqual(data.reviews,[],'Fresh fictional chart must not already have review history');
-  assert.ok(JSON.stringify(data.sections).includes(fixture.marker),'Fictional marker missing from linked source');
+  // Require the exact approved clinical field before any mutation; a marker
+  // in an unrelated field, a substring or a protected-source placeholder
+  // must not authorize a clinician write to this chart.
+  assert.ok(data.sections.every(section=>section && typeof section.title==='string' && section.title.length>0 && Array.isArray(section.fields)),'Malformed source section');
+  assert.equal(new Set(data.sections.map(section=>section.title)).size,21,'Duplicate source section');
+  const matches=data.sections.flatMap(section=>section.fields.filter(field=>field?.key==='counseling_reason').map(field=>({section,field})));
+  assert.equal(matches.length,1,'Exactly one counseling reason source field required');
+  const {section,field}=matches[0];
+  assert.equal(section.disposition,'clinical','Fictional marker must be in clinical source');
+  assert.equal(field.sourceOnly,false,'Fictional marker cannot be a protected-source placeholder');
+  assert.equal(field.reported,true,'Fictional marker must be a reported answer');
+  assert.equal(field.value,fixture.marker,'Exact fictional counseling reason required');
 }
 function totp(secret,now=Date.now()) {
   let bits=0,value=0;const bytes=[];
@@ -157,12 +168,20 @@ if(process.argv.includes('--self-test')) {
   assert.throws(()=>reviewWriteConfig({...write,EMR_ACCEPTANCE_EXPECTED_REVIEWED:'true'}));
   assert.throws(()=>reviewWriteConfig({...write,EMR_ACCEPTANCE_FIXTURE_MARKER:'real patient'}));
   const fixture=reviewWriteConfig(write);
-  const full={patientId:e.EMR_ACCEPTANCE_CHART_ID,linked:true,source:{accountId:fixture.account,status:'submitted',version:2,questionnairePacketVersion:'fixture-v1'},sections:Array.from({length:21},(_,i)=>({value:i===0?fixture.marker:''})),unmappedKeys:[],reviews:[]};
+  const full={patientId:e.EMR_ACCEPTANCE_CHART_ID,linked:true,source:{accountId:fixture.account,status:'submitted',version:2,questionnairePacketVersion:'fixture-v1'},sections:Array.from({length:21},(_,i)=>({title:'fixture-section-'+i,disposition:'clinical',fields:i===0?[{key:'counseling_reason',value:fixture.marker,sourceOnly:false,reported:true}]:[]})),unmappedKeys:[],reviews:[]};
   assert.doesNotThrow(()=>verifyFreshReviewFixture(full,write,fixture));
   assert.throws(()=>verifyFreshReviewFixture({...full,reviews:[{}]},write,fixture));
   assert.throws(()=>verifyFreshReviewFixture({...full,source:{...full.source,accountId:'wrong'}},write,fixture));
-  assert.throws(()=>verifyFreshReviewFixture({...full,sections:full.sections.map(()=>({value:''}))},write,fixture));
-  console.log('9 opt-in fictional review write safety checks passed; no hosted requests performed.');
+  const withField=(patch,sectionPatch={})=>({...full,sections:full.sections.map((section,i)=>i===0?{...section,...sectionPatch,fields:[{...section.fields[0],...patch}]}:section)});
+  assert.throws(()=>verifyFreshReviewFixture(withField({value:''}),write,fixture));
+  assert.throws(()=>verifyFreshReviewFixture(withField({key:'unrelated_field'}),write,fixture));
+  assert.throws(()=>verifyFreshReviewFixture(withField({value:fixture.marker+' extra'}),write,fixture));
+  assert.throws(()=>verifyFreshReviewFixture(withField({sourceOnly:true}),write,fixture));
+  assert.throws(()=>verifyFreshReviewFixture(withField({reported:false}),write,fixture));
+  assert.throws(()=>verifyFreshReviewFixture(withField({},{disposition:'reference'}),write,fixture));
+  assert.throws(()=>verifyFreshReviewFixture({...full,sections:full.sections.map((section,i)=>i===1?{...section,fields:full.sections[0].fields}:section)},write,fixture));
+  assert.throws(()=>verifyFreshReviewFixture({...full,sections:full.sections.map((section,i)=>i===1?{...section,title:full.sections[0].title}:section)},write,fixture));
+  console.log('16 opt-in fictional review write safety checks passed; no hosted requests performed.');
 } else {
   const e=process.env,{origin,database}=config(e),writeFixture=reviewWriteConfig(e);
   assert.ok(e.EMR_ACCEPTANCE_VERCEL_TOKEN,'Read-only Vercel API access required');

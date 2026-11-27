@@ -105,6 +105,13 @@ function verifyPatientAuth(user,fixture) {
   assert.equal(user?.id,fixture.account,'Authenticated patient must match the exact separate fictional account');
   assert.equal(user?.email,fixture.email,'Authenticated patient email mismatch');
 }
+function verifyIsolationTarget(target,fixture,chart,version) {
+  assert.equal(target?.linked,true,'Isolation target must be a linked chart');
+  assert.equal(target.patientId,chart,'Isolation target chart identity mismatch');
+  assert.equal(target.source?.accountId,fixture.source,'RLS target must be the actual linked intake owner');
+  assert.equal(target.source?.status,'submitted','Isolation target must be an existing submitted intake');
+  assert.equal(target.source?.version,version,'Isolation target version mismatch');
+}
 function verifyPatientRows(own,foreign,fixture) {
   assert.deepEqual(own,[{patient_id:fixture.account}],'Positive own-intake row required for meaningful RLS test');
   assert.deepEqual(foreign,[],'Another patient intake must be filtered by RLS');
@@ -270,7 +277,15 @@ if(process.argv.includes('--self-test')) {
   assert.throws(()=>verifyPatientRows([],[],second));
   assert.throws(()=>verifyPatientRows([{patient_id:second.source}],[],second));
   assert.throws(()=>verifyPatientRows([{patient_id:second.account}],[{patient_id:second.source}],second));
-  console.log('20 separate fictional patient identity and RLS guard checks passed; no hosted requests performed.');
+  const target={linked:true,patientId:e.EMR_ACCEPTANCE_CHART_ID,source:{accountId:second.source,status:'submitted',version:2}};
+  const verifyTarget=t=>verifyIsolationTarget(t,second,e.EMR_ACCEPTANCE_CHART_ID,2);
+  assert.doesNotThrow(()=>verifyTarget(target));
+  assert.throws(()=>verifyTarget({...target,linked:false}));
+  assert.throws(()=>verifyTarget({...target,patientId:second.account}));
+  assert.throws(()=>verifyTarget({...target,source:{...target.source,accountId:second.account}}));
+  assert.throws(()=>verifyTarget({...target,source:{...target.source,status:'draft'}}));
+  assert.throws(()=>verifyTarget({...target,source:{...target.source,version:3}}));
+  console.log('26 separate fictional patient identity, verified linked target and RLS guard checks passed; no hosted requests performed.');
 } else {
   const e=process.env,{origin,database}=config(e),writeFixture=reviewWriteConfig(e),originalWrite=originalWriteConfig(e,writeFixture);
   // Fail before external requests, including authentication/session creation,
@@ -355,6 +370,16 @@ if(process.argv.includes('--self-test')) {
     }
     console.log('Hosted read-only preflight passed: real browser password/TOTP, AAL1 denial, AAL2 chart read, exact submitted fixture identity/version/receipt, appointment administration and all seven original BPS forms rendered for the exact chart.');
     const runPatientIsolation=async(label)=>{
+      stage=label+': verify existing linked target using the separate clinician session';
+      // A denial against a nonexistent or unrelated account is not isolation
+      // evidence. Prove the target exists and is the same submitted linked source.
+      const target=await page.evaluate(async path=>{
+        const response=await fetch(path,{cache:'no-store',redirect:'error'});
+        if(response.status!==200)return null;
+        const body=await response.json();
+        return {linked:body.linked,patientId:body.patientId,source:{accountId:body.source?.accountId,status:body.source?.status,version:body.source?.version}};
+      },bps);
+      verifyIsolationTarget(target,patientFixture,e.EMR_ACCEPTANCE_CHART_ID.toLowerCase(),Number(e.EMR_ACCEPTANCE_EXPECTED_SOURCE_VERSION));
       stage=label+': separate fictional patient sign-in and positive own intake access';
       const otherContext=await newRoutedContext();
       try{

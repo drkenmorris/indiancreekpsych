@@ -2,7 +2,7 @@
 // Never run against production,
 // the obsolete validation branch, or a project belonging to another app.
 // Optional original-form writes require a fresh isolated fictional chart.
-// Optional fresh patient intake submission and original BPS writes; booking/assessment stages remain separate.
+// Optional fresh patient intake submission, original BPS writes, and isolated recurring booking; assessment remains separate.
 import assert from 'node:assert/strict';
 import {createHmac} from 'node:crypto';
 import {pathToFileURL} from 'node:url';
@@ -453,6 +453,130 @@ async function submitHostedSource({patientPage,fixture,readPatient,verifyPage,ve
   console.log('Hosted source owner saved, independently read and reopened all 21 pages; final submission and locked reopen verified.');
 }
 
+// Separately opt-in isolated name-only recurring booking. This exercises the
+// legacy scheduler path without creating a chart link or touching existing rows.
+function recurringBookingConfig(e) {
+  if(e.EMR_ACCEPTANCE_RECURRING_BOOKING===undefined||e.EMR_ACCEPTANCE_RECURRING_BOOKING==='false')return null;
+  assert.equal(e.EMR_ACCEPTANCE_RECURRING_BOOKING,'true');
+  verifyIsolationApproval(e);
+  const marker=e.EMR_ACCEPTANCE_SCHEDULE_MARKER, date=e.EMR_ACCEPTANCE_SCHEDULE_FIRST_DATE, time=e.EMR_ACCEPTANCE_SCHEDULE_TIME;
+  assert.match(marker,/^FICTIONAL-EMR-SCHEDULE-[a-f0-9]{32}$/);
+  assert.match(date,/^\d{4}-\d{2}-\d{2}$/);
+  const start=new Date(date+'T12:00:00Z');
+  assert.ok(Number.isFinite(start.valueOf())&&start.toISOString().slice(0,10)===date,'Invalid fixture date');
+  assert.match(time,/^(?:[01]\d|2[0-3]):00$/,'Use an exact hourly fixture slot');
+  const through=new Date(start.valueOf()+7*86400000).toISOString().slice(0,10);
+  assert.equal(through.slice(0,7),date.slice(0,7),'Two weekly fixture occurrences must fit in one calendar month');
+  return {marker,date,time,through};
+}
+function scheduleLocal(instant,timezone) {
+  const d=new Date(instant);
+  assert.ok(Number.isFinite(d.valueOf()),'Invalid appointment instant');
+  const parts=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:timezone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(d).map(p=>[p.type,p.value]));
+  return {date:parts.year+'-'+parts.month+'-'+parts.day,time:parts.hour+':'+parts.minute};
+}
+function verifyRecurringRows(rows,fixture,timezone,duration) {
+  assert.equal(rows.length,2,'Exactly two new fixture bookings required');
+  const ordered=[...rows].sort((a,b)=>Date.parse(a.starts_at)-Date.parse(b.starts_at));
+  const uuid=/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
+  assert.match(ordered[0].series_id,uuid);
+  assert.notEqual(ordered[0].id,ordered[1].id);
+  for(let i=0;i<2;i++){
+    const row=ordered[i];
+    assert.match(row.id,uuid);
+    assert.equal(row.series_id,ordered[0].series_id);
+    assert.equal(row.patient_id,null,'Name-only scheduler fixture must never be represented as a linked chart');
+    assert.equal(row.patient_name,fixture.marker);
+    assert.equal(row.status,'booked');
+    assert.deepEqual(scheduleLocal(row.starts_at,timezone),{date:i===0?fixture.date:fixture.through,time:fixture.time});
+    assert.equal(Date.parse(row.ends_at)-Date.parse(row.starts_at),duration*60000);
+  }
+}
+async function exerciseRecurringBooking({page,origin,database,e,fixture}) {
+  // Take readback credentials from the real MFA-authenticated calendar request,
+  // not from a service-role key or a separate session that could bypass RLS.
+  const [calendarRead,opened]=await Promise.all([
+    page.waitForResponse(r=>{const u=new URL(r.url());return u.origin===database&&u.pathname==='/rest/v1/appointments'&&r.request().method()==='GET';}),
+    page.goto(origin+'/appointments')
+  ]);
+  assert.equal(opened.status(),200);
+  assert.equal(page.url(),origin+'/appointments');
+  assert.equal(await page.locator('html').getAttribute('data-dpl-id'),e.EMR_ACCEPTANCE_DEPLOYMENT_ID);
+  assert.equal(calendarRead.status(),200);
+  const headers=await calendarRead.request().allHeaders();
+  assert.ok(headers.apikey&&/^Bearer \S+$/.test(headers.authorization||''),'Authenticated scheduler readback credentials required');
+  const read=async(path,extra={})=>{
+    const url=new URL(path,database);
+    assert.equal(url.origin,database);
+    const res=await fetch(url,{headers:{apikey:headers.apikey,Authorization:headers.authorization,...extra},cache:'no-store',redirect:'error'});
+    assert.ok([200,206].includes(res.status),'Isolated scheduler readback failed');
+    return res;
+  };
+  const user=await (await read('/auth/v1/user')).json();
+  assert.equal(user.email,e.EMR_ACCEPTANCE_CLINICIAN_EMAIL);
+  const settings=await (await read('/rest/v1/appointment_settings?select=timezone,appointment_duration_minutes&id=eq.true')).json();
+  assert.equal(settings.length,1);
+  const {timezone,appointment_duration_minutes:duration}=settings[0];
+  assert.ok(Number.isSafeInteger(duration)&&duration>=15&&duration<=240);
+  const today=scheduleLocal(new Date().toISOString(),timezone).date;
+  const nextMonth=new Date(Date.UTC(Number(today.slice(0,4)),Number(today.slice(5,7)),1)).toISOString().slice(0,7);
+  assert.ok(fixture.date>today,'Fixture booking must be in the future');
+  assert.ok([today.slice(0,7),nextMonth].includes(fixture.date.slice(0,7)),'Fixture must be in current or next practice month');
+  const allRows=async()=>{
+    const response=await read('/rest/v1/appointments?select=id,patient_id,patient_name,starts_at,ends_at,status,series_id&order=starts_at&limit=3',{Prefer:'count=exact'});
+    const rows=await response.json(), count=response.headers.get('content-range')?.split('/').pop();
+    assert.ok(Array.isArray(rows)&&/^\d+$/.test(count||'')&&Number(count)===rows.length,'Complete appointment count required before and after isolated booking');
+    return rows;
+  };
+  assert.deepEqual(await allRows(),[],'Dedicated scheduler fixture database must contain no appointments before booking');
+  const calendar=page.getByRole('table',{name:'Monthly appointment calendar'});
+  await page.locator('.monthCalendar[aria-busy="false"]').waitFor();
+  assert.equal(await page.locator('.calendarError[role="alert"]').count(),0);
+  await page.locator('.calendarHeading').getByRole('button',{name:'Place patient appointments',exact:true}).click();
+  await page.getByLabel('Patient',{exact:true}).selectOption('');
+  await page.getByLabel('Patient name',{exact:true}).fill(fixture.marker);
+  await page.getByLabel('First appointment date',{exact:true}).fill(fixture.date);
+  await page.getByLabel('Appointment start',{exact:true}).fill(fixture.time);
+  await page.getByLabel('Repeat',{exact:true}).selectOption('1');
+  await page.getByLabel('Repeat through (up to one year)',{exact:true}).fill(fixture.through);
+  const [receipt]=await Promise.all([
+    page.waitForResponse(r=>{const u=new URL(r.url());return u.origin===database&&u.pathname==='/rest/v1/rpc/book_patient_appointments'&&r.request().method()==='POST';}),
+    page.getByRole('button',{name:'Book patient appointments',exact:true}).click()
+  ]);
+  assert.deepEqual(receipt.request().postDataJSON(),{p_patient_id:null,p_patient_name:fixture.marker,p_first_date:fixture.date,p_start_time:fixture.time,p_repeat_weeks:1,p_through:fixture.through});
+  assert.equal(receipt.status(),200);
+  assert.equal(await receipt.json(),2);
+  await page.getByText('2 appointments booked. Adjacent openings updated.',{exact:true}).waitFor();
+  verifyRecurringRows(await allRows(),fixture,timezone,duration);
+  await page.reload();
+  assert.equal(await page.locator('html').getAttribute('data-dpl-id'),e.EMR_ACCEPTANCE_DEPLOYMENT_ID);
+  await calendar.waitFor();
+  await page.locator('.monthCalendar[aria-busy="false"]').waitFor();
+  if(fixture.date.slice(0,7)===nextMonth){
+    await page.getByRole('button',{name:'Next month',exact:true}).click();
+    await page.locator('.monthCalendar[aria-busy="false"]').waitFor();
+  }
+  const events=calendar.locator('.calendarEvent').filter({hasText:fixture.marker});
+  await events.nth(1).waitFor();
+  assert.equal(await events.count(),2);
+  for(let i=0;i<2;i++){
+    const date=i===0?fixture.date:fixture.through;
+    const event=calendar.getByRole('button',{name:fixture.marker+', '+date+', '+fixture.time,exact:true});
+    assert.equal(await event.count(),1);
+    assert.ok((await event.innerText()).includes('↻'));
+    await event.click();
+    await page.getByRole('heading',{name:'Appointment details'}).waitFor();
+    await page.getByText(/This is a name-only booking, not a central patient chart link/).waitFor();
+    assert.equal(await page.getByLabel('Appointment date',{exact:true}).inputValue(),date);
+    assert.equal(await page.getByLabel('Start time',{exact:true}).inputValue(),fixture.time);
+    assert.equal(await page.getByLabel('Apply to',{exact:true}).inputValue(),'one');
+    assert.equal(await page.getByLabel('Apply to',{exact:true}).locator('option[value="future"]').count(),1);
+    await page.getByRole('button',{name:'Close appointment details',exact:true}).click();
+  }
+  verifyRecurringRows(await allRows(),fixture,timezone,duration);
+  console.log('Hosted isolated fictional name-only recurring booking: two weekly occurrences, independent exact-count database readback, calendar reload and recurrence controls verified. No edits, cancellations or invitations performed.');
+}
+
 if(process.argv.includes('--self-test')) {
   const ref='abcdefghijklmnopqrst';
   const e={EMR_ACCEPTANCE_ORIGIN:'https://indiancreekpsych-fixture-ken-morris-projects.vercel.app',EMR_ACCEPTANCE_SUPABASE_URL:'https://'+ref+'.supabase.co',EMR_ACCEPTANCE_APPROVED_PROJECT_REF:ref,EMR_ACCEPTANCE_DEPLOYMENT_ID:'dpl_fixture',EMR_ACCEPTANCE_EXPECTED_SHA:'a'.repeat(40),EMR_ACCEPTANCE_CLINICIAN_EMAIL:'emr-acceptance-fictional@example.com',EMR_ACCEPTANCE_CLINICIAN_PASSWORD:'fixture',EMR_ACCEPTANCE_TOTP_SECRET:'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ',EMR_ACCEPTANCE_CHART_ID:'00000000-0000-4000-8000-000000000001',EMR_ACCEPTANCE_EXPECTED_SOURCE_VERSION:'2',EMR_ACCEPTANCE_EXPECTED_PACKET_VERSION:'fixture-v1',EMR_ACCEPTANCE_EXPECTED_REVIEWED:'false'};
@@ -577,6 +701,18 @@ if(process.argv.includes('--self-test')) {
   assert.throws(()=>sourceSubmissionConfig(sourceApproval,sourceFixture,{account:'different',email:sourceApproval.EMR_ACCEPTANCE_SOURCE_EMAIL}));
   console.log('11 hosted source submission opt-in, fixture and isolation checks passed; no hosted requests performed.');
 
+  const recurringEnv={...write,EMR_ACCEPTANCE_RECURRING_BOOKING:'true',EMR_ACCEPTANCE_SCHEDULE_MARKER:'FICTIONAL-EMR-SCHEDULE-'+'b'.repeat(32),EMR_ACCEPTANCE_SCHEDULE_FIRST_DATE:'2027-01-05',EMR_ACCEPTANCE_SCHEDULE_TIME:'10:00'};
+  assert.equal(recurringBookingConfig(e),null);
+  assert.equal(recurringBookingConfig({...recurringEnv,EMR_ACCEPTANCE_RECURRING_BOOKING:'false'}),null);
+  const booking=recurringBookingConfig(recurringEnv);
+  assert.equal(booking.through,'2027-01-12');
+  for(const [key,value] of [['EMR_ACCEPTANCE_RECURRING_BOOKING','yes'],['EMR_ACCEPTANCE_ISOLATION_APPROVAL','wrong'],['EMR_ACCEPTANCE_SCHEDULE_MARKER','Patient'],['EMR_ACCEPTANCE_SCHEDULE_FIRST_DATE','2027-02-30'],['EMR_ACCEPTANCE_SCHEDULE_FIRST_DATE','2027-01-28'],['EMR_ACCEPTANCE_SCHEDULE_TIME','25:00']])assert.throws(()=>recurringBookingConfig({...recurringEnv,[key]:value}));
+  const rows=['2027-01-05','2027-01-12'].map((date,i)=>({id:'00000000-0000-4000-8000-00000000000'+(i+1),series_id:'00000000-0000-4000-8000-000000000003',patient_id:null,patient_name:booking.marker,status:'booked',starts_at:date+'T16:00:00Z',ends_at:date+'T16:50:00Z'}));
+  assert.doesNotThrow(()=>verifyRecurringRows(rows,booking,'America/Chicago',50));
+  assert.throws(()=>verifyRecurringRows(rows.slice(0,1),booking,'America/Chicago',50));
+  for(const [key,value] of [['patient_id',rows[0].id],['patient_name','wrong'],['series_id',rows[0].id],['status','cancelled'],['starts_at','2027-01-12T17:00:00Z'],['ends_at','2027-01-12T16:45:00Z']])assert.throws(()=>verifyRecurringRows([rows[0],{...rows[1],[key]:value}],booking,'America/Chicago',50));
+  console.log('17 isolated recurring booking configuration and database receipt guards passed; no hosted requests performed.');
+
 } else {
   const e=process.env,{origin,database}=config(e),writeFixture=reviewWriteConfig(e),originalWrite=originalWriteConfig(e,writeFixture);
   // Fail before external requests, including authentication/session creation,
@@ -584,6 +720,7 @@ if(process.argv.includes('--self-test')) {
   verifyIsolationApproval(e);
   const patientFixture=patientIsolationConfig(e);
   const sourceFixture=sourceSubmissionConfig(e,writeFixture,patientFixture);
+  const recurringFixture=recurringBookingConfig(e);
   assert.ok(e.EMR_ACCEPTANCE_VERCEL_TOKEN,'Read-only Vercel API access required');
   const deploymentResponse=await fetch('https://api.vercel.com/v13/deployments/'+e.EMR_ACCEPTANCE_DEPLOYMENT_ID+'?slug=ken-morris-projects',{headers:{Authorization:'Bearer '+e.EMR_ACCEPTANCE_VERCEL_TOKEN},redirect:'error'});
   assert.equal(deploymentResponse.status,200,'Deployment metadata unavailable');
@@ -979,6 +1116,10 @@ if(process.argv.includes('--self-test')) {
       }else console.log('No original-form writes, bookings or invitations performed.');
     }else console.log('No clinical writes, bookings or invitations performed.');
     if(patientFixture&&writeFixture)await runPatientIsolation('After clinical writes and readback');
+    if(recurringFixture){
+      stage='isolated recurring booking and calendar readback';
+      await exerciseRecurringBooking({page,origin,database,e,fixture:recurringFixture});
+    }
   } catch {
     throw new Error('Hosted preflight failed at '+stage+'; browser error details suppressed to protect credentials and clinical content.');
   } finally {await browser.close();}

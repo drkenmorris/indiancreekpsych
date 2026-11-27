@@ -2,7 +2,7 @@
 // Never run against production,
 // the obsolete validation branch, or a project belonging to another app.
 // Optional original-form writes require a fresh isolated fictional chart.
-// Optional fresh patient intake submission, original BPS writes, and isolated recurring booking; assessment remains separate.
+// Optional fresh patient intake submission, original BPS writes, isolated recurring booking and existing fictional CSEQ recipient/report.
 import assert from 'node:assert/strict';
 import {createHmac} from 'node:crypto';
 import {pathToFileURL} from 'node:url';
@@ -742,6 +742,155 @@ async function exerciseRecurringBooking({page,origin,database,e,fixture}) {
   console.log('Hosted fictional linked appointment: exact source-account/chart association, single booking receipt, independent database readback, preserved history and reopened calendar verified.');
 }
 
+
+/** Existing, explicitly approved fictional sent CSEQ fixture only. No provider call,
+ * send/resend action, or modification of invitation status is performed here. */
+function cseqConfig(e,sourceFixture){
+  if(e.EMR_ACCEPTANCE_CSEQ===undefined||e.EMR_ACCEPTANCE_CSEQ==='false')return null;
+  assert.equal(e.EMR_ACCEPTANCE_CSEQ,'true');
+  verifyIsolationApproval(e);
+  assert.ok(sourceFixture,'CSEQ requires the verified fresh fictional linked intake owner');
+  const id=e.EMR_ACCEPTANCE_CSEQ_ID, hash=e.EMR_ACCEPTANCE_CSEQ_HASH;
+  assert.match(id,/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/);
+  assert.notEqual(id,sourceFixture.account);
+  assert.notEqual(id,e.EMR_ACCEPTANCE_CHART_ID);
+  assert.match(hash,/^[a-f0-9]{64}$/);
+  return {id,hash,chart:e.EMR_ACCEPTANCE_CHART_ID.toLowerCase(),recipient:sourceFixture};
+}
+function verifyCseqAssignment(a,f,now=Date.now()){
+  assert.equal(a?.id,f.id);
+  assert.equal(a.patient_id,f.chart);
+  assert.equal(a.recipient_email,f.recipient.email);
+  assert.equal(a.test_key,'cseq');
+  assert.equal(a.connected_source_hash,f.hash);
+  assert.equal(a.status,'sent');
+  assert.ok(Number.isFinite(Date.parse(a.sent_at))&&Date.parse(a.sent_at)<=now);
+  assert.ok(Number.isFinite(Date.parse(a.expires_at))&&Date.parse(a.expires_at)>now);
+  assert.equal(Date.parse(a.expires_at)-Date.parse(a.sent_at),14*86400000);
+}
+async function exerciseHostedCseq({page,context,newRoutedContext,origin,database,e,fixture:f}){
+  const listPath='/api/admin/test-assignments?patient='+f.chart;
+  const adminAssignment=async()=>{
+    const result=await page.evaluate(async p=>{const r=await fetch(p,{cache:'no-store',redirect:'error'});return {status:r.status,body:await r.json()};},listPath);
+    assert.equal(result.status,200);
+    assert.ok(Array.isArray(result.body.assignments));
+    const rows=result.body.assignments.filter(a=>a.id===f.id);
+    assert.equal(rows.length,1);
+    verifyCseqAssignment(rows[0],f);
+    return rows[0];
+  };
+  assert.equal((await adminAssignment()).connected_progress,null,'Require a fresh fictional sent assignment with no response');
+  const recipientContext=await newRoutedContext();
+  try{
+    const p=await recipientContext.newPage();p.setDefaultTimeout(30000);
+    const path='/patient/assigned-tests/'+f.id;
+    const api='/api/assigned-tests/connected?id='+f.id;
+    const reportPath='/admin/assign-test/connected-responses/'+f.id;
+    const verifyPage=async tab=>assert.equal(await tab.locator('html').getAttribute('data-dpl-id'),e.EMR_ACCEPTANCE_DEPLOYMENT_ID);
+    await p.goto(origin+path);
+    await p.waitForURL(u=>u.origin===origin&&u.pathname==='/login');
+    await verifyPage(p);
+    await p.getByLabel('Email',{exact:true}).fill(f.recipient.email);
+    await p.getByLabel('Password',{exact:true}).fill(f.recipient.password);
+    const [auth]=await Promise.all([
+      p.waitForResponse(r=>{const u=new URL(r.url());return u.origin===database&&u.pathname==='/auth/v1/token'&&u.searchParams.get('grant_type')==='password'&&r.request().method()==='POST';}),
+      p.getByRole('button',{name:'Sign in',exact:true}).click()
+    ]);
+    assert.equal(auth.status(),200);
+    const session=await auth.json();verifyPatientAuth(session.user,f.recipient);
+    const key=(await auth.request().allHeaders()).apikey;
+    assert.ok(key&&session.access_token);
+    await p.waitForURL(u=>u.origin===origin&&u.pathname===path);
+    await verifyPage(p);
+    const read=async (table,select,column,value)=>{
+      const url=new URL('/rest/v1/'+table,database);
+      url.searchParams.set('select',select);url.searchParams.set(column,'eq.'+value);
+      const r=await fetch(url,{headers:{apikey:key,Authorization:'Bearer '+session.access_token},redirect:'error',cache:'no-store'});
+      assert.equal(r.status,200);
+      const rows=await r.json();assert.ok(Array.isArray(rows)&&rows.length<=1);
+      return rows[0]??null;
+    };
+    const readResponse=()=>read('connected_assignment_responses','assignment_id,respondent_id,answers,page,revision,status,identity_confirmed,answered_count,submitted_at','assignment_id',f.id);
+    assert.equal(await readResponse(),null);
+    const initial=await p.evaluate(async path=>{const r=await fetch(path,{cache:'no-store',redirect:'error'});return {status:r.status,body:await r.json()};},api);
+    assert.equal(initial.status,200);
+    assert.equal(initial.body.assignment.id,f.id);
+    assert.deepEqual(initial.body.response,{answers:{},page:0,revision:0,status:'draft',identity_confirmed:false});
+    const definition=initial.body.definition;
+    assert.equal(definition.testKey,'cseq');
+    assert.ok(definition.items.length>7);
+    assert.equal(new Set(definition.items.map(i=>i.id)).size,definition.items.length);
+    await p.getByRole('heading',{name:definition.title,exact:true}).waitFor();
+    const start=p.getByRole('button',{name:'Start questionnaire',exact:true});
+    assert.ok(await start.isDisabled());
+    await p.getByRole('checkbox').check();await start.click();
+    const reportPage=await context.newPage();reportPage.setDefaultTimeout(30000);
+    try{
+      await reportPage.goto(origin+reportPath);await verifyPage(reportPage);
+      await reportPage.getByText('no clinical scores are calculated from partial responses',{exact:false}).waitFor();
+      assert.equal(await reportPage.locator('.connectedReport').count(),0);
+      const answers={},pages=Math.ceil(definition.items.length/7);
+      for(let n=0;n<pages;n++){
+        const items=definition.items.slice(n*7,n*7+7), groups=p.locator('.asqQuestion'),final=n===pages-1;
+        assert.equal(await groups.count(),items.length);
+        const next=p.getByRole('button',{name:final?'Save and submit questionnaire':'Save and next',exact:true});
+        if(n===0){await next.click();await p.getByRole('alert').filter({hasText:'Answer each question on this page'}).waitFor();assert.equal(await readResponse(),null);}
+        for(let i=0;i<items.length;i++){
+          const item=items[i],choice=(n+i)%item.options.length;
+          await groups.nth(i).getByRole('radio').nth(choice).check();
+          answers[item.id]=item.options[choice].value;
+        }
+        await next.click();
+        if(final)await p.getByRole('heading',{name:'Questionnaire submitted',exact:true}).waitFor();
+        else await p.getByRole('status').filter({hasText:'Your answers and place are saved.'}).waitFor();
+        const row=await readResponse();
+        assert.equal(row.assignment_id,f.id);assert.equal(row.respondent_id,f.recipient.account);
+        assert.deepEqual(row.answers,answers);assert.equal(row.revision,n+1);
+        assert.equal(row.page,final?n:n+1);assert.equal(row.status,final?'submitted':'draft');
+        assert.equal(row.identity_confirmed,true);assert.equal(row.answered_count,Object.keys(answers).length);
+        if(final)assert.ok(Number.isFinite(Date.parse(row.submitted_at)));else assert.equal(row.submitted_at,null);
+        const progress=(await adminAssignment()).connected_progress;
+        assert.equal(progress.assignment_id,f.id);assert.equal(progress.status,row.status);
+        assert.equal(progress.revision,row.revision);assert.equal(progress.answered_count,row.answered_count);
+        if(n===0&&!final){
+          await p.reload();await verifyPage(p);
+          await p.getByRole('button',{name:'Resume questionnaire',exact:true}).waitFor();
+          assert.ok(await p.getByRole('checkbox').isChecked());
+          await p.getByRole('button',{name:'Resume questionnaire',exact:true}).click();
+          await p.getByRole('heading',{name:/Questions 8–/}).waitFor();
+          await reportPage.reload();
+          await reportPage.getByText('no clinical scores are calculated from partial responses',{exact:false}).waitFor();
+          assert.equal(await reportPage.locator('.connectedReport').count(),0);
+        }
+      }
+      const final=await readResponse();
+      await p.reload();await verifyPage(p);
+      await p.getByRole('heading',{name:'Questionnaire submitted',exact:true}).waitFor();
+      assert.equal(await p.getByRole('button',{name:'Save and submit questionnaire'}).count(),0);
+      const rejected=await p.evaluate(async ({id,record})=>{
+        const r=await fetch('/api/assigned-tests/connected',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,expectedRevision:record.revision,page:record.page,submit:true,identityConfirmed:true,answers:record.answers}),redirect:'error'});
+        return r.status;
+      },{id:f.id,record:final});
+      assert.ok(rejected>=400&&rejected<600);assert.deepEqual(await readResponse(),final);
+      await reportPage.reload();await verifyPage(reportPage);
+      const report=reportPage.locator('.connectedReport');
+      await report.getByRole('heading',{name:/Clinical Results/}).waitFor();
+      assert.equal(await report.locator('.reportAppendix .reportResponse').count(),definition.items.length);
+      assert.ok(await report.locator('.reportScores meter').count()>0);
+      for(const value of [f.hash,f.id,f.chart,definition.items.length+' / '+definition.items.length+' answers · revision '+final.revision])await report.getByText(value,{exact:true}).waitFor();
+      for(let i=0;i<definition.items.length;i++){
+        const item=definition.items[i],label=item.options.find(o=>o.value===answers[item.id]).label;
+        assert.ok((await report.locator('.reportAppendix .reportResponse').nth(i).locator('p').innerText()).startsWith(label+' '));
+      }
+      const link=new URL(await reportPage.getByRole('link',{name:'Central patient record'}).getAttribute('href'),origin);
+      assert.equal(link.origin,origin);assert.equal(link.searchParams.get('patient'),f.chart);
+      await p.goto(origin+reportPath);
+      assert.notEqual(p.url(),origin+reportPath);assert.equal(await p.locator('.connectedReport').count(),0);
+      console.log('Hosted fictional pre-existing CSEQ: recipient authentication, page persistence, immutable submission, chart-bound report and patient denial verified; no invitation sent.');
+    }finally{await reportPage.close();}
+  }finally{await recipientContext.close();}
+}
+
 if(process.argv.includes('--self-test')) {
   const ref='abcdefghijklmnopqrst';
   const e={EMR_ACCEPTANCE_ORIGIN:'https://indiancreekpsych-fixture-ken-morris-projects.vercel.app',EMR_ACCEPTANCE_SUPABASE_URL:'https://'+ref+'.supabase.co',EMR_ACCEPTANCE_APPROVED_PROJECT_REF:ref,EMR_ACCEPTANCE_DEPLOYMENT_ID:'dpl_fixture',EMR_ACCEPTANCE_EXPECTED_SHA:'a'.repeat(40),EMR_ACCEPTANCE_CLINICIAN_EMAIL:'emr-acceptance-fictional@example.com',EMR_ACCEPTANCE_CLINICIAN_PASSWORD:'fixture',EMR_ACCEPTANCE_TOTP_SECRET:'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ',EMR_ACCEPTANCE_CHART_ID:'00000000-0000-4000-8000-000000000001',EMR_ACCEPTANCE_EXPECTED_SOURCE_VERSION:'2',EMR_ACCEPTANCE_EXPECTED_PACKET_VERSION:'fixture-v1',EMR_ACCEPTANCE_EXPECTED_REVIEWED:'false'};
@@ -905,6 +1054,16 @@ if(process.argv.includes('--self-test')) {
   assert.throws(()=>verifyLinkedBooking(cancelled,[...cancelled.slice(1),linkedRow],linkedBooking,'America/Chicago',50));
   assert.throws(()=>verifyLinkedBooking(cancelled,[{...cancelled[0],patient_name:'changed'},...cancelled.slice(1),linkedRow],linkedBooking,'America/Chicago',50));
   console.log('13 hosted linked-account appointment guards passed; no hosted requests performed.');
+  const cseqEnv={...write,EMR_ACCEPTANCE_CSEQ:'true',EMR_ACCEPTANCE_CSEQ_ID:'00000000-0000-4000-8000-000000000011',EMR_ACCEPTANCE_CSEQ_HASH:'a'.repeat(64)};
+  const cseqRecipient={account:write.EMR_ACCEPTANCE_SOURCE_ACCOUNT_ID,email:'emr-acceptance-source-fixture@example.com',password:'fictional'};
+  assert.equal(cseqConfig(e,null),null);
+  assert.throws(()=>cseqConfig(cseqEnv,null));
+  const cseq=cseqConfig(cseqEnv,cseqRecipient);
+  for(const [key,value] of [['EMR_ACCEPTANCE_CSEQ','yes'],['EMR_ACCEPTANCE_CSEQ_ID',cseq.chart],['EMR_ACCEPTANCE_CSEQ_ID',cseq.recipient.account],['EMR_ACCEPTANCE_CSEQ_HASH','wrong'],['EMR_ACCEPTANCE_ISOLATION_APPROVAL','wrong']])assert.throws(()=>cseqConfig({...cseqEnv,[key]:value},cseqRecipient));
+  const now=Date.parse('2026-11-27T12:00:00Z'),a={id:cseq.id,patient_id:cseq.chart,recipient_email:cseq.recipient.email,test_key:'cseq',connected_source_hash:cseq.hash,status:'sent',sent_at:'2026-11-26T12:00:00Z',expires_at:'2026-12-10T12:00:00Z'};
+  assert.doesNotThrow(()=>verifyCseqAssignment(a,cseq,now));
+  for(const [key,value] of [['id',cseq.chart],['patient_id',cseq.id],['recipient_email','wrong@example.com'],['test_key','asq'],['connected_source_hash','b'.repeat(64)],['status','draft'],['sent_at','invalid'],['expires_at','2026-11-27T11:00:00Z']])assert.throws(()=>verifyCseqAssignment({...a,[key]:value},cseq,now));
+  console.log('16 hosted existing CSEQ fixture and invitation guards passed; no hosted requests performed.');
 
 } else {
   const e=process.env,{origin,database}=config(e),writeFixture=reviewWriteConfig(e),originalWrite=originalWriteConfig(e,writeFixture);
@@ -914,6 +1073,7 @@ if(process.argv.includes('--self-test')) {
   const patientFixture=patientIsolationConfig(e);
   const sourceFixture=sourceSubmissionConfig(e,writeFixture,patientFixture);
   const recurringFixture=recurringBookingConfig(e);
+  const cseqFixture=cseqConfig(e,sourceFixture);
   assert.ok(e.EMR_ACCEPTANCE_VERCEL_TOKEN,'Read-only Vercel API access required');
   const deploymentResponse=await fetch('https://api.vercel.com/v13/deployments/'+e.EMR_ACCEPTANCE_DEPLOYMENT_ID+'?slug=ken-morris-projects',{headers:{Authorization:'Bearer '+e.EMR_ACCEPTANCE_VERCEL_TOKEN},redirect:'error'});
   assert.equal(deploymentResponse.status,200,'Deployment metadata unavailable');
@@ -1312,6 +1472,10 @@ if(process.argv.includes('--self-test')) {
     if(recurringFixture){
       stage='isolated recurring booking and calendar readback';
       await exerciseRecurringBooking({page,origin,database,e,fixture:recurringFixture});
+    }
+    if(cseqFixture){
+      stage='isolated existing fictional CSEQ recipient and clinical report';
+      await exerciseHostedCseq({page,context,newRoutedContext,origin,database,e,fixture:cseqFixture});
     }
   } catch {
     throw new Error('Hosted preflight failed at '+stage+'; browser error details suppressed to protect credentials and clinical content.');

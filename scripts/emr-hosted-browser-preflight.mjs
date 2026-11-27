@@ -891,6 +891,23 @@ async function exerciseHostedCseq({page,context,newRoutedContext,origin,database
   }finally{await recipientContext.close();}
 }
 
+// Full release acceptance is an explicit mode, not an inference from an exit
+// code of a read-only or partial run. Refuse a missing stage before any network
+// request or authentication. Each stage still requires its own fixture approval.
+function verifyFullHostedPlan({writeFixture,originalWrite,patientFixture,sourceFixture,recurringFixture,cseqFixture}) {
+  assert.ok(writeFixture,'Full hosted run requires clinician review write approval');
+  assert.equal(originalWrite,true,'Full hosted run requires all original-form writes');
+  assert.ok(patientFixture,'Full hosted run requires separate patient isolation fixture');
+  assert.ok(sourceFixture,'Full hosted run requires fresh patient source submission');
+  assert.ok(recurringFixture?.editTime,'Full hosted run requires recurrence edit and cancellation');
+  assert.ok(recurringFixture?.linked,'Full hosted run requires chart-linked booking');
+  assert.ok(cseqFixture,'Full hosted run requires existing fictional CSEQ assignment');
+  assert.ok(recurringFixture.linked.account===sourceFixture.account &&
+    cseqFixture.recipient.account===sourceFixture.account &&
+    recurringFixture.linked.chart===cseqFixture.chart,
+    'Full hosted run requires a coherent linked fictional account and chart');
+}
+
 if(process.argv.includes('--self-test')) {
   const ref='abcdefghijklmnopqrst';
   const e={EMR_ACCEPTANCE_ORIGIN:'https://indiancreekpsych-fixture-ken-morris-projects.vercel.app',EMR_ACCEPTANCE_SUPABASE_URL:'https://'+ref+'.supabase.co',EMR_ACCEPTANCE_APPROVED_PROJECT_REF:ref,EMR_ACCEPTANCE_DEPLOYMENT_ID:'dpl_fixture',EMR_ACCEPTANCE_EXPECTED_SHA:'a'.repeat(40),EMR_ACCEPTANCE_CLINICIAN_EMAIL:'emr-acceptance-fictional@example.com',EMR_ACCEPTANCE_CLINICIAN_PASSWORD:'fixture',EMR_ACCEPTANCE_TOTP_SECRET:'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ',EMR_ACCEPTANCE_CHART_ID:'00000000-0000-4000-8000-000000000001',EMR_ACCEPTANCE_EXPECTED_SOURCE_VERSION:'2',EMR_ACCEPTANCE_EXPECTED_PACKET_VERSION:'fixture-v1',EMR_ACCEPTANCE_EXPECTED_REVIEWED:'false'};
@@ -1064,6 +1081,15 @@ if(process.argv.includes('--self-test')) {
   assert.doesNotThrow(()=>verifyCseqAssignment(a,cseq,now));
   for(const [key,value] of [['id',cseq.chart],['patient_id',cseq.id],['recipient_email','wrong@example.com'],['test_key','asq'],['connected_source_hash','b'.repeat(64)],['status','draft'],['sent_at','invalid'],['expires_at','2026-11-27T11:00:00Z']])assert.throws(()=>verifyCseqAssignment({...a,[key]:value},cseq,now));
   console.log('16 hosted existing CSEQ fixture and invitation guards passed; no hosted requests performed.');
+  const fullPlan={writeFixture:{},originalWrite:true,patientFixture:{},sourceFixture:cseqRecipient,recurringFixture:linkedBooking,cseqFixture:cseq};
+  assert.doesNotThrow(()=>verifyFullHostedPlan(fullPlan));
+  for(const key of ['writeFixture','originalWrite','patientFixture','sourceFixture','recurringFixture','cseqFixture'])
+    assert.throws(()=>verifyFullHostedPlan({...fullPlan,[key]:null}));
+  assert.throws(()=>verifyFullHostedPlan({...fullPlan,recurringFixture:{...linkedBooking,editTime:undefined}}));
+  assert.throws(()=>verifyFullHostedPlan({...fullPlan,recurringFixture:{...linkedBooking,linked:undefined}}));
+  assert.throws(()=>verifyFullHostedPlan({...fullPlan,sourceFixture:{...cseqRecipient,account:'different'}}));
+  assert.throws(()=>verifyFullHostedPlan({...fullPlan,cseqFixture:{...cseq,chart:'different'}}));
+  console.log('11 full hosted run completeness guards passed; no hosted requests performed.');
 
 } else {
   const e=process.env,{origin,database}=config(e),writeFixture=reviewWriteConfig(e),originalWrite=originalWriteConfig(e,writeFixture);
@@ -1074,6 +1100,8 @@ if(process.argv.includes('--self-test')) {
   const sourceFixture=sourceSubmissionConfig(e,writeFixture,patientFixture);
   const recurringFixture=recurringBookingConfig(e);
   const cseqFixture=cseqConfig(e,sourceFixture);
+  const full=process.argv.includes('--full');
+  if(full)verifyFullHostedPlan({writeFixture,originalWrite,patientFixture,sourceFixture,recurringFixture,cseqFixture});
   assert.ok(e.EMR_ACCEPTANCE_VERCEL_TOKEN,'Read-only Vercel API access required');
   const deploymentResponse=await fetch('https://api.vercel.com/v13/deployments/'+e.EMR_ACCEPTANCE_DEPLOYMENT_ID+'?slug=ken-morris-projects',{headers:{Authorization:'Bearer '+e.EMR_ACCEPTANCE_VERCEL_TOKEN},redirect:'error'});
   assert.equal(deploymentResponse.status,200,'Deployment metadata unavailable');
@@ -1480,4 +1508,8 @@ if(process.argv.includes('--self-test')) {
   } catch {
     throw new Error('Hosted preflight failed at '+stage+'; browser error details suppressed to protect credentials and clinical content.');
   } finally {await browser.close();}
+  // This only attests to the hosted browser stages; independent hosted schema
+  // evidence and subsequent production verification remain separate release gates.
+  if(full)console.log('FULL HOSTED BROWSER ACCEPTANCE PASSED '+e.EMR_ACCEPTANCE_EXPECTED_SHA+' '+e.EMR_ACCEPTANCE_DEPLOYMENT_ID);
+  else console.log('PARTIAL HOSTED PREFLIGHT ONLY: not full browser acceptance or production release authorization.');
 }

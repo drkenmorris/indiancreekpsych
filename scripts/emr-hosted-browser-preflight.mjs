@@ -26,11 +26,13 @@ function config(e) {
   assert.match(e.EMR_ACCEPTANCE_CHART_ID,/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
   assert.match(e.EMR_ACCEPTANCE_EXPECTED_SOURCE_VERSION,/^[1-9][0-9]*$/);
   assert.ok(Number.isSafeInteger(Number(e.EMR_ACCEPTANCE_EXPECTED_SOURCE_VERSION)),'Expected fixture source revision must be a safe integer');
+  assert.ok(typeof e.EMR_ACCEPTANCE_EXPECTED_PACKET_VERSION==='string' && e.EMR_ACCEPTANCE_EXPECTED_PACKET_VERSION.length<=128 && e.EMR_ACCEPTANCE_EXPECTED_PACKET_VERSION.trim()===e.EMR_ACCEPTANCE_EXPECTED_PACKET_VERSION && e.EMR_ACCEPTANCE_EXPECTED_PACKET_VERSION.length>0,'Exact fixture packet version required');
+  assert.match(e.EMR_ACCEPTANCE_EXPECTED_REVIEWED,/^(true|false)$/,'Explicit fixture review state required');
   return {origin:origin.origin,database:database.origin};
 }
 // A 200 alone is insufficient: verify the exact fixture and submission receipt
 // without retaining or logging clinical data. Use the metadata-only endpoint.
-function verifySubmittedSummary(receipt, expectedChart, expectedVersion) {
+function verifySubmittedSummary(receipt, expectedChart, expectedVersion, expectedPacket, expectedReviewed) {
   assert.ok(receipt && typeof receipt==='object' && !Array.isArray(receipt),'Invalid summary envelope');
   assert.deepEqual(Object.keys(receipt).sort(),['currentVersionReviewed','patientId','source']);
   assert.equal(receipt.patientId,expectedChart.toLowerCase(),'Unexpected fixture chart');
@@ -41,8 +43,8 @@ function verifySubmittedSummary(receipt, expectedChart, expectedVersion) {
   assert.ok(typeof receipt.source.submittedAt==='string' && typeof receipt.source.updatedAt==='string','Missing submission timestamps');
   const submitted=Date.parse(receipt.source.submittedAt), updated=Date.parse(receipt.source.updatedAt);
   assert.ok(Number.isFinite(submitted) && Number.isFinite(updated) && updated<=submitted,'Invalid submission chronology');
-  assert.ok(typeof receipt.source.questionnairePacketVersion==='string' && receipt.source.questionnairePacketVersion.trim(),'Questionnaire packet version missing');
-  assert.equal(typeof receipt.currentVersionReviewed,'boolean','Review state missing');
+  assert.equal(receipt.source.questionnairePacketVersion,expectedPacket,'Unexpected questionnaire packet version');
+  assert.equal(receipt.currentVersionReviewed,expectedReviewed,'Unexpected clinician review state');
 }
 function totp(secret,now=Date.now()) {
   let bits=0,value=0;const bytes=[];
@@ -56,7 +58,7 @@ function totp(secret,now=Date.now()) {
 }
 if(process.argv.includes('--self-test')) {
   const ref='abcdefghijklmnopqrst';
-  const e={EMR_ACCEPTANCE_ORIGIN:'https://indiancreekpsych-fixture-ken-morris-projects.vercel.app',EMR_ACCEPTANCE_SUPABASE_URL:'https://'+ref+'.supabase.co',EMR_ACCEPTANCE_APPROVED_PROJECT_REF:ref,EMR_ACCEPTANCE_DEPLOYMENT_ID:'dpl_fixture',EMR_ACCEPTANCE_EXPECTED_SHA:'a'.repeat(40),EMR_ACCEPTANCE_CLINICIAN_EMAIL:'emr-acceptance-fictional@example.com',EMR_ACCEPTANCE_CLINICIAN_PASSWORD:'fixture',EMR_ACCEPTANCE_TOTP_SECRET:'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ',EMR_ACCEPTANCE_CHART_ID:'00000000-0000-4000-8000-000000000001',EMR_ACCEPTANCE_EXPECTED_SOURCE_VERSION:'2'};
+  const e={EMR_ACCEPTANCE_ORIGIN:'https://indiancreekpsych-fixture-ken-morris-projects.vercel.app',EMR_ACCEPTANCE_SUPABASE_URL:'https://'+ref+'.supabase.co',EMR_ACCEPTANCE_APPROVED_PROJECT_REF:ref,EMR_ACCEPTANCE_DEPLOYMENT_ID:'dpl_fixture',EMR_ACCEPTANCE_EXPECTED_SHA:'a'.repeat(40),EMR_ACCEPTANCE_CLINICIAN_EMAIL:'emr-acceptance-fictional@example.com',EMR_ACCEPTANCE_CLINICIAN_PASSWORD:'fixture',EMR_ACCEPTANCE_TOTP_SECRET:'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ',EMR_ACCEPTANCE_CHART_ID:'00000000-0000-4000-8000-000000000001',EMR_ACCEPTANCE_EXPECTED_SOURCE_VERSION:'2',EMR_ACCEPTANCE_EXPECTED_PACKET_VERSION:'fixture-v1',EMR_ACCEPTANCE_EXPECTED_REVIEWED:'false'};
   assert.doesNotThrow(()=>config(e));
   for(const ref of excluded) assert.throws(()=>config({...e,EMR_ACCEPTANCE_APPROVED_PROJECT_REF:ref,EMR_ACCEPTANCE_SUPABASE_URL:'https://'+ref+'.supabase.co'}));
   for(const target of ['https://www.indiancreekpsych.com','https://indiancreekpsych-fixture-ken-morris-projects.vercel.app/path','http://indiancreekpsych-fixture-ken-morris-projects.vercel.app','https://indiancreekpsych-fixture-ken-morris-projects.vercel.app.evil.test']) assert.throws(()=>config({...e,EMR_ACCEPTANCE_ORIGIN:target}));
@@ -66,17 +68,23 @@ if(process.argv.includes('--self-test')) {
   assert.equal(totp(e.EMR_ACCEPTANCE_TOTP_SECRET,59000),'287082');
   console.log('15 hosted preflight guard/TOTP checks passed; no hosted requests performed.');
   const summary={patientId:e.EMR_ACCEPTANCE_CHART_ID,source:{status:'submitted',version:2,submittedAt:'2026-01-01T00:01:00Z',updatedAt:'2026-01-01T00:00:00Z',questionnairePacketVersion:'fixture-v1'},currentVersionReviewed:false};
-  assert.doesNotThrow(()=>verifySubmittedSummary(summary,e.EMR_ACCEPTANCE_CHART_ID,2));
-  assert.throws(()=>verifySubmittedSummary({...summary,patientId:'wrong-chart'},e.EMR_ACCEPTANCE_CHART_ID,2));
-  assert.throws(()=>verifySubmittedSummary(summary,e.EMR_ACCEPTANCE_CHART_ID,3));
-  assert.throws(()=>verifySubmittedSummary({...summary,source:{...summary.source,status:'draft'}},e.EMR_ACCEPTANCE_CHART_ID,2));
-  assert.throws(()=>verifySubmittedSummary({...summary,source:{...summary.source,submittedAt:null}},e.EMR_ACCEPTANCE_CHART_ID,2));
-  assert.throws(()=>verifySubmittedSummary({...summary,source:{...summary.source,updatedAt:'2026-01-01T00:02:00Z'}},e.EMR_ACCEPTANCE_CHART_ID,2));
-  assert.throws(()=>verifySubmittedSummary({...summary,clinical_answers:{}},e.EMR_ACCEPTANCE_CHART_ID,2));
-  assert.throws(()=>verifySubmittedSummary({...summary,source:{...summary.source,questionnairePacketVersion:null}},e.EMR_ACCEPTANCE_CHART_ID,2));
+  assert.doesNotThrow(()=>verifySubmittedSummary(summary,e.EMR_ACCEPTANCE_CHART_ID,2,e.EMR_ACCEPTANCE_EXPECTED_PACKET_VERSION,false));
+  assert.throws(()=>verifySubmittedSummary({...summary,patientId:'wrong-chart'},e.EMR_ACCEPTANCE_CHART_ID,2,e.EMR_ACCEPTANCE_EXPECTED_PACKET_VERSION,false));
+  assert.throws(()=>verifySubmittedSummary(summary,e.EMR_ACCEPTANCE_CHART_ID,3,e.EMR_ACCEPTANCE_EXPECTED_PACKET_VERSION,false));
+  assert.throws(()=>verifySubmittedSummary({...summary,source:{...summary.source,status:'draft'}},e.EMR_ACCEPTANCE_CHART_ID,2,e.EMR_ACCEPTANCE_EXPECTED_PACKET_VERSION,false));
+  assert.throws(()=>verifySubmittedSummary({...summary,source:{...summary.source,submittedAt:null}},e.EMR_ACCEPTANCE_CHART_ID,2,e.EMR_ACCEPTANCE_EXPECTED_PACKET_VERSION,false));
+  assert.throws(()=>verifySubmittedSummary({...summary,source:{...summary.source,updatedAt:'2026-01-01T00:02:00Z'}},e.EMR_ACCEPTANCE_CHART_ID,2,e.EMR_ACCEPTANCE_EXPECTED_PACKET_VERSION,false));
+  assert.throws(()=>verifySubmittedSummary({...summary,clinical_answers:{}},e.EMR_ACCEPTANCE_CHART_ID,2,e.EMR_ACCEPTANCE_EXPECTED_PACKET_VERSION,false));
+  assert.throws(()=>verifySubmittedSummary({...summary,source:{...summary.source,questionnairePacketVersion:null}},e.EMR_ACCEPTANCE_CHART_ID,2,e.EMR_ACCEPTANCE_EXPECTED_PACKET_VERSION,false));
   assert.throws(()=>config({...e,EMR_ACCEPTANCE_EXPECTED_SOURCE_VERSION:'0'}));
   assert.throws(()=>config({...e,EMR_ACCEPTANCE_EXPECTED_SOURCE_VERSION:'9007199254740992'}));
-  console.log('10 hosted fixture identity, version and metadata-boundary checks passed; no hosted requests performed.');
+  assert.throws(()=>verifySubmittedSummary({...summary,source:{...summary.source,questionnairePacketVersion:'unexpected-v2'}},e.EMR_ACCEPTANCE_CHART_ID,2,e.EMR_ACCEPTANCE_EXPECTED_PACKET_VERSION,false));
+  assert.throws(()=>verifySubmittedSummary({...summary,currentVersionReviewed:true},e.EMR_ACCEPTANCE_CHART_ID,2,e.EMR_ACCEPTANCE_EXPECTED_PACKET_VERSION,false));
+  assert.throws(()=>verifySubmittedSummary({...summary,currentVersionReviewed:'false'},e.EMR_ACCEPTANCE_CHART_ID,2,e.EMR_ACCEPTANCE_EXPECTED_PACKET_VERSION,false));
+  assert.doesNotThrow(()=>verifySubmittedSummary({...summary,currentVersionReviewed:true},e.EMR_ACCEPTANCE_CHART_ID,2,e.EMR_ACCEPTANCE_EXPECTED_PACKET_VERSION,true));
+  assert.throws(()=>config({...e,EMR_ACCEPTANCE_EXPECTED_PACKET_VERSION:''}));
+  assert.throws(()=>config({...e,EMR_ACCEPTANCE_EXPECTED_REVIEWED:'unknown'}));
+  console.log('16 hosted fixture identity, version and metadata-boundary checks passed; no hosted requests performed.');
 } else {
   const e=process.env,{origin,database}=config(e);
   assert.ok(e.EMR_ACCEPTANCE_VERCEL_TOKEN,'Read-only Vercel API access required');
@@ -133,7 +141,7 @@ if(process.argv.includes('--self-test')) {
     assert.equal(receipt.status,200,'Protected fixture summary unavailable');
     assert.match(receipt.cacheControl??'',/\bprivate\b/i);
     assert.match(receipt.cacheControl??'',/\bno-store\b/i);
-    verifySubmittedSummary(receipt.body,e.EMR_ACCEPTANCE_CHART_ID,Number(e.EMR_ACCEPTANCE_EXPECTED_SOURCE_VERSION));
+    verifySubmittedSummary(receipt.body,e.EMR_ACCEPTANCE_CHART_ID,Number(e.EMR_ACCEPTANCE_EXPECTED_SOURCE_VERSION),e.EMR_ACCEPTANCE_EXPECTED_PACKET_VERSION,e.EMR_ACCEPTANCE_EXPECTED_REVIEWED==='true');
     stage='read-only linked BPS rendering';
     const review=await page.goto(origin+'/emr/bps-intake?patient='+e.EMR_ACCEPTANCE_CHART_ID);
     assert.equal(review.status(),200);

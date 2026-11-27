@@ -1,6 +1,7 @@
-// Hosted read-only authentication preflight. Never run against production,
+// Hosted authentication preflight; optional fictional review write is separately gated.
+// Never run against production,
 // the obsolete validation branch, or a project belonging to another app.
-// This is not the full clinical write/booking/assessment acceptance suite.
+// This is not the full patient intake/original-form write/booking/assessment suite.
 import assert from 'node:assert/strict';
 import {createHmac} from 'node:crypto';
 import {pathToFileURL} from 'node:url';
@@ -72,6 +73,33 @@ function verifyOriginalFormLinks(hrefs,origin,chart) {
     return {url:url.href,key,action:originalForms.get(key)};
   });
 }
+// The optional write stage is deliberately disabled by default. The operator must
+// independently verify the exact deployment's server-side database configuration,
+// schema and fixture ownership before supplying the approval string. A public URL
+// or READY deployment alone is not isolation evidence.
+function reviewWriteConfig(e) {
+  if(e.EMR_ACCEPTANCE_REVIEW_WRITE===undefined||e.EMR_ACCEPTANCE_REVIEW_WRITE==='false') return null;
+  assert.equal(e.EMR_ACCEPTANCE_REVIEW_WRITE,'true');
+  assert.equal(e.EMR_ACCEPTANCE_EXPECTED_REVIEWED,'false','A fresh unreviewed fictional source is required');
+  assert.equal(e.EMR_ACCEPTANCE_ISOLATION_APPROVAL,
+    e.EMR_ACCEPTANCE_DEPLOYMENT_ID+':'+e.EMR_ACCEPTANCE_EXPECTED_SHA+':'+e.EMR_ACCEPTANCE_APPROVED_PROJECT_REF,
+    'Independent server/database isolation approval for the exact revision required');
+  assert.match(e.EMR_ACCEPTANCE_SOURCE_ACCOUNT_ID,/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+  assert.notEqual(e.EMR_ACCEPTANCE_SOURCE_ACCOUNT_ID,e.EMR_ACCEPTANCE_CHART_ID.toLowerCase());
+  assert.match(e.EMR_ACCEPTANCE_FIXTURE_MARKER,/^FICTIONAL-EMR-ACCEPTANCE-[a-f0-9]{32}$/);
+  return {account:e.EMR_ACCEPTANCE_SOURCE_ACCOUNT_ID,marker:e.EMR_ACCEPTANCE_FIXTURE_MARKER};
+}
+function verifyFreshReviewFixture(data,e,fixture) {
+  assert.ok(data && data.linked===true && data.patientId===e.EMR_ACCEPTANCE_CHART_ID.toLowerCase(),'Incorrect linked chart');
+  assert.equal(data.source?.accountId,fixture.account,'Incorrect fictional source account');
+  assert.equal(data.source.status,'submitted');
+  assert.equal(data.source.version,Number(e.EMR_ACCEPTANCE_EXPECTED_SOURCE_VERSION));
+  assert.equal(data.source.questionnairePacketVersion,e.EMR_ACCEPTANCE_EXPECTED_PACKET_VERSION);
+  assert.ok(Array.isArray(data.sections)&&data.sections.length===21,'Incomplete source audit');
+  assert.deepEqual(data.unmappedKeys,[]);
+  assert.deepEqual(data.reviews,[],'Fresh fictional chart must not already have review history');
+  assert.ok(JSON.stringify(data.sections).includes(fixture.marker),'Fictional marker missing from linked source');
+}
 function totp(secret,now=Date.now()) {
   let bits=0,value=0;const bytes=[];
   for(const char of secret.toUpperCase().replace(/=+$/,'')) {
@@ -122,8 +150,21 @@ if(process.argv.includes('--self-test')) {
   assert.throws(()=>verifyLinks([fixtureLinks[0].replace('/emr/workspace','/emr'),...fixtureLinks.slice(1)]));
   assert.throws(()=>verifyLinks([fixtureLinks[0].replace('bps_page=symptoms','bps_page=unknown'),...fixtureLinks.slice(1)]));
   console.log('8 original BPS link safety checks passed; no hosted requests performed.');
+  const write={...e,EMR_ACCEPTANCE_REVIEW_WRITE:'true',EMR_ACCEPTANCE_ISOLATION_APPROVAL:e.EMR_ACCEPTANCE_DEPLOYMENT_ID+':'+e.EMR_ACCEPTANCE_EXPECTED_SHA+':'+ref,EMR_ACCEPTANCE_SOURCE_ACCOUNT_ID:'00000000-0000-4000-8000-000000000002',EMR_ACCEPTANCE_FIXTURE_MARKER:'FICTIONAL-EMR-ACCEPTANCE-'+'c'.repeat(32)};
+  assert.equal(reviewWriteConfig(e),null);
+  assert.throws(()=>reviewWriteConfig({...write,EMR_ACCEPTANCE_REVIEW_WRITE:'yes'}));
+  assert.throws(()=>reviewWriteConfig({...write,EMR_ACCEPTANCE_ISOLATION_APPROVAL:'wrong'}));
+  assert.throws(()=>reviewWriteConfig({...write,EMR_ACCEPTANCE_EXPECTED_REVIEWED:'true'}));
+  assert.throws(()=>reviewWriteConfig({...write,EMR_ACCEPTANCE_FIXTURE_MARKER:'real patient'}));
+  const fixture=reviewWriteConfig(write);
+  const full={patientId:e.EMR_ACCEPTANCE_CHART_ID,linked:true,source:{accountId:fixture.account,status:'submitted',version:2,questionnairePacketVersion:'fixture-v1'},sections:Array.from({length:21},(_,i)=>({value:i===0?fixture.marker:''})),unmappedKeys:[],reviews:[]};
+  assert.doesNotThrow(()=>verifyFreshReviewFixture(full,write,fixture));
+  assert.throws(()=>verifyFreshReviewFixture({...full,reviews:[{}]},write,fixture));
+  assert.throws(()=>verifyFreshReviewFixture({...full,source:{...full.source,accountId:'wrong'}},write,fixture));
+  assert.throws(()=>verifyFreshReviewFixture({...full,sections:full.sections.map(()=>({value:''}))},write,fixture));
+  console.log('9 opt-in fictional review write safety checks passed; no hosted requests performed.');
 } else {
-  const e=process.env,{origin,database}=config(e);
+  const e=process.env,{origin,database}=config(e),writeFixture=reviewWriteConfig(e);
   assert.ok(e.EMR_ACCEPTANCE_VERCEL_TOKEN,'Read-only Vercel API access required');
   const deploymentResponse=await fetch('https://api.vercel.com/v13/deployments/'+e.EMR_ACCEPTANCE_DEPLOYMENT_ID+'?slug=ken-morris-projects',{headers:{Authorization:'Bearer '+e.EMR_ACCEPTANCE_VERCEL_TOKEN},redirect:'error'});
   assert.equal(deploymentResponse.status,200,'Deployment metadata unavailable');
@@ -197,7 +238,63 @@ if(process.argv.includes('--self-test')) {
       await page.locator('[data-bps-page="'+key+'"][aria-current="page"]').waitFor();
       assert.equal(await page.locator('html').getAttribute('data-dpl-id'),e.EMR_ACCEPTANCE_DEPLOYMENT_ID);
     }
-    console.log('Hosted read-only preflight passed: real browser password/TOTP, AAL1 denial, AAL2 chart read, exact submitted fixture identity/version/receipt, appointment administration and all seven original BPS forms rendered for the exact chart. No clinical writes, bookings, or invitations performed.');
+    console.log('Hosted read-only preflight passed: real browser password/TOTP, AAL1 denial, AAL2 chart read, exact submitted fixture identity/version/receipt, appointment administration and all seven original BPS forms rendered for the exact chart.');
+    if(writeFixture){
+      stage='fictional linked review source and fresh-chart guard';
+      await page.goto(origin+'/emr/bps-intake?patient='+e.EMR_ACCEPTANCE_CHART_ID);
+      assert.equal(await page.locator('html').getAttribute('data-dpl-id'),e.EMR_ACCEPTANCE_DEPLOYMENT_ID);
+      const read=async path=>page.evaluate(async p=>{
+        const r=await fetch(p,{cache:'no-store',redirect:'error'});
+        return {status:r.status,cache:r.headers.get('cache-control'),body:await r.json()};
+      },path);
+      const before=await read(bps);
+      assert.equal(before.status,200);
+      assert.match(before.cache??'',/\bprivate\b/i);
+      assert.match(before.cache??'',/\bno-store\b/i);
+      verifyFreshReviewFixture(before.body,e,writeFixture);
+      await page.getByText('Submitted intake (immutable source)',{exact:true}).waitFor();
+      await page.getByText(writeFixture.marker,{exact:true}).waitFor({state:'attached'});
+      stage='fictional clinician review through rendered UI';
+      const note='Fictional isolated acceptance observation '+writeFixture.marker;
+      const prepare=page.getByRole('button',{name:'Prepare clinician-reviewed BPS intake draft'});
+      await prepare.click();
+      const save=page.getByRole('button',{name:'Save reviewed BPS history snapshot'});
+      assert.ok(await save.isDisabled());
+      const fields=page.locator('article[aria-label="Intake biopsychosocial reconciliation"] form textarea');
+      assert.equal(await fields.count(),7);
+      await fields.first().fill(note);
+      await page.getByRole('checkbox',{name:/I reviewed this intake/i}).check();
+      assert.ok(await save.isEnabled());
+      const [response]=await Promise.all([page.waitForResponse(r=>r.url()===origin+'/api/emr/bps-intake'&&r.request().method()==='POST'),save.click()]);
+      assert.equal(response.status(),201);
+      const saved=await response.json();
+      assert.equal(saved.saved,true);assert.equal(saved.unsigned,true);assert.equal(saved.diagnosisCreated,false);
+      assert.match(saved.id,/^[a-f0-9-]{36}$/);
+      await page.getByText('snapshot saved AND independently verified',{exact:false}).waitFor();
+      stage='fictional review independent protected GET and browser reopen';
+      const after=await read(bps);
+      assert.equal(after.status,200);
+      assert.equal(after.body.patientId,e.EMR_ACCEPTANCE_CHART_ID.toLowerCase());
+      assert.deepEqual(after.body.source,before.body.source,'Immutable source changed during review');
+      assert.equal(after.body.reviews.length,1);
+      const review=after.body.reviews[0];
+      assert.equal(review.id,saved.id);
+      assert.equal(review.source_version,Number(e.EMR_ACCEPTANCE_EXPECTED_SOURCE_VERSION));
+      assert.equal(review.source_status,'submitted');
+      assert.equal(review.clinician_note_domains_complete,true);
+      assert.equal(review.current_source_snapshot_verified,true);
+      assert.deepEqual(review.clinician_notes,{presenting:note,treatment:'',medical:'',safety:'',family:'',goals:'',limitations:''});
+      assert.equal(review.clinical_answers.counseling_reason,writeFixture.marker);
+      const summary=await read(bps+'&summary=1');
+      assert.equal(summary.status,200);
+      verifySubmittedSummary(summary.body,e.EMR_ACCEPTANCE_CHART_ID,Number(e.EMR_ACCEPTANCE_EXPECTED_SOURCE_VERSION),e.EMR_ACCEPTANCE_EXPECTED_PACKET_VERSION,true);
+      await page.reload();
+      await page.getByText('Sections audited: 21/21',{exact:false}).waitFor();
+      await page.locator('summary').filter({hasText:'Previously saved immutable clinician reviews (1)'}).click();
+      await page.getByText(note,{exact:true}).waitFor();
+      assert.equal(await prepare.count(),0);
+      console.log('Hosted fictional unsigned clinician review saved through UI, independently read back and reopened. No original-form writes, bookings or invitations performed.');
+    }else console.log('No clinical writes, bookings or invitations performed.');
   } catch {
     throw new Error('Hosted preflight failed at '+stage+'; browser error details suppressed to protect credentials and clinical content.');
   } finally {await browser.close();}

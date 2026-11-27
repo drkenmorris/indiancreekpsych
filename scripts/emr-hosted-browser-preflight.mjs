@@ -467,7 +467,12 @@ function recurringBookingConfig(e) {
   assert.match(time,/^(?:[01]\d|2[0-3]):00$/,'Use an exact hourly fixture slot');
   const through=new Date(start.valueOf()+7*86400000).toISOString().slice(0,10);
   assert.equal(through.slice(0,7),date.slice(0,7),'Two weekly fixture occurrences must fit in one calendar month');
-  return {marker,date,time,through};
+  const editTime=e.EMR_ACCEPTANCE_SCHEDULE_EDIT_TIME;
+  if(editTime!==undefined){
+    assert.match(editTime,/^(?:[01]\d|2[0-3]):00$/,'Use an exact hourly replacement fixture slot');
+    assert.notEqual(editTime,time,'Replacement slot must differ from the original');
+  }
+  return {marker,date,time,through,editTime};
 }
 function scheduleLocal(instant,timezone) {
   const d=new Date(instant);
@@ -491,6 +496,27 @@ function verifyRecurringRows(rows,fixture,timezone,duration) {
     assert.deepEqual(scheduleLocal(row.starts_at,timezone),{date:i===0?fixture.date:fixture.through,time:fixture.time});
     assert.equal(Date.parse(row.ends_at)-Date.parse(row.starts_at),duration*60000);
   }
+}
+// The edit RPC preserves original row IDs as cancelled history and creates
+// new booked rows. Compare by identity, not response ordering.
+function verifyShiftedRows(before,after,fixture,timezone,duration){
+  verifyRecurringRows(before,fixture,timezone,duration);
+  assert.equal(after.length,4,'Exactly two originals and two replacements required');
+  assert.equal(new Set(after.map(r=>r.id)).size,4,'Duplicate appointment identities');
+  const ids=new Set(before.map(r=>r.id));
+  for(const original of before)assert.deepEqual(after.find(r=>r.id===original.id),{...original,status:'cancelled'},'Original appointment history changed');
+  const replacements=after.filter(r=>!ids.has(r.id));
+  verifyRecurringRows(replacements,{...fixture,time:fixture.editTime},timezone,duration);
+  for(const row of replacements)assert.equal(row.series_id,before[0].series_id,'Series identity changed');
+  return replacements.sort((a,b)=>Date.parse(a.starts_at)-Date.parse(b.starts_at));
+}
+function verifySingleCancellation(before,after,target){
+  assert.equal(before.length,4);
+  assert.equal(after.length,4,'Cancellation must preserve all history');
+  assert.equal(before.find(r=>r.id===target)?.status,'booked','Cancellation target must be active');
+  assert.equal(new Set(after.map(r=>r.id)).size,4);
+  for(const row of before)assert.deepEqual(after.find(r=>r.id===row.id),row.id===target?{...row,status:'cancelled'}:row,'Unexpected appointment change during single cancellation');
+  assert.equal(after.filter(r=>r.status==='booked').length,1,'One active recurring occurrence must remain');
 }
 async function exerciseRecurringBooking({page,origin,database,e,fixture}) {
   // Take readback credentials from the real MFA-authenticated calendar request,
@@ -523,7 +549,7 @@ async function exerciseRecurringBooking({page,origin,database,e,fixture}) {
   assert.ok(fixture.date>today,'Fixture booking must be in the future');
   assert.ok([today.slice(0,7),nextMonth].includes(fixture.date.slice(0,7)),'Fixture must be in current or next practice month');
   const allRows=async()=>{
-    const response=await read('/rest/v1/appointments?select=id,patient_id,patient_name,starts_at,ends_at,status,series_id&order=starts_at&limit=3',{Prefer:'count=exact'});
+    const response=await read('/rest/v1/appointments?select=id,patient_id,patient_name,starts_at,ends_at,status,series_id&order=starts_at&limit=5',{Prefer:'count=exact'});
     const rows=await response.json(), count=response.headers.get('content-range')?.split('/').pop();
     assert.ok(Array.isArray(rows)&&/^\d+$/.test(count||'')&&Number(count)===rows.length,'Complete appointment count required before and after isolated booking');
     return rows;
@@ -574,7 +600,62 @@ async function exerciseRecurringBooking({page,origin,database,e,fixture}) {
     await page.getByRole('button',{name:'Close appointment details',exact:true}).click();
   }
   verifyRecurringRows(await allRows(),fixture,timezone,duration);
-  console.log('Hosted isolated fictional name-only recurring booking: two weekly occurrences, independent exact-count database readback, calendar reload and recurrence controls verified. No edits, cancellations or invitations performed.');
+  console.log('Hosted isolated fictional name-only recurring booking: two weekly occurrences, independent exact-count database readback, calendar reload and recurrence controls verified.');
+  if(!fixture.editTime){console.log('Hosted recurring edit and cancellation not executed; explicit replacement slot required.');return;}
+  const booked=await allRows();
+  verifyRecurringRows(booked,fixture,timezone,duration);
+  const event=(date,time)=>calendar.getByRole('button',{name:fixture.marker+', '+date+', '+time,exact:true});
+  const first=[...booked].sort((a,b)=>Date.parse(a.starts_at)-Date.parse(b.starts_at))[0];
+  const mutation=async({row,scope,action,time,date,trigger,expected})=>{
+    const [receipt]=await Promise.all([
+      page.waitForResponse(r=>{const u=new URL(r.url());return u.origin===database&&u.pathname==='/rest/v1/rpc/edit_calendar_appointments'&&r.request().method()==='POST';}),
+      trigger()
+    ]);
+    const body=receipt.request().postDataJSON();
+    assert.equal(body.p_id,row.id);
+    assert.equal(Date.parse(body.p_expected_start),Date.parse(row.starts_at));
+    assert.equal(body.p_date,date);
+    assert.equal(body.p_time,time);
+    assert.equal(body.p_patient_name,fixture.marker);
+    assert.equal(body.p_scope,scope);
+    assert.equal(body.p_action,action);
+    assert.equal(receipt.status(),200);
+    assert.equal(await receipt.json(),expected);
+  };
+  await event(fixture.date,fixture.time).click();
+  await page.getByLabel('Apply to',{exact:true}).selectOption('future');
+  await page.getByLabel('Start time',{exact:true}).fill(fixture.editTime);
+  await mutation({row:first,scope:'future',action:'save',time:fixture.editTime,date:fixture.date,expected:2,trigger:()=>page.getByRole('button',{name:'Save changes',exact:true}).click()});
+  await page.getByText('2 appointments updated. Adjacent openings have been recalculated.',{exact:true}).waitFor();
+  const shifted=await allRows();
+  const replacements=verifyShiftedRows(booked,shifted,fixture,timezone,duration);
+  await page.locator('.monthCalendar[aria-busy="false"]').waitFor();
+  await event(fixture.date,fixture.editTime).waitFor();
+  assert.equal(await event(fixture.date,fixture.time).count(),0);
+  await event(fixture.date,fixture.editTime).click();
+  await page.getByLabel('Apply to',{exact:true}).selectOption('one');
+  await page.getByRole('button',{name:'Cancel appointment',exact:true}).click();
+  await page.getByRole('button',{name:'Keep appointment',exact:true}).click();
+  verifyShiftedRows(booked,await allRows(),fixture,timezone,duration);
+  await page.getByRole('button',{name:'Cancel appointment',exact:true}).click();
+  await mutation({row:replacements[0],scope:'one',action:'cancel',time:fixture.editTime,date:fixture.date,expected:1,trigger:()=>page.getByRole('button',{name:'Confirm cancellation',exact:true}).click()});
+  await page.getByText('1 appointment cancelled. Adjacent openings have been recalculated.',{exact:true}).waitFor();
+  verifySingleCancellation(shifted,await allRows(),replacements[0].id);
+  await page.reload();
+  assert.equal(await page.locator('html').getAttribute('data-dpl-id'),e.EMR_ACCEPTANCE_DEPLOYMENT_ID);
+  await calendar.waitFor();
+  await page.locator('.monthCalendar[aria-busy="false"]').waitFor();
+  if(fixture.date.slice(0,7)===nextMonth){
+    await page.getByRole('button',{name:'Next month',exact:true}).click();
+    await page.locator('.monthCalendar[aria-busy="false"]').waitFor();
+  }
+  await event(fixture.through,fixture.editTime).waitFor();
+  assert.equal(await event(fixture.date,fixture.editTime).count(),0);
+  assert.equal(await event(fixture.date,fixture.time).count(),0);
+  assert.equal(await event(fixture.through,fixture.time).count(),0);
+  assert.equal(await calendar.locator('.calendarEvent').filter({hasText:fixture.marker}).count(),1);
+  verifySingleCancellation(shifted,await allRows(),replacements[0].id);
+  console.log('Hosted fictional recurring future edit, preserved original history, single cancellation, exact receipt and reopened calendar verified. No invitations performed.');
 }
 
 if(process.argv.includes('--self-test')) {
@@ -712,6 +793,24 @@ if(process.argv.includes('--self-test')) {
   assert.throws(()=>verifyRecurringRows(rows.slice(0,1),booking,'America/Chicago',50));
   for(const [key,value] of [['patient_id',rows[0].id],['patient_name','wrong'],['series_id',rows[0].id],['status','cancelled'],['starts_at','2027-01-12T17:00:00Z'],['ends_at','2027-01-12T16:45:00Z']])assert.throws(()=>verifyRecurringRows([rows[0],{...rows[1],[key]:value}],booking,'America/Chicago',50));
   console.log('17 isolated recurring booking configuration and database receipt guards passed; no hosted requests performed.');
+  assert.throws(()=>recurringBookingConfig({...recurringEnv,EMR_ACCEPTANCE_SCHEDULE_EDIT_TIME:'10:00'}));
+  assert.throws(()=>recurringBookingConfig({...recurringEnv,EMR_ACCEPTANCE_SCHEDULE_EDIT_TIME:'25:00'}));
+  const editFixture=recurringBookingConfig({...recurringEnv,EMR_ACCEPTANCE_SCHEDULE_EDIT_TIME:'11:00'});
+  assert.equal(editFixture.editTime,'11:00');
+  const originals=rows.map(row=>({...row,status:'cancelled'}));
+  const moved=rows.map((row,i)=>({...row,id:'00000000-0000-4000-8000-00000000000'+(i+4),starts_at:row.starts_at.replace('T16:','T17:'),ends_at:row.ends_at.replace('T16:','T17:')}));
+  const shifted=[...originals,...moved];
+  assert.deepEqual(verifyShiftedRows(rows,shifted,editFixture,'America/Chicago',50),moved);
+  assert.throws(()=>verifyShiftedRows(rows,shifted.slice(1),editFixture,'America/Chicago',50));
+  assert.throws(()=>verifyShiftedRows(rows,[{...originals[0],patient_name:'wrong'},originals[1],...moved],editFixture,'America/Chicago',50));
+  assert.throws(()=>verifyShiftedRows(rows,[...originals,...moved.map(row=>({...row,series_id:'00000000-0000-4000-8000-000000000009'}))],editFixture,'America/Chicago',50));
+  assert.throws(()=>verifyShiftedRows(rows,[...originals,{...moved[0],starts_at:rows[0].starts_at},moved[1]],editFixture,'America/Chicago',50));
+  const cancelled=shifted.map(row=>row.id===moved[0].id?{...row,status:'cancelled'}:row);
+  assert.doesNotThrow(()=>verifySingleCancellation(shifted,cancelled,moved[0].id));
+  assert.throws(()=>verifySingleCancellation(shifted,cancelled,moved[1].id));
+  assert.throws(()=>verifySingleCancellation(shifted,cancelled.slice(1),moved[0].id));
+  assert.throws(()=>verifySingleCancellation(shifted,cancelled.map(row=>({...row,status:'cancelled'})),moved[0].id));
+  console.log('12 hosted recurrence edit and cancellation history guards passed; no hosted requests performed.');
 
 } else {
   const e=process.env,{origin,database}=config(e),writeFixture=reviewWriteConfig(e),originalWrite=originalWriteConfig(e,writeFixture);

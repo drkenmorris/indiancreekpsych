@@ -40,7 +40,7 @@ function verifySubmittedSummary(receipt, expectedChart, expectedVersion) {
   assert.equal(receipt.source.version,expectedVersion,'Unexpected intake revision');
   assert.ok(typeof receipt.source.submittedAt==='string' && typeof receipt.source.updatedAt==='string','Missing submission timestamps');
   const submitted=Date.parse(receipt.source.submittedAt), updated=Date.parse(receipt.source.updatedAt);
-  assert.ok(Number.isFinite(submitted) && Number.isFinite(updated) && submitted<=updated,'Invalid submission chronology');
+  assert.ok(Number.isFinite(submitted) && Number.isFinite(updated) && updated<=submitted,'Invalid submission chronology');
   assert.ok(typeof receipt.source.questionnairePacketVersion==='string' && receipt.source.questionnairePacketVersion.trim(),'Questionnaire packet version missing');
   assert.equal(typeof receipt.currentVersionReviewed,'boolean','Review state missing');
 }
@@ -65,13 +65,13 @@ if(process.argv.includes('--self-test')) {
   assert.throws(()=>config({...e,EMR_ACCEPTANCE_TOTP_SECRET:'bad!'}));
   assert.equal(totp(e.EMR_ACCEPTANCE_TOTP_SECRET,59000),'287082');
   console.log('15 hosted preflight guard/TOTP checks passed; no hosted requests performed.');
-  const summary={patientId:e.EMR_ACCEPTANCE_CHART_ID,source:{status:'submitted',version:2,submittedAt:'2026-01-01T00:00:00Z',updatedAt:'2026-01-01T00:01:00Z',questionnairePacketVersion:'fixture-v1'},currentVersionReviewed:false};
+  const summary={patientId:e.EMR_ACCEPTANCE_CHART_ID,source:{status:'submitted',version:2,submittedAt:'2026-01-01T00:01:00Z',updatedAt:'2026-01-01T00:00:00Z',questionnairePacketVersion:'fixture-v1'},currentVersionReviewed:false};
   assert.doesNotThrow(()=>verifySubmittedSummary(summary,e.EMR_ACCEPTANCE_CHART_ID,2));
   assert.throws(()=>verifySubmittedSummary({...summary,patientId:'wrong-chart'},e.EMR_ACCEPTANCE_CHART_ID,2));
   assert.throws(()=>verifySubmittedSummary(summary,e.EMR_ACCEPTANCE_CHART_ID,3));
   assert.throws(()=>verifySubmittedSummary({...summary,source:{...summary.source,status:'draft'}},e.EMR_ACCEPTANCE_CHART_ID,2));
   assert.throws(()=>verifySubmittedSummary({...summary,source:{...summary.source,submittedAt:null}},e.EMR_ACCEPTANCE_CHART_ID,2));
-  assert.throws(()=>verifySubmittedSummary({...summary,source:{...summary.source,updatedAt:'2025-01-01T00:00:00Z'}},e.EMR_ACCEPTANCE_CHART_ID,2));
+  assert.throws(()=>verifySubmittedSummary({...summary,source:{...summary.source,updatedAt:'2026-01-01T00:02:00Z'}},e.EMR_ACCEPTANCE_CHART_ID,2));
   assert.throws(()=>verifySubmittedSummary({...summary,clinical_answers:{}},e.EMR_ACCEPTANCE_CHART_ID,2));
   assert.throws(()=>verifySubmittedSummary({...summary,source:{...summary.source,questionnairePacketVersion:null}},e.EMR_ACCEPTANCE_CHART_ID,2));
   assert.throws(()=>config({...e,EMR_ACCEPTANCE_EXPECTED_SOURCE_VERSION:'0'}));

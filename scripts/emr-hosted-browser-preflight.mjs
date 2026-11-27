@@ -83,6 +83,17 @@ function verifyIsolationApproval(e) {
     e.EMR_ACCEPTANCE_DEPLOYMENT_ID+':'+e.EMR_ACCEPTANCE_EXPECTED_SHA+':'+e.EMR_ACCEPTANCE_APPROVED_PROJECT_REF,
     'Independent server/database isolation approval for the exact revision required');
 }
+// Optional patient-role denial test uses a separately authenticated fictional
+// patient in a new browser context, never an anonymous denial or admin cookie.
+function patientIsolationConfig(e) {
+  if(e.EMR_ACCEPTANCE_PATIENT_ISOLATION===undefined||e.EMR_ACCEPTANCE_PATIENT_ISOLATION==='false') return null;
+  assert.equal(e.EMR_ACCEPTANCE_PATIENT_ISOLATION,'true');
+  verifyIsolationApproval(e);
+  assert.match(e.EMR_ACCEPTANCE_PATIENT_EMAIL,/^emr-acceptance-patient-[a-z0-9-]+@example\.com$/);
+  assert.notEqual(e.EMR_ACCEPTANCE_PATIENT_EMAIL,e.EMR_ACCEPTANCE_CLINICIAN_EMAIL,'Patient and clinician must be separate fixtures');
+  assert.ok(typeof e.EMR_ACCEPTANCE_PATIENT_PASSWORD==='string'&&e.EMR_ACCEPTANCE_PATIENT_PASSWORD.length>0,'Fictional patient password required');
+  return {email:e.EMR_ACCEPTANCE_PATIENT_EMAIL,password:e.EMR_ACCEPTANCE_PATIENT_PASSWORD};
+}
 function reviewWriteConfig(e) {
   if(e.EMR_ACCEPTANCE_REVIEW_WRITE===undefined||e.EMR_ACCEPTANCE_REVIEW_WRITE==='false') return null;
   assert.equal(e.EMR_ACCEPTANCE_REVIEW_WRITE,'true');
@@ -222,11 +233,22 @@ if(process.argv.includes('--self-test')) {
     assert.throws(()=>verifyIsolationApproval({...write,[key]:value}));
   }
   console.log('5 mandatory hosted authentication isolation guards passed; no hosted requests performed.');
+  const patient={...write,EMR_ACCEPTANCE_PATIENT_ISOLATION:'true',EMR_ACCEPTANCE_PATIENT_EMAIL:'emr-acceptance-patient-other@example.com',EMR_ACCEPTANCE_PATIENT_PASSWORD:'fixture-patient'};
+  assert.equal(patientIsolationConfig(e),null);
+  assert.equal(patientIsolationConfig({...patient,EMR_ACCEPTANCE_PATIENT_ISOLATION:'false'}),null);
+  assert.throws(()=>patientIsolationConfig({...patient,EMR_ACCEPTANCE_PATIENT_ISOLATION:'yes'}));
+  assert.throws(()=>patientIsolationConfig({...patient,EMR_ACCEPTANCE_ISOLATION_APPROVAL:undefined}));
+  assert.throws(()=>patientIsolationConfig({...patient,EMR_ACCEPTANCE_PATIENT_EMAIL:'real@example.com'}));
+  assert.throws(()=>patientIsolationConfig({...patient,EMR_ACCEPTANCE_CLINICIAN_EMAIL:patient.EMR_ACCEPTANCE_PATIENT_EMAIL}));
+  assert.throws(()=>patientIsolationConfig({...patient,EMR_ACCEPTANCE_PATIENT_PASSWORD:''}));
+  assert.deepEqual(patientIsolationConfig(patient),{email:patient.EMR_ACCEPTANCE_PATIENT_EMAIL,password:patient.EMR_ACCEPTANCE_PATIENT_PASSWORD});
+  console.log('8 separate fictional patient isolation configuration checks passed; no hosted requests performed.');
 } else {
   const e=process.env,{origin,database}=config(e),writeFixture=reviewWriteConfig(e),originalWrite=originalWriteConfig(e,writeFixture);
   // Fail before external requests, including authentication/session creation,
   // unless server-side isolation was independently confirmed for this revision.
   verifyIsolationApproval(e);
+  const patientFixture=patientIsolationConfig(e);
   assert.ok(e.EMR_ACCEPTANCE_VERCEL_TOKEN,'Read-only Vercel API access required');
   const deploymentResponse=await fetch('https://api.vercel.com/v13/deployments/'+e.EMR_ACCEPTANCE_DEPLOYMENT_ID+'?slug=ken-morris-projects',{headers:{Authorization:'Bearer '+e.EMR_ACCEPTANCE_VERCEL_TOKEN},redirect:'error'});
   assert.equal(deploymentResponse.status,200,'Deployment metadata unavailable');
@@ -239,17 +261,20 @@ if(process.argv.includes('--self-test')) {
   const browser=await chromium.launch({headless:true});
   let stage='browser setup';
   try {
-    const context=await browser.newContext({serviceWorkers:'block'});
-    // Reject non-allowlisted requests and redirects; do not send a Vercel token
-    // or protection-bypass credential through the browser.
-    await context.route('**/*',async route=>{
-      const target=new URL(route.request().url());
-      if(![origin,database].includes(target.origin)) return route.abort();
-      const response=await route.fetch({maxRedirects:0});
-      const location=response.headers().location;
-      if(location&&!([origin,database].includes(new URL(location,target).origin))) return route.abort();
-      return route.fulfill({response});
-    });
+    // Apply identical origin restrictions to every independent actor context.
+    const newRoutedContext=async()=>{
+      const context=await browser.newContext({serviceWorkers:'block'});
+      await context.route('**/*',async route=>{
+        const target=new URL(route.request().url());
+        if(![origin,database].includes(target.origin)) return route.abort();
+        const response=await route.fetch({maxRedirects:0});
+        const location=response.headers().location;
+        if(location&&!([origin,database].includes(new URL(location,target).origin))) return route.abort();
+        return route.fulfill({response});
+      });
+      return context;
+    };
+    const context=await newRoutedContext();
     const page=await context.newPage();page.setDefaultTimeout(30000);
     stage='immutable preview sign-in and anonymous denial';
     const login=await page.goto(origin+'/login?next=%2Fappointments');
@@ -301,6 +326,43 @@ if(process.argv.includes('--self-test')) {
       assert.equal(await page.locator('html').getAttribute('data-dpl-id'),e.EMR_ACCEPTANCE_DEPLOYMENT_ID);
     }
     console.log('Hosted read-only preflight passed: real browser password/TOTP, AAL1 denial, AAL2 chart read, exact submitted fixture identity/version/receipt, appointment administration and all seven original BPS forms rendered for the exact chart.');
+    if(patientFixture){
+      stage='separate fictional patient sign-in and positive own intake access';
+      const otherContext=await newRoutedContext();
+      try{
+        const other=await otherContext.newPage();other.setDefaultTimeout(30000);
+        await other.goto(origin+'/patient/intake');
+        await other.waitForURL(u=>u.origin===origin&&u.pathname==='/login');
+        assert.equal(await other.locator('html').getAttribute('data-dpl-id'),e.EMR_ACCEPTANCE_DEPLOYMENT_ID);
+        await other.getByLabel('Email',{exact:true}).fill(patientFixture.email);
+        await other.getByLabel('Password',{exact:true}).fill(patientFixture.password);
+        await other.getByRole('button',{name:'Sign in',exact:true}).click();
+        await other.waitForURL(u=>u.origin===origin&&u.pathname==='/patient/intake');
+        await other.getByRole('tablist',{name:'Intake sections'}).waitFor({state:'visible'});
+        assert.equal(await other.getByRole('tablist',{name:'Intake sections'}).getByRole('tab').count(),21);
+        assert.equal(await other.locator('html').getAttribute('data-dpl-id'),e.EMR_ACCEPTANCE_DEPLOYMENT_ID);
+        stage='authenticated patient denial of clinician chart and metadata';
+        const denied=await other.evaluate(async path=>{
+          const status=async p=>{
+            const r=await fetch(p,{cache:'no-store',redirect:'error'});
+            return {status:r.status,cache:r.headers.get('cache-control')};
+          };
+          return [await status(path),await status(path+'&summary=1')];
+        },bps);
+        for(const r of denied){
+          assert.equal(r.status,403,'Authenticated patient must not access clinician source or receipt');
+          assert.match(r.cache??'',/\bprivate\b/i);
+          assert.match(r.cache??'',/\bno-store\b/i);
+        }
+        await other.goto(origin+'/emr/bps-intake?patient='+e.EMR_ACCEPTANCE_CHART_ID);
+        assert.equal(await other.locator('article[aria-label="Intake biopsychosocial reconciliation"]').count(),0);
+        await other.goto(origin+'/patient/intake');
+        await other.getByRole('tablist',{name:'Intake sections'}).waitFor({state:'visible'});
+        assert.equal(await other.locator('html').getAttribute('data-dpl-id'),e.EMR_ACCEPTANCE_DEPLOYMENT_ID);
+        assert.equal(await readStatus(),200,'Independent clinician session must remain authorized');
+        console.log('Hosted fictional patient role isolation: positive own intake access before and after denied clinician chart and metadata, separate clinician session preserved.');
+      }finally{await otherContext.close();}
+    }else console.log('Separate hosted patient-role isolation not executed; fixture opt-in required.');
     if(writeFixture){
       stage='fictional linked review source and fresh-chart guard';
       await page.goto(origin+'/emr/bps-intake?patient='+e.EMR_ACCEPTANCE_CHART_ID);

@@ -2,7 +2,7 @@
 // Never run against production,
 // the obsolete validation branch, or a project belonging to another app.
 // Optional original-form writes require a fresh isolated fictional chart.
-// This is not the full patient intake/booking/assessment suite.
+// Optional fresh patient intake submission and original BPS writes; booking/assessment stages remain separate.
 import assert from 'node:assert/strict';
 import {createHmac} from 'node:crypto';
 import {pathToFileURL} from 'node:url';
@@ -173,6 +173,286 @@ function totp(secret,now=Date.now()) {
   const digest=createHmac('sha1',Buffer.from(bytes)).update(counter).digest();
   return String((digest.readUInt32BE(digest[digest.length-1]&15)&0x7fffffff)%1000000).padStart(6,'0');
 }
+// Opt-in fresh source submission, never a seeded submitted intake.
+function sourceSubmissionConfig(e,reviewFixture,patientFixture) {
+  if(e.EMR_ACCEPTANCE_SOURCE_SUBMIT===undefined||e.EMR_ACCEPTANCE_SOURCE_SUBMIT==='false')return null;
+  assert.equal(e.EMR_ACCEPTANCE_SOURCE_SUBMIT,'true');
+  verifyIsolationApproval(e);
+  assert.ok(reviewFixture,'Browser submission requires the separately approved fictional review fixture');
+  assert.equal(e.EMR_ACCEPTANCE_EXPECTED_SOURCE_VERSION,'22','21 page saves plus final submission expected');
+  const email=e.EMR_ACCEPTANCE_SOURCE_EMAIL,password=e.EMR_ACCEPTANCE_SOURCE_PASSWORD;
+  assert.match(email,/^emr-acceptance-source-[a-z0-9-]+@example\.com$/);
+  assert.notEqual(email,e.EMR_ACCEPTANCE_CLINICIAN_EMAIL);
+  assert.notEqual(email,patientFixture?.email);
+  assert.notEqual(reviewFixture.account,patientFixture?.account);
+  assert.ok(typeof password==='string'&&password.length>0,'Fictional source password required');
+  return {...reviewFixture,email,password};
+}
+// All mutations through actual website controls; readback uses the patient JWT.
+async function submitHostedSource({patientPage,fixture,readPatient,verifyPage,verifyLinkedDraft}) {
+  const fictionalName='Fictional Acceptance '+fixture.marker.slice(-12);
+  const today=new Date().toISOString().slice(0,10);
+  await verifyPage();
+  const tabs=patientPage.getByRole('tablist',{name:'Intake sections'});
+  await tabs.waitFor({state:'visible'});
+  assert.equal(await tabs.getByRole('tab').count(),21);
+  const patientForm=patientPage.locator('.intakeWizard');
+  const savePage=patientPage.getByRole('button',{name:'Save page',exact:true});
+  assert.equal(await readPatient(),null,'Second fictional patient has no pre-seeded intake');
+  assert.ok(await savePage.isDisabled(),'Empty demographics cannot be saved');
+  const fill=async(label,value)=>patientForm.getByLabel(label,{exact:true}).fill(value);
+  // Native select options are descendants of the wrapping label. Match the
+  // label's question text, then the single actual select (strict locator).
+  const selectField=label=>patientForm.locator('fieldset.intakeSectionCard label').filter({hasText:label}).locator('select');
+  const select=async(label,value)=>selectField(label).selectOption(value);
+  const tab=number=>tabs.getByRole('tab',{name:String(number),exact:true});
+  const pickRemaining=async()=>{
+    for(const field of await patientForm.locator('fieldset.intakeSectionCard select').all()){
+      if(!(await field.inputValue())&&await field.isEnabled()){
+        const options=await field.locator('option').evaluateAll(items=>items.filter(o=>o.value&&!o.disabled).map(o=>o.value));
+        assert.ok(options.length>0,'Rendered select must offer an answer');
+        await field.selectOption(options[0]);
+      }
+    }
+  };
+  const saveAndReopen=async(number,expected)=>{
+    const before=await readPatient();
+    await verifyPage();
+    await savePage.click({timeout:15000});
+    await patientPage.getByRole('status').filter({hasText:'Draft saved securely.'}).waitFor();
+    const after=await readPatient();
+    assert.equal(after.patient_id,fixture.account);
+    assert.equal(after.status,'draft');
+    assert.equal(after.submitted_at,null);
+    assert.equal(after.version,(before?.version??0)+1);
+    assert.deepEqual([...after.completed_pages].sort((x,y)=>x-y),Array.from({length:number},(_,i)=>i+1));
+    for(const [key,value] of Object.entries(expected))assert.equal(after.answers[key],value);
+    for(const [key,value] of Object.entries(before?.answers??{}))assert.equal(after.answers[key],value,'Previously saved page answer preserved: '+key);
+    await patientPage.reload();
+    await tabs.waitFor({state:'visible'});
+    await verifyPage();
+    await tab(number===1?2:1).click();
+    assert.equal(await tab(number).getAttribute('data-page-status'),'saved');
+    await tab(number).click();
+    console.log('Patient website page saved, independently read back and reopened: '+number);
+  };
+  await fill('Full legal name *',fictionalName);
+  await fill('Date of birth *','1992-01-01');
+  await fill('Street address *','2 Example St');
+  await fill('City *','Example');
+  await fill('State *','KS');
+  await fill('ZIP code *','66000');
+  await fill('Phone number *','5550102');
+  await fill('Contact email *',fixture.email);
+  await pickRemaining();
+  await saveAndReopen(1,{full_name:fictionalName,email:fixture.email});
+  await verifyLinkedDraft();
+  assert.equal(await patientForm.getByLabel('Full legal name *',{exact:true}).inputValue(),fictionalName);
+  await tab(2).click();
+  await fill('Emergency contact name *','Fictional Browser Contact');
+  await fill('Relationship to you *','Friend');
+  await fill('Emergency contact phone *','5550103');
+  await select('May we contact this person in an emergency? *','Yes');
+  for(const key of ['comm_phone_calls','comm_voicemail','comm_text','comm_email','comm_portal','comm_mail']){
+    await patientForm.locator('select[name="'+key+'"]').selectOption(key==='comm_portal'?'Yes':'No');
+  }
+  for(const checkbox of await patientForm.getByRole('checkbox',{name:/^Not applicable —/}).all())await checkbox.check();
+  await saveAndReopen(2,{emergency_contact_name:'Fictional Browser Contact',comm_portal:'Yes',comm_email:'No'});
+  assert.equal(await patientForm.getByLabel('Emergency contact name *',{exact:true}).inputValue(),'Fictional Browser Contact');
+  await tab(3).click();
+  await select('How will you pay for care? *','self-pay');
+  await fill('Other insurance, coordination-of-benefits, or billing information','FICTIONAL-BROWSER-INSURANCE');
+  await saveAndReopen(3,{insurance_coverage:'self-pay',insurance_notes:'FICTIONAL-BROWSER-INSURANCE'});
+  assert.equal(await selectField('How will you pay for care? *').inputValue(),'self-pay');
+  await tab(4).click();
+  await fill('What brings you to counseling now? *',fixture.marker);
+  await fill('What would you like to achieve through counseling? *','Fictional browser goal');
+  await select('Overall, how much do these concerns interfere with daily life? *','Moderately');
+  await pickRemaining();
+  await saveAndReopen(4,{counseling_reason:fixture.marker,counseling_goals:'Fictional browser goal',functional_impact:'Moderately'});
+  const reopenedNarrative=label=>patientForm.locator('.intakeNarrative label').filter({hasText:label}).locator('textarea');
+  assert.equal(await tab(4).getAttribute('aria-selected'),'true');
+  assert.equal(await reopenedNarrative('What brings you to counseling now? *').inputValue(),fixture.marker);
+  assert.equal(await reopenedNarrative('What would you like to achieve through counseling? *').inputValue(),'Fictional browser goal');
+  console.log('Patient browser page 4 narrative values reopened.');
+  await tab(5).click();
+  await patientForm.getByRole('checkbox',{name:'I have no treatment entries to report',exact:true}).check();
+  await select('Have you received counseling, psychotherapy, psychiatric care, or psychological services before? *','No');
+  for(const checkbox of await patientForm.getByRole('checkbox',{name:/^Not applicable —/}).all())await checkbox.check();
+  await saveAndReopen(5,{treatment_history_entries:'[]',prior_mental_health_treatment:'No',prior_therapists:'Not applicable'});
+  assert.ok(await patientForm.getByRole('checkbox',{name:'I have no treatment entries to report',exact:true}).isChecked());
+  await tab(6).click();
+  const patientMedicationLookup=patientForm.getByRole('button',{name:'Search medication catalog',exact:true});
+  const patientMedication=patientForm.getByLabel('Medication',{exact:true});
+  const patientMedicationAmount=patientForm.getByLabel('Amount taken each time',{exact:true});
+  assert.equal(await patientMedicationLookup.getAttribute('aria-expanded'),'false');
+  await patientMedicationLookup.click();
+  await patientForm.getByText('Enter at least two letters of a brand or generic name to search.',{exact:true}).waitFor();
+  assert.equal(await patientMedicationLookup.getAttribute('aria-expanded'),'true');
+  await patientMedicationLookup.click();
+  assert.equal(await patientMedicationLookup.getAttribute('aria-expanded'),'false');
+  await patientMedicationAmount.fill('Fictional amount');
+  await patientMedication.fill('Zoloft');
+  await patientForm.getByRole('button',{name:'sertraline 100 MG Oral Tablet [Zoloft]',exact:true}).waitFor();
+  await patientForm.getByRole('button',{name:'sertraline 50 MG Oral Tablet [Zoloft]',exact:true}).click();
+  assert.equal(await patientMedication.inputValue(),'sertraline 50 MG Oral Tablet [Zoloft]');
+  assert.equal(await patientMedicationAmount.inputValue(),'Fictional amount');
+  assert.equal(await patientMedicationLookup.getAttribute('aria-expanded'),'false');
+  // A populated medication must not coexist with the explicit no-medications state.
+  // Clearing text alone leaves the entry's Current status intact. Use the real
+  // removal control and its confirmation rather than bypassing the guard.
+  const noCurrentMedications=patientForm.getByRole('checkbox',{name:'I do not currently take any medications',exact:true});
+  assert.ok(await noCurrentMedications.isDisabled(),'Medication entry and explicit absence are mutually exclusive');
+  const removeMedication=patientForm.getByRole('button',{name:'Remove medication 1',exact:true});
+  const confirmRemoval=patientPage.waitForEvent('dialog').then(async dialog=>{
+    const message=dialog.message();
+    await dialog.accept();
+    return message;
+  });
+  await removeMedication.click();
+  assert.equal(await confirmRemoval,'Remove this medication from the draft? Save the draft to keep this change.');
+  assert.ok(await noCurrentMedications.isEnabled());
+  assert.ok(await noCurrentMedications.isChecked(),'Removing the final entry represents an explicit empty list');
+  await noCurrentMedications.uncheck();
+  await noCurrentMedications.check();
+  console.log('Patient intake medication catalog: visible lookup, strengths, unchanged reported amount and explicit no-medications guard verified.');
+  await select('Medication Allergy Status','Medication allergies reported');
+  for(const checkbox of await patientForm.getByRole('checkbox',{name:/^Not applicable —/}).all())await checkbox.check();
+  await reopenedNarrative('Medication Allergies / Reactions').fill('Fictional medication allergy boundary');
+  await saveAndReopen(6,{medication_entries:'[]',medication_allergy_status:'Medication allergies reported',medication_allergy_notes:'Fictional medication allergy boundary'});
+  assert.equal(await reopenedNarrative('Medication Allergies / Reactions').inputValue(),'Fictional medication allergy boundary');
+  assert.ok(await patientForm.getByRole('checkbox',{name:'I do not currently take any medications',exact:true}).isChecked());
+  // Keep the early submission guard, then continue through the actual
+  // clinical, safety, routing and legal controls. No fixture writes.
+  await tab(14).click();
+  await patientPage.getByRole('button',{name:'Review and submit'}).click();
+  await patientPage.getByRole('alert').filter({hasText:'Complete and save page 7 before submitting.'}).waitFor();
+  assert.equal(await tab(7).getAttribute('aria-selected'),'true');
+  assert.equal((await readPatient()).status,'draft');
+  const {readFile}=await import('node:fs/promises');
+  const medicalDefinition=JSON.parse(await readFile('lib/patient/medical-substance-definition.json','utf8'));
+  const medicalExpected={definition_version:medicalDefinition.version,selections:{},notes:{}};
+  for(const group of medicalDefinition.groups){
+    const choice=group.key==='medical_conditions'?'High blood pressure':'None reported';
+    assert.ok(group.choices.includes(choice));
+    const control=patientForm.locator('input[name="medical_history_'+group.key+'"][value="'+choice+'"]');
+    await control.check();
+    medicalExpected.selections[group.key]=[choice];
+  }
+  await patientForm.getByText('Details / Dates, amounts, care contacts and other information',{exact:true}).click();
+  for(const [key,label] of Object.entries(medicalDefinition.notes)){
+    if(['primary_care_provider','pcp_phone'].includes(key)){medicalExpected.notes[key]='';continue;}
+    if(key==='other_allergies'){
+      medicalExpected.notes[key]='Fictional non-medication allergy boundary';
+      await reopenedNarrative(label).fill(medicalExpected.notes[key]);
+    }else{
+      medicalExpected.notes[key]='Not applicable';
+      await patientForm.getByRole('checkbox',{name:'Not applicable — '+label,exact:true}).check();
+    }
+  }
+  await saveAndReopen(7,{medical_substance_history:JSON.stringify(medicalExpected)});
+  assert.ok(await patientForm.locator('input[name="medical_history_medical_conditions"][value="High blood pressure"]').isChecked());
+  await patientForm.getByText('Details / Dates, amounts, care contacts and other information',{exact:true}).click();
+  assert.equal(await reopenedNarrative(medicalDefinition.notes.other_allergies).inputValue(),medicalExpected.notes.other_allergies);
+  assert.equal((await readPatient()).answers.medication_allergy_notes,'Fictional medication allergy boundary');
+  await tab(8).click();
+  const riskKeys=['suicidal_thoughts_current','suicidal_plan_current','homicidal_thoughts_current','abuse_neglect_current','weapons_access'];
+  for(const key of riskKeys)await patientForm.locator('input[name="'+key+'_no"]').check();
+  await patientForm.getByRole('checkbox',{name:/^Not applicable — If yes to any safety question/}).check();
+  await reopenedNarrative('People, responsibilities, beliefs, or supports that help keep you safe').fill('Fictional protective support');
+  await saveAndReopen(8,{...Object.fromEntries(riskKeys.map(key=>[key,'No'])),violence_risk_details:'Not applicable',protective_factors:'Fictional protective support'});
+  for(const key of riskKeys)assert.ok(await patientForm.locator('input[name="'+key+'_no"]').isChecked());
+  assert.equal(await reopenedNarrative('People, responsibilities, beliefs, or supports that help keep you safe').inputValue(),'Fictional protective support');
+  await tab(9).click();
+  await reopenedNarrative('Significant trauma, abuse, loss, violence, or other adverse experiences you want your clinician to know about').fill('Fictional dedicated trauma boundary');
+  await patientForm.getByRole('button',{name:'No checklist items to report',exact:true}).click();
+  const traumaDefinition=JSON.parse(await readFile('lib/patient/trauma-history-definition.json','utf8'));
+  const emptyTrauma={definition_version:traumaDefinition.version,selections:Object.fromEntries(traumaDefinition.groups.map(group=>[group.key,[]]))};
+  await saveAndReopen(9,{trauma_history:'Fictional dedicated trauma boundary',trauma_history_checklist:JSON.stringify(emptyTrauma)});
+  assert.equal(await reopenedNarrative('Significant trauma, abuse, loss, violence, or other adverse experiences you want your clinician to know about').inputValue(),'Fictional dedicated trauma boundary');
+  assert.equal(await patientForm.locator('input[name^="trauma-checklist-"]:checked').count(),0);
+  await tab(10).click();
+  const legalDefinition=JSON.parse(await readFile('lib/patient/legal-routing-definition.json','utf8'));
+  const routingAnswers=Object.fromEntries(legalDefinition.questions.map(q=>[q.id,'No']));
+  assert.ok(await savePage.isDisabled(),'Unanswered legal directory cannot be saved');
+  for(const key of Object.keys(routingAnswers))await patientForm.locator('input[name="routing-'+key+'"][value="No"]').check();
+  await saveAndReopen(10,{legal_routing_answers:JSON.stringify({version:legalDefinition.version,answers:routingAnswers})});
+  for(const key of Object.keys(routingAnswers))assert.ok(await patientForm.locator('input[name="routing-'+key+'"][value="No"]').isChecked());
+  for(let number=15;number<=21;number++)assert.equal(await tab(number).getAttribute('data-page-status'),'optional');
+  await tab(14).click();
+  await patientPage.getByRole('button',{name:'Review and submit'}).click();
+  await patientPage.getByRole('alert').filter({hasText:'Complete and save page 11 before submitting.'}).waitFor();
+  assert.equal(await tab(11).getAttribute('aria-selected'),'true');
+  const browserName=fictionalName;
+  const markNarrativesNA=async()=>{for(const box of await patientForm.getByRole('checkbox',{name:/^Not applicable —/}).all())await box.check();};
+  await select('Decision about outpatient counseling','Yes, I consent to outpatient counseling');
+  await markNarrativesNA();
+  await fill('Electronic signature for informed treatment consent (if Yes)',browserName);
+  await fill('Date signed (if Yes)',today);
+  await saveAndReopen(11,{treatment_consent:'Yes, I consent to outpatient counseling',treatment_signature:browserName,treatment_signature_date:today,treatment_questions:'Not applicable'});
+  assert.equal(await patientForm.getByLabel('Electronic signature for informed treatment consent (if Yes)',{exact:true}).inputValue(),browserName);
+  await tab(12).click();
+  await select('Financial information review','I reviewed this information');
+  await markNarrativesNA();
+  await fill('Electronic signature acknowledging financial information (if reviewed)',browserName);
+  await fill('Date signed (if reviewed)',today);
+  await saveAndReopen(12,{financial_review:'I reviewed this information',financial_signature:browserName,financial_signature_date:today,financial_questions:'Not applicable'});
+  assert.equal(await patientForm.getByLabel('Electronic signature acknowledging financial information (if reviewed)',{exact:true}).inputValue(),browserName);
+  await tab(13).click();
+  await select('Did you receive or review the Notice of Privacy Practices?','Decline acknowledgment');
+  await markNarrativesNA();
+  await saveAndReopen(13,{npp_received:'Decline acknowledgment',npp_signature:'',npp_signature_date:'',npp_questions:'Not applicable'});
+  assert.equal(await selectField('Did you receive or review the Notice of Privacy Practices?').inputValue(),'Decline acknowledgment');
+  await tab(14).click();
+  await select('I certify that the information I provided is accurate and complete to the best of my knowledge.','Yes');
+  await select('I agree that typing my name below constitutes my electronic signature for this intake questionnaire and acknowledgments.','Yes');
+  await fill('Electronic signature — type your full legal name *',browserName);
+  await fill('Date signed *',today);
+  await saveAndReopen(14,{information_accuracy:'Yes',electronic_signature_consent:'Yes',patient_signature:browserName,patient_signature_date:today});
+  assert.equal(await patientForm.getByLabel('Electronic signature — type your full legal name *',{exact:true}).inputValue(),browserName);
+  // Explicit negative decisions exercise the distinct optional forms
+  // without ever creating a disclosure authorization.
+  const declines=[
+    [15,'Telehealth preference','No, in-person care only','telehealth_choice','telehealth_signature','telehealth_signature_date'],
+    [16,'Electronic documents and portal preference','I request paper intake','electronic_choice','electronic_signature','electronic_signature_date'],
+    [17,'Who is signing this intake?','Patient signing for myself','representative_signer','representative_signature','representative_signature_date'],
+    [18,'Do you want to authorize a disclosure to another person or organization?','No','roi_authorize','roi_signature','roi_signature_date'],
+    [19,'Authorize a specific use or disclosure of Part 2 substance-use records?','No','part2_authorize','part2_signature','part2_signature_date'],
+    [20,'Authorize disclosure of separate SUD counseling notes?','No','sud_notes_authorize','sud_notes_signature','sud_notes_signature_date'],
+    [21,'Do you authorize disclosure of psychotherapy notes?','No','psych_notes_authorize','psych_notes_signature','psych_notes_signature_date']
+  ];
+  for(const [number,label,decision,key,signature,date] of declines){
+    await tab(number).click();
+    await select(label,decision);
+    if(number<=16)await markNarrativesNA();
+    await saveAndReopen(number,{[key]:decision,[signature]:'',[date]:''});
+    assert.equal(await selectField(label).inputValue(),decision);
+  }
+  const beforeFinal=await readPatient();
+  assert.equal(beforeFinal.status,'draft');
+  await tab(14).click();
+  await patientPage.getByRole('button',{name:'Review and submit'}).click();
+  await verifyPage();
+  await patientPage.getByRole('button',{name:'Confirm submission',exact:true}).click();
+  await patientPage.getByRole('status').filter({hasText:'Your questionnaire has been submitted to the practice.'}).waitFor();
+  const afterFinal=await readPatient();
+  assert.equal(afterFinal.status,'submitted');
+  assert.equal(afterFinal.version,beforeFinal.version+1);
+  assert.equal(afterFinal.version,22);
+  assert.equal(afterFinal.patient_id,fixture.account);
+  assert.ok(Number.isFinite(Date.parse(afterFinal.submitted_at)));
+  assert.deepEqual(afterFinal.answers,beforeFinal.answers);
+  assert.deepEqual(afterFinal.completed_pages,beforeFinal.completed_pages);
+  await patientPage.reload();
+  await tabs.waitFor({state:'visible'});
+  await verifyPage();
+  await patientPage.getByText('Signed submissions are intentionally locked',{exact:false}).waitFor();
+  assert.equal(await savePage.count(),0);
+  assert.equal(await patientPage.getByRole('button',{name:'Review and submit'}).count(),0);
+  assert.ok(await patientForm.getByLabel('Full legal name *',{exact:true}).isDisabled());
+  console.log('Hosted source owner saved, independently read and reopened all 21 pages; final submission and locked reopen verified.');
+}
+
 if(process.argv.includes('--self-test')) {
   const ref='abcdefghijklmnopqrst';
   const e={EMR_ACCEPTANCE_ORIGIN:'https://indiancreekpsych-fixture-ken-morris-projects.vercel.app',EMR_ACCEPTANCE_SUPABASE_URL:'https://'+ref+'.supabase.co',EMR_ACCEPTANCE_APPROVED_PROJECT_REF:ref,EMR_ACCEPTANCE_DEPLOYMENT_ID:'dpl_fixture',EMR_ACCEPTANCE_EXPECTED_SHA:'a'.repeat(40),EMR_ACCEPTANCE_CLINICIAN_EMAIL:'emr-acceptance-fictional@example.com',EMR_ACCEPTANCE_CLINICIAN_PASSWORD:'fixture',EMR_ACCEPTANCE_TOTP_SECRET:'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ',EMR_ACCEPTANCE_CHART_ID:'00000000-0000-4000-8000-000000000001',EMR_ACCEPTANCE_EXPECTED_SOURCE_VERSION:'2',EMR_ACCEPTANCE_EXPECTED_PACKET_VERSION:'fixture-v1',EMR_ACCEPTANCE_EXPECTED_REVIEWED:'false'};
@@ -286,12 +566,24 @@ if(process.argv.includes('--self-test')) {
   assert.throws(()=>verifyTarget({...target,source:{...target.source,status:'draft'}}));
   assert.throws(()=>verifyTarget({...target,source:{...target.source,version:3}}));
   console.log('26 separate fictional patient identity, verified linked target and RLS guard checks passed; no hosted requests performed.');
+  const sourceApproval={...e,EMR_ACCEPTANCE_EXPECTED_SOURCE_VERSION:'22',EMR_ACCEPTANCE_SOURCE_SUBMIT:'true',EMR_ACCEPTANCE_SOURCE_EMAIL:'emr-acceptance-source-fixture@example.com',EMR_ACCEPTANCE_SOURCE_PASSWORD:'fictional',EMR_ACCEPTANCE_ISOLATION_APPROVAL:e.EMR_ACCEPTANCE_DEPLOYMENT_ID+':'+e.EMR_ACCEPTANCE_EXPECTED_SHA+':'+ref};
+  const sourceFixture={account:'00000000-0000-4000-8000-000000000009',marker:'FICTIONAL-EMR-ACCEPTANCE-'+'a'.repeat(32)};
+  assert.equal(sourceSubmissionConfig(e,null,null),null);
+  assert.equal(sourceSubmissionConfig({...sourceApproval,EMR_ACCEPTANCE_SOURCE_SUBMIT:'false'},null,null),null);
+  assert.equal(sourceSubmissionConfig(sourceApproval,sourceFixture,null).account,sourceFixture.account);
+  for(const [key,value] of [['EMR_ACCEPTANCE_SOURCE_SUBMIT','yes'],['EMR_ACCEPTANCE_SOURCE_EMAIL','real@example.com'],['EMR_ACCEPTANCE_SOURCE_PASSWORD',''],['EMR_ACCEPTANCE_EXPECTED_SOURCE_VERSION','21'],['EMR_ACCEPTANCE_ISOLATION_APPROVAL','wrong']])assert.throws(()=>sourceSubmissionConfig({...sourceApproval,[key]:value},sourceFixture,null));
+  assert.throws(()=>sourceSubmissionConfig(sourceApproval,null,null));
+  assert.throws(()=>sourceSubmissionConfig(sourceApproval,sourceFixture,{account:sourceFixture.account,email:'other@example.com'}));
+  assert.throws(()=>sourceSubmissionConfig(sourceApproval,sourceFixture,{account:'different',email:sourceApproval.EMR_ACCEPTANCE_SOURCE_EMAIL}));
+  console.log('11 hosted source submission opt-in, fixture and isolation checks passed; no hosted requests performed.');
+
 } else {
   const e=process.env,{origin,database}=config(e),writeFixture=reviewWriteConfig(e),originalWrite=originalWriteConfig(e,writeFixture);
   // Fail before external requests, including authentication/session creation,
   // unless server-side isolation was independently confirmed for this revision.
   verifyIsolationApproval(e);
   const patientFixture=patientIsolationConfig(e);
+  const sourceFixture=sourceSubmissionConfig(e,writeFixture,patientFixture);
   assert.ok(e.EMR_ACCEPTANCE_VERCEL_TOKEN,'Read-only Vercel API access required');
   const deploymentResponse=await fetch('https://api.vercel.com/v13/deployments/'+e.EMR_ACCEPTANCE_DEPLOYMENT_ID+'?slug=ken-morris-projects',{headers:{Authorization:'Bearer '+e.EMR_ACCEPTANCE_VERCEL_TOKEN},redirect:'error'});
   assert.equal(deploymentResponse.status,200,'Deployment metadata unavailable');
@@ -340,6 +632,60 @@ if(process.argv.includes('--self-test')) {
     await page.getByRole('button',{name:'Verify and continue'}).click();
     await page.waitForURL(u=>u.origin===origin&&u.pathname==='/appointments');
     await page.getByRole('heading',{name:'Appointment administration'}).waitFor();
+    if(sourceFixture){
+      stage='fresh linked fictional source precondition';
+      const absent=await page.evaluate(async path=>{const r=await fetch(path,{cache:'no-store',redirect:'error'});return {status:r.status,body:await r.json()};},bps);
+      assert.equal(absent.status,404,'Source submission requires a fresh linked chart without intake');
+      assert.deepEqual(absent.body,{error:'No linked patient intake found.'});
+      const sourceContext=await newRoutedContext();
+      try{
+        stage='fresh fictional source owner authentication';
+        const patientPage=await sourceContext.newPage();patientPage.setDefaultTimeout(30000);
+        await patientPage.goto(origin+'/patient/intake');
+        await patientPage.waitForURL(u=>u.origin===origin&&u.pathname==='/login');
+        assert.equal(await patientPage.locator('html').getAttribute('data-dpl-id'),e.EMR_ACCEPTANCE_DEPLOYMENT_ID);
+        await patientPage.getByLabel('Email',{exact:true}).fill(sourceFixture.email);
+        await patientPage.getByLabel('Password',{exact:true}).fill(sourceFixture.password);
+        const [auth]=await Promise.all([
+          patientPage.waitForResponse(r=>{const u=new URL(r.url());return u.origin===database&&u.pathname==='/auth/v1/token'&&u.searchParams.get('grant_type')==='password'&&r.request().method()==='POST';}),
+          patientPage.getByRole('button',{name:'Sign in',exact:true}).click()
+        ]);
+        assert.equal(auth.status(),200);
+        const session=await auth.json();
+        verifyPatientAuth(session.user,sourceFixture);
+        const key=(await auth.request().allHeaders()).apikey;
+        assert.ok(typeof key==='string'&&key.length>0&&typeof session.access_token==='string'&&session.access_token.length>0);
+        await patientPage.waitForURL(u=>u.origin===origin&&u.pathname==='/patient/intake');
+        const verifyPage=async()=>{
+          assert.equal(new URL(patientPage.url()).origin,origin);
+          assert.equal(new URL(patientPage.url()).pathname,'/patient/intake');
+          assert.equal(await patientPage.locator('html').getAttribute('data-dpl-id'),e.EMR_ACCEPTANCE_DEPLOYMENT_ID);
+        };
+        const readPatient=async()=>{
+          const url=new URL('/rest/v1/patient_intakes',database);
+          url.searchParams.set('select','patient_id,version,status,answers,completed_pages,submitted_at');
+          url.searchParams.set('patient_id','eq.'+sourceFixture.account);
+          const r=await fetch(url,{headers:{apikey:key,Authorization:'Bearer '+session.access_token},redirect:'error',cache:'no-store'});
+          assert.equal(r.status,200);
+          const rows=await r.json();
+          assert.ok(Array.isArray(rows)&&rows.length<=1,'Fictional source scope must return at most one row');
+          if(rows.length)assert.equal(rows[0].patient_id,sourceFixture.account);
+          return rows[0]??null;
+        };
+        const verifyLinkedDraft=async()=>{
+          const result=await page.evaluate(async path=>{const r=await fetch(path,{cache:'no-store',redirect:'error'});return {status:r.status,body:await r.json()};},bps);
+          assert.equal(result.status,200);
+          assert.equal(result.body.linked,true);
+          assert.equal(result.body.patientId,e.EMR_ACCEPTANCE_CHART_ID.toLowerCase());
+          assert.equal(result.body.source?.accountId,sourceFixture.account);
+          assert.equal(result.body.source?.status,'draft');
+          assert.equal(result.body.source?.version,1);
+          assert.deepEqual(result.body.reviews,[]);
+        };
+        stage='fresh fictional source 21-page browser submission and readback';
+        await submitHostedSource({patientPage,fixture:sourceFixture,readPatient,verifyPage,verifyLinkedDraft});
+      }finally{await sourceContext.close();}
+    }
     assert.equal(await readStatus(),200,'AAL2 fixture chart read must succeed');
     stage='metadata-only fixture identity and submission receipt';
     const receipt=await page.evaluate(async path=>{

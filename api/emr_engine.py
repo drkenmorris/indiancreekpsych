@@ -2,7 +2,7 @@
 No browser state or legacy provider credentials are accepted. Supabase RLS is
 applied to every query using the verified caller's access token.
 """
-import os,json,base64,tempfile,sys,uuid
+import os,json,base64,tempfile,sys,uuid,re
 from pathlib import Path
 from urllib.request import Request,urlopen
 from urllib.error import HTTPError
@@ -11,8 +11,25 @@ from urllib.parse import urlsplit,parse_qs
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'emr_engine'))
 from store import Store
 class Conflict(Exception):pass
+def assert_preview_repository_isolation(env):
+ # Python runtime must independently fail closed before any network request.
+ if env.get('VERCEL_ENV')!='preview':return
+ raw=env.get('NEXT_PUBLIC_SUPABASE_URL','')
+ key=env.get('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY','')
+ if not raw.strip() or not key.strip():
+  raise RuntimeError('Preview repository configuration unavailable.')
+ try:
+  url=urlsplit(raw)
+  if (url.scheme!='https' or not re.fullmatch(r'[a-z0-9]+[.]supabase[.]co',url.netloc)
+      or url.netloc=='ufyopuunkprfpcprfngk.supabase.co'
+      or url.path not in ('','/') or url.query or url.fragment or raw!=raw.strip()
+      or any(ord(ch)<=32 or ord(ch)==127 for ch in raw)):
+   raise ValueError()
+ except ValueError:
+  raise RuntimeError('Preview repository target is not isolated.') from None
 class Repository:
  def __init__(self,token):
+  assert_preview_repository_isolation(os.environ)
   self.base=os.environ.get('NEXT_PUBLIC_SUPABASE_URL','https://ufyopuunkprfpcprfngk.supabase.co').rstrip('/')
   self.headers={'apikey':os.environ.get('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY') or os.environ.get('NEXT_PUBLIC_SUPABASE_ANON_KEY','sb_publishable_maYvS_uR0p8kd18I7h_PBg_PkeRBW4t'),'Authorization':'Bearer '+token,'Content-Type':'application/json'}
   user=self.call('/auth/v1/user')

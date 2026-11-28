@@ -28,6 +28,98 @@ export const bpsSectionClassification:Record<string,SectionClassification>={
  'Separate authorization for psychotherapy notes':{domain:'Psychotherapy-notes authorization (legal record only)',disposition:'reference'},
  'Patient attestation and consent to submit':{domain:'Patient attestation (not clinician attestation)',disposition:'reference'},
 };
+/** Accept complete ISO-8601/RFC3339 source timestamps only. Date.parse alone also
+ * accepts ambiguous dates (e.g. "1") and silently normalizes impossible days.
+ * Do not attach clinical source/review provenance to such values.
+ */
+export function validBpsTimestamp(value:unknown):value is string {
+ if(typeof value!=='string')return false;
+ const match=/^(\d{4})-(\d{2})-(\d{2})T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d{1,9})?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/.exec(value);
+ // PostgreSQL timestamps do not have calendar year zero. JavaScript does,
+ // so accepting 0000 would certify a provenance receipt the clinical DB cannot store.
+ if(!match||match[1]==='0000'||!Number.isFinite(Date.parse(value)))return false;
+ // Date.parse accepts offsets such as +23:59 and -14:00. Those are
+ // outside the current civil offset range of UTC-12:00 through UTC+14:00.
+ // Validate the SIGN as well as the hour, including minutes at each edge.
+ // Otherwise a fabricated offset can attest clinical source provenance.
+ const offset=/([+-])(\d{2}):(\d{2})$/.exec(value);
+ if(offset){
+  // RFC3339 -00:00 signifies UNKNOWN local offset, not known UTC.
+  // Do not certify an exact clinical source instant from this representation.
+  if(offset[1]==='-'&&offset[2]==='00'&&offset[3]==='00')return false;
+  const limit=offset[1]==='-'?12:14;
+  const hours=Number(offset[2]),minutes=Number(offset[3]);
+  if(hours>limit||(hours===limit&&minutes!==0))return false;
+ }
+ const year=Number(match[1]),month=Number(match[2]),day=Number(match[3]);
+ return month>=1&&month<=12&&day>=1&&day<=new Date(Date.UTC(year,month,0)).getUTCDate();
+}
+/** Submission attestation cannot precede a later edit to the purportedly
+ * immutable submitted patient report. Compare instants, not timezone strings.
+ * Drafts may legitimately lack submission receipts.
+ */
+/** JavaScript Date.parse truncates fractions beyond milliseconds. Database source
+ * receipts use microseconds, so comparing Date.parse values alone can falsely
+ * treat a post-attestation edit as simultaneous with the patient submission.
+ * Preserve all supplied RFC3339 fractional digits (up to nanoseconds) while
+ * using Date.parse only to determine the timezone-adjusted whole second.
+ */
+export function bpsTimestampInstantNanoseconds(value:unknown):bigint|null{
+ if(!validBpsTimestamp(value))return null;
+ const fractional=/\.(\d{1,9})(?=Z$|[+-]\d{2}:\d{2}$)/.exec(value)?.[1]??'';
+ return BigInt(Math.floor(Date.parse(value)/1000))*BigInt(1_000_000_000)+
+  BigInt(fractional.padEnd(9,'0')||'0');
+}
+/** Exact source equivalence, including microseconds and timezone offsets. */
+export function equalBpsTimestampInstants(left:unknown,right:unknown):boolean{
+ const a=bpsTimestampInstantNanoseconds(left),b=bpsTimestampInstantNanoseconds(right);
+ return a!==null&&b!==null&&a===b;
+}
+export function validBpsSubmissionChronology(status:unknown,updatedAt:unknown,submittedAt:unknown):boolean{
+ const edited=bpsTimestampInstantNanoseconds(updatedAt);
+ if(edited===null)return false;
+ const attested=submittedAt==null?null:bpsTimestampInstantNanoseconds(submittedAt);
+ if(submittedAt!=null&&attested===null)return false;
+ // Drafts have no final submission receipt; retaining one is a contradictory
+ // source attestation. Never present that source as unsubmitted clinical context.
+ if(status==='draft')return submittedAt==null;
+ if(status!=='submitted')return false;
+ return attested!==null&&edited<=attested;
+}
+/** A clinician review receipt must not predate the patient source revision it
+ * purports to preserve. Compare full database timestamp precision so that a
+ * microsecond inversion cannot be hidden by JavaScript Date truncation. */
+/** For the CURRENT submitted version, the clinician review must also occur
+ * after the patient's submission attestation, not merely after the last edit.
+ * Do not compare older revisions against a newer packet's submission receipt. */
+export function validBpsReviewChronology(
+ sourceUpdatedAt:unknown,reviewCreatedAt:unknown,sourceSubmittedAt?:unknown
+):boolean{
+ const source=bpsTimestampInstantNanoseconds(sourceUpdatedAt);
+ const reviewed=bpsTimestampInstantNanoseconds(reviewCreatedAt);
+ const attested=sourceSubmittedAt===undefined?null:bpsTimestampInstantNanoseconds(sourceSubmittedAt);
+ return source!==null&&reviewed!==null&&reviewed>=source&&
+  (sourceSubmittedAt===undefined||(attested!==null&&reviewed>=attested));
+}
+/** Historical BPS review provenance may not claim a future intake revision. A
+ * row for the CURRENT source version must also match its exact status and
+ * timestamp; otherwise a source edited without a version increment could be
+ * mistaken for the clinician-reviewed patient attestation. Old versions remain
+ * visible only when their dates are no later than the current source.
+ */
+export function validBpsHistoricalSourceBoundary(
+ reviewVersion:unknown,reviewStatus:unknown,reviewUpdatedAt:unknown,
+ currentVersion:unknown,currentStatus:unknown,currentUpdatedAt:unknown
+):boolean{
+ if(!Number.isSafeInteger(reviewVersion)||!Number.isSafeInteger(currentVersion)||
+  (reviewVersion as number)<1||(currentVersion as number)<1)return false;
+ const oldInstant=bpsTimestampInstantNanoseconds(reviewUpdatedAt);
+ const nowInstant=bpsTimestampInstantNanoseconds(currentUpdatedAt);
+ return oldInstant!==null&&nowInstant!==null&&
+  (reviewVersion as number)<=(currentVersion as number)&&oldInstant<=nowInstant&&
+  (reviewVersion!==currentVersion||
+   (reviewStatus===currentStatus&&oldInstant===nowInstant));
+}
 export const bpsNoteDomains={
  presenting:'Presenting concerns and functional impact',
  treatment:'Prior psychiatric/psychotherapy history',
@@ -40,6 +132,27 @@ export const bpsNoteDomains={
 export type BpsNoteKey=keyof typeof bpsNoteDomains;
 export type BpsNotes=Record<BpsNoteKey,string>;
 export const emptyBpsNotes=():BpsNotes=>Object.fromEntries(Object.keys(bpsNoteDomains).map(key=>[key,''])) as BpsNotes;
+/** A clinician-review attestation cannot be established by a checkbox plus an entirely blank note set.
+ * This guard verifies only substantive non-whitespace input; it cannot establish clinical quality.
+ * Keep the seven approved note domains unchanged and preserve the actual entered text.
+ */
+// These formatting controls are not clinical documentation when they are the
+// entire note. Preserve the original text unchanged when real wording exists;
+// this predicate decides only whether an independent note was entered.
+// Include supplementary variation selectors U+E0100–U+E01EF as well as BMP
+// marks; otherwise a formatting-only note could be falsely attested.
+// Combining diacritic blocks without a base character are formatting-only,
+// not independently readable clinical observations. Preserve real words with
+// their combining marks; strip these only for the nonblank attestation test.
+// Keep this list aligned with the additive PostgreSQL review trigger.
+const invisibleOnlyBpsNoteCharacters=/[\u00ad\u034f\u061c\u180e\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufe00-\ufe0f\ufeff\u{E0100}-\u{E01EF}\u0300-\u036F\u0483-\u0489\u1AB0-\u1AFF\u1DC0-\u1DFF\u20D0-\u20FF\uFE20-\uFE2F]/gu;
+export const hasIndependentBpsReviewNote=(notes:Record<string,string>):boolean=>
+ Object.keys(bpsNoteDomains).some(key=>typeof notes[key]==='string'&&
+  notes[key].replace(invisibleOnlyBpsNoteCharacters,'')
+  // Control codes cannot alone count as independent clinical documentation.
+  // Preserve actual note text unchanged when visible wording is also present.
+  .replace(/[\u0000-\u001F\u007F-\u009F]/g,'').trim().length>0);
+
 // Previous questionnaire versions retained patient reports that no longer have
 // inputs on the current 21-section form. Route every retired clinical-context
 // field to an existing BPS domain for explicit clinician inspection. They remain
@@ -57,8 +170,94 @@ const historicalBpsDomain:Record<string,string>={
  cultural_spiritual_factors:'Trauma, family, social, educational, and occupational history',
  strengths_interests:'Trauma, family, social, educational, and occupational history',
 };
+/**
+ * Source question identities carry a section boundary in addition to a field
+ * allowlist. A malformed clinical API payload must not silently reattribute a
+ * reported answer to a different BPS domain with an otherwise approved title.
+ * Accept both versioned questionnaire layouts and explicitly routed retired
+ * history; neither authorizes automatic import into seven original BPS forms.
+ */
+const bpsQuestionSections=new Map<string,Set<string>>();
+const registerBpsQuestion=(key:string,title:string)=>{
+ const known=bpsQuestionSections.get(key)??new Set<string>();
+ known.add(title);bpsQuestionSections.set(key,known);
+};
+for(const version of ['','2026-11-02-directory-1'])
+ for(const section of intakeSectionsForVersion(version))
+  for(const [key] of section.fields)registerBpsQuestion(key,section.title);
+for(const [key,title] of Object.entries(historicalBpsDomain))
+ registerBpsQuestion(key,title);
+export function approvedBpsQuestionSection(title:string,key:string):boolean{
+ return Object.prototype.hasOwnProperty.call(bpsSectionClassification,title)&&
+  bpsQuestionSections.get(key)?.has(title)===true;
+}
+
+// Older intake versions included medication-list and legal-history free text in
+// general context. Both must remain in their dedicated protected source review,
+// not in BPS narrative previews, even when the upstream field type is mislabeled.
+const protectedHistoricalKeys=new Set(['prior_psychiatric_medications','legal_history']);
 const historicalClinicalFields=[...retiredMentalHealthFields,...retiredContextFields];
+/** Source question identities must be unique across the complete questionnaire,
+ * not just within one section. A collision could falsely attribute a response to
+ * two clinical domains while concealing a missing question. */
+export function distinctBpsQuestionIdentities(sections:ReadonlyArray<{fields:ReadonlyArray<{key:string}>}>):boolean{
+ const keys=sections.flatMap(section=>section.fields.map(field=>field.key));
+ return new Set(keys).size===keys.length;
+}
+/**
+ * Verify the complete source QUESTION INVENTORY, not merely 21 distinct section
+ * headings. A truncated API response could otherwise omit an unanswered
+ * question and still appear to be a complete clinician-reviewed questionnaire.
+ * The baseline field order, label and input type are immutable for a packet
+ * version. Only separately identified retired historical reports may follow.
+ * No raw protected patient answers are examined here.
+ */
+export function validBpsQuestionnaireTopology(
+ sections:ReadonlyArray<{
+  title:string;
+  fields:ReadonlyArray<{key:string;label:string;type:string;reported?:boolean}>;
+ }>,
+ version:unknown
+):boolean{
+ if(!recognizedBpsQuestionnaireVersion(version))return false;
+ const expected=intakeSectionsForVersion(typeof version==='string'?version:'');
+ if(!Array.isArray(sections)||sections.length!==expected.length||
+  // A repeated retired patient report can pass the per-section allowlist yet
+  // falsely inflate the 21-section source inventory. Check all identities here
+  // as well as at each API/UI call site before any clinician attestation.
+  !distinctBpsQuestionIdentities(sections))return false;
+ return expected.every((original,index)=>{
+  const actual=sections[index];
+  if(!actual||actual.title!==original.title||!Array.isArray(actual.fields)||
+   actual.fields.length<original.fields.length)return false;
+  for(let i=0;i<original.fields.length;i++){
+   const [key,label,type]=original.fields[i];
+   const field=actual.fields[i];
+   if(!field||field.key!==key||field.label!==label||field.type!==type)return false;
+  }
+  const active=new Set(original.fields.map(([key])=>key));
+  return actual.fields.slice(original.fields.length).every((field:{key:string;label:string;type:string;reported?:boolean})=>{
+   if(!field||active.has(field.key)||field.type!=='historical-patient-report'||
+    field.reported!==true)return false;
+   const retired=historicalClinicalFields.find(([key,label])=>
+    key===field.key&&field.label==='Historical patient report — '+label);
+   return !!retired&&historicalBpsDomain[field.key]===original.title;
+  });
+ });
+}
+/** Only known, versioned questionnaire layouts may authorize clinical source
+ * routing. The blank marker belongs to records predating packet-version capture;
+ * 2026-10-11 is the known original packet and the directory packet is current.
+ * Unknown future or corrupted markers must not silently fall back to legacy.
+ */
+export function recognizedBpsQuestionnaireVersion(version:unknown):boolean{
+ return version===undefined||version===''||version==='2026-10-11'||version==='2026-11-02-directory-1';
+}
 export function mapIntakeToBps(answers:Record<string,string>){
+ if(!recognizedBpsQuestionnaireVersion(answers.legal_packet_version))
+  throw Error('Unrecognized intake questionnaire version; verify original source before BPS review.');
+ // Current intake questions can also appear in legacy retired field lists.
+ // Audit each patient answer only once, and never broaden BPS raw disclosure.
  const intakeSections=intakeSectionsForVersion(answers.legal_packet_version||'');
  const activeFields=new Set(intakeSections.flatMap(section=>section.fields.map(([key])=>key)));
  const sections=intakeSections.map(section=>{
@@ -70,25 +269,44 @@ export function mapIntakeToBps(answers:Record<string,string>){
   const fields=section.fields.map(([key,label,type])=>{
    const raw=typeof answers[key]==='string'?answers[key]:'';
    const reported=raw.trim().length>0;
-   const sourceOnly=reported&&(rule.disposition!=='clinical'||structuredSourceTypes.has(type));
+   const sourceOnly=reported&&(rule.disposition!=='clinical'||structuredSourceTypes.has(type)||!bpsVisibleSourceKeys.has(key));
    return {key,label,type,value:sourceOnly?'Recorded in protected source; not copied into BPS.':raw,
     sourceOnly,reported};
   });
-  // These fields are no longer on the editable intake. Surface nonempty legacy
+  // Fail closed at the API boundary, not only in the browser: current and future\n  // intake fields are raw-readable only when explicitly approved for BPS context.\n  // These fields are no longer on the editable intake. Surface nonempty legacy
   // statements in the protected source review, explicitly labeled historical;
   // do not synthesize negatives for missing responses or silently sign a chart.
   for(const [key,label] of historicalClinicalFields){
    if(activeFields.has(key)||historicalBpsDomain[key]!==section.title)continue;
    const raw=typeof answers[key]==='string'?answers[key]:'';
-   if(raw.trim())fields.push({key,label:'Historical patient report — '+label,
-    type:'historical-patient-report',value:raw,sourceOnly:false,reported:true});
+   if(raw.trim()){
+    const protectedSource=protectedHistoricalKeys.has(key);
+    fields.push({key,label:'Historical patient report — '+label,
+     type:'historical-patient-report',value:protectedSource?'Recorded in protected source; not copied into BPS.':raw,
+     sourceOnly:protectedSource,reported:true});
+   }
   }
   return {title:section.title,domain:rule.domain,disposition:rule.disposition,fields,
    answered:fields.filter(field=>field.reported).length};
  });
- if(sections.length!==21)throw Error('The expected 21-section intake structure has changed. Review the source mapping.');
+ if(sections.length!==21||new Set(sections.map(section=>section.title)).size!==21)
+  throw Error('The expected 21 distinct intake sections have changed. Review the source mapping.');
+ // A duplicated question identity can make a section appear more complete than
+ // its underlying patient responses. Do not build any BPS source from such
+ // definitions, including historical intake versions.
+ if(sections.some(section=>new Set(section.fields.map(field=>field.key)).size!==section.fields.length))
+  throw Error('The intake-to-BPS question mapping contains duplicate field identities.');
+ if(!distinctBpsQuestionIdentities(sections))
+  throw Error('The intake-to-BPS question mapping contains duplicate field identities across sections.');
  const mapped=new Set(sections.flatMap(s=>s.fields.map(f=>f.key)));
- const unmappedKeys=Object.keys(answers).filter(key=>!mapped.has(key)&&typeof answers[key]==='string'&&answers[key].trim());
+ // Even schema-shaped unknown answer keys may contain patient names, dates
+ // of birth or coverage identifiers. Every unknown key is untrusted content.
+ // Preserve one constant placeholder for EACH reported unknown field so the
+ // reconciliation count remains correct without disclosing any key identity.
+ // The recognized questionnaire packet version is approved routing metadata,
+ // not a questionnaire answer or an extra unknown field.
+ const unmappedKeys=Object.keys(answers).filter(key=>key!=='legal_packet_version'&&!mapped.has(key)&&typeof answers[key]==='string'&&answers[key].trim())
+  .map(()=> '[unrecognized source field name withheld]');
  return {sections,unmappedKeys};
 }
 
@@ -105,10 +323,13 @@ export function mapSavedBpsReportedFields(answers:Record<string,string>){
  };
 }
 
-/** Mirrors the DB-owned BPS snapshot allowlist in migration 20261110103000.
+/** Mirrors the CURRENT DB-owned BPS snapshot allowlist in migration 20261122220500.
  * Fail closed on legacy or unexpected review payload fields before data leave
  * the protected server. Sensitive legal, medication, and structured-trauma
  * records remain in their dedicated clinician reconciliation workflows.
+ * This set also governs current-source integrity verification: including a field
+ * removed by the DB migration would cause legitimate saves with patient trauma
+ * reports to be falsely labeled unverified after chart readback.
  */
 export const bpsSnapshotClinicalKeys = new Set<string>([
  "guardian_relationship",
@@ -139,16 +360,76 @@ export const bpsSnapshotClinicalKeys = new Set<string>([
  "violence_risk_details",
  "abuse_neglect_current",
  "weapons_access",
- "protective_factors",
- "trauma_history"
+ "protective_factors"
 ]);
-export function sanitizeBpsSnapshotAnswers(raw:unknown):{answers:Record<string,string>;excludedCount:number}{
+/** A second presentation-layer allowlist. Only specifically approved clinical
+ * answers and known retired contextual reports can appear in BPS read-only
+ * context. A malformed upstream API must not relabel legal, insurance, or
+ * medication keys as innocuous clinical text to expose them in this view.
+ * Snapshot storage retains its stricter separate bpsSnapshotClinicalKeys list.
+ */
+// Raw trauma narratives require the dedicated protected trauma reconciliation.
+// A legacy BPS snapshot may retain the original statement, but no ordinary
+// source panel or original-form draft may disclose it, regardless of type tags.
+export const bpsVisibleSourceKeys = new Set<string>([
+ ...[...bpsSnapshotClinicalKeys].filter(key=>key!=='trauma_history'),
+ ...Object.keys(historicalBpsDomain).filter(key=>!protectedHistoricalKeys.has(key))
+]);
+// Older immutable history may still contain the previously permitted raw
+// trauma_history field. Withhold it from clinician BPS history even though
+// the current DB RPC no longer stores it. Preserve historical rows unchanged.
+const bpsHistoryReadbackKeys=new Set([...bpsSnapshotClinicalKeys].filter(key=>key!=='trauma_history'));
+export function sanitizeBpsSnapshotAnswers(raw:unknown):{
+ answers:Record<string,string>;excludedCount:number;withheldProtectedCount:number
+}{
  const answers:Record<string,string>={};
- if(!raw||typeof raw!=='object'||Array.isArray(raw))return {answers,excludedCount:1};
+ if(!raw||typeof raw!=='object'||Array.isArray(raw))
+  return {answers,excludedCount:1,withheldProtectedCount:0};
+ let excludedCount=0,withheldProtectedCount=0;
+ for(const [key,value] of Object.entries(raw)){
+  // Preserve historical source text while withholding malformed fields.
+  if(bpsHistoryReadbackKeys.has(key)&&validBpsSourceAnswerText(value)&&value.trim())answers[key]=value;
+  else{
+   excludedCount++;
+   // Well-formed trauma narratives belong in dedicated protected reconciliation.
+   // Distinguish intentional privacy withholding from malformed/unknown history.
+   if(key==='trauma_history'&&validBpsSourceAnswerText(value)&&value.trim())
+    withheldProtectedCount++;
+  }
+ }
+ return {answers,excludedCount,withheldProtectedCount};
+}
+
+/** Fail-closed historical clinician-note readback. A malformed or pre-validation
+ * database row must not introduce unknown fields into the protected BPS API or
+ * the original clinician review. This does not modify the saved source record.
+ */
+/** A historical clinician note can come from a pre-validation row or an
+ * incorrectly encoded adapter. Never expose or count a note whose wire text
+ * could not survive a clinical save without mutation (NUL or lone surrogate).
+ * Leave its immutable database record intact and surface an exclusion count.
+ */
+/** Patient answer JSON must not be displayed or attested if an upstream adapter
+ * supplied invalid Unicode. JSON serializers can replace isolated surrogates,
+ * silently changing the patient statement while claiming source fidelity.
+ * No clinician-note length limit is imposed on patient intake source fields.
+ */
+export function validBpsSourceAnswerText(value:unknown):value is string{
+ if(typeof value!=='string'||value.includes('\u0000'))return false;
+ return !Array.from(value).some(character=>character.length===1&&
+  character.charCodeAt(0)>=0xD800&&character.charCodeAt(0)<=0xDFFF);
+}
+export function validBpsClinicalNoteText(value:unknown):value is string{
+ return validBpsSourceAnswerText(value)&&value.length<=4000;
+}
+export function sanitizeBpsClinicianNotes(raw:unknown):{notes:BpsNotes;excludedCount:number}{
+ const notes=emptyBpsNotes();
+ if(!raw||typeof raw!=='object'||Array.isArray(raw))return {notes,excludedCount:1};
  let excludedCount=0;
  for(const [key,value] of Object.entries(raw)){
-  if(bpsSnapshotClinicalKeys.has(key)&&typeof value==='string'&&value.trim())answers[key]=value;
+  if(Object.prototype.hasOwnProperty.call(bpsNoteDomains,key)&&validBpsClinicalNoteText(value))
+   notes[key as BpsNoteKey]=value;
   else excludedCount++;
  }
- return {answers,excludedCount};
+ return {notes,excludedCount};
 }

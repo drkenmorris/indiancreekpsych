@@ -70,9 +70,9 @@ for(const [plan,pid,owner,date] of [[id(10),chart,admin,'2026-10-01'],[id(20),ch
  await db.query('insert into emr_treatment_plan_versions values($1,$2,1,$3,$4,$5)',[id(Number(plan.slice(-2))+1),plan,owner,date+'T00:00:00Z',JSON.stringify({title:'Fictional plan '+plan.slice(-2),status:'finalized',problems:[{text:'PRIVATE CLINICAL CONTENT'}]})]);
 }
 await db.query('insert into emr_treatment_plan_versions values($1,$2,2,$3,$4,$5)',[id(12),id(10),admin,'2026-11-15T00:00:00Z',JSON.stringify({title:'Fictional revised plan',status:'draft',notes:'PRIVATE NARRATIVE'})]);
-await db.exec(readFileSync(new URL('../supabase/migrations/20261117152540_treatment_response_chart_context.sql',import.meta.url),'utf8'));
+await db.exec(readFileSync(new URL('../supabase/migrations/20261117154018_treatment_response_chart_context.sql',import.meta.url),'utf8'));
 await db.exec('alter table clinical_patients add column account_id uuid;create table emr_workspaces(patient_id uuid,owner_id uuid,state jsonb)');
-await db.exec(readFileSync(new URL('../supabase/migrations/20261117161211_response_active_patient_name.sql',import.meta.url),'utf8'));
+await db.exec(readFileSync(new URL('../supabase/migrations/20261117162318_response_active_patient_name.sql',import.meta.url),'utf8'));
 const context=async(pid=chart)=>(await db.query('select emr_treatment_response_context($1) value',[pid])).rows[0].value;
 await test('chart identity and dated choices retain first documentation date and exact own patient versions only',async()=>{
  await signIn(admin);const result=await context();

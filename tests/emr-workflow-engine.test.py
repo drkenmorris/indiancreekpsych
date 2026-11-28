@@ -3,6 +3,26 @@ from unittest.mock import patch
 from urllib.error import HTTPError
 from pathlib import Path
 spec=importlib.util.spec_from_file_location('adapter',Path(__file__).parents[1]/'api/emr_engine.py');m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
+class PreviewRepositoryIsolationTests(unittest.TestCase):
+ def test_invalid_preview_configuration_never_reaches_network(self):
+  valid={'VERCEL_ENV':'preview','NEXT_PUBLIC_SUPABASE_URL':'https://isolatedfixture.supabase.co','NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY':'fictional-key'}
+  cases=[{'NEXT_PUBLIC_SUPABASE_URL':''},{'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY':''},
+         {'NEXT_PUBLIC_SUPABASE_URL':'https://ufyopuunkprfpcprfngk.supabase.co'},
+         {'NEXT_PUBLIC_SUPABASE_URL':'http://isolatedfixture.supabase.co'},
+         {'NEXT_PUBLIC_SUPABASE_URL':'https://other.example.com'},
+         {'NEXT_PUBLIC_SUPABASE_URL':'https://isolatedfixture.supabase.co/other'},
+         {'NEXT_PUBLIC_SUPABASE_URL':'https://user@isolatedfixture.supabase.co'},
+         {'NEXT_PUBLIC_SUPABASE_URL':'https://isolatedfixture.supabase.co:443'},
+         {'NEXT_PUBLIC_SUPABASE_URL':'https://isolatedfixture.supabase.co/?q=x'},
+         {'NEXT_PUBLIC_SUPABASE_URL':'https://isolatedfixture.supabase.co/#fragment'}]
+  for change in cases:
+   with self.subTest(change=change), patch.dict(m.os.environ,dict(valid,**change),clear=True), patch.object(m,'urlopen') as network:
+    with self.assertRaises(RuntimeError):m.Repository('fictional-token')
+    network.assert_not_called()
+ def test_valid_preview_configuration_and_nonpreview_are_unchanged(self):
+  m.assert_preview_repository_isolation({'VERCEL_ENV':'preview','NEXT_PUBLIC_SUPABASE_URL':'https://isolatedfixture.supabase.co/','NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY':'fictional-key'})
+  m.assert_preview_repository_isolation({'VERCEL_ENV':'production'})
+  m.assert_preview_repository_isolation({})
 class Repo:
  def __init__(self):self.user=str(uuid.uuid4());self.pid=str(uuid.uuid4());self.row={'id':self.pid,'revision':1,'demographics':{'first_name':'Fictional','last_name':'Example','dob':'1990-01-02'}};self.saved=[]
  def rest(self,path,body=None):

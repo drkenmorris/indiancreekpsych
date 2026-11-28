@@ -2,19 +2,19 @@
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { operationManifestHash } from '../lib/omnicore-operations.mjs';
 import { PGlite } from '@electric-sql/pglite';
-const state=vi.hoisted(()=>({user:true,role:'admin',approved:true,receiverHits:0,enabled:true,missing:false,fail:false,receiver:undefined as undefined | ((url:string, init:any)=>Promise<Response>),fetch:vi.fn(),events:[] as any[],deliveries:[] as Promise<unknown>[]}));
+const state=vi.hoisted(()=>({user:true,role:'admin',mfa:'aal2',approved:true,receiverHits:0,enabled:true,missing:false,fail:false,receiver:undefined as undefined | ((url:string, init:any)=>Promise<Response>),fetch:vi.fn(),events:[] as any[],deliveries:[] as Promise<unknown>[]}));
 vi.mock('@/lib/supabase/config',()=>({supabaseUrl:'https://db.example'}));
 vi.mock('@/lib/omnicore-identity',()=>({verifyExistingSiteIdentity:()=>state.user?{verified:true,subject:'synthetic-admin',expiresAt:Date.now()+60000}:null}));
 vi.mock('next/server',()=>({after:(fn:()=>Promise<unknown>)=>{state.deliveries.push(fn());}}));
 vi.mock('@/lib/supabase/server',async()=>({createClient:async(options:any={})=>{
   if(options.operationFetch){const {createClient}=await import('@supabase/supabase-js');return createClient('https://db.example','synthetic-publishable',{auth:{persistSession:false,autoRefreshToken:false},global:{fetch:options.operationFetch}});}
-  return {from:()=>({select:()=>({eq:()=>({single:async()=>({data:{account_type:state.role},error:null})})})})};
+  return {auth:{mfa:{getAuthenticatorAssuranceLevel:async()=>({data:{currentLevel:state.mfa},error:null})}},from:()=>({select:()=>({eq:()=>({single:async()=>({data:{account_type:state.role},error:null})})})})};
 }}));
 import {POST} from '../app/api/scheduling/office-hours/toggle/route';
 const siteId='00000000-0000-4000-8000-000000000001', id='00000000-0000-4000-8000-000000000002';
 const request=(input:unknown,origin='https://www.indiancreekpsych.com',type='application/json')=>new Request('https://www.indiancreekpsych.com/api/scheduling/office-hours/toggle',{method:'POST',headers:{origin,'content-type':type},body:JSON.stringify(input)});
 beforeEach(()=>{
-  state.user=true;state.role='admin';state.approved=true;state.receiverHits=0;state.enabled=true;state.missing=false;state.fail=false;state.receiver=undefined;state.events.length=0;state.deliveries.length=0;
+  state.user=true;state.role='admin';state.mfa='aal2';state.approved=true;state.receiverHits=0;state.enabled=true;state.missing=false;state.fail=false;state.receiver=undefined;state.events.length=0;state.deliveries.length=0;
   vi.stubEnv('OMNICORE_SITE_ID',siteId);vi.stubEnv('OMNICORE_INGEST_KEY','synthetic-only');
   state.fetch.mockReset();state.fetch.mockImplementation(async(input:any,init:any)=>{
     const url=String(input);
@@ -40,6 +40,21 @@ test('registered clinic adapter pauses and enables only the synthetic rule throu
   expect(JSON.stringify(incoming.map(e=>e.operationEvidence))).not.toContain(id);
   for(const event of outgoing){expect(event.access.outcome).toBe('verified');expect(event.firewall.outcome).toBe('allowed');expect(event.parentOperationId).toBeTruthy();expect(event.requestId).toBeTruthy();}
 });
+test('administrator without verified MFA cannot toggle office hours or trigger outbound mutation',async()=>{
+  state.mfa='aal1';
+  const denied=await POST(request({id,enabled:false}));
+  expect(denied.status).toBe(403);
+  expect(state.receiverHits).toBe(0);
+  expect(state.enabled).toBe(true);
+  await Promise.all(state.deliveries);
+  const completed=state.events.filter(e=>e.scope==='application'&&e.phase==='completed');
+  expect(completed.at(-1).operationEvidence).toMatchObject({gateReason:'operation_not_authorized',handlerState:'not_started',effects:[]});
+  state.mfa='aal2';
+  expect((await POST(request({id,enabled:false}))).status).toBe(200);
+  expect(state.receiverHits).toBe(1);
+  expect(state.enabled).toBe(false);
+});
+
 test('missing approval, unsigned caller, non-admin, cross-origin and format controls cannot update',async()=>{
   state.approved=false;expect((await POST(request({id,enabled:false}))).status).toBe(403);state.approved=true;
   state.user=false;expect((await POST(request({id,enabled:false}))).status).toBe(401);state.user=true;

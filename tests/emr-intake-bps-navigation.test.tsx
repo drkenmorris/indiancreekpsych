@@ -3,21 +3,23 @@ import {afterEach,expect,test,vi} from 'vitest';
 import {cleanup,render,screen,waitFor,fireEvent} from '@testing-library/react';
 import {readFileSync} from 'node:fs';
 import PatientBpsIntakeReview from '@/app/emr/PatientBpsIntakeReview';
+import {mapIntakeToBps} from '@/lib/emr/intake-bps';
 
 afterEach(()=>{cleanup();vi.unstubAllGlobals();});
 
 test('all 21 linked BPS sections provide patient-scoped access to existing clinical reconciliation, never a second medication editor',async()=>{
  const patient='00000000-0000-0000-0000-000000000601';
- const sections=Array.from({length:21},(_,i)=>({
-  title:i===3?'Mental health treatment history':i===0?'Medications':i===1?'Medical & Substance Use History':i===2?'Trauma, family, social, educational, and occupational history':'Section '+i,
-  domain:'Clinician reviewed history',disposition:i===0||i===1?'separate-review':'clinical',
-  fields:[{key:'answer_'+i,label:'Patient report',type:'text',value:'Fictional report'}],answered:1
- }));
+ const sections=mapIntakeToBps({
+  medication_entries:'FICTIONAL_MEDICATION_NEEDS_SEPARATE_REVIEW',
+  medical_substance_history:'FICTIONAL_MEDICAL_NEEDS_SEPARATE_REVIEW',
+  trauma_history_checklist:'FICTIONAL_TRAUMA_NEEDS_SEPARATE_REVIEW',
+  treatment_history_entries:'FICTIONAL_TREATMENT_NEEDS_SEPARATE_REVIEW'
+ }).sections;
  const calls:{url:string;method:string}[]=[];
  vi.stubGlobal('fetch',vi.fn(async(url:string,init?:RequestInit)=>{
   calls.push({url,method:init?.method||'GET'});
   return {ok:true,json:async()=>({
-   patientId:patient,source:{status:'submitted',version:4,updatedAt:'2026-11-10T11:00:00Z'},
+   patientId:patient,source:{accountId:patient,status:'submitted',version:4,updatedAt:'2026-11-10T11:00:00Z',submittedAt:'2026-11-10T11:00:00Z'},
    sections,unmappedKeys:[],reviews:[]
   })};
  }));
@@ -58,18 +60,19 @@ test('original central chart exposes matching destinations even when patient rep
  expect(source).toContain('No linked structured trauma checklist is available');
  expect(source).toContain('No linked structured counseling/psychiatric treatment history is available');
  expect(source).toContain('value={intake.answers[TREATMENT_HISTORY_KEY]} readOnly');
- expect(source).toContain("'medication_allergy_notes','treatment_history_entries'");
+ expect(source).toContain('visibleIntakeContactEntries(intake.answers)');
+ expect(source).toContain('Unverified patient-reported contact details');
  const entry=readFileSync('app/emr/patients/page.tsx','utf8');
  expect(entry).toContain("'emr-intake-treatment-history-review'");
 });
 
 test('reopening an immutable BPS review shows stored patient reports separately from unsigned clinician notes, without a new save',async()=>{
  const patient='00000000-0000-0000-0000-000000000602';
- const sections=Array.from({length:21},(_,i)=>({title:'Section '+i,domain:'History',disposition:'clinical',fields:[],answered:0}));
+ const sections=mapIntakeToBps({}).sections;
  const calls:string[]=[];
  vi.stubGlobal('fetch',vi.fn(async(url:string)=>{calls.push(url);return {ok:true,json:async()=>({
-  patientId:patient,source:{status:'draft',version:5,updatedAt:'2026-11-10T12:00:00Z'},
-  sections,unmappedKeys:[],reviews:[{id:'00000000-0000-0000-0000-000000000610',
+  patientId:patient,source:{accountId:patient,status:'draft',version:5,updatedAt:'2026-11-10T12:00:00Z'},
+  sections,unmappedKeys:[],reviews:[{id:'00000000-0000-0000-0000-000000000610',reviewed:true,
    source_version:4,source_status:'submitted',source_updated_at:'2026-11-10T10:00:00Z',
    created_at:'2026-11-10T10:05:00Z',
    clinical_answers:{counseling_reason:'Historical patient report',suicidal_thoughts_current:'Yes',
@@ -92,25 +95,92 @@ test('reopening an immutable BPS review shows stored patient reports separately 
 
 test('acknowledged BPS save is never reported as unsaved when subsequent history refresh fails',async()=>{
  const patient='00000000-0000-0000-0000-000000000701';
- const sections=Array.from({length:21},(_,i)=>({title:'Section '+i,domain:'Clinical history',
-  disposition:'clinical',fields:[],answered:0}));
+ const sections=mapIntakeToBps({}).sections;
  let reads=0,saves=0;
  vi.stubGlobal('fetch',vi.fn(async(_url:string,init?:RequestInit)=>{
   if(init?.method==='POST'){saves++;return {ok:true,json:async()=>({saved:true,id:'00000000-0000-0000-0000-000000000702'})};}
   reads++;
   if(reads>1)return {ok:false,json:async()=>({error:'History refresh temporarily unavailable'})};
   return {ok:true,json:async()=>({patientId:patient,
-   source:{status:'submitted',version:2,updatedAt:'2026-11-10T12:00:00Z'},
+   source:{accountId:patient,status:'submitted',version:2,updatedAt:'2026-11-10T12:00:00Z',submittedAt:'2026-11-10T12:00:00Z'},
    sections,unmappedKeys:[],reviews:[]})};
  }));
  render(<PatientBpsIntakeReview patientId={patient}/>);
  await screen.findByText(/Sections audited: 21\/21/);
  fireEvent.click(screen.getByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i}));
+ // A real clinician-review workflow requires independently entered contextual documentation.
+ fireEvent.change(screen.getByLabelText('Presenting concerns and functional impact'),{
+  target:{value:'Independent fictional clinician review note'}
+ });
  fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed this intake/i}));
  fireEvent.click(screen.getByRole('button',{name:/Save reviewed BPS history snapshot/i}));
- await screen.findByText(/snapshot WAS saved, but its history could not be reloaded/i);
+ await screen.findByText(/save was acknowledged by the database, but the exact clinician review was NOT verified/i);
  expect(screen.getByText(/do not submit it again/i)).toBeTruthy();
  expect(screen.queryByRole('button',{name:/Save reviewed BPS history snapshot/i})).toBeNull();
  expect(saves).toBe(1);
  expect(reads).toBe(2);
+});
+
+
+
+// This intentionally bypasses the real API's history-order validation to verify
+// that a stale, incorrectly cached, or malformed response also fails closed in
+// the independent clinician UI. No production record is created.
+test.each(['duplicate ID','reversed timestamps','incorrect UUID tie-break'])(
+ 'clinician BPS withholds all history and save controls for %s',async(variant)=>{
+  const patient='00000000-0000-4000-8000-000000000970';
+  const idA='00000000-0000-4000-8000-000000000971';
+  const idB='00000000-0000-4000-8000-000000000972';
+  const sectionNames=mapIntakeToBps({}).sections;
+  const historical=(id:string,created_at:string)=>({
+   id,reviewed:true,source_version:2,source_status:'submitted',
+   source_updated_at:'2026-11-10T08:00:00Z',created_at,
+   clinical_answers:{counseling_reason:'PRIVATE_FICTIONAL_HISTORICAL_REPORT'},
+   clinician_notes:{presenting:'PRIVATE_FICTIONAL_CLINICIAN_CONTEXT'}
+  });
+  const newest=historical(idA,'2026-11-10T11:00:00Z');
+  const older=historical(idB,'2026-11-10T10:00:00Z');
+  const reviews=variant==='duplicate ID'?[newest,{...older,id:idA}]:
+   variant==='reversed timestamps'?[older,newest]:
+   [newest,{...older,created_at:newest.created_at}];
+  vi.stubGlobal('fetch',vi.fn(async()=>({ok:true,json:async()=>({
+   patientId:patient,source:{accountId:patient,status:'submitted',version:3,
+    updatedAt:'2026-11-10T12:00:00Z',submittedAt:'2026-11-10T12:00:00Z'},
+   sections:sectionNames,unmappedKeys:[],reviews
+  })})));
+  const {container}=render(<PatientBpsIntakeReview patientId={patient}/>);
+  await screen.findByRole('alert');
+  expect(container.textContent).toContain('invalid saved-row provenance');
+  expect(container.textContent).not.toContain('PRIVATE_FICTIONAL_HISTORICAL_REPORT');
+  expect(container.textContent).not.toContain('PRIVATE_FICTIONAL_CLINICIAN_CONTEXT');
+  expect(screen.queryByRole('button',{name:/Prepare clinician-reviewed BPS intake draft/i})).toBeNull();
+  expect(screen.queryByRole('button',{name:/Save reviewed BPS history snapshot/i})).toBeNull();
+ }
+);
+
+test('clinician BPS retains two valid, strictly ordered historical reviews',async()=>{
+ const patient='00000000-0000-4000-8000-000000000973';
+ const sections=mapIntakeToBps({}).sections;
+ const row=(id:string,created_at:string)=>({
+  id,reviewed:true,source_version:2,source_status:'submitted',
+  source_updated_at:'2026-11-10T08:00:00Z',created_at,
+  clinical_answers:{counseling_reason:'FICTIONAL_PRESERVED_REPORT'},
+  clinician_notes:{presenting:'FICTIONAL_INDEPENDENT_CLINICIAN_OBSERVATION'}
+ });
+ vi.stubGlobal('fetch',vi.fn(async()=>({ok:true,json:async()=>({
+  patientId:patient,source:{accountId:patient,status:'submitted',version:3,
+   updatedAt:'2026-11-10T12:00:00Z',submittedAt:'2026-11-10T12:00:00Z'},
+  sections,unmappedKeys:[],reviews:[
+   row('00000000-0000-4000-8000-000000000975','2026-11-10T11:00:00Z'),
+   row('00000000-0000-4000-8000-000000000974','2026-11-10T10:00:00Z')
+  ]
+ })})));
+ const {container}=render(<PatientBpsIntakeReview patientId={patient}/>);
+ await screen.findByText(/Previously saved immutable clinician reviews \(2\)/);
+ expect(container.textContent).toContain('FICTIONAL_PRESERVED_REPORT');
+ // Historical notes remain visible, but archived source versions cannot
+ // independently verify the CURRENT patient-reported snapshot. Do not count
+ // them as current-source documented completed reviews.
+ expect(container.textContent).toContain('Documented clinician reviews: 0');
+ expect(container.textContent).toContain('This historical row lacks confirmed clinician-review attestation');
 });

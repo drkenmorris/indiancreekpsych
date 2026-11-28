@@ -47,3 +47,28 @@ test('progress has exactly one card per saved patient problem, with only its sav
  fireEvent.click(screen.getByRole('checkbox',{name:'Anxiety'}));select('Participation','Active');select('Progress for Fictional anxiety','Improving');fireEvent.click(screen.getByRole('checkbox',{name:'Continue current treatment plan'}));review();save();await screen.findByText('SOAP note saved unsigned in this patient’s clinical record.');expect(posted[0].sections.assessment).toContain('Fictional anxiety: Improving');expect(posted[0].sections.assessment).toContain('Practiced breathing; Rehearsed coping');expect(posted[0].sections.assessment).not.toContain('Reviewed sleep diary');
  date();select('Encounter date and time (your device’s timezone)','2026-01-02T12:00');expect(screen.queryByText('Practiced breathing')).toBeNull();expect(screen.getAllByText('No implemented interventions recorded for this problem and selected session.')).toHaveLength(2);
 });
+
+
+test.each([
+ ['altered clinical text','subjective'],
+ ['altered encounter timestamp','encounter_at'],
+ ['altered encounter type','encounter_type']
+])('a successful SOAP receipt with %s does not certify persisted content',async(_description,mutation)=>{
+ const original=fetch;
+ vi.stubGlobal('fetch',vi.fn(async(url,options)=>{
+  const response=await original(url,options);
+  if(options?.method==='POST'&&notes.length){
+   if(mutation==='subjective')notes[0].sections.subjective='FICTIONAL DIFFERENT CONTENT';
+   if(mutation==='encounter_at')notes[0].encounter_at='2026-01-02T12:00:00Z';
+   if(mutation==='encounter_type')notes[0].encounter_type='Different fictional encounter';
+  }
+  return response;
+ }));
+ render(<SoapNotes patientId={pid}/>);
+ await narratives();save();
+ await screen.findByText(/independently read chart history did not match the reviewed SOAP note/);
+ expect(posted).toHaveLength(1);
+ expect(screen.queryByText('SOAP note saved unsigned in this patient’s clinical record.')).toBeNull();
+ expect(document.querySelector('[data-soap-dirty="true"]')).not.toBeNull();
+ expect((screen.getByLabelText('Subjective (S) narrative (optional)') as HTMLTextAreaElement).value).toBe('Fictional Subjective (S)');
+});

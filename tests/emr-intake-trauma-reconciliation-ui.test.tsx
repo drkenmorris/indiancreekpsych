@@ -1,17 +1,18 @@
 import React from 'react';
 import {afterEach,expect,test,vi} from 'vitest';
-import {cleanup,fireEvent,render,screen} from '@testing-library/react';
+import {act,cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
 import IntakeTraumaHistoryReconciliation from '@/app/emr/IntakeTraumaHistoryReconciliation';
 import {traumaHistoryDefinition as definition} from '@/lib/patient/trauma-history';
 
-const patientId='00000000-0000-0000-0000-000000000123';
+const patientId='abcdef00-0000-4000-8000-000000000123';
 const stamp='2026-11-10T08:30:00Z';
 const selections=Object.fromEntries(definition.groups.map(group=>[group.key,[] as string[]]));
 selections.experiences=['Physical assault or abuse'];
 const source=JSON.stringify({definition_version:definition.version,selections});
 const props={patientId,sourceJson:source,sourceUpdatedAt:stamp,sourceStatus:'submitted'};
 afterEach(()=>{cleanup();vi.unstubAllGlobals();});
-function fixture({stale=false,unlinked=false,records=[] as unknown[],status='submitted'}={}){
+function fixture({stale=false,unlinked=false,omitReadback=false,sameRevision=false,missingRecordId=false,records=[] as unknown[],status='submitted'}={}){
+ let persisted:unknown=null;
  const calls:Array<{url:string;payload:any}>=[];
  vi.stubGlobal('fetch',vi.fn(async(url:string,init?:RequestInit)=>{
   const payload=init?.body?JSON.parse(String(init.body)):null;
@@ -20,8 +21,11 @@ function fixture({stale=false,unlinked=false,records=[] as unknown[],status='sub
    patients:unlinked?[]:[{id:patientId}],
    intake:{updated_at:stale?'later':stamp,status,answers:{trauma_history_checklist:source}}
   })};
-  if(payload?.path==='/api/save')return {ok:true,json:async()=>({revision:2,value:{saved:true}})};
-  return {ok:true,json:async()=>({revision:1,value:{records}})};
+  if(payload?.path==='/api/save'){
+   if(!omitReadback)persisted={id:missingRecordId?'':'fictional-new-history-record',kind:'biopsychosocial_trauma_history',...payload.body.data,definition:{version:definition.version}};
+   return {ok:true,json:async()=>({revision:2,value:{saved:true}})};
+  }
+  return {ok:true,json:async()=>({revision:persisted&&!sameRevision?2:1,value:{records:persisted?[...records,persisted]:records}})};
  }));
  return calls;
 }
@@ -46,6 +50,17 @@ test('structured trauma history stays read-only until clinician intentionally pr
  expect(write.body.action).toBe('biopsychosocial_trauma_history');
  expect(write.body.data.selections).toEqual(selections);
  expect(write.body.data.notes).toEqual({context_notes:'',followup_notes:'',source_notes:''});
+});
+test('200 OK without persisted trauma history does not confirm clinician save',async()=>{
+ const calls=fixture({omitReadback:true});
+ render(<IntakeTraumaHistoryReconciliation {...props}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Prepare clinician trauma-history draft'}));
+ fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed these reported details/}));
+ fireEvent.click(screen.getByRole('button',{name:'Save reviewed trauma-history snapshot'}));
+ expect(await screen.findByText(/exact reviewed history was not verified on chart readback/)).toBeTruthy();
+ expect(screen.queryByText(/reviewed trauma-history snapshot was saved/)).toBeNull();
+ expect(screen.getByRole('button',{name:'Save reviewed trauma-history snapshot'})).toBeTruthy();
+ expect(saves(calls)).toHaveLength(1);
 });
 test('stale or unlinked intake cannot be imported into a patient chart',async()=>{
  for(const variant of [{stale:true},{unlinked:true}]){
@@ -82,5 +97,139 @@ test('malformed or unsupported questionnaire never permits a transfer',async()=>
  render(<IntakeTraumaHistoryReconciliation {...props} sourceJson='{"definition_version":"outdated","selections":{}}'/>);
  expect(screen.getByRole('alert').textContent).toMatch(/unsupported version/);
  expect(screen.queryByRole('button',{name:'Prepare clinician trauma-history draft'})).toBeNull();
+ expect(saves(calls)).toHaveLength(0);
+});
+
+test('the trauma snapshot cannot be saved while the linked website intake is still draft',async()=>{
+ const calls=fixture({status:'draft'});
+ render(<IntakeTraumaHistoryReconciliation {...props}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Prepare clinician trauma-history draft'}));
+ fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed these reported details/}));
+ fireEvent.click(screen.getByRole('button',{name:'Save reviewed trauma-history snapshot'}));
+ expect(await screen.findByText(/Linked intake has not been submitted/)).toBeTruthy();
+ expect(saves(calls)).toHaveLength(0);
+});
+
+test.each([
+ ['unchanged chart revision',{sameRevision:true}],
+ ['unidentified chart-history entry',{missingRecordId:true}]
+])('trauma-history write acknowledgment with %s cannot claim confirmed clinical persistence',async(_scenario,options)=>{
+ const calls=fixture(options);
+ render(<IntakeTraumaHistoryReconciliation {...props}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Prepare clinician trauma-history draft'}));
+ fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed these reported details/}));
+ fireEvent.click(screen.getByRole('button',{name:'Save reviewed trauma-history snapshot'}));
+ expect(await screen.findByText(/exact reviewed history was not verified on chart readback/)).toBeTruthy();
+ expect(screen.queryByText(/reviewed trauma-history snapshot was saved/)).toBeNull();
+ expect(calls.filter(c=>c.payload?.path==='/api/save')).toHaveLength(1);
+});
+
+test('ambiguous trauma-history save prevents duplicate clinical history on repeat submit',async()=>{
+ const calls=fixture({omitReadback:true});
+ render(<IntakeTraumaHistoryReconciliation {...props}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Prepare clinician trauma-history draft'}));
+ fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed these reported details/}));
+ const save=screen.getByRole('button',{name:'Save reviewed trauma-history snapshot'});
+ fireEvent.click(save);
+ expect(await screen.findByText(/exact reviewed history was not verified on chart readback/)).toBeTruthy();
+ expect(await screen.findByText(/Reopen the protected chart and inspect history before another attempt/)).toBeTruthy();
+ expect((save as HTMLButtonElement).disabled).toBe(true);
+ fireEvent.submit(save.closest('form')!);
+ expect(saves(calls)).toHaveLength(1);
+});
+
+test('changing patients during a pending trauma source lookup never sends an old history write',async()=>{
+ const next='00000000-0000-0000-0000-000000000124';
+ let done:(v:any)=>void=()=>{};
+ const pending=new Promise<any>(resolve=>{done=resolve;});
+ const requests:Array<{url:string;payload:any}>=[];
+ vi.stubGlobal('fetch',vi.fn(async(url:string,init?:RequestInit)=>{
+  const payload=init?.body?JSON.parse(String(init.body)):null;
+  requests.push({url,payload});
+  if(url.startsWith('/api/emr/patients?id='+patientId))return pending;
+  return {ok:true,json:async()=>({revision:1,value:{records:[]}})};
+ }));
+ const view=render(<IntakeTraumaHistoryReconciliation {...props}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Prepare clinician trauma-history draft'}));
+ fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed these reported details/}));
+ fireEvent.click(screen.getByRole('button',{name:'Save reviewed trauma-history snapshot'}));
+ await waitFor(()=>expect(requests.filter(r=>r.url.startsWith('/api/emr/patients?id='+patientId))).toHaveLength(1));
+ view.rerender(<IntakeTraumaHistoryReconciliation {...props} patientId={next}/>);
+ await act(async()=>done({ok:true,json:async()=>({patients:[{id:patientId}],intake:{status:'submitted',updated_at:stamp,answers:{trauma_history_checklist:source}}})}));
+ expect(requests.filter(r=>r.payload?.path==='/api/save')).toHaveLength(0);
+});
+
+test('delayed trauma-history write acknowledgement cannot confirm success on another patient chart',async()=>{
+ const next='00000000-0000-0000-0000-000000000124';
+ let acknowledge:(value:any)=>void=()=>{};
+ const waiting=new Promise<any>(resolve=>{acknowledge=resolve;});
+ const writes:Array<any>=[];
+ vi.stubGlobal('fetch',vi.fn(async(url:string,init?:RequestInit)=>{
+  const payload=init?.body?JSON.parse(String(init.body)):null;
+  if(url.startsWith('/api/emr/patients'))return {ok:true,json:async()=>({patients:[{id:patientId}],intake:{status:'submitted',updated_at:stamp,answers:{trauma_history_checklist:source}}})};
+  if(payload?.path==='/api/save'){writes.push(payload);return waiting;}
+  return {ok:true,json:async()=>({revision:1,value:{records:[]}})};
+ }));
+ const view=render(<IntakeTraumaHistoryReconciliation {...props}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Prepare clinician trauma-history draft'}));
+ fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed these reported details/}));
+ fireEvent.click(screen.getByRole('button',{name:'Save reviewed trauma-history snapshot'}));
+ await waitFor(()=>expect(writes).toHaveLength(1));
+ view.rerender(<IntakeTraumaHistoryReconciliation {...props} patientId={next}/>);
+ await act(async()=>acknowledge({ok:true,json:async()=>({revision:2,value:{saved:true}})}));
+ expect(writes).toHaveLength(1);
+ expect(screen.queryByText(/reviewed trauma-history snapshot was saved/)).toBeNull();
+});
+
+test('mixed-case patient UUID is canonicalized through trauma source verification and protected chart write',async()=>{
+ const calls=fixture();
+ render(<IntakeTraumaHistoryReconciliation {...props} patientId={patientId.toUpperCase()}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Prepare clinician trauma-history draft'}));
+ fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed these reported details/}));
+ fireEvent.click(screen.getByRole('button',{name:'Save reviewed trauma-history snapshot'}));
+ expect(await screen.findByText(/reviewed trauma-history snapshot was saved/)).toBeTruthy();
+ const writes=saves(calls);
+ expect(writes).toHaveLength(1);
+ expect(writes[0].payload.patientId).toBe(patientId);
+ expect(calls.some(c=>c.url==='/api/emr/patients?id='+patientId)).toBe(true);
+});
+
+
+test('trauma-history loading with a database error never renders protected source details',async()=>{
+ const secret='PRIVATE_FICTIONAL_TRAUMA_LOAD_SQL_WITH_HISTORY';
+ vi.stubGlobal('fetch',vi.fn(async()=>({ok:false,status:503,json:async()=>({error:secret})})));
+ render(<IntakeTraumaHistoryReconciliation {...props}/>);
+ expect((await screen.findByRole('alert')).textContent).toMatch(/Protected trauma-history request failed/);
+ expect(document.body.textContent).not.toContain(secret);
+ expect(screen.queryByRole('button',{name:'Prepare clinician trauma-history draft'})).toBeNull();
+});
+
+test('invalid successful trauma-history JSON never leaks underlying parser error',async()=>{
+ const secret='PRIVATE_FICTIONAL_TRAUMA_INVALID_RESPONSE';
+ vi.stubGlobal('fetch',vi.fn(async()=>({ok:true,status:200,json:async()=>{throw Error(secret);}})));
+ render(<IntakeTraumaHistoryReconciliation {...props}/>);
+ expect((await screen.findByRole('alert')).textContent).toMatch(/response was invalid/);
+ expect(document.body.textContent).not.toContain(secret);
+});
+
+test('trauma-history write failure redacts clinical content and prevents duplicate retries',async()=>{
+ const secret='PRIVATE_FICTIONAL_TRAUMA_WRITE_SQL_PATIENT_STATEMENT';
+ const calls=fixture();
+ const original=globalThis.fetch;
+ vi.stubGlobal('fetch',vi.fn(async(url:string,init?:RequestInit)=>{
+  const payload=init?.body?JSON.parse(String(init.body)):null;
+  if(payload?.path==='/api/save')return {ok:false,status:503,json:async()=>({error:secret})};
+  return original(url,init);
+ }));
+ render(<IntakeTraumaHistoryReconciliation {...props}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Prepare clinician trauma-history draft'}));
+ fireEvent.click(screen.getByRole('checkbox',{name:/I reviewed these reported details/}));
+ const save=screen.getByRole('button',{name:'Save reviewed trauma-history snapshot'});
+ fireEvent.click(save);
+ expect((await screen.findByText(/Protected trauma-history request failed/)).textContent).not.toContain(secret);
+ expect(document.body.textContent).not.toContain(secret);
+ expect(await screen.findByText(/prior save outcome is not independently verified/)).toBeTruthy();
+ expect((save as HTMLButtonElement).disabled).toBe(true);
+ fireEvent.submit(save.closest('form')!);
  expect(saves(calls)).toHaveLength(0);
 });

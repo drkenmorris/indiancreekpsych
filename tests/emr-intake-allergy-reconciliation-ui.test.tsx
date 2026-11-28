@@ -1,17 +1,21 @@
 import React from 'react';
 import {afterEach,expect,test,vi} from 'vitest';
-import {cleanup,fireEvent,render,screen} from '@testing-library/react';
+import {act,cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
 import IntakeAllergyReconciliation from '@/app/emr/IntakeAllergyReconciliation';
-const patient='00000000-0000-0000-0000-000000000123',sourceUpdatedAt='2026-11-09T00:00:00Z';
+const patient='abcdef00-0000-4000-8000-000000000123',sourceUpdatedAt='2026-11-09T00:00:00Z';
 afterEach(()=>{cleanup();vi.unstubAllGlobals();});
-function fixtures({stale=false,records=[] as unknown[]}={}){
+function fixtures({stale=false,omitReadback=false,sameRevision=false,missingRecordId=false,status='submitted',records=[] as unknown[]}={}){
+ let persisted:unknown=null;
  const calls:Array<{url:string;payload:unknown}>=[];
  vi.stubGlobal('fetch',vi.fn(async(url:string,init?:RequestInit)=>{
   const payload=init?.body?JSON.parse(String(init.body)):null;calls.push({url,payload});
-  if(url.startsWith('/api/emr/patients'))return {ok:true,json:async()=>({patients:[{id:patient}],intake:{updated_at:stale?'new source':sourceUpdatedAt,
+  if(url.startsWith('/api/emr/patients'))return {ok:true,json:async()=>({patients:[{id:patient}],intake:{status,updated_at:stale?'new source':sourceUpdatedAt,
    answers:{medication_allergy_status:'Medication allergies reported',medication_allergy_notes:'Fictional reported reaction'}}})};
-  if(payload?.path==='/api/save')return {ok:true,json:async()=>({value:{saved:true},revision:2})};
-  return {ok:true,json:async()=>({value:{records},revision:1})};
+  if(payload?.path==='/api/save'){
+   if(!omitReadback)persisted={id:missingRecordId?'':'fictional-new-history-record',kind:'medication_allergies',...payload.body.data};
+   return {ok:true,json:async()=>({value:{saved:true},revision:2})};
+  }
+  return {ok:true,json:async()=>({value:{records:persisted?[...records,persisted]:records},revision:persisted&&!sameRevision?2:1})};
  }));
  return calls;
 }
@@ -31,6 +35,17 @@ test('reviewed patient-reported medication allergy status writes one append-only
  expect(writes[0].payload).toMatchObject({patientId:patient,expectedRevision:1,body:{patient_id:patient,action:'medication_allergies',
   data:{allergy_status:'Medication allergies reported',allergy_notes:'Fictional reported reaction'}}});
 });
+test('200 OK without persisted allergy-history chart readback does not confirm clinician save',async()=>{
+ const calls=fixtures({omitReadback:true});
+ render(<IntakeAllergyReconciliation {...props}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Prepare medication-allergy review'}));
+ fireEvent.click(screen.getByRole('checkbox'));
+ fireEvent.click(screen.getByRole('button',{name:'Save reviewed allergy-history entry'}));
+ expect(await screen.findByText(/exact reviewed entry was not verified on chart readback/)).toBeTruthy();
+ expect(screen.queryByText(/A reviewed medication-allergy history entry was saved/)).toBeNull();
+ expect(screen.getByRole('button',{name:'Save reviewed allergy-history entry'})).toBeTruthy();
+ expect(calls.filter(c=>(c.payload as {path?:string})?.path==='/api/save')).toHaveLength(1);
+});
 test('changed allergy intake prevents transfer even when draft was reviewed',async()=>{
  const calls=fixtures({stale:true});
  render(<IntakeAllergyReconciliation {...props}/>);
@@ -47,5 +62,140 @@ test('no source status and already saved identical allergy histories do not crea
  fireEvent.click(screen.getByRole('checkbox'));
  expect((screen.getByRole('button',{name:'Save reviewed allergy-history entry'}) as HTMLButtonElement).disabled).toBe(true);
  view.rerender(<IntakeAllergyReconciliation {...props} sourceStatus="Not yet reviewed"/>);
- expect(screen.getByText(/does not have a reviewable allergy status/)).toBeTruthy();
+ expect(await screen.findByText(/does not have a reviewable allergy status/)).toBeTruthy();
+});
+
+test('unsubmitted linked allergy intake does not produce clinical chart history',async()=>{
+ const calls=fixtures({status:'draft'});
+ render(<IntakeAllergyReconciliation {...props}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Prepare medication-allergy review'}));
+ fireEvent.click(screen.getByRole('checkbox'));
+ fireEvent.click(screen.getByRole('button',{name:'Save reviewed allergy-history entry'}));
+ expect(await screen.findByText(/Linked intake has not been submitted/)).toBeTruthy();
+ expect(calls.filter(c=>(c.payload as {path?:string})?.path==='/api/save')).toHaveLength(0);
+});
+
+test.each([
+ ['unchanged chart revision',{sameRevision:true}],
+ ['unidentified chart-history entry',{missingRecordId:true}]
+])('allergy-history write acknowledgment with %s cannot claim confirmed clinical persistence',async(_scenario,options)=>{
+ const calls=fixtures(options);
+ render(<IntakeAllergyReconciliation {...props}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Prepare medication-allergy review'}));
+ fireEvent.click(screen.getByRole('checkbox'));
+ fireEvent.click(screen.getByRole('button',{name:'Save reviewed allergy-history entry'}));
+ expect(await screen.findByText(/exact reviewed entry was not verified on chart readback/)).toBeTruthy();
+ expect(screen.queryByText(/A reviewed medication-allergy history entry was saved/)).toBeNull();
+ expect(calls.filter(c=>(c.payload as {path?:string})?.path==='/api/save')).toHaveLength(1);
+});
+
+test('ambiguous allergy-history save locks duplicate attempts until chart is reopened',async()=>{
+ const calls=fixtures({omitReadback:true});
+ render(<IntakeAllergyReconciliation {...props}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Prepare medication-allergy review'}));
+ fireEvent.click(screen.getByRole('checkbox'));
+ const save=screen.getByRole('button',{name:'Save reviewed allergy-history entry'});
+ fireEvent.click(save);
+ expect(await screen.findByText(/exact reviewed entry was not verified on chart readback/)).toBeTruthy();
+ expect(await screen.findByText(/Reopen the protected chart and inspect history before another attempt/)).toBeTruthy();
+ expect((save as HTMLButtonElement).disabled).toBe(true);
+ fireEvent.submit(save.closest('form')!);
+ expect(calls.filter(c=>(c.payload as {path?:string})?.path==='/api/save')).toHaveLength(1);
+});
+
+test('changing the patient during delayed allergy lookup does not write an old draft',async()=>{
+ const next='00000000-0000-0000-0000-000000000124';
+ let done:(v:any)=>void=()=>{};
+ const pending=new Promise<any>(resolve=>{done=resolve;});
+ const requests:Array<{url:string;payload:any}>=[];
+ vi.stubGlobal('fetch',vi.fn(async(url:string,init?:RequestInit)=>{
+  const payload=init?.body?JSON.parse(String(init.body)):null;
+  requests.push({url,payload});
+  if(url.startsWith('/api/emr/patients?id='+patient))return pending;
+  return {ok:true,json:async()=>({revision:1,value:{records:[]}})};
+ }));
+ const view=render(<IntakeAllergyReconciliation {...props}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Prepare medication-allergy review'}));
+ fireEvent.click(screen.getByRole('checkbox'));
+ fireEvent.click(screen.getByRole('button',{name:'Save reviewed allergy-history entry'}));
+ await waitFor(()=>expect(requests.filter(r=>r.url.startsWith('/api/emr/patients?id='+patient))).toHaveLength(1));
+ view.rerender(<IntakeAllergyReconciliation {...props} patientId={next}/>);
+ await act(async()=>done({ok:true,json:async()=>({patients:[{id:patient}],intake:{status:'submitted',updated_at:sourceUpdatedAt,answers:{medication_allergy_status:props.sourceStatus,medication_allergy_notes:props.sourceNotes}}})}));
+ expect(requests.filter(r=>r.payload?.path==='/api/save')).toHaveLength(0);
+});
+
+test('old allergy save acknowledgement cannot appear as success after switching patient charts',async()=>{
+ const next='00000000-0000-0000-0000-000000000124';
+ let acknowledge:(value:any)=>void=()=>{};
+ const waiting=new Promise<any>(resolve=>{acknowledge=resolve;});
+ const writes:Array<any>=[];
+ vi.stubGlobal('fetch',vi.fn(async(url:string,init?:RequestInit)=>{
+  const payload=init?.body?JSON.parse(String(init.body)):null;
+  if(url.startsWith('/api/emr/patients'))return {ok:true,json:async()=>({patients:[{id:patient}],intake:{status:'submitted',updated_at:sourceUpdatedAt,answers:{medication_allergy_status:props.sourceStatus,medication_allergy_notes:props.sourceNotes}}})};
+  if(payload?.path==='/api/save'){writes.push(payload);return waiting;}
+  return {ok:true,json:async()=>({revision:1,value:{records:[]}})};
+ }));
+ const view=render(<IntakeAllergyReconciliation {...props}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Prepare medication-allergy review'}));
+ fireEvent.click(screen.getByRole('checkbox'));
+ fireEvent.click(screen.getByRole('button',{name:'Save reviewed allergy-history entry'}));
+ await waitFor(()=>expect(writes).toHaveLength(1));
+ view.rerender(<IntakeAllergyReconciliation {...props} patientId={next}/>);
+ await act(async()=>acknowledge({ok:true,json:async()=>({revision:2,value:{saved:true}})}));
+ expect(writes).toHaveLength(1);
+ expect(screen.queryByText(/A reviewed medication-allergy history entry was saved/)).toBeNull();
+});
+
+test('mixed-case patient UUID matches canonical source receipt and saves only the selected allergy chart',async()=>{
+ const calls=fixtures();
+ render(<IntakeAllergyReconciliation {...props} patientId={patient.toUpperCase()}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Prepare medication-allergy review'}));
+ fireEvent.click(screen.getByRole('checkbox'));
+ fireEvent.click(screen.getByRole('button',{name:'Save reviewed allergy-history entry'}));
+ expect(await screen.findByText(/A reviewed medication-allergy history entry was saved/)).toBeTruthy();
+ const writes=calls.filter(c=>(c.payload as {path?:string})?.path==='/api/save');
+ expect(writes).toHaveLength(1);
+ expect((writes[0].payload as {patientId:string}).patientId).toBe(patient);
+ expect(calls.some(c=>c.url==='/api/emr/patients?id='+patient)).toBe(true);
+});
+
+
+test('untrusted allergy-history load errors never disclose fictional patient information',async()=>{
+ const secret='PRIVATE_FICTIONAL_ALLERGY_LOAD_AND_SQL_ARGUMENT';
+ vi.stubGlobal('fetch',vi.fn(async()=>({ok:false,status:503,json:async()=>({error:secret})})));
+ render(<IntakeAllergyReconciliation {...props}/>);
+ const alert=await screen.findByRole('alert');
+ expect(alert.textContent).toMatch(/Protected allergy-history request failed/);
+ expect(document.body.textContent).not.toContain(secret);
+ expect(screen.queryByRole('button',{name:'Prepare medication-allergy review'})).toBeNull();
+});
+
+test('invalid successful allergy-history JSON cannot be reflected into the clinician chart',async()=>{
+ const secret='PRIVATE_FICTIONAL_MALFORMED_ALLERGY_RESPONSE';
+ vi.stubGlobal('fetch',vi.fn(async()=>({ok:true,status:200,json:async()=>{throw Error(secret);}})));
+ render(<IntakeAllergyReconciliation {...props}/>);
+ expect((await screen.findByRole('alert')).textContent).toMatch(/response was invalid/);
+ expect(document.body.textContent).not.toContain(secret);
+});
+
+test('allergy-history write errors are redacted and ambiguous saves stay locked',async()=>{
+ const secret='PRIVATE_FICTIONAL_ALLERGY_WRITE_SQL_WITH_PATIENT_DETAILS';
+ const calls=fixtures();
+ const original=globalThis.fetch;
+ vi.stubGlobal('fetch',vi.fn(async(url:string,init?:RequestInit)=>{
+  const payload=init?.body?JSON.parse(String(init.body)):null;
+  if(payload?.path==='/api/save')return {ok:false,status:503,json:async()=>({error:secret})};
+  return original(url,init);
+ }));
+ render(<IntakeAllergyReconciliation {...props}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Prepare medication-allergy review'}));
+ fireEvent.click(screen.getByRole('checkbox'));
+ const save=screen.getByRole('button',{name:'Save reviewed allergy-history entry'});
+ fireEvent.click(save);
+ expect((await screen.findByText(/Protected allergy-history request failed/)).textContent).not.toContain(secret);
+ expect(document.body.textContent).not.toContain(secret);
+ expect(await screen.findByText(/prior save outcome is not independently verified/)).toBeTruthy();
+ expect((save as HTMLButtonElement).disabled).toBe(true);
+ fireEvent.submit(save.closest('form')!);
+ expect(calls.filter(c=>(c.payload as {path?:string})?.path==='/api/save')).toHaveLength(0);
 });

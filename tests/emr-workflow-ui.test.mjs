@@ -140,6 +140,14 @@ await test('actual hosted forms and global navigation render against central pat
  runInContext("document.querySelector('#content').innerHTML=bpsMedicationsView();bindBpsMedications()",dom.getInternalVMContext());
  const medicationForm=q('form[data-action="biopsychosocial_medication"]');
  assert.ok(medicationForm);
+ const lookup=medicationForm.querySelector('[data-medication-lookup]');
+ assert.equal(lookup.textContent,'Search medication catalog');
+ assert.equal(lookup.getAttribute('aria-expanded'),'false');
+ lookup.click();
+ assert.match(medicationForm.querySelector('[data-medication-matches]').textContent,/Enter at least two letters/);
+ assert.equal(lookup.getAttribute('aria-expanded'),'true');
+ lookup.click();
+ assert.equal(lookup.getAttribute('aria-expanded'),'false');
  const medicationFetch=w.fetch;
  w.fetch=(url,options)=>url==='/emr-assets/medication-catalog.json'
   ?Promise.resolve({ok:true,json:async()=>JSON.parse(readFileSync('public/emr-assets/medication-catalog.json','utf8'))})
@@ -151,6 +159,8 @@ await test('actual hosted forms and global navigation render against central pat
  const choice=Array.from(medicationForm.querySelectorAll('[data-medication-matches] button')).find(button=>button.textContent==='sertraline 50 MG Oral Tablet [Zoloft]');
  assert.ok(choice,'three generic-name characters surface labeled strengths');
  choice.click();
+ assert.equal(lookup.getAttribute('aria-expanded'),'false');
+ assert.equal(medicationForm.querySelector('[data-medication-matches]').hidden,true);
  const medicationData=new w.FormData(medicationForm);
  assert.equal(medicationData.get('medication'),choice.textContent);
  assert.equal(medicationData.get('dosage'),'Half a tablet');

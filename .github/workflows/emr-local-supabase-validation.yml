@@ -1,0 +1,446 @@
+name: EMR isolated Supabase schema validation
+on:
+  # Called by the existing CI workflow for every protected PR revision.
+  # A direct manual run is also supported on the protected branch.
+  workflow_call:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  local-schema:
+    # Run only for the clinic's own protected EMR integration branch.
+    if: github.head_ref == 'integration/emr-prototype-production-reconcile-20261109' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.number == 116 || github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/integration/emr-prototype-production-reconcile-20261109'
+    # Playwright 1.56.1 supports Ubuntu 24.04; ubuntu-latest has moved to 26.04.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: supabase/setup-cli@v3
+        with:
+          version: 2.84.2
+      - name: Replay migrations on an isolated real Supabase Postgres stack
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Copy only versioned migrations to a brand-new runner-local directory.
+          # No hosted credentials, link, data dump, seed, or remote reset.
+          unset SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD DATABASE_URL
+          sandbox="$(mktemp -d)"
+          printf 'EMR_LOCAL_SANDBOX=%s\n' "$sandbox" >> "$GITHUB_ENV"
+          cd "$sandbox"
+          supabase init
+          mkdir -p supabase/migrations
+          cp "$GITHUB_WORKSPACE"/supabase/migrations/*.sql supabase/migrations/
+          sed -i -E 's/^major_version = [0-9]+$/major_version = 17/' supabase/config.toml
+          grep -qx 'major_version = 17' supabase/config.toml
+          supabase db start
+          export PGPASSWORD=postgres
+          psql_local() { psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 54322 -U postgres -d postgres "$@"; }
+          # Compare every repository migration version to the actual database ledger.
+          find supabase/migrations -maxdepth 1 -name '*.sql' -printf '%f\n' | cut -d_ -f1 | LC_ALL=C sort > expected-versions.txt
+          psql_local -Atc 'select version from supabase_migrations.schema_migrations order by version' | LC_ALL=C sort > actual-versions.txt
+          test -s expected-versions.txt
+          diff -u expected-versions.txt actual-versions.txt
+          psql_local -Atc "select current_setting('server_version_num')::int / 10000" | grep -qx 17
+          # Confirm real Supabase auth schema and high-priority clinic relations are present.
+          psql_local <<'SQL'
+          DO $$
+          BEGIN
+            IF to_regclass('auth.users') IS NULL
+               OR to_regclass('auth.mfa_factors') IS NULL
+               OR to_regclass('public.patient_intakes') IS NULL
+               OR to_regclass('public.clinical_patients') IS NULL
+               OR to_regclass('public.emr_bps_intake_reviews') IS NULL
+               OR to_regclass('public.appointments') IS NULL THEN
+              RAISE EXCEPTION 'Expected clinical or auth relation missing';
+            END IF;
+            IF EXISTS (
+              SELECT 1 FROM pg_class
+              WHERE oid IN ('public.patient_intakes'::regclass,
+                            'public.clinical_patients'::regclass,
+                            'public.emr_bps_intake_reviews'::regclass,
+                            'public.appointments'::regclass)
+                AND NOT relrowsecurity
+            ) THEN
+              RAISE EXCEPTION 'Expected clinical relation lacks RLS';
+            END IF;
+          END $$;
+          SQL
+          printf 'Verified real runner-local Postgres 17 migration versions: '
+          wc -l < actual-versions.txt
+          echo 'This is real local schema validation, not hosted preview or authenticated browser acceptance.'
+          # The identical read-only catalog query is also used to assess a
+          # hosted target before any fictional authenticated writes.
+          preflight="$(psql_local -At -F '|' -f "$GITHUB_WORKSPACE/scripts/emr-hosted-schema-preflight.sql")"
+          printf '%s\n' "$preflight"
+          test "$(printf '%s\n' "$preflight" | wc -l)" -eq 6
+          test "$(printf '%s\n' "$preflight" | awk -F '|' '$2 == "t" { n++ } END { print n+0 }')" -eq 6
+          echo 'Six critical EMR schema parity checks passed locally; hosted parity must be established separately.'
+      - name: Exercise actual migrated scheduler RLS on fictional local identities
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PGPASSWORD=postgres
+          # This stack lives only in this runner; never use a hosted URL or credential.
+          psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 54322 -U postgres -d postgres <<'SQL'
+          BEGIN;
+          -- Bootstrap only the fixture auth rows without signup side effects.
+          -- Restore normal triggers before any clinical/scheduler operation.
+          SET LOCAL session_replication_role = replica;
+          INSERT INTO auth.users (id,email,email_confirmed_at,raw_app_meta_data,raw_user_meta_data)
+          VALUES
+            ('00000000-0000-4000-8000-000000000001','emr-admin@example.invalid',now(),'{}','{}'),
+            ('00000000-0000-4000-8000-000000000002','emr-patient-a@example.invalid',now(),'{}','{}'),
+            ('00000000-0000-4000-8000-000000000003','emr-patient-b@example.invalid',now(),'{}','{}');
+          SET LOCAL session_replication_role = origin;
+          INSERT INTO public.profiles(id,full_name,account_type) VALUES
+            ('00000000-0000-4000-8000-000000000001','Fictional Administrator','admin'),
+            ('00000000-0000-4000-8000-000000000002','Fictional Patient A','patient'),
+            ('00000000-0000-4000-8000-000000000003','Fictional Patient B','patient');
+          UPDATE public.appointment_settings SET scheduling_enabled=true,timezone='UTC' WHERE id;
+          INSERT INTO public.appointment_availability_rules(weekday,start_time,end_time)
+          VALUES (extract(dow from (current_date+2))::smallint,'08:00','18:00');
+          -- Actual migrated policies and triggers, with simulated verified JWT claims.
+          SET LOCAL ROLE authenticated;
+          SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000001","role":"authenticated","aal":"aal2"}',true);
+          INSERT INTO public.appointments(id,patient_id,starts_at,ends_at)
+          VALUES
+            ('00000000-0000-4000-8000-000000000101','00000000-0000-4000-8000-000000000002',(current_date+2+time '10:00') AT TIME ZONE 'UTC',(current_date+2+time '10:50') AT TIME ZONE 'UTC'),
+            ('00000000-0000-4000-8000-000000000102','00000000-0000-4000-8000-000000000003',(current_date+2+time '12:00') AT TIME ZONE 'UTC',(current_date+2+time '12:50') AT TIME ZONE 'UTC');
+          INSERT INTO public.appointments(id,patient_name,series_id,starts_at,ends_at)
+          VALUES ('00000000-0000-4000-8000-000000000103','Fictional Unlinked Recurrence','00000000-0000-4000-8000-000000000201',(current_date+2+time '14:00') AT TIME ZONE 'UTC',(current_date+2+time '14:50') AT TIME ZONE 'UTC');
+          DO $$
+          BEGIN
+            IF (SELECT count(*) FROM public.appointments) <> 3
+               OR (SELECT count(*) FROM public.scheduling_patients()) <> 2
+               OR NOT EXISTS(SELECT 1 FROM public.appointment_settings WHERE id)
+            THEN RAISE EXCEPTION 'AAL2 administrator positive control failed'; END IF;
+          END $$;
+          SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000001","role":"authenticated","aal":"aal1"}',true);
+          DO $$
+          BEGIN
+            IF EXISTS(SELECT 1 FROM public.appointments)
+               OR EXISTS(SELECT 1 FROM public.appointment_settings)
+               OR EXISTS(SELECT 1 FROM public.appointment_availability_rules)
+            THEN RAISE EXCEPTION 'AAL1 administrator accessed protected scheduler rows'; END IF;
+            BEGIN
+              PERFORM * FROM public.scheduling_patients();
+              RAISE EXCEPTION 'AAL1 administrator accessed protected patient list';
+            EXCEPTION WHEN insufficient_privilege THEN NULL;
+            END;
+          END $$;
+          SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000002","role":"authenticated","aal":"aal1"}',true);
+          DO $$
+          DECLARE changed integer;
+          BEGIN
+            IF (SELECT count(*) FROM public.appointments) <> 1
+               OR NOT EXISTS(SELECT 1 FROM public.appointments WHERE id='00000000-0000-4000-8000-000000000101')
+            THEN RAISE EXCEPTION 'Patient A own-row or isolation control failed'; END IF;
+            UPDATE public.appointments SET status='cancelled' WHERE id IN ('00000000-0000-4000-8000-000000000102','00000000-0000-4000-8000-000000000103');
+            GET DIAGNOSTICS changed = ROW_COUNT;
+            IF changed <> 0 THEN RAISE EXCEPTION 'Patient A changed another or unlinked booking'; END IF;
+            UPDATE public.appointments SET status='cancelled' WHERE id='00000000-0000-4000-8000-000000000101';
+            GET DIAGNOSTICS changed = ROW_COUNT;
+            IF changed <> 1 THEN RAISE EXCEPTION 'Patient A own cancellation control failed'; END IF;
+          END $$;
+          SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000003","role":"authenticated","aal":"aal1"}',true);
+          DO $$
+          BEGIN
+            IF (SELECT count(*) FROM public.appointments) <> 1
+               OR NOT EXISTS(SELECT 1 FROM public.appointments WHERE id='00000000-0000-4000-8000-000000000102' AND status='booked')
+            THEN RAISE EXCEPTION 'Patient B own-row or isolation control failed'; END IF;
+          END $$;
+          ROLLBACK;
+          SQL
+          echo 'Actual migrated scheduler RLS and booking/cancellation checks passed on local PostgreSQL; JWT claims simulated, not browser MFA.'
+      - name: Exercise real BPS review RPC, provenance and chart isolation
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PGPASSWORD=postgres
+          psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 54322 -U postgres -d postgres <<'SQL'
+          BEGIN;
+          -- Only disposable fixture bootstrap bypasses triggers. Submitted source
+          -- fixtures do not demonstrate completion of the 21-page patient intake.
+          SET LOCAL session_replication_role = replica;
+          INSERT INTO auth.users(id,email,email_confirmed_at,raw_app_meta_data,raw_user_meta_data)
+          VALUES
+            ('00000000-0000-4000-8000-000000000301','bps-admin@example.invalid',now(),'{}','{}'),
+            ('00000000-0000-4000-8000-000000000302','bps-other-admin@example.invalid',now(),'{}','{}'),
+            ('00000000-0000-4000-8000-000000000303','bps-patient-a@example.invalid',now(),'{}','{}'),
+            ('00000000-0000-4000-8000-000000000304','bps-patient-b@example.invalid',now(),'{}','{}');
+          SET LOCAL session_replication_role = origin;
+          INSERT INTO public.profiles(id,full_name,account_type) VALUES
+            ('00000000-0000-4000-8000-000000000301','Fictional BPS Administrator','admin'),
+            ('00000000-0000-4000-8000-000000000302','Fictional Other Administrator','admin'),
+            ('00000000-0000-4000-8000-000000000303','Fictional BPS Patient A','patient'),
+            ('00000000-0000-4000-8000-000000000304','Fictional BPS Patient B','patient');
+          SET LOCAL session_replication_role = replica;
+          INSERT INTO public.patient_intakes(patient_id,answers,status,version,updated_at,submitted_at)
+          VALUES
+            ('00000000-0000-4000-8000-000000000303',
+             '{"counseling_reason":"Fictional concern A","medication_entries":"fictional restricted medication","medication_allergy_notes":"fictional restricted allergy","trauma_history":"fictional restricted trauma","roi_authorize":"fictional restricted legal","insurance_member":"fictional restricted insurance"}',
+             'submitted',3,now()-interval '1 hour',now()-interval '1 hour'),
+            ('00000000-0000-4000-8000-000000000304',
+             '{"counseling_reason":"Fictional concern B"}',
+             'submitted',2,now()-interval '1 hour',now()-interval '1 hour');
+          SET LOCAL session_replication_role = origin;
+          SET LOCAL ROLE authenticated;
+          SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000301","role":"authenticated","aal":"aal2"}',true);
+          DO $$
+          DECLARE payload jsonb; saved uuid; other_chart uuid; actual public.emr_bps_intake_reviews%rowtype;
+          BEGIN
+            SELECT jsonb_build_object('patient_id',c.id,'source_account_id',i.patient_id,
+              'source_version',i.version,'source_status',i.status,'source_updated_at',i.updated_at,
+              'source_submitted_at',i.submitted_at,'source_answers',i.answers,'reviewed',true,
+              'clinician_notes',jsonb_build_object('presenting','Fictional independent observation',
+                'treatment','','medical','','safety','','family','','goals','','limitations',''))
+            INTO STRICT payload FROM public.patient_intakes i
+            JOIN public.clinical_patients c ON c.account_id=i.patient_id
+            WHERE i.patient_id='00000000-0000-4000-8000-000000000303';
+            SELECT id INTO STRICT other_chart FROM public.clinical_patients
+              WHERE account_id='00000000-0000-4000-8000-000000000304';
+            BEGIN
+              PERFORM public.save_emr_bps_intake_review(payload || jsonb_build_object('patient_id',other_chart));
+              RAISE EXCEPTION 'Cross-chart source was accepted';
+            EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+            BEGIN
+              PERFORM public.save_emr_bps_intake_review(payload || '{"source_version":99}');
+              RAISE EXCEPTION 'Stale source version was accepted';
+            EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+            BEGIN
+              PERFORM public.save_emr_bps_intake_review(payload || '{"source_submitted_at":null}');
+              RAISE EXCEPTION 'Missing source receipt was accepted';
+            EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+            BEGIN
+              PERFORM public.save_emr_bps_intake_review(payload || '{"source_answers":{}}');
+              RAISE EXCEPTION 'Changed patient answers were accepted';
+            EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+            BEGIN
+              PERFORM public.save_emr_bps_intake_review(payload || '{"clinician_notes":{"presenting":"Incomplete review"}}');
+              RAISE EXCEPTION 'Incomplete seven-domain review was accepted';
+            EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+            saved:=public.save_emr_bps_intake_review(payload);
+            SELECT * INTO STRICT actual FROM public.emr_bps_intake_reviews WHERE id=saved;
+            IF actual.source_account_id::text <> payload->>'source_account_id'
+              OR actual.source_version <> 3 OR actual.source_status <> 'submitted'
+              OR actual.source_submitted_at IS DISTINCT FROM (payload->>'source_submitted_at')::timestamptz
+              OR actual.clinical_answers IS DISTINCT FROM '{"counseling_reason":"Fictional concern A"}'::jsonb
+              OR actual.clinician_notes IS DISTINCT FROM payload->'clinician_notes'
+              OR EXISTS(SELECT 1 FROM public.emr_bps_intake_reviews WHERE patient_id=other_chart)
+            THEN RAISE EXCEPTION 'Stored BPS source, field boundaries or chart isolation failed'; END IF;
+            BEGIN
+              PERFORM public.save_emr_bps_intake_review(payload);
+              RAISE EXCEPTION 'Duplicate BPS review was accepted';
+            EXCEPTION WHEN unique_violation THEN NULL; END;
+          END $$;
+          SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000301","role":"authenticated","aal":"aal1"}',true);
+          DO $$ BEGIN
+            IF EXISTS(SELECT 1 FROM public.emr_bps_intake_reviews) THEN
+              RAISE EXCEPTION 'AAL1 administrator read reviewed BPS history'; END IF;
+            BEGIN
+              PERFORM public.save_emr_bps_intake_review('{}');
+              RAISE EXCEPTION 'AAL1 administrator invoked review';
+            EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+          END $$;
+          SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000302","role":"authenticated","aal":"aal2"}',true);
+          DO $$ BEGIN
+            IF EXISTS(SELECT 1 FROM public.emr_bps_intake_reviews) THEN
+              RAISE EXCEPTION 'Other administrator read owner-specific review'; END IF;
+          END $$;
+          SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000304","role":"authenticated","aal":"aal1"}',true);
+          DO $$ BEGIN
+            IF EXISTS(SELECT 1 FROM public.emr_bps_intake_reviews)
+              OR EXISTS(SELECT 1 FROM public.patient_intakes WHERE patient_id='00000000-0000-4000-8000-000000000303')
+              OR NOT EXISTS(SELECT 1 FROM public.patient_intakes WHERE patient_id='00000000-0000-4000-8000-000000000304')
+            THEN RAISE EXCEPTION 'Patient B clinical or intake isolation failed'; END IF;
+            BEGIN
+              PERFORM public.save_emr_bps_intake_review('{}');
+              RAISE EXCEPTION 'Patient invoked clinician review';
+            EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+          END $$;
+          ROLLBACK;
+          SQL
+          echo 'Real local BPS RPC and RLS checks passed; source fixtures and claims simulated, not full patient submission or browser acceptance.'
+
+      - name: Exercise connected assessment assignment and response on actual migrated PostgreSQL
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PGPASSWORD=postgres
+          psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 54322 -U postgres -d postgres <<'SQL'
+          BEGIN;
+          -- No outbound email, hosted credentials or production records. A synthetic
+          -- provider receipt exercises the DB state transition, not email delivery.
+          SET LOCAL session_replication_role = replica;
+          INSERT INTO auth.users(id,email,email_confirmed_at,raw_app_meta_data,raw_user_meta_data)
+          VALUES
+            ('00000000-0000-4000-8000-000000000401','assessment-admin@example.invalid',now(),'{}','{}'),
+            ('00000000-0000-4000-8000-000000000402','assessment-other-admin@example.invalid',now(),'{}','{}'),
+            ('00000000-0000-4000-8000-000000000403','assessment-patient@example.invalid',now(),'{}','{}'),
+            ('00000000-0000-4000-8000-000000000404','assessment-stranger@example.invalid',now(),'{}','{}');
+          SET LOCAL session_replication_role = origin;
+          INSERT INTO public.profiles(id,full_name,account_type) VALUES
+            ('00000000-0000-4000-8000-000000000401','Fictional Assessment Administrator','admin'),
+            ('00000000-0000-4000-8000-000000000402','Fictional Other Administrator','admin'),
+            ('00000000-0000-4000-8000-000000000403','Fictional Assessment Patient','patient'),
+            ('00000000-0000-4000-8000-000000000404','Fictional Assessment Stranger','patient');
+          SET LOCAL ROLE authenticated;
+          SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000401","role":"authenticated","aal":"aal2","email":"assessment-admin@example.invalid"}',true);
+          INSERT INTO public.psych_test_assignments
+            (id,recipient_first_name,recipient_last_name,recipient_email,test_key,patient_id,connected_source,connected_source_hash)
+          SELECT '00000000-0000-4000-8000-000000000405','Fictional','Assessment Patient',
+            'assessment-patient@example.invalid','cseq',c.id,
+            '{"format":"icps-connected/1","testKey":"cseq","pageSize":7,"items":[{"id":"fixture-q1","options":[{"value":0},{"value":1}]},{"id":"fixture-q2","options":[{"value":"A"},{"value":"B"}]}]}'::jsonb,
+            repeat('a',64)
+          FROM public.clinical_patients c WHERE c.account_id='00000000-0000-4000-8000-000000000403';
+          DO $$ BEGIN
+            IF (SELECT count(*) FROM public.psych_test_assignments WHERE id='00000000-0000-4000-8000-000000000405' AND status='draft')<>1
+              THEN RAISE EXCEPTION 'Fictional chart-bound assignment not created'; END IF;
+          END $$;
+          SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000403","role":"authenticated","aal":"aal2","email":"assessment-patient@example.invalid"}',true);
+          DO $$ BEGIN
+            IF EXISTS(SELECT 1 FROM public.psych_test_assignments WHERE id='00000000-0000-4000-8000-000000000405')
+              THEN RAISE EXCEPTION 'Draft assignment visible before provider acceptance'; END IF;
+          END $$;
+          SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000401","role":"authenticated","aal":"aal2","email":"assessment-admin@example.invalid"}',true);
+          UPDATE public.psych_test_assignments SET status='sent',sent_at=now(),email_provider_id='local-fictional-provider-receipt'
+            WHERE id='00000000-0000-4000-8000-000000000405';
+          DO $$ BEGIN
+            IF NOT EXISTS(SELECT 1 FROM public.psych_test_assignments WHERE id='00000000-0000-4000-8000-000000000405' AND status='sent' AND expires_at-sent_at=interval '14 days')
+              THEN RAISE EXCEPTION 'Provider receipt and expiry transition failed'; END IF;
+          END $$;
+          SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000404","role":"authenticated","aal":"aal2","email":"assessment-patient@example.invalid"}',true);
+          DO $$ BEGIN
+            BEGIN
+              PERFORM public.save_connected_assignment('00000000-0000-4000-8000-000000000405',0,'{"fixture-q1":1}',0,false,true);
+              RAISE EXCEPTION 'Wrong account with spoofed email saved response';
+            EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+          END $$;
+          SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000403","role":"authenticated","aal":"aal1","email":"assessment-patient@example.invalid"}',true);
+          -- Owner-approved optional patient MFA: a verified patient with no
+          -- enrolled verified factor may save at AAL1; administrators still require AAL2.
+          DO $$
+          DECLARE a constant uuid := '00000000-0000-4000-8000-000000000405'; rev integer;
+          BEGIN
+            SELECT public.save_connected_assignment(a,0,'{"fixture-q1":1}',0,false,true) INTO rev;
+            IF rev<>1 OR NOT EXISTS(SELECT 1 FROM public.connected_assignment_responses
+              WHERE assignment_id=a AND status='draft' AND revision=1 AND answered_count=1)
+              THEN RAISE EXCEPTION 'Optional patient MFA draft save failed'; END IF;
+          END $$;
+          -- Add a fictional verified factor only in this rollback transaction.
+          RESET ROLE;
+          INSERT INTO auth.mfa_factors(id,user_id,friendly_name,factor_type,status,created_at,updated_at)
+            VALUES ('00000000-0000-4000-8000-000000000406','00000000-0000-4000-8000-000000000403',
+                    'Fictional enrolled factor','totp','verified',now(),now());
+          SET LOCAL ROLE authenticated;
+          SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000403","role":"authenticated","aal":"aal1","email":"assessment-patient@example.invalid"}',true);
+          DO $$ BEGIN
+            IF EXISTS(SELECT 1 FROM public.connected_assignment_responses WHERE assignment_id='00000000-0000-4000-8000-000000000405')
+              OR EXISTS(SELECT 1 FROM public.connected_assignment_response_versions WHERE assignment_id='00000000-0000-4000-8000-000000000405')
+              THEN RAISE EXCEPTION 'Enrolled patient at AAL1 read protected response/history'; END IF;
+            BEGIN
+              PERFORM public.save_connected_assignment('00000000-0000-4000-8000-000000000405',1,'{"fixture-q1":0}',0,false,true);
+              RAISE EXCEPTION 'Enrolled patient at AAL1 saved protected response';
+            EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+          END $$;
+          SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000403","role":"authenticated","aal":"aal2","email":"assessment-patient@example.invalid"}',true);
+          DO $$
+          DECLARE a constant uuid := '00000000-0000-4000-8000-000000000405'; rev integer;
+          BEGIN
+            IF NOT EXISTS(SELECT 1 FROM public.connected_assignment_responses WHERE assignment_id=a AND revision=1 AND answers='{"fixture-q1":1}'::jsonb)
+              THEN RAISE EXCEPTION 'MFA step-up did not recover unchanged draft'; END IF;
+            BEGIN
+              PERFORM public.save_connected_assignment(a,0,'{"fixture-q1":0}',0,false,true);
+              RAISE EXCEPTION 'Stale revision accepted';
+            EXCEPTION WHEN serialization_failure THEN NULL; END;
+            BEGIN
+              PERFORM public.save_connected_assignment(a,1,'{"fixture-q1":1}',0,true,true);
+              RAISE EXCEPTION 'Incomplete submission accepted';
+            EXCEPTION WHEN raise_exception THEN
+              IF SQLERRM NOT LIKE '%Answer every question%' THEN RAISE; END IF;
+            END;
+            SELECT public.save_connected_assignment(a,1,'{"fixture-q1":1,"fixture-q2":"B"}',0,true,true) INTO rev;
+            IF rev<>2 OR NOT EXISTS(SELECT 1 FROM public.connected_assignment_responses
+              WHERE assignment_id=a AND status='submitted' AND revision=2 AND answered_count=2
+              AND submitted_at IS NOT NULL AND answers='{"fixture-q1":1,"fixture-q2":"B"}'::jsonb)
+              THEN RAISE EXCEPTION 'Submitted response or immutable receipt missing'; END IF;
+            BEGIN
+              PERFORM public.save_connected_assignment(a,2,'{"fixture-q1":0,"fixture-q2":"A"}',0,true,true);
+              RAISE EXCEPTION 'Submitted response changed';
+            EXCEPTION WHEN raise_exception THEN
+              IF SQLERRM NOT LIKE '%cannot be changed%' THEN RAISE; END IF;
+            END;
+          END $$;
+          SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000402","role":"authenticated","aal":"aal2","email":"assessment-other-admin@example.invalid"}',true);
+          DO $$ BEGIN
+            IF EXISTS(SELECT 1 FROM public.connected_assignment_responses WHERE assignment_id='00000000-0000-4000-8000-000000000405')
+              OR EXISTS(SELECT 1 FROM public.connected_assignment_response_versions WHERE assignment_id='00000000-0000-4000-8000-000000000405')
+              THEN RAISE EXCEPTION 'Unassigned administrator read response/history'; END IF;
+          END $$;
+          SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000401","role":"authenticated","aal":"aal2","email":"assessment-admin@example.invalid"}',true);
+          DO $$ BEGIN
+            IF NOT EXISTS(SELECT 1 FROM public.connected_assignment_responses WHERE assignment_id='00000000-0000-4000-8000-000000000405' AND status='submitted' AND revision=2)
+              OR (SELECT count(*) FROM public.connected_assignment_response_versions WHERE assignment_id='00000000-0000-4000-8000-000000000405')<>2
+              THEN RAISE EXCEPTION 'Assigning clinician cannot retrieve submitted response/history'; END IF;
+          END $$;
+          ROLLBACK;
+          SQL
+          echo 'Real local connected assessment response/RLS checks passed; fictional items, synthetic provider receipt and simulated claims, not actual email, sign-in or scored clinical report.'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Install isolated Chromium acceptance driver
+        shell: bash
+        run: |
+          set -euo pipefail
+          browser_dir="$(mktemp -d)"
+          npm install --prefix "$browser_dir" --no-audit --no-fund --no-package-lock playwright@1.56.1
+          "$browser_dir/node_modules/.bin/playwright" install --with-deps chromium
+          printf 'EMR_BROWSER_MODULE=%s\n' "$browser_dir/node_modules/playwright/index.mjs" >> "$GITHUB_ENV"
+      - name: Exercise real password sessions and TOTP through local Auth and BPS HTTP
+        shell: bash
+        run: |
+          set -euo pipefail
+          unset SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD DATABASE_URL OMNICORE_SITE_ID OMNICORE_INGEST_KEY VERCEL_ENV VERCEL_URL
+          test -n "$EMR_LOCAL_SANDBOX"
+          cd "$EMR_LOCAL_SANDBOX"
+          # Start real Auth and REST on the same disposable local schema.
+          # Never link a project, use a remote URL, or import production users.
+          supabase stop
+          # CLI defaults disable TOTP. Enable it only in the disposable runner
+          # configuration, leaving production and hosted Auth untouched.
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          import tomllib
+          path = Path("supabase/config.toml")
+          config = path.read_text()
+          section = re.compile(r"(?ms)^\[auth\.mfa\.totp\][ \t]*\n.*?(?=^\[|\Z)")
+          replacement = "[auth.mfa.totp]\nenroll_enabled = true\nverify_enabled = true\n\n"
+          if section.search(config):
+              config = section.sub(lambda _: replacement, config, count=1)
+          else:
+              config += "\n" + replacement
+          parsed = tomllib.loads(config)
+          assert parsed["auth"]["mfa"]["totp"]["enroll_enabled"] is True
+          assert parsed["auth"]["mfa"]["totp"]["verify_enabled"] is True
+          path.write_text(config)
+          PY
+          supabase start >/dev/null
+          supabase status -o env > local-status.env
+          set -a
+          source local-status.env
+          set +a
+          test "$API_URL" = "http://127.0.0.1:54321"
+          test -n "$ANON_KEY"
+          test -n "$SERVICE_ROLE_KEY"
+          export NEXT_PUBLIC_SUPABASE_URL="$API_URL"
+          export NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="$ANON_KEY"
+          cd "$GITHUB_WORKSPACE"
+          node scripts/emr-local-browser-acceptance.mjs

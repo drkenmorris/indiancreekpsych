@@ -24,3 +24,19 @@ test('resend only reopens expired incomplete assignments and remove preserves th
  expect((await POST(request({action:'remove',id}))).status).toBe(200);
  expect(updates[1]).toEqual({invitation_removed_at:expect.any(String)});
 });
+
+// The admin assignment list and error receipts must never use shared caching.
+test('admin assignment API applies private no-store to successful and rejected GET and POST receipts',async()=>{
+ const url='https://www.indiancreekpsych.com/api/admin/test-assignments';
+ const check=(response:Response,status:number)=>{
+  expect(response.status).toBe(status);
+  expect(response.headers.get('cache-control')).toBe('private, no-store');
+ };
+ check(await GET(new NextRequest(url)),200);
+ check(await GET(new NextRequest(url+'?patient=invalid')),400);
+ check(await POST(request({action:'unsupported'})),400);
+ aal='aal1';
+ check(await GET(new NextRequest(url)),403);
+ check(await POST(request({action:'send',id})),403);
+ expect(mock.send).not.toHaveBeenCalled();
+});
